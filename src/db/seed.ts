@@ -1,0 +1,73 @@
+import { eq } from 'drizzle-orm';
+
+import catalogue from '@data/exercises.json';
+import { exerciseCatalogueSchema } from '@data/exercises.schema';
+import { BANDS } from '@/domain/inventory';
+
+import { db } from './client';
+import { bands, exercises } from './schema';
+
+/**
+ * Loads the bundled catalogue into SQLite.
+ *
+ * Exercises are upserted by id and gated on `version`, so editing
+ * data/exercises.json and bumping the version updates an installed app
+ * without writing a migration. Rows are never deleted — set logs point at
+ * them — so an exercise dropped from the JSON is marked archived instead.
+ */
+export async function seedDatabase(): Promise<void> {
+  const parsed = exerciseCatalogueSchema.parse(catalogue);
+
+  const existing = await db
+    .select({ id: exercises.id, dataVersion: exercises.dataVersion })
+    .from(exercises);
+  const byId = new Map(existing.map((row) => [row.id, row.dataVersion]));
+
+  for (const exercise of parsed.exercises) {
+    const currentVersion = byId.get(exercise.id);
+
+    if (currentVersion === undefined) {
+      await db.insert(exercises).values({
+        id: exercise.id,
+        name: exercise.name,
+        data: exercise,
+        dataVersion: parsed.version,
+      });
+    } else if (currentVersion < parsed.version) {
+      await db
+        .update(exercises)
+        .set({ name: exercise.name, data: exercise, dataVersion: parsed.version })
+        .where(eq(exercises.id, exercise.id));
+    }
+  }
+
+  const shipped = new Set(parsed.exercises.map((e) => e.id));
+  for (const row of existing) {
+    if (!shipped.has(row.id)) {
+      const [stored] = await db.select().from(exercises).where(eq(exercises.id, row.id)).limit(1);
+      if (stored && !stored.data.archived) {
+        await db
+          .update(exercises)
+          .set({ data: { ...stored.data, archived: true } })
+          .where(eq(exercises.id, row.id));
+      }
+    }
+  }
+
+  // Bands are fixed hardware; only insert the ones not present yet so a
+  // user's calibration is never overwritten.
+  const existingBands = await db.select({ id: bands.id }).from(bands);
+  const knownBands = new Set(existingBands.map((b) => b.id));
+
+  for (const band of BANDS) {
+    if (!knownBands.has(band.id)) {
+      await db.insert(bands).values({
+        id: band.id,
+        label: band.label,
+        nominalMinKg: band.nominalMinKg,
+        nominalMaxKg: band.nominalMaxKg,
+        calibration: null,
+      });
+    }
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "exercises": [
+    {
+      "id": "goblet-squat",
+      "name": "Przysiad goblet",
+      "movementPattern": "Squat",
+      "planesOfMotion": ["Sagittal"],
+      "isClosedKineticChain": true,
+      "stanceMechanics": "Bilateral",
+      "forceProfile": "ConcentricEccentric",
+      "loadsKnee": true,
+      "provokesValgusVarus": false,
+      "highAnteriorTibialShear": false,
+      "primaryMuscles": ["quads", "glutes"],
+      "secondaryMuscles": ["core"],
+      "equipment": ["dumbbell"],
+      "dumbbellMode": "single",
+      "bandSuitability": "excellent",
+      "substituteIds": ["band-squat"],
+      "media": null,
+      "cues": [
+        "Hantel pionowo przy klatce, łokcie pod nim.",
+        "Schodzisz w 3 sekundy, wstajesz płynnie.",
+        "Pięty przez cały czas na podłodze.",
+        "Wdech na dole, wydech przy wstawaniu."
+      ],
+      "kneeCue": "Prawe kolano prowadzone nad drugim palcem stopy — nie pozwól mu uciec na zewnątrz."
+    },
+    {
+      "id": "band-squat",
+      "name": "Przysiad z gumą",
+      "movementPattern": "Squat",
+      "planesOfMotion": ["Sagittal"],
+      "isClosedKineticChain": true,
+      "stanceMechanics": "Bilateral",
+      "forceProfile": "ConcentricEccentric",
+      "loadsKnee": true,
+      "provokesValgusVarus": false,
+      "highAnteriorTibialShear": false,
+      "primaryMuscles": ["quads", "glutes"],
+      "secondaryMuscles": ["core"],
+      "equipment": ["band"],
+      "bandSuitability": "excellent",
+      "substituteIds": ["goblet-squat"],
+      "media": null,
+      "cues": [
+        "Guma pod środkiem stóp, końce na barkach.",
+        "Opór rośnie ku górze — tam gdzie jesteś najsilniejszy.",
+        "Schodzisz wolno, kontrolujesz napięcie gumy.",
+        "Klatka wysoko przez cały ruch."
+      ],
+      "kneeCue": "Kolana szerzej niż stopy w fazie wstawania, bez ucieczki prawego na zewnątrz."
+    },
+    {
+      "id": "db-romanian-deadlift",
+      "name": "Martwy ciąg rumuński z hantlami",
+      "movementPattern": "Hinge",
+      "planesOfMotion": ["Sagittal"],
+      "isClosedKineticChain": true,
+      "stanceMechanics": "Bilateral",
+      "forceProfile": "ConcentricEccentric",
+      "loadsKnee": true,
+      "provokesValgusVarus": false,
+      "highAnteriorTibialShear": false,
+      "primaryMuscles": ["hamstrings", "glutes"],
+      "secondaryMuscles": ["back", "core"],
+      "equipment": ["dumbbell"],
+      "dumbbellMode": "paired",
+      "bandSuitability": "ok",
+      "substituteIds": [],
+      "media": null,
+      "cues": [
+        "Biodra w tył, kolana lekko ugięte i nieruchome.",
+        "Hantle suną blisko ud.",
+        "Schodzisz do odczucia napięcia z tyłu ud, nie niżej.",
+        "Plecy płaskie — bez zaokrąglania."
+      ],
+      "kneeCue": "Kolana zostają miękkie, ale nieruchome — cały ruch pochodzi z bioder."
+    },
+    {
+      "id": "band-row",
+      "name": "Wiosłowanie gumą z kotwicy",
+      "movementPattern": "Pull",
+      "planesOfMotion": ["Sagittal"],
+      "isClosedKineticChain": false,
+      "stanceMechanics": "Bilateral",
+      "forceProfile": "ConcentricEccentric",
+      "loadsKnee": false,
+      "provokesValgusVarus": false,
+      "highAnteriorTibialShear": false,
+      "primaryMuscles": ["back", "lats"],
+      "secondaryMuscles": ["biceps"],
+      "equipment": ["band"],
+      "bandSuitability": "poor",
+      "substituteIds": [],
+      "media": null,
+      "cues": [
+        "Kotwica na wysokości mostka.",
+        "Łopatki najpierw w dół i do siebie, potem łokcie.",
+        "Guma jest najcięższa na końcu — nie szarp, dociągnij.",
+        "Powrót kontrolowany, 3 sekundy."
+      ]
+    },
+    {
+      "id": "lateral-raise",
+      "name": "Wznosy hantli bokiem",
+      "movementPattern": "Isolation",
+      "planesOfMotion": ["Frontal"],
+      "isClosedKineticChain": false,
+      "stanceMechanics": "Bilateral",
+      "forceProfile": "ConcentricEccentric",
+      "loadsKnee": false,
+      "provokesValgusVarus": false,
+      "highAnteriorTibialShear": false,
+      "primaryMuscles": ["shoulders"],
+      "secondaryMuscles": [],
+      "equipment": ["dumbbell"],
+      "dumbbellMode": "paired",
+      "bandSuitability": "ok",
+      "substituteIds": [],
+      "media": null,
+      "cues": [
+        "Lekki zgięty łokieć, kąt stały przez cały ruch.",
+        "Prowadzisz łokciami, nie dłońmi.",
+        "Do wysokości barków, nie wyżej.",
+        "Opuszczasz wolniej niż podnosisz."
+      ]
+    }
+  ]
+}

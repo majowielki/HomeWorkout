@@ -36,6 +36,7 @@ export const pl = {
     title: 'Ćwiczenia',
     empty: 'Baza ćwiczeń jest pusta.',
     countLabel: (n: number) => `${n} ${n === 1 ? 'ćwiczenie' : 'ćwiczeń'} w bazie`,
+    kneeFlag: 'Obciąża kolano — podlega filtrowi bezpieczeństwa',
   },
   common: {
     loading: 'Ładowanie…',

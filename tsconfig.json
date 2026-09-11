@@ -6,14 +6,9 @@
     "paths": {
       "@/*": ["./src/*"],
       "@data/*": ["./data/*"]
-    }
+    },
+    "types": ["jest", "node"]
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "types/**/*.d.ts"],
   "exclude": ["node_modules"]
 }

@@ -8,9 +8,7 @@ export default function TodayScreen() {
       <Text className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
         {pl.today.title}
       </Text>
-      <Text className="text-center text-neutral-500 dark:text-neutral-400">
-        {pl.today.empty}
-      </Text>
+      <Text className="text-center text-neutral-500 dark:text-neutral-400">{pl.today.empty}</Text>
     </View>
   );
 }
