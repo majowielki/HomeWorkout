@@ -7,11 +7,13 @@ import { pl } from '@/strings/pl';
 
 import { db } from './client';
 import migrations from './migrations/migrations';
+import { abandonStaleWorkouts } from './repositories/workouts';
 import { seedDatabase } from './seed';
 
 /**
- * Applies pending migrations, then seeds the bundled catalogue, before
- * rendering anything that touches the database.
+ * Applies pending migrations, seeds the bundled catalogue, and sweeps any
+ * workout left "in_progress" for more than 12 hours — before rendering
+ * anything that touches the database. See SPEC §7.1.
  */
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const { success, error } = useMigrations(db, migrations);
@@ -23,6 +25,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     seedDatabase()
+      .then(() => abandonStaleWorkouts())
       .then(() => {
         if (!cancelled) setSeeded(true);
       })

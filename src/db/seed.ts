@@ -2,11 +2,13 @@ import { eq } from 'drizzle-orm';
 
 import catalogue from '@data/exercises.json';
 import { exerciseCatalogueSchema } from '@data/exercises.schema';
+import templateCatalogue from '@data/templates.json';
+import { templateCatalogueSchema } from '@data/templates.schema';
 import { BANDS } from '@/domain/inventory';
 
 import { db } from './client';
 import { ensureProfile } from './repositories/profile';
-import { bands, exercises } from './schema';
+import { bands, exercises, workoutTemplates } from './schema';
 
 /**
  * Loads the bundled catalogue into SQLite.
@@ -71,6 +73,26 @@ export async function seedDatabase(): Promise<void> {
         nominalMaxKg: band.nominalMaxKg,
         calibration: null,
       });
+    }
+  }
+
+  // Templates upsert the same way as exercises: gated on version, never
+  // deleted (workouts reference them), edits ship by bumping the version.
+  const parsedTemplates = templateCatalogueSchema.parse(templateCatalogue);
+  const existingTemplates = await db.select({ id: workoutTemplates.id }).from(workoutTemplates);
+  const knownTemplates = new Set(existingTemplates.map((t) => t.id));
+
+  for (const [index, template] of parsedTemplates.templates.entries()) {
+    const values = {
+      name: template.name,
+      blocks: template.blocks,
+      sortOrder: template.sortOrder ?? index,
+      warmupMinutes: template.warmupMinutes ?? null,
+    };
+    if (knownTemplates.has(template.id)) {
+      await db.update(workoutTemplates).set(values).where(eq(workoutTemplates.id, template.id));
+    } else {
+      await db.insert(workoutTemplates).values({ id: template.id, ...values });
     }
   }
 }

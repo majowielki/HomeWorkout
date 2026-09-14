@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "fbw-a",
+      "name": "FBW A",
+      "sortOrder": 0,
+      "warmupMinutes": 5,
+      "blocks": [
+        {
+          "label": "A1",
+          "exerciseId": "goblet-squat",
+          "sets": 2,
+          "repMin": 10,
+          "repMax": 20,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 120
+        },
+        {
+          "label": "A2",
+          "exerciseId": "band-row",
+          "sets": 2,
+          "repMin": 10,
+          "repMax": 15,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 90
+        },
+        {
+          "label": "B1",
+          "exerciseId": "db-romanian-deadlift",
+          "sets": 2,
+          "repMin": 10,
+          "repMax": 20,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 120
+        },
+        {
+          "label": "B2",
+          "exerciseId": "db-floor-press",
+          "sets": 2,
+          "repMin": 8,
+          "repMax": 15,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 90
+        },
+        {
+          "label": "C1",
+          "exerciseId": "glute-bridge",
+          "sets": 2,
+          "repMin": 12,
+          "repMax": 20,
+          "targetRirMin": 1,
+          "targetRirMax": 2,
+          "restSec": 60
+        },
+        {
+          "label": "C2",
+          "exerciseId": "plank",
+          "sets": 2,
+          "timeSec": 45,
+          "targetRirMin": 1,
+          "targetRirMax": 2,
+          "restSec": 60
+        }
+      ]
+    },
+    {
+      "id": "fbw-b",
+      "name": "FBW B",
+      "sortOrder": 1,
+      "warmupMinutes": 5,
+      "blocks": [
+        {
+          "label": "A1",
+          "exerciseId": "band-squat",
+          "sets": 2,
+          "repMin": 12,
+          "repMax": 20,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 120
+        },
+        {
+          "label": "A2",
+          "exerciseId": "one-arm-db-row",
+          "sets": 2,
+          "repMin": 8,
+          "repMax": 15,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 90
+        },
+        {
+          "label": "B1",
+          "exerciseId": "band-pull-through",
+          "sets": 2,
+          "repMin": 12,
+          "repMax": 20,
+          "targetRirMin": 2,
+          "targetRirMax": 3,
+          "restSec": 120
+        },
+        {
+          "label": "B2",
+          "exerciseId": "push-up",
+          "sets": 2,
+          "repMin": 8,
+          "repMax": 15,
+          "targetRirMin": 1,
+          "targetRirMax": 2,
+          "restSec": 90
+        },
+        {
+          "label": "C1",
+          "exerciseId": "lateral-raise",
+          "sets": 2,
+          "repMin": 10,
+          "repMax": 15,
+          "targetRirMin": 0,
+          "targetRirMax": 1,
+          "restSec": 60
+        },
+        {
+          "label": "C2",
+          "exerciseId": "dead-bug",
+          "sets": 2,
+          "repMin": 8,
+          "repMax": 12,
+          "targetRirMin": 1,
+          "targetRirMax": 2,
+          "restSec": 45
+        }
+      ]
+    }
+  ]
+}

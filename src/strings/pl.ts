@@ -27,6 +27,57 @@ export const pl = {
   },
   workout: {
     title: 'Trening',
+    resumeBanner: (templateName: string) => `Niedokończona sesja: ${templateName}`,
+    resume: 'Wznów',
+    discard: 'Porzuć',
+    start: 'Rozpocznij',
+    suggested: 'Sugerowane',
+    lastSession: (daysAgo: number) =>
+      daysAgo === 0
+        ? 'Ostatnia sesja: dziś'
+        : daysAgo === 1
+          ? 'Ostatnia sesja: wczoraj'
+          : `Ostatnia sesja: ${daysAgo} dni temu`,
+    noSessionsYet: 'Brak sesji w historii — zacznij od dowolnego szablonu.',
+    quickCardio: 'Szybki log: rower',
+    quickCardioLogged: 'Zapisano jazdę.',
+    session: {
+      setOf: (n: number, total: number) => `seria ${n} / ${total}`,
+      dumbbellSingle: 'Hantel (jeden gryf)',
+      dumbbellPaired: 'Hantle (para)',
+      band: 'Guma',
+      anchorPosition: 'Pozycja',
+      reps: 'Powtórzenia',
+      time: 'Czas',
+      saveSet: 'Zapisz serię',
+      restLabel: 'Przerwa',
+      restExtend: '+30 s',
+      restSkip: 'Pomiń',
+      restNotificationBody: 'Wracaj do treningu — czas na kolejną serię.',
+      upNext: 'Następne',
+      warmupTitle: 'Rozgrzewka',
+      warmupDescription: 'Kilka minut na rowerze przed pierwszą serią.',
+      minutes: 'Minuty',
+      warmupLog: 'Zapisano, zaczynamy',
+      warmupSkip: 'Pomiń rozgrzewkę',
+      substituteTitle: 'Zamień ćwiczenie',
+      noSubstitutes: 'Brak dostępnych zamienników dla Twojego profilu.',
+      progressTitle: 'Postęp sesji',
+      finishEarly: 'Zakończ',
+      notFound: 'Nie znaleziono treningu.',
+    },
+    summary: {
+      title: 'Podsumowanie',
+      duration: (minutes: number) => `${minutes} min`,
+      setsLogged: (n: number) => `${n} ${n === 1 ? 'seria' : 'serii'} zalogowanych`,
+      previousComparison: (daysAgo: number, previousSets: number, currentSets: number) =>
+        `Poprzednia sesja tego szablonu: ${daysAgo} ${daysAgo === 1 ? 'dzień' : 'dni'} temu, ${previousSets} serii (dziś: ${currentSets}).`,
+      noPrevious: 'To pierwsza sesja tego szablonu w historii.',
+      sessionRpe: 'Jak ciężko było całościowo? (RPE)',
+      notes: 'Notatka (opcjonalnie)',
+      notesPlaceholder: 'Coś ważnego z dzisiejszej sesji…',
+      finish: 'Zakończ trening',
+    },
   },
   body: {
     title: 'Ciało',
@@ -151,5 +202,6 @@ export const pl = {
     loading: 'Ładowanie…',
     error: 'Coś poszło nie tak.',
     notFound: 'Nie znaleziono.',
+    cancel: 'Anuluj',
   },
 } as const;

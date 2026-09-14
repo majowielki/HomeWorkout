@@ -43,3 +43,12 @@ export async function getMedicalProfile(): Promise<MedicalProfile> {
     .limit(1);
   return { knee: row?.kneeProfile ?? null };
 }
+
+export async function getDayBoundaryHour(): Promise<number> {
+  const [row] = await db
+    .select({ dayBoundaryHour: userProfile.dayBoundaryHour })
+    .from(userProfile)
+    .where(eq(userProfile.id, PROFILE_ID))
+    .limit(1);
+  return row?.dayBoundaryHour ?? 4;
+}

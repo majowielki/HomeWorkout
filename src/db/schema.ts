@@ -55,6 +55,7 @@ export const workoutTemplates = sqliteTable('workout_templates', {
   name: text('name').notNull(),
   blocks: text('blocks', { mode: 'json' }).$type<TemplateBlock[]>().notNull(),
   sortOrder: integer('sort_order').notNull(),
+  warmupMinutes: integer('warmup_minutes'),
   isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
 });
 

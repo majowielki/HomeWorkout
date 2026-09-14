@@ -1,0 +1,1 @@
+ALTER TABLE `workout_templates` ADD `warmup_minutes` integer;

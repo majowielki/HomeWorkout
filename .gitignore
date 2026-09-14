@@ -42,3 +42,6 @@ yarn-error.*
 
 # test exports
 .expo-export-test/
+
+# test coverage
+coverage/
