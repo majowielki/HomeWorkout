@@ -1,5 +1,3 @@
-/// <reference types="nativewind/types" />
-
 /** NativeWind consumes the stylesheet through Metro; TS only needs it to resolve. */
 declare module '*.css';
 
