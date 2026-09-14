@@ -25,6 +25,9 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Generate typed routes
+        run: npm run routes:types
+
       - name: Typecheck
         run: npm run typecheck
 

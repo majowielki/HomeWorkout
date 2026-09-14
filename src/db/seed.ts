@@ -5,6 +5,7 @@ import { exerciseCatalogueSchema } from '@data/exercises.schema';
 import { BANDS } from '@/domain/inventory';
 
 import { db } from './client';
+import { ensureProfile } from './repositories/profile';
 import { bands, exercises } from './schema';
 
 /**
@@ -16,6 +17,8 @@ import { bands, exercises } from './schema';
  * them — so an exercise dropped from the JSON is marked archived instead.
  */
 export async function seedDatabase(): Promise<void> {
+  await ensureProfile(new Date().toISOString());
+
   const parsed = exerciseCatalogueSchema.parse(catalogue);
 
   const existing = await db

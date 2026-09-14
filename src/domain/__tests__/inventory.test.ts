@@ -68,6 +68,12 @@ describe('rung navigation', () => {
     expect(nextRung(LADDER_SINGLE, 7)).toBe(8);
     expect(previousRung(LADDER_SINGLE, 7)).toBe(6);
   });
+
+  it('clamps an off-ladder weight beyond either end', () => {
+    // e.g. a log imported from a different set of equipment
+    expect(nextRung(LADDER_SINGLE, 99)).toBe(18);
+    expect(previousRung(LADDER_SINGLE, 0.5)).toBe(2);
+  });
 });
 
 describe('calibration ceiling', () => {

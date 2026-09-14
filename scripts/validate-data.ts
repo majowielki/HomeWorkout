@@ -5,7 +5,7 @@
  * per-object schema cannot see — dangling substitutes, duplicate ids and
  * missing media files.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import catalogue from '../data/exercises.json';
@@ -45,8 +45,22 @@ function main(): void {
       }
     }
 
-    if (exercise.media && !existsSync(join(MEDIA_DIR, `${exercise.media}.jpg`))) {
-      errors.push(`${exercise.id}: media file "${exercise.media}.jpg" is missing`);
+    if (exercise.media && !existsSync(join(MEDIA_DIR, `${exercise.media}-0.jpg`))) {
+      errors.push(
+        `${exercise.id}: media frame "${exercise.media}-0.jpg" is missing — run npm run media:import`,
+      );
+    }
+  }
+
+  // Every media key must correspond to a real exercise, or the require()
+  // map in src/assets/exercise-media.ts would ship orphaned images.
+  const mediaSources = JSON.parse(
+    readFileSync(join(__dirname, '..', 'data', 'media-sources.json'), 'utf8'),
+  ) as Record<string, string>;
+  for (const key of Object.keys(mediaSources)) {
+    if (key.startsWith('_')) continue;
+    if (!ids.has(key)) {
+      errors.push(`media-sources.json: "${key}" does not match any exercise id`);
     }
   }
 

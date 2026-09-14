@@ -7,7 +7,16 @@
  */
 
 export type MovementPattern =
-  'Squat' | 'Hinge' | 'Lunge' | 'Push' | 'Pull' | 'Carry' | 'Isolation' | 'Core';
+  | 'Squat'
+  | 'Hinge'
+  | 'Lunge'
+  | 'Push'
+  | 'Pull'
+  | 'Carry'
+  | 'Isolation'
+  | 'Core'
+  | 'Cardio'
+  | 'Mobility';
 
 export type Plane = 'Sagittal' | 'Frontal' | 'Transverse';
 

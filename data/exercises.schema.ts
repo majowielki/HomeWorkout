@@ -38,6 +38,8 @@ export const exerciseSchema = z
       'Carry',
       'Isolation',
       'Core',
+      'Cardio',
+      'Mobility',
     ]),
     planesOfMotion: z.array(z.enum(['Sagittal', 'Frontal', 'Transverse'])).min(1),
     isClosedKineticChain: z.boolean(),

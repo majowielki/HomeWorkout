@@ -6,3 +6,4 @@ dist
 src/db/migrations
 package-lock.json
 Documents
+src/assets/exercise-media.ts

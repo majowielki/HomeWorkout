@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1789394058198" clover="3.2.0">
+  <project timestamp="1789394058198" name="All files">
+    <metrics statements="54" coveredstatements="54" conditionals="53" coveredconditionals="53" methods="17" coveredmethods="17" elements="124" coveredelements="124" complexity="0" loc="54" ncloc="54" packages="3" files="4" classes="4"/>
+    <package name="domain">
+      <metrics statements="26" coveredstatements="26" conditionals="11" coveredconditionals="11" methods="11" coveredmethods="11"/>
+      <file name="inventory.ts" path="C:\Repos\HomeWorkout\src\domain\inventory.ts">
+        <metrics statements="26" coveredstatements="26" conditionals="11" coveredconditionals="11" methods="11" coveredmethods="11"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="41" count="1" type="stmt"/>
+        <line num="57" count="3" type="stmt"/>
+        <line num="59" count="3" type="stmt"/>
+        <line num="60" count="5" type="stmt"/>
+        <line num="61" count="5" type="stmt"/>
+        <line num="62" count="11" type="stmt"/>
+        <line num="64" count="32" type="stmt"/>
+        <line num="67" count="5" type="stmt"/>
+        <line num="70" count="27" type="stmt"/>
+        <line num="75" count="7" type="stmt"/>
+        <line num="90" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="91" count="3" type="stmt"/>
+        <line num="92" count="17" type="stmt"/>
+        <line num="95" count="1" type="stmt"/>
+        <line num="96" count="1" type="stmt"/>
+        <line num="99" count="1" type="stmt"/>
+        <line num="103" count="4" type="stmt"/>
+        <line num="104" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="105" count="13" type="cond" truecount="2" falsecount="0"/>
+        <line num="107" count="2" type="stmt"/>
+        <line num="112" count="4" type="stmt"/>
+        <line num="113" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="114" count="16" type="cond" truecount="2" falsecount="0"/>
+        <line num="116" count="2" type="stmt"/>
+        <line num="120" count="2" type="stmt"/>
+      </file>
+      <file name="types.ts" path="C:\Repos\HomeWorkout\src\domain\types.ts">
+        <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      </file>
+    </package>
+    <package name="domain.exercises">
+      <metrics statements="17" coveredstatements="17" conditionals="31" coveredconditionals="31" methods="2" coveredmethods="2"/>
+      <file name="screen.ts" path="C:\Repos\HomeWorkout\src\domain\exercises\screen.ts">
+        <metrics statements="17" coveredstatements="17" conditionals="31" coveredconditionals="31" methods="2" coveredmethods="2"/>
+        <line num="29" count="357" type="stmt"/>
+        <line num="30" count="357" type="cond" truecount="2" falsecount="0"/>
+        <line num="31" count="356" type="cond" truecount="2" falsecount="0"/>
+        <line num="33" count="125" type="stmt"/>
+        <line num="35" count="125" type="cond" truecount="4" falsecount="0"/>
+        <line num="36" count="124" type="cond" truecount="2" falsecount="0"/>
+        <line num="37" count="124" type="cond" truecount="2" falsecount="0"/>
+        <line num="38" count="124" type="cond" truecount="2" falsecount="0"/>
+        <line num="39" count="124" type="cond" truecount="2" falsecount="0"/>
+        <line num="40" count="9" type="stmt"/>
+        <line num="44" count="125" type="cond" truecount="2" falsecount="0"/>
+        <line num="48" count="125" type="cond" truecount="5" falsecount="0"/>
+        <line num="49" count="6" type="stmt"/>
+        <line num="54" count="125" type="cond" truecount="2" falsecount="0"/>
+        <line num="62" count="22" type="stmt"/>
+        <line num="65" count="125" type="stmt"/>
+        <line num="69" count="5" type="stmt"/>
+      </file>
+    </package>
+    <package name="domain.time">
+      <metrics statements="11" coveredstatements="11" conditionals="11" coveredconditionals="11" methods="4" coveredmethods="4"/>
+      <file name="trainingDate.ts" path="C:\Repos\HomeWorkout\src\domain\time\trainingDate.ts">
+        <metrics statements="11" coveredstatements="11" conditionals="11" coveredconditionals="11" methods="4" coveredmethods="4"/>
+        <line num="10" count="1" type="stmt"/>
+        <line num="13" count="12" type="cond" truecount="2" falsecount="0"/>
+        <line num="18" count="6" type="stmt"/>
+        <line num="23" count="7" type="cond" truecount="5" falsecount="0"/>
+        <line num="24" count="2" type="stmt"/>
+        <line num="26" count="5" type="stmt"/>
+        <line num="31" count="5" type="stmt"/>
+        <line num="32" count="5" type="stmt"/>
+        <line num="33" count="5" type="cond" truecount="4" falsecount="0"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="36" count="4" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>
