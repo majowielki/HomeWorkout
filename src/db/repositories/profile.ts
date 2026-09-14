@@ -2,10 +2,14 @@ import { eq } from 'drizzle-orm';
 
 import type { MedicalProfile } from '@/domain/types';
 
-import { db } from '../client';
+import { db, type Database } from '../client';
 import { userProfile } from '../schema';
 
-const PROFILE_ID = 1;
+/** Single-user app: the one and only profile row. */
+export const PROFILE_ID = 1;
+
+/** Either the db itself or a transaction handle — both expose the same query API. */
+type Executor = Database | Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
  * Profile row seeded on first launch. The knee condition is this user's
@@ -13,15 +17,15 @@ const PROFILE_ID = 1;
  * conservative (bilateral-only) mode until a physiotherapist has reviewed
  * the exercise list. See Documents/PLAN.md §1.4.
  */
-export async function ensureProfile(now: string): Promise<void> {
-  const [existing] = await db
+export async function ensureProfile(now: string, executor: Executor = db): Promise<void> {
+  const [existing] = await executor
     .select({ id: userProfile.id })
     .from(userProfile)
     .where(eq(userProfile.id, PROFILE_ID))
     .limit(1);
   if (existing) return;
 
-  await db.insert(userProfile).values({
+  await executor.insert(userProfile).values({
     id: PROFILE_ID,
     dayBoundaryHour: 4,
     kneeProfile: {

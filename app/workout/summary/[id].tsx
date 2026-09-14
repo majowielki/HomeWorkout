@@ -1,30 +1,33 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { countWorkingSets } from '@/db/repositories/setLogs';
-import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
 import { getTemplate } from '@/db/repositories/templates';
+import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
 import { daysBetween } from '@/domain/time/trainingDate';
 import { pl } from '@/strings/pl';
 
 const RPE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
-type State = {
+type Loaded = {
   templateName: string;
   currentSets: number;
   comparison: { daysAgo: number; previousSets: number } | null;
 };
 
+type State = { kind: 'loading' } | { kind: 'notFound' } | { kind: 'ready'; data: Loaded };
+
 export default function SessionSummaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  const [state, setState] = useState<State | null>(null);
+  const [state, setState] = useState<State>({ kind: 'loading' });
   const [rpe, setRpe] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -34,22 +37,23 @@ export default function SessionSummaryScreen() {
 
     async function run() {
       const workout = await getWorkout(id);
-      if (!workout || !workout.templateId) return;
-      const template = await getTemplate(workout.templateId);
-      const currentSets = await countWorkingSets(id);
-
-      let comparison: State['comparison'] = null;
-      const previous = await findPreviousCompleted(workout.templateId, id);
-      if (previous) {
-        const previousSets = await countWorkingSets(previous.id);
-        comparison = {
-          daysAgo: daysBetween(previous.trainingDate, workout.trainingDate),
-          previousSets,
-        };
+      const template = workout?.templateId ? await getTemplate(workout.templateId) : null;
+      if (!workout || !template) {
+        if (!cancelled) setState({ kind: 'notFound' });
+        return;
       }
 
+      const currentSets = await countWorkingSets(id);
+      const previous = await findPreviousCompleted(template.id, id);
+      const comparison = previous
+        ? {
+            daysAgo: daysBetween(previous.trainingDate, workout.trainingDate),
+            previousSets: await countWorkingSets(previous.id),
+          }
+        : null;
+
       if (!cancelled) {
-        setState({ templateName: template?.name ?? '', currentSets, comparison });
+        setState({ kind: 'ready', data: { templateName: template.name, currentSets, comparison } });
       }
     }
 
@@ -60,13 +64,14 @@ export default function SessionSummaryScreen() {
   }, [id]);
 
   async function handleFinish() {
+    if (saving) return;
     setSaving(true);
     await completeWorkout(id, rpe, notes.trim().length > 0 ? notes.trim() : null);
     setSaving(false);
     router.replace('/(tabs)/workout');
   }
 
-  if (!state) {
+  if (state.kind === 'loading') {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator />
@@ -74,20 +79,31 @@ export default function SessionSummaryScreen() {
     );
   }
 
+  if (state.kind === 'notFound') {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <Stack.Screen options={{ title: '' }} />
+        <Text variant="muted">{pl.workout.session.notFound}</Text>
+      </View>
+    );
+  }
+
+  const { templateName, currentSets, comparison } = state.data;
+
   return (
     <View className="flex-1 gap-4 bg-background p-4">
       <Stack.Screen options={{ title: pl.workout.summary.title }} />
 
       <Card>
-        <CardTitle>{state.templateName}</CardTitle>
-        <CardDescription>{pl.workout.summary.setsLogged(state.currentSets)}</CardDescription>
+        <CardTitle>{templateName}</CardTitle>
+        <CardDescription>{pl.workout.summary.setsLogged(currentSets)}</CardDescription>
         <CardContent>
           <Text variant="muted">
-            {state.comparison
+            {comparison
               ? pl.workout.summary.previousComparison(
-                  state.comparison.daysAgo,
-                  state.comparison.previousSets,
-                  state.currentSets,
+                  comparison.daysAgo,
+                  comparison.previousSets,
+                  currentSets,
                 )
               : pl.workout.summary.noPrevious}
           </Text>
@@ -110,14 +126,14 @@ export default function SessionSummaryScreen() {
 
       <View className="gap-2">
         <Text variant="muted">{pl.workout.summary.notes}</Text>
-        <TextInput
+        <Input
           value={notes}
           onChangeText={setNotes}
           placeholder={pl.workout.summary.notesPlaceholder}
-          placeholderTextColor="hsl(240 4% 46%)"
           multiline
           numberOfLines={3}
-          className="min-h-[80px] rounded-xl border border-input bg-background p-3 text-base text-foreground"
+          textAlignVertical="top"
+          className="h-auto min-h-[80px] py-3"
         />
       </View>
 

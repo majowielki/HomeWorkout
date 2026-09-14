@@ -1,10 +1,10 @@
-# SPEC: Silnik reguł (`packages/domain`)
+# SPEC: Silnik reguł (`src/domain`)
 
 > Specyfikacja implementacyjna. Dokument nadrzędny: [PLAN.md](PLAN.md).
 > Wszystkie wartości liczbowe pochodzą z deep researchów w `Documents/Gemini deep research docs/`
 > i są **parametrami konfiguracyjnymi**, nie stałymi w kodzie — patrz §1.3.
 >
-> Wersja 1. Data: 2026-09-10.
+> Wersja 1.1. Data: 2026-09-14 (v1: 2026-09-10). Sekcje §2, §3 i §5.0 są zaimplementowane w `src/domain`; kod jest źródłem prawdy, ten dokument opisuje intencję.
 
 ---
 
@@ -12,7 +12,7 @@
 
 ### 1.1 Czystość
 
-`packages/domain` nie importuje `react`, `expo`, ani niczego z warstwy bazy danych. Wejście to zwykłe
+`src/domain` nie importuje `react`, `expo`, ani niczego z warstwy bazy danych. Wejście to zwykłe
 obiekty, wyjście to zwykłe obiekty. Żadnych efektów ubocznych, żadnego `Date.now()` wewnątrz funkcji —
 czas podajemy jako argument. Dzięki temu każda reguła jest testowalna bez mocków.
 
@@ -42,7 +42,7 @@ zgadywać intencje.
 ### 1.3 Konfiguracja osobno od logiki
 
 ```
-/packages/domain/config/training.ts
+/src/domain/config/training.ts
 ```
 
 Wszystkie liczby z badań (MEV, zakresy RIR, progi deloadu, kroki progresji) siedzą tutaj. Powód
@@ -55,7 +55,8 @@ pochodzą z raportu LLM o różnej jakości źródeł i będą wymagały strojen
 
 ```ts
 export type MovementPattern =
-  | 'Squat' | 'Hinge' | 'Lunge' | 'Push' | 'Pull' | 'Carry' | 'Isolation' | 'Core';
+  | 'Squat' | 'Hinge' | 'Lunge' | 'Push' | 'Pull' | 'Carry' | 'Isolation' | 'Core'
+  | 'Cardio' | 'Mobility'; // rower i rozciąganie muszą być w katalogu — patrz IMPLEMENTACJA §0.2
 
 export type Plane = 'Sagittal' | 'Frontal' | 'Transverse';
 
@@ -87,12 +88,14 @@ export interface Exercise {
   primaryMuscles: MuscleGroup[];
   secondaryMuscles: MuscleGroup[];
   equipment: Equipment[];
+  dumbbellMode?: 'paired' | 'single';   // która drabinka z §5.0
   bandSuitability: 'excellent' | 'ok' | 'poor';
   substituteIds: string[];
 
   // prezentacja
-  mediaRef: string | null;
+  media: string | null;                 // klucz do src/assets/exercise-media.ts
   cues: string[];
+  kneeCue?: string;                     // obowiązkowy gdy loadsKnee
 }
 ```
 
@@ -124,6 +127,7 @@ export type ExclusionCode =
   | 'KNEE_TRANSVERSE_PLANE'
   | 'KNEE_VALGUS_VARUS'
   | 'KNEE_UNILATERAL_UNSUPPORTED'
+  | 'KNEE_UNILATERAL_PENDING_PHYSIO' // tryb konserwatywny, §3.3
   | 'KNEE_PLYOMETRIC'
   | 'KNEE_OPEN_CHAIN_QUAD';
 
@@ -160,11 +164,14 @@ export const isAllowed = (ex: Exercise, p: MedicalProfile) => screenExercise(ex,
 
 ### 3.3 Tryb konserwatywny
 
-Dopóki `physioApproved === false`, silnik dodatkowo zawęża pulę:
+Dopóki `physioApproved === false`, silnik dodatkowo zawęża pulę. Kod używa **osobnego** kodu wykluczenia,
+żeby UI mogło odróżnić „na stałe" od „po akceptacji fizjoterapeuty":
 
 ```ts
-if (!knee.physioApproved && ex.loadsKnee && ex.stanceMechanics !== 'Bilateral') {
-  out.push('KNEE_UNILATERAL_UNSUPPORTED'); // traktujemy każdy jednonóż jak niedopuszczony
+// stance inne niż Bilateral / Seated / Supine / Prone, o ile nie jest już
+// wykluczone jako UnilateralUnsupported
+if (!knee.physioApproved && isUnilateral(ex.stanceMechanics) && !out.includes('KNEE_UNILATERAL_UNSUPPORTED')) {
+  out.push('KNEE_UNILATERAL_PENDING_PHYSIO');
 }
 ```
 

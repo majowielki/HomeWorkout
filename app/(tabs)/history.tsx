@@ -1,13 +1,12 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';
 
 export default function HistoryScreen() {
   return (
-    <View className="flex-1 items-center justify-center bg-white p-6 dark:bg-neutral-950">
-      <Text className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-        {pl.history.title}
-      </Text>
+    <View className="flex-1 items-center justify-center bg-background p-6">
+      <Text variant="title">{pl.history.title}</Text>
     </View>
   );
 }

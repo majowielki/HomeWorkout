@@ -3,15 +3,16 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
-import { Check } from 'lucide-react-native';
 import { forwardRef, useCallback, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { Check } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { SessionStep } from '@/domain/session/steps';
 import { stepKey } from '@/domain/session/steps';
 import type { Exercise } from '@/domain/types';
 import { cn } from '@/lib/cn';
+import { useThemeColors } from '@/lib/theme';
 import { pl } from '@/strings/pl';
 
 type Props = {
@@ -33,6 +34,7 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
   { steps, currentIndex, loggedKeys, exerciseMap, onJump },
   ref,
 ) {
+  const colors = useThemeColors();
   const snapPoints = useMemo(() => ['65%'], []);
 
   const renderBackdrop = useCallback(
@@ -50,9 +52,11 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
       enableDynamicSizing={false}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: 'hsl(0 0% 100%)' }}
+      // gorhom takes raw style objects, not classes — hence the JS palette.
+      backgroundStyle={{ backgroundColor: colors.card }}
+      handleIndicatorStyle={{ backgroundColor: colors.mutedForeground }}
     >
-      <BottomSheetScrollView className="flex-1 px-4 pb-6">
+      <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
         <Text variant="heading" className="mb-3">
           {pl.workout.session.progressTitle}
         </Text>
@@ -64,7 +68,7 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
 
           return (
             <Pressable
-              key={`${key}-${index}`}
+              key={key}
               disabled={done}
               onPress={() => onJump(index)}
               className={cn(
@@ -78,7 +82,7 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
                   done ? 'border-success bg-success' : 'border-border',
                 )}
               >
-                {done ? <Check size={14} color="white" /> : null}
+                {done ? <Check size={14} className="text-white" /> : null}
               </View>
               <Text className={cn('flex-1', done && 'text-muted-foreground line-through')}>
                 {step.block.label} · {exercise?.name ?? step.block.exerciseId} · #{step.setNumber}

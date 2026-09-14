@@ -58,21 +58,43 @@ export function buildSessionSteps(blocks: readonly TemplateBlock[]): SessionStep
 }
 
 /**
- * Where to resume: the index of the first step with no matching log.
+ * The identity of a step inside one workout. Written verbatim into
+ * set_logs (exercise_order, set_index) at save time and read back to
+ * reconstruct progress — keep every producer and consumer on this one
+ * function so the two sides cannot drift apart.
+ */
+export function stepKey(blockIndex: number, setNumber: number): string {
+  return `${blockIndex}:${setNumber}`;
+}
+
+/**
+ * Index of the first not-yet-logged step at or after `from`, or null when
+ * everything from that point on is done.
  *
- * A step is "logged" when a set_logs row exists with the same
- * (exerciseOrder, setIndex) pair — those two columns are written verbatim
- * from `blockIndex` and `setNumber` at save time, so this reconstructs
- * progress from the database alone after an app restart. See SPEC §7.1.
+ * Used both to pick the resume point after an app restart (from = 0) and
+ * to advance after a set — the latter matters when the user has jumped
+ * around via the progress sheet: naively doing `index + 1` could land on a
+ * step that already has a log and produce a duplicate row.
+ */
+export function nextUnloggedIndex(
+  steps: readonly SessionStep[],
+  loggedPairs: ReadonlySet<string>,
+  from = 0,
+): number | null {
+  for (let i = Math.max(0, from); i < steps.length; i += 1) {
+    const s = steps[i]!;
+    if (!loggedPairs.has(stepKey(s.blockIndex, s.setNumber))) return i;
+  }
+  return null;
+}
+
+/**
+ * Where to resume after a restart: the first unlogged step, or
+ * `steps.length` when the session is fully logged. See SPEC §7.1.
  */
 export function findResumeIndex(
   steps: readonly SessionStep[],
   loggedPairs: ReadonlySet<string>,
 ): number {
-  const i = steps.findIndex((s) => !loggedPairs.has(`${s.blockIndex}:${s.setNumber}`));
-  return i === -1 ? steps.length : i;
-}
-
-export function stepKey(blockIndex: number, setNumber: number): string {
-  return `${blockIndex}:${setNumber}`;
+  return nextUnloggedIndex(steps, loggedPairs, 0) ?? steps.length;
 }

@@ -30,6 +30,10 @@ export const pl = {
     resumeBanner: (templateName: string) => `Niedokończona sesja: ${templateName}`,
     resume: 'Wznów',
     discard: 'Porzuć',
+    discardConfirmTitle: 'Porzucić sesję?',
+    discardConfirmBody:
+      'Zalogowane serie zostaną w historii jako sesja porzucona. Nie da się jej potem wznowić.',
+    blockCount: (n: number) => `${n} ${n === 1 ? 'blok' : n >= 2 && n <= 4 ? 'bloki' : 'bloków'}`,
     start: 'Rozpocznij',
     suggested: 'Sugerowane',
     lastSession: (daysAgo: number) =>
@@ -40,7 +44,6 @@ export const pl = {
           : `Ostatnia sesja: ${daysAgo} dni temu`,
     noSessionsYet: 'Brak sesji w historii — zacznij od dowolnego szablonu.',
     quickCardio: 'Szybki log: rower',
-    quickCardioLogged: 'Zapisano jazdę.',
     session: {
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
       dumbbellSingle: 'Hantel (jeden gryf)',
@@ -68,7 +71,6 @@ export const pl = {
     },
     summary: {
       title: 'Podsumowanie',
-      duration: (minutes: number) => `${minutes} min`,
       setsLogged: (n: number) => `${n} ${n === 1 ? 'seria' : 'serii'} zalogowanych`,
       previousComparison: (daysAgo: number, previousSets: number, currentSets: number) =>
         `Poprzednia sesja tego szablonu: ${daysAgo} ${daysAgo === 1 ? 'dzień' : 'dni'} temu, ${previousSets} serii (dziś: ${currentSets}).`,

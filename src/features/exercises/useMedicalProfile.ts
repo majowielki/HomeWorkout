@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { useMemo } from 'react';
 
 import { db } from '@/db/client';
+import { PROFILE_ID } from '@/db/repositories/profile';
 import { userProfile } from '@/db/schema';
 import type { MedicalProfile } from '@/domain/types';
 
@@ -12,7 +13,7 @@ export function useMedicalProfile(): MedicalProfile {
     db
       .select({ kneeProfile: userProfile.kneeProfile })
       .from(userProfile)
-      .where(eq(userProfile.id, 1)),
+      .where(eq(userProfile.id, PROFILE_ID)),
   );
   return useMemo(() => ({ knee: data?.[0]?.kneeProfile ?? null }), [data]);
 }

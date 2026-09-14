@@ -1,8 +1,7 @@
 import { Pressable } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
-
-import { Text } from './text';
 
 type ChipProps = {
   label: string;

@@ -6,7 +6,6 @@
     "@gorhom/bottom-sheet": "^5.2.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "expo": "~57.0.21",
     "expo-constants": "~57.0.17",
@@ -50,8 +49,7 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^3.4.19",
     "ts-node": "^10.9.2",
-    "typescript": "~6.0.3",
-    "typescript-eslint": "^8.70.0"
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
@@ -66,7 +64,7 @@
     "test:coverage": "jest --coverage",
     "validate:data": "ts-node --project tsconfig.scripts.json scripts/validate-data.ts",
     "db:generate": "drizzle-kit generate",
-    "verify": "npm run lint && npm run routes:types && npm run typecheck && npm run validate:data && npm test",
+    "verify": "npm run lint && npm run format:check && npm run routes:types && npm run typecheck && npm run validate:data && npm run test:coverage",
     "media:import": "ts-node --project tsconfig.scripts.json scripts/import-media.ts",
     "routes:types": "expo customize tsconfig.json"
   },

@@ -1,6 +1,7 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import type {
+  AnchorPosition,
   BandCalibration,
   DumbbellMode,
   Exercise,
@@ -96,7 +97,7 @@ export const setLogs = sqliteTable(
     weightKg: real('weight_kg'),
     dumbbellMode: text('dumbbell_mode', { enum: ['paired', 'single'] }).$type<DumbbellMode>(),
     bandId: text('band_id').references(() => bands.id),
-    anchorPosition: integer('anchor_position'),
+    anchorPosition: integer('anchor_position').$type<AnchorPosition>(),
     /** Null whenever the band has no usable calibration — the normal case
      *  for the green band, not an edge case. */
     estimatedLoadKg: real('estimated_load_kg'),

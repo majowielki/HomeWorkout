@@ -27,7 +27,7 @@ export interface PrefillData {
   rir: number | null;
   weightKg: number | null;
   bandId: string | null;
-  anchorPosition: number | null;
+  anchorPosition: AnchorPosition | null;
 }
 
 type Props = {
@@ -110,9 +110,7 @@ function SetLoggerFields({
   const [rir, setRir] = useState(prefill?.rir ?? block.targetRirMin);
   const [weightKg, setWeightKg] = useState(prefill?.weightKg ?? ladder[0]!);
   const [bandId, setBandId] = useState(prefill?.bandId ?? BANDS[0]!.id);
-  const [position, setPosition] = useState<AnchorPosition>(
-    (prefill?.anchorPosition as AnchorPosition | null) ?? 1,
-  );
+  const [position, setPosition] = useState<AnchorPosition>(prefill?.anchorPosition ?? 1);
 
   const handleSave = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

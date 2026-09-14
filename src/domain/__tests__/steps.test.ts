@@ -1,4 +1,4 @@
-import { buildSessionSteps, findResumeIndex, stepKey } from '../session/steps';
+import { buildSessionSteps, findResumeIndex, nextUnloggedIndex, stepKey } from '../session/steps';
 import type { TemplateBlock } from '../types';
 
 function block(overrides: Partial<TemplateBlock>): TemplateBlock {
@@ -118,5 +118,39 @@ describe('findResumeIndex', () => {
     // the session as further along than it is
     const logged = new Set([stepKey(0, 2), stepKey(1, 2)]);
     expect(findResumeIndex(steps, logged)).toBe(0);
+  });
+});
+
+describe('nextUnloggedIndex', () => {
+  const a1 = block({ label: 'A1', exerciseId: 'squat', sets: 2 });
+  const a2 = block({ label: 'A2', exerciseId: 'row', sets: 2 });
+  // steps: [squat#1, row#1, squat#2, row#2]
+  const steps = buildSessionSteps([a1, a2]);
+
+  it('skips over already-logged steps when advancing', () => {
+    // User jumped ahead and logged squat#2 (index 2) before row#1 (index 1).
+    // After finishing row#1, "index + 1" would be squat#2 — already done.
+    const logged = new Set([stepKey(0, 1), stepKey(1, 1), stepKey(0, 2)]);
+    expect(nextUnloggedIndex(steps, logged, 2)).toBe(3);
+  });
+
+  it('returns null when nothing is left from that point on', () => {
+    const logged = new Set([stepKey(0, 2), stepKey(1, 2)]);
+    expect(nextUnloggedIndex(steps, logged, 2)).toBeNull();
+  });
+
+  it('does not look backwards', () => {
+    // index 0 is unlogged, but we ask from index 1 onward
+    const logged = new Set([stepKey(1, 1), stepKey(0, 2), stepKey(1, 2)]);
+    expect(nextUnloggedIndex(steps, logged, 1)).toBeNull();
+  });
+
+  it('clamps a negative start to 0', () => {
+    expect(nextUnloggedIndex(steps, new Set(), -5)).toBe(0);
+  });
+
+  it('starts from the beginning when no start index is given', () => {
+    const logged = new Set([stepKey(0, 1)]);
+    expect(nextUnloggedIndex(steps, logged)).toBe(1);
   });
 });

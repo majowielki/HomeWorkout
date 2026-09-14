@@ -2,6 +2,7 @@ import { randomUUID } from 'expo-crypto';
 
 import { and, desc, eq } from 'drizzle-orm';
 
+import { stepKey } from '@/domain/session/steps';
 import type { AnchorPosition, DumbbellMode } from '@/domain/types';
 
 import { db } from '../client';
@@ -59,7 +60,7 @@ export async function getLoggedStepKeys(workoutId: string): Promise<Set<string>>
     .select({ exerciseOrder: setLogs.exerciseOrder, setIndex: setLogs.setIndex })
     .from(setLogs)
     .where(and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false)));
-  return new Set(rows.map((r) => `${r.exerciseOrder}:${r.setIndex}`));
+  return new Set(rows.map((r) => stepKey(r.exerciseOrder, r.setIndex)));
 }
 
 /** Most recent non-warmup log for this exercise, for prefilling the next session. */

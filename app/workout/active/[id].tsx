@@ -1,21 +1,26 @@
 import type BottomSheetType from '@gorhom/bottom-sheet';
-import { List } from 'lucide-react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
+import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { hasWarmupLog, logCardio } from '@/db/repositories/cardioLogs';
 import { getMedicalProfile } from '@/db/repositories/profile';
 import { getLoggedStepKeys, logSet } from '@/db/repositories/setLogs';
-import { getWorkout } from '@/db/repositories/workouts';
 import { getTemplate } from '@/db/repositories/templates';
-import { buildSessionSteps, findResumeIndex } from '@/domain/session/steps';
+import { getWorkout } from '@/db/repositories/workouts';
+import {
+  buildSessionSteps,
+  findResumeIndex,
+  nextUnloggedIndex,
+  type SessionStep,
+  stepKey,
+} from '@/domain/session/steps';
 import type { Exercise, MedicalProfile } from '@/domain/types';
 import { RestTimer } from '@/features/workout/RestTimer';
-import type { SavedSetData } from '@/features/workout/SetLogger';
-import { SetLogger } from '@/features/workout/SetLogger';
+import { type SavedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
@@ -27,7 +32,7 @@ type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'notFound';
 
 type Loaded = {
   workoutId: string;
-  templateId: string;
+  trainingDate: string;
   templateName: string;
   warmupMinutes: number | null;
 };
@@ -41,7 +46,7 @@ export default function ActiveSessionScreen() {
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [steps, setSteps] = useState<ReturnType<typeof buildSessionSteps>>([]);
+  const [steps, setSteps] = useState<SessionStep[]>([]);
   const [loggedKeys, setLoggedKeys] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [profile, setProfile] = useState<MedicalProfile>({ knee: null });
@@ -55,12 +60,8 @@ export default function ActiveSessionScreen() {
 
     async function run() {
       const workout = await getWorkout(id);
-      if (!workout || !workout.templateId) {
-        if (!cancelled) setPhase('notFound');
-        return;
-      }
-      const template = await getTemplate(workout.templateId);
-      if (!template) {
+      const template = workout?.templateId ? await getTemplate(workout.templateId) : null;
+      if (!workout || !template) {
         if (!cancelled) setPhase('notFound');
         return;
       }
@@ -69,38 +70,34 @@ export default function ActiveSessionScreen() {
       const keys = await getLoggedStepKeys(id);
       const resumeIndex = findResumeIndex(builtSteps, keys);
       const med = await getMedicalProfile();
+      const needsWarmup =
+        resumeIndex === 0 && template.warmupMinutes ? !(await hasWarmupLog(id)) : false;
 
       if (cancelled) return;
-      setLoaded({
-        workoutId: id,
-        templateId: template.id,
-        templateName: template.name,
-        warmupMinutes: template.warmupMinutes,
-      });
-      setSteps(builtSteps);
-      setLoggedKeys(keys);
-      setProfile(med);
 
       if (resumeIndex >= builtSteps.length) {
         router.replace({ pathname: '/workout/summary/[id]', params: { id } });
         return;
       }
 
-      if (resumeIndex === 0 && template.warmupMinutes) {
-        const warmedUp = await hasWarmupLog(id);
-        if (!cancelled) setPhase(warmedUp ? 'logging' : 'warmup');
-      } else if (!cancelled) {
-        setPhase('logging');
-      }
-      if (!cancelled) setCurrentIndex(resumeIndex);
+      setLoaded({
+        workoutId: id,
+        trainingDate: workout.trainingDate,
+        templateName: template.name,
+        warmupMinutes: template.warmupMinutes,
+      });
+      setSteps(builtSteps);
+      setLoggedKeys(keys);
+      setProfile(med);
+      setCurrentIndex(resumeIndex);
+      setPhase(needsWarmup ? 'warmup' : 'logging');
     }
 
     void run();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, router]);
 
   const currentStep = steps[currentIndex] ?? null;
   const templateExercise = currentStep ? exerciseMap[currentStep.block.exerciseId] : undefined;
@@ -115,13 +112,17 @@ export default function ActiveSessionScreen() {
     return `${next.block.label} · ${nextExercise?.name ?? next.block.exerciseId}`;
   }, [currentStep, exerciseMap]);
 
+  function goToSummary() {
+    if (!loaded) return;
+    router.replace({ pathname: '/workout/summary/[id]', params: { id: loaded.workoutId } });
+  }
+
   async function handleLogWarmup(minutes: number) {
     if (!loaded) return;
     setSaving(true);
-    const workout = await getWorkout(loaded.workoutId);
     await logCardio({
       workoutId: loaded.workoutId,
-      trainingDate: workout?.trainingDate ?? new Date().toISOString().slice(0, 10),
+      trainingDate: loaded.trainingDate,
       purpose: 'warmup',
       minutes,
     });
@@ -130,7 +131,13 @@ export default function ActiveSessionScreen() {
   }
 
   async function handleSaveSet(data: SavedSetData) {
-    if (!loaded || !currentStep || !effectiveExercise) return;
+    if (!loaded || !currentStep || !effectiveExercise || saving) return;
+
+    // The progress sheet only allows jumping onto unlogged steps, but this
+    // is the last line of defence against a duplicate (blockIndex, setNumber)
+    // row — which would corrupt resume and every future progression read.
+    if (loggedKeys.has(stepKey(currentStep.blockIndex, currentStep.setNumber))) return;
+
     setSaving(true);
     await logSet({
       workoutId: loaded.workoutId,
@@ -150,8 +157,10 @@ export default function ActiveSessionScreen() {
     setLoggedKeys(freshKeys);
     setSaving(false);
 
-    if (currentIndex >= steps.length - 1) {
-      router.replace({ pathname: '/workout/summary/[id]', params: { id: loaded.workoutId } });
+    // Nothing left anywhere in the session (not just after this index) —
+    // the user may have jumped around, so scan the whole list.
+    if (nextUnloggedIndex(steps, freshKeys, 0) === null) {
+      goToSummary();
       return;
     }
 
@@ -165,11 +174,20 @@ export default function ActiveSessionScreen() {
     // Synchronous first so RestTimer unmounts immediately and its own
     // interval stops, before the async store cleanup below resolves.
     setPhase('logging');
-    setCurrentIndex((i) => i + 1);
+    // Advance to the next step that still needs a log — "index + 1" is not
+    // safe once the user has jumped around via the sheet.
+    const next =
+      nextUnloggedIndex(steps, loggedKeys, currentIndex + 1) ??
+      nextUnloggedIndex(steps, loggedKeys, 0);
+    if (next === null) {
+      goToSummary();
+    } else {
+      setCurrentIndex(next);
+    }
     void useRestTimerStore.getState().stop();
   }
 
-  if (phase === 'loading' || !loaded) {
+  if (phase === 'loading' || (phase !== 'notFound' && !loaded)) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator />
@@ -177,9 +195,10 @@ export default function ActiveSessionScreen() {
     );
   }
 
-  if (phase === 'notFound') {
+  if (phase === 'notFound' || !loaded) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
+        <Stack.Screen options={{ title: '' }} />
         <Text variant="muted">{pl.workout.session.notFound}</Text>
       </View>
     );
@@ -191,15 +210,7 @@ export default function ActiveSessionScreen() {
         options={{
           title: loaded.templateName,
           headerRight: () => (
-            <Pressable
-              onPress={() =>
-                router.replace({
-                  pathname: '/workout/summary/[id]',
-                  params: { id: loaded.workoutId },
-                })
-              }
-              hitSlop={8}
-            >
+            <Pressable onPress={goToSummary} hitSlop={8}>
               <Text className="text-primary">{pl.workout.session.finishEarly}</Text>
             </Pressable>
           ),
@@ -239,7 +250,7 @@ export default function ActiveSessionScreen() {
             className="flex-row items-center gap-1.5"
             onPress={() => sheetRef.current?.snapToIndex(0)}
           >
-            <List size={16} color="hsl(240 4% 46%)" />
+            <List size={16} className="text-muted-foreground" />
             <Text variant="muted">{pl.workout.session.progressTitle}</Text>
           </Pressable>
           {templateExercise.substituteIds.length > 0 ? (
@@ -257,6 +268,7 @@ export default function ActiveSessionScreen() {
         loggedKeys={loggedKeys}
         exerciseMap={exerciseMap}
         onJump={(index) => {
+          void useRestTimerStore.getState().stop();
           setCurrentIndex(index);
           setPhase('logging');
           sheetRef.current?.close();

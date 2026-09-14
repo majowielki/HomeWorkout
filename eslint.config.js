@@ -46,6 +46,7 @@ module.exports = defineConfig([
                 '@/components/*',
                 '@/stores/*',
                 '@/strings/*',
+                '@data/*',
               ],
               message:
                 'src/domain must stay framework-free. Pass data in as arguments instead of importing it.',

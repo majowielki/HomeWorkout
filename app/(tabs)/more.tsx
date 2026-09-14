@@ -18,9 +18,7 @@ export default function MoreScreen() {
         </Link>
       ))}
       <View className="pt-4">
-        <Text variant="muted">
-          Kolejne pozycje (gumy, szablony, backup, ustawienia) dojdą w następnych kamieniach.
-        </Text>
+        <Text variant="muted">{pl.more.comingSoon}</Text>
       </View>
     </ScrollView>
   );

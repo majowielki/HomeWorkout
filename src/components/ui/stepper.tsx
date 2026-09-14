@@ -1,9 +1,8 @@
-import { Minus, Plus } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 
+import { Minus, Plus } from '@/components/ui/icons';
+import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
-
-import { Text } from './text';
 
 type StepperProps = {
   label: string;
@@ -45,7 +44,7 @@ export function Stepper({
             decrementDisabled && 'opacity-30',
           )}
         >
-          <Minus size={20} color="hsl(240 6% 10%)" />
+          <Minus size={20} className="text-secondary-foreground" />
         </Pressable>
         <Text variant="metric" className="min-w-[84px] text-center text-3xl">
           {value}
@@ -60,7 +59,7 @@ export function Stepper({
             incrementDisabled && 'opacity-30',
           )}
         >
-          <Plus size={20} color="hsl(240 6% 10%)" />
+          <Plus size={20} className="text-secondary-foreground" />
         </Pressable>
       </View>
     </View>

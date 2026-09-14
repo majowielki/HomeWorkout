@@ -19,7 +19,7 @@
 |---|---|
 | Platforma | **Android only** (MVP). Brak EAS/konta Apple w budżecie i zakresie. |
 | Framework | Expo (dev build) + expo-router + TypeScript strict |
-| UI | **NativeWind + react-native-reusables** (port shadcn/ui na RN — znasz shadcn z weba) |
+| UI | **NativeWind + własne komponenty w stylu shadcn/ui** (cva + cn; RNR odrzucone — IMPLEMENTACJA §0.2) |
 | Baza | expo-sqlite + Drizzle ORM, offline-first, SQLite jako źródło prawdy |
 | Backup | eksport JSON na MVP; docelowo własny backend .NET/Azure albo Turso |
 | Zasięg | **single-user, lokalnie** — brak RODO, brak auth, brak backendu |

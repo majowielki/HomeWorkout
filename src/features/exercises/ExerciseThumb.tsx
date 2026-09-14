@@ -1,8 +1,8 @@
 import { Image } from 'expo-image';
-import { Dumbbell } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import { exerciseMedia } from '@/assets/exercise-media';
+import { Dumbbell } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
 
 type Props = {
@@ -12,7 +12,12 @@ type Props = {
   className?: string;
 };
 
-/** Square thumbnail with a neutral placeholder when no frame exists. */
+/**
+ * Square thumbnail with a neutral placeholder when no frame exists.
+ * `className` on expo-image only works because src/lib/interop.ts registers
+ * it with NativeWind — without that the image ignores it and renders at its
+ * intrinsic 850px width.
+ */
 export function ExerciseThumb({ mediaKey, frame = 1, className }: Props) {
   const source = mediaKey ? exerciseMedia[mediaKey]?.[frame] : undefined;
 
@@ -22,7 +27,7 @@ export function ExerciseThumb({ mediaKey, frame = 1, className }: Props) {
         className={cn('items-center justify-center rounded-xl bg-muted', className)}
         accessibilityLabel="Brak zdjęcia"
       >
-        <Dumbbell size={22} color="hsl(240 4% 46%)" />
+        <Dumbbell size={22} className="text-muted-foreground" />
       </View>
     );
   }

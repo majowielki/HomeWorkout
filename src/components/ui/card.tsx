@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 
-import { cn } from '@/lib/cn';
 import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/cn';
 
 type ViewProps = React.ComponentProps<typeof View>;
 

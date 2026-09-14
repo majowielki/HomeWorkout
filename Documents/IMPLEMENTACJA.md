@@ -1,9 +1,54 @@
 # HomeWorkout — dokument implementacyjny
 
-> Wersja 1. Data: 2026-09-10.
+> Wersja 2. Data: 2026-09-14 (v1: 2026-09-10).
 > Dokumenty nadrzędne: [PLAN.md](PLAN.md) (dlaczego), [SPEC-silnik-regul.md](SPEC-silnik-regul.md) (logika domenowa).
 > Ten dokument odpowiada na pytanie **jak** — i tam, gdzie jest sprzeczny z PLAN.md, to on obowiązuje
-> (lista różnic w §1).
+> (lista różnic w §1). **Stan realizacji i odstępstwa kodu od tego dokumentu: §0.**
+
+---
+
+## 0. Stan realizacji i odstępstwa od dokumentu
+
+Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekcja mówi dlaczego.
+
+### 0.1 Kamienie
+
+| Kamień | Stan | Commit | Uwagi |
+|---|---|---|---|
+| M0 — środowisko | ✅ 2026-09-11 | `b6a0742` | build lokalny na Pixel 10 Pro; emulator x86_64 skonfigurowany osobno (§0.3) |
+| M1 — fundament | ✅ 2026-09-11 | `861b2ba` | |
+| M2 — katalog ćwiczeń | ✅ 2026-09-14 | `e592807` | 60 ćwiczeń; filtr bezpieczeństwa wyciągnięty z M7 do przodu |
+| M3 — aktywna sesja | ✅ 2026-09-14 | `5579106` | dwa cięcia zakresu, §0.2 |
+| review M0–M3 | ✅ 2026-09-14 | — | poprawki motywu i interopu, duplikaty serii, testy komponentów, ten rozdział |
+| M4+ | ⏳ | | |
+
+### 0.2 Odstępstwa od dokumentu — świadome
+
+| Dokument mówi | Kod robi | Dlaczego |
+|---|---|---|
+| UI: `react-native-reusables` przez CLI | komponenty pisane ręcznie w stylu shadcn (`cva` + `cn`), `src/components/ui` | CLI nadpisałoby konfigurację Babel/Metro zweryfikowaną w M1; RNR to i tak model „kopiujesz do siebie" |
+| `date-fns` | własne `domain/time/trainingDate.ts` | dwie funkcje; zależność nie była nigdy użyta i została usunięta |
+| `eslint-plugin-import` | tylko `eslint-config-expo` | wystarcza; granicę domeny pilnuje `no-restricted-imports` |
+| `workouts.plan`, `ai_exchanges` w schemacie | brak | powstaną z M7 / M9 przez migrację, nie na zapas |
+| `SessionPlan`, `PlannedExercise` w `types.ts` | brak | jw. — M7 |
+| §2.3: po zapisie serii SetLogger zostaje na ekranie, timer jako pasek | timer przerwy zastępuje ekran serii; następny SetLogger pojawia się po jego końcu | dwa wykluczające się stany zamiast „zamrożonego" formularza — prostsze, ta sama intencja |
+| „przejdź" / „zamień" trwałe | żyją tylko w pamięci sesji; restart wraca do pierwszego niezalogowanego kroku i domyślnego ćwiczenia z szablonu | pominięcie kroku jest z natury bezpieczne (krok zostaje „niezalogowany" i wraca); zamiana nie przeżywa ubicia aplikacji — akceptowalne w M3 |
+| seed szablonów „gated on version" | nadpisuje bezwarunkowo | brak edytora w aplikacji (M10), więc JSON jest jedynym autorem |
+| `BottomSheetModal` | `BottomSheet` (nie-modalny, zawsze zamontowany, `index={-1}`) | bez providera na poziomie roota; wystarcza |
+| SPEC §3.3: tryb konserwatywny reużywa `KNEE_UNILATERAL_UNSUPPORTED` | osobny kod `KNEE_UNILATERAL_PENDING_PHYSIO` | UI musi rozróżnić „na stałe" od „po akceptacji fizjoterapeuty" |
+| `MovementPattern` z 8 wartościami | +`Cardio`, +`Mobility` | rower w katalogu jest obowiązkowym przypadkiem testowym filtra |
+
+### 0.3 Ustalenia środowiskowe, których dokument nie znał
+
+- `sdkmanager` jest wygaszony; Android Studio 2026.1 używa CLI `android` (Rust). Składnia: `android sdk install "system-images/android-36/google_apis/x86_64"` — ukośniki, nie średniki. Zwraca niezerowe kody wyjścia (9, 255) także przy sukcesie.
+- `expo run:android` buduje tylko ABI podłączonego urządzenia. APK z telefonu (arm64) nie uruchomi się na emulatorze (x86_64) — potrzebny osobny build z `--device emulator-5554`. Obie instalacje potem żyją równolegle.
+- Typy tras expo-router regeneruje `npx expo customize tsconfig.json` bez serwera deweloperskiego (`npm run routes:types`); CI musi to zrobić przed `tsc`, bo `.expo/` nie jest w repo.
+- `babel-preset-expo` w SDK 57 siedzi w `expo/node_modules` — własny `babel.config.js` wymaga jawnej instalacji na najwyższym poziomie.
+- `react-dom` przypięty w `overrides` do wersji Reacta: `expo-router` ciągnie go tranzytywnie (`@expo/ui` → `vaul`) i bez tego `npm install` się wywala.
+- NativeWind 4 wiąże `className` tylko z komponentami rdzenia RN. `expo-image`, `SectionList` i ikony lucide wymagają rejestracji (`src/lib/interop.ts`), inaczej klasy są po cichu ignorowane. Placeholder `TextInput` koloruje się wariantem `placeholder:`, nie osobnym propem.
+- Nawigacja (nagłówki, tab bar) nie czyta tokenów NativeWind — bierze `ThemeProvider` eksportowany z expo-router; paleta jest zdublowana w `src/lib/theme.ts` dla tych kilku miejsc, które potrzebują surowego koloru.
+- `@testing-library/react-native` 14 ma w pełni asynchroniczne API (`await render`, `await fireEvent.press`). `lucide-react-native` w Jest mapowany na build CJS (`moduleNameMapper`), bo warunek eksportu `react-native` wskazuje `.mjs`.
+- Reguły `react-hooks/purity` i `set-state-in-effect` z `eslint-config-expo` są egzekwowane jako błędy. Praktyczne skutki: żadnego `Date.now()` w renderze, żadnego synchronicznego `setState` w ciele efektu — „reset przed fetchem" rozwiązuje się przez remount z `key`, nie przez efekt.
 
 ---
 
@@ -186,8 +231,8 @@ wersje zgodne z SDK, nie pinujemy ręcznie.
 | Baza | `expo-sqlite` + `drizzle-orm` + `drizzle-kit` | SQLite, typowane zapytania, migracje generowane z kodu, `useLiveQuery` |
 | Stan UI | `zustand` (jeden mały store sesji + timer) | stan aktywnej sesji między ekranami; dane trwałe zawsze w SQLite |
 | Walidacja | `zod` | dane wejściowe, `exercises.json`, import backupu, odpowiedzi AI |
-| UI | `nativewind` (Tailwind) + `react-native-reusables` (`@rn-primitives/*`) | znany model z shadcn/ui |
-| Ikony | `lucide-react-native` | spójne z reusables |
+| UI | `nativewind` (Tailwind) + własne komponenty w stylu shadcn (`cva`, `cn`) — patrz §0.2 | znany model z shadcn/ui |
+| Ikony | `lucide-react-native` przez `src/components/ui/icons.ts` (rejestracja `cssInterop`) | kolor z `className`, nie z twardego `color` |
 | Wykresy | `react-native-gifted-charts` (+ `react-native-svg`) | waga, talia, objętość |
 | Sheet | `@gorhom/bottom-sheet` | lista sesji, wybór ćwiczenia |
 | Gesty/animacje | `react-native-gesture-handler`, `react-native-reanimated` | wymagane przez sheet i reusables |
@@ -195,9 +240,8 @@ wersje zgodne z SDK, nie pinujemy ręcznie.
 | Sesja | `expo-keep-awake`, `expo-haptics`, `expo-notifications` | ekran nie gaśnie, feedback, koniec przerwy |
 | Pliki | `expo-file-system`, `expo-sharing`, `expo-document-picker` | eksport / import |
 | Id | `expo-crypto` (`randomUUID`) | identyfikatory |
-| Daty | `date-fns` | granica doby, okna 7 dni |
-| Testy | `jest-expo`, `@testing-library/react-native` | domena + komponenty, jeden runner |
-| Jakość | `eslint` (flat config) + `eslint-plugin-import`, `prettier`, `typescript` | granice modułów, formatowanie |
+| Testy | `jest-expo`, `@testing-library/react-native` 14 (API async) | domena + komponenty, jeden runner |
+| Jakość | `eslint` (flat config, `eslint-config-expo`), `prettier`, `typescript` | granice modułów, formatowanie |
 | CI | GitHub Actions | lint + typecheck + test na każdy push |
 
 ### 3.2 Serwer (dopiero etap 3)
@@ -697,7 +741,7 @@ i ma własny przycisk „Kopiuj prompt".
 Estymaty w **wieczorach (~2 h)**. Każdy kamień ma definicję ukończenia (DoD), która jest binarna.
 Nie zaczynaj kolejnego, dopóki DoD poprzedniego nie jest spełnione — to jedyna obrona przed §1.7.
 
-### M0 — Środowisko i pusty build (1–2 wieczory)
+### M0 — Środowisko i pusty build (1–2 wieczory) ✅
 
 1. Zainstaluj **Android Studio** → SDK Manager: Android SDK Platform (najnowsze API), Build-Tools,
    Platform-Tools, Command-line Tools.
@@ -714,7 +758,7 @@ Nie zaczynaj kolejnego, dopóki DoD poprzedniego nie jest spełnione — to jedy
 
 **DoD:** „Hello" na Twoim telefonie z lokalnego builda; repozytorium istnieje.
 
-### M1 — Fundament (3–4 wieczory)
+### M1 — Fundament (3–4 wieczory) ✅
 
 1. `expo-router` + pięć zakładek z pustymi ekranami.
 2. NativeWind + `npx @react-native-reusables/cli@latest init` + 3 komponenty (Button, Card, Input).
@@ -727,7 +771,7 @@ Nie zaczynaj kolejnego, dopóki DoD poprzedniego nie jest spełnione — to jedy
 
 **DoD:** CI zielone; aplikacja pokazuje 5 ćwiczeń z bazy; celowy import `react` w `src/domain` wywala lint.
 
-### M2 — Baza ćwiczeń (2–3 wieczory, głównie praca merytoryczna, nie kod)
+### M2 — Baza ćwiczeń (2–3 wieczory, głównie praca merytoryczna, nie kod) ✅
 
 1. `scripts/import-media.ts`: kopiuje wskazane obrazy z klonu free-exercise-db do `assets/exercise-media/`.
 2. 50–60 ćwiczeń pod Twój sprzęt z pełną taksonomią (§6.3). Wszystkie z `loadsKnee: true` — z `kneeCue`.
@@ -737,7 +781,7 @@ Nie zaczynaj kolejnego, dopóki DoD poprzedniego nie jest spełnione — to jedy
 **DoD:** walidacja przechodzi; każde ćwiczenie ma obraz i cue'y; przejrzałeś listę i nie ma na niej
 niczego, czego nie zrobisz w domu.
 
-### M3 — Aktywna sesja (5–7 wieczorów — najtrudniejszy kamień)
+### M3 — Aktywna sesja (5–7 wieczorów — najtrudniejszy kamień) ✅
 
 1. `templates.json` (FBW A/B z §6.4), seed, ekran listy szablonów.
 2. Start sesji: wybór szablonu → `INSERT workouts` → nawigacja do `workout/active/[id]`.
