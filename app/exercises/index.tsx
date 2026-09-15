@@ -4,8 +4,7 @@ import { useMemo } from 'react';
 import { SectionList, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
-import { db } from '@/db/client';
-import { exercises } from '@/db/schema';
+import { liveExercisesQuery } from '@/db/repositories/exercises';
 import { screenExercise } from '@/domain/exercises/screen';
 import type { Exercise, MovementPattern } from '@/domain/types';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
@@ -29,7 +28,7 @@ const PATTERN_ORDER: MovementPattern[] = [
 type Row = { exercise: Exercise; excluded: boolean; pendingPhysio: boolean };
 
 export default function ExercisesScreen() {
-  const { data } = useLiveQuery(db.select().from(exercises));
+  const { data } = useLiveQuery(liveExercisesQuery());
   const profile = useMedicalProfile();
 
   const { sections, total, excludedCount } = useMemo(() => {

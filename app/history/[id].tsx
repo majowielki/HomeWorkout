@@ -4,8 +4,9 @@ import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
-import { ChevronRight } from '@/components/ui/icons';
+import { Bike, ChevronRight } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
+import { type CardioLogRow, getCardioForWorkout } from '@/db/repositories/cardioLogs';
 import { getSetsForWorkout, type SetLogRow } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { deleteWorkout, getWorkout, type WorkoutRow } from '@/db/repositories/workouts';
@@ -27,6 +28,7 @@ type Loaded = {
   templateName: string;
   sets: SetLogRow[];
   groups: ExerciseGroup<SetLogRow>[];
+  cardio: CardioLogRow[];
 };
 
 type State = { kind: 'loading' } | { kind: 'notFound' } | { kind: 'ready'; data: Loaded };
@@ -44,9 +46,10 @@ export default function WorkoutDetailScreen() {
       setState({ kind: 'notFound' });
       return;
     }
-    const [template, sets] = await Promise.all([
+    const [template, sets, cardio] = await Promise.all([
       workout.templateId ? getTemplate(workout.templateId) : null,
       getSetsForWorkout(id),
+      getCardioForWorkout(id),
     ]);
     setState({
       kind: 'ready',
@@ -55,6 +58,7 @@ export default function WorkoutDetailScreen() {
         templateName: template?.name ?? pl.history.noTemplate,
         sets,
         groups: groupSetsByExercise(sets),
+        cardio,
       },
     });
   }, [id]);
@@ -76,10 +80,14 @@ export default function WorkoutDetailScreen() {
           void (async () => {
             if (deleting) return;
             setDeleting(true);
-            await deleteWorkout(id);
-            // The "last session N days ago" reminder may have just moved.
-            await syncReminders();
-            router.back();
+            try {
+              await deleteWorkout(id);
+              // The "last session N days ago" reminder may have just moved.
+              await syncReminders();
+              router.back();
+            } finally {
+              setDeleting(false);
+            }
           })();
         },
       },
@@ -104,7 +112,7 @@ export default function WorkoutDetailScreen() {
     );
   }
 
-  const { workout, templateName, sets, groups } = state.data;
+  const { workout, templateName, sets, groups, cardio } = state.data;
   const minutes = durationMinutes(workout.startedAt, workout.finishedAt);
   const meta = [
     formatTime(workout.startedAt),
@@ -132,6 +140,23 @@ export default function WorkoutDetailScreen() {
           </CardContent>
         ) : null}
       </Card>
+
+      {cardio.length > 0 ? (
+        <Card>
+          <View className="flex-row items-center gap-2">
+            <Bike size={16} className="text-muted-foreground" />
+            <CardTitle>{pl.history.detail.bike}</CardTitle>
+          </View>
+          <CardContent className="mt-1">
+            {cardio.map((c) => (
+              <Text key={c.id} variant="muted">
+                {pl.history.detail.bikePurpose[c.purpose]} ·{' '}
+                {pl.history.rideMeta(c.minutes, c.resistanceLevel, c.rpe)}
+              </Text>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {groups.length === 0 ? (
         <Text variant="muted" className="py-4 text-center">

@@ -206,6 +206,37 @@ describe('parseBackup', () => {
     const result = parseBackup(JSON.stringify(doc));
     expect(result).toMatchObject({ ok: false, reason: 'invalid' });
   });
+
+  it('rejects dangling references between tables and names them', () => {
+    const doc = validBackup();
+    doc.tables.set_logs[0]!.bandId = 'green';
+    doc.tables.workouts[0]!.templateId = 'gone';
+    doc.tables.cardio_logs.push({
+      id: 'c1',
+      workoutId: 'w-missing',
+      trainingDate: '2026-09-14',
+      purpose: 'warmup',
+      minutes: 5,
+      resistanceLevel: null,
+      avgCadence: null,
+      avgHr: null,
+      rpe: null,
+      loggedAt: '2026-09-14T17:00:00.000Z',
+    });
+    const result = parseBackup(JSON.stringify(doc));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe('invalid');
+    expect(result.detail).toContain('set_logs.s1.bandId -> green');
+    expect(result.detail).toContain('workouts.w1.templateId -> gone');
+    expect(result.detail).toContain('cardio_logs.c1.workoutId -> w-missing');
+  });
+
+  it('accepts a set log without a workout only when its workout is in the file', () => {
+    const doc = validBackup();
+    doc.tables.set_logs[0]!.workoutId = 'w2';
+    expect(parseBackup(JSON.stringify(doc))).toMatchObject({ ok: false, reason: 'invalid' });
+  });
 });
 
 describe('backupFileName', () => {

@@ -84,15 +84,18 @@ export default function DailyLogScreen() {
   async function handleSave() {
     if (saving) return;
     setSaving(true);
-    await upsertDailyLog(today, {
-      sleepHours: sleep,
-      energy,
-      stress,
-      soreness: Object.keys(soreness).length > 0 ? soreness : null,
-      note: note.trim().length > 0 ? note.trim() : null,
-    });
-    setSaving(false);
-    router.back();
+    try {
+      await upsertDailyLog(today, {
+        sleepHours: sleep,
+        energy,
+        stress,
+        soreness: Object.keys(soreness).length > 0 ? soreness : null,
+        note: note.trim().length > 0 ? note.trim() : null,
+      });
+      router.back();
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (!loaded) {

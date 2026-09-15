@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
-import { and, asc, desc, eq, gte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 
 import type { DatedValue } from '@/domain/metrics/series';
 
@@ -66,12 +66,13 @@ export async function getWeightOn(date: string) {
 
 /** Latest manual weigh-in on or before `date` — for attaching a weight to a Navy estimate. */
 export async function getWeightOnOrBefore(date: string) {
-  const rows = await db
+  const [row] = await db
     .select()
     .from(bodyMetrics)
-    .where(eq(bodyMetrics.source, 'manual'))
-    .orderBy(desc(bodyMetrics.date));
-  return rows.find((r) => r.date <= date) ?? null;
+    .where(and(eq(bodyMetrics.source, 'manual'), lte(bodyMetrics.date, date)))
+    .orderBy(desc(bodyMetrics.date))
+    .limit(1);
+  return row ?? null;
 }
 
 /** Persists a derived body-fat estimate; replaces an earlier estimate for the same day. */

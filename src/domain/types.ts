@@ -121,6 +121,9 @@ export interface BandCalibration {
   maxMeasuredKg: number | null;
 }
 
+/** Every band's calibration keyed by band id; null for a band that has none yet. */
+export type BandCalibrationMap = Record<string, BandCalibration | null>;
+
 export type AnchorPosition = 0 | 1 | 2 | 3;
 
 export type PlannedLoad =

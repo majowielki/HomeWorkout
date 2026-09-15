@@ -67,10 +67,13 @@ export default function SessionSummaryScreen() {
   async function handleFinish() {
     if (saving) return;
     setSaving(true);
-    await completeWorkout(id, rpe, notes.trim().length > 0 ? notes.trim() : null);
-    await syncReminders();
-    setSaving(false);
-    router.replace('/(tabs)/workout');
+    try {
+      await completeWorkout(id, rpe, notes.trim().length > 0 ? notes.trim() : null);
+      await syncReminders();
+      router.replace('/(tabs)/workout');
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (state.kind === 'loading') {

@@ -12,8 +12,13 @@ import {
   getWeightSeries,
   upsertWeight,
 } from '@/db/repositories/bodyMetrics';
-import { movingAverage, round1, weeklyTrend, type SmoothedPoint } from '@/domain/metrics/series';
-import { daysBetween, toIsoDate } from '@/domain/time/trainingDate';
+import {
+  movingAverage,
+  round1,
+  type SmoothedPoint,
+  summarizeWeight,
+} from '@/domain/metrics/series';
+import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { TrendChart } from '@/features/body/TrendChart';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
@@ -29,11 +34,6 @@ type Loaded = {
   trend: number | null;
 };
 
-function isoDaysAgo(from: string, days: number): string {
-  const [y, m, d] = from.split('-').map(Number) as [number, number, number];
-  return toIsoDate(new Date(y, m - 1, d - days));
-}
-
 export default function BodyScreen() {
   const [data, setData] = useState<Loaded | null>(null);
   const [input, setInput] = useState('');
@@ -46,24 +46,18 @@ export default function BodyScreen() {
     const [todayRow, latestRow, raw] = await Promise.all([
       getWeightOn(today),
       getLatestWeight(),
-      getWeightSeries(isoDaysAgo(today, CHART_DAYS)),
+      getWeightSeries(addDays(today, -CHART_DAYS)),
     ]);
-    const series = movingAverage(raw, 7, 1);
-    const strict = movingAverage(raw, 7, 3);
-    const last = strict[strict.length - 1];
+    // The chart draws its line from the first entry (minPoints = 1); the
+    // headline average is stricter — see IMPLEMENTACJA §0.2.
+    const summary = summarizeWeight(raw, today);
     setData({
       today,
       todayWeight: todayRow?.weightKg ?? null,
       latestWeight: latestRow?.weightKg ?? null,
-      series,
-      average7:
-        last && last.average !== null && daysBetween(last.date, today) < 7
-          ? round1(last.average)
-          : null,
-      trend: (() => {
-        const t = weeklyTrend(raw);
-        return t === null ? null : round1(t);
-      })(),
+      series: movingAverage(raw, 7, 1),
+      average7: summary.average,
+      trend: summary.trend,
     });
     setInput((prev) =>
       prev === '' ? formatDecimal(todayRow?.weightKg ?? latestRow?.weightKg) : prev,
@@ -85,12 +79,15 @@ export default function BodyScreen() {
     }
     setError(null);
     setSaving(true);
-    await upsertWeight(data.today, round1(kg));
-    await syncReminders();
-    await load();
-    setSaving(false);
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 2500);
+    try {
+      await upsertWeight(data.today, round1(kg));
+      await syncReminders();
+      await load();
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 2500);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (!data) {

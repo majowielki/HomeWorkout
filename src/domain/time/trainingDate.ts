@@ -35,3 +35,12 @@ export function daysBetween(from: string, to: string): number {
   }
   return Math.round((b - a) / (24 * MS_PER_HOUR));
 }
+
+/** The 'YYYY-MM-DD' that lies `days` calendar days after `date` (negative moves back). */
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  if ([y, m, d].some((n) => Number.isNaN(n))) {
+    throw new TypeError(`expected a YYYY-MM-DD date, got "${date}"`);
+  }
+  return toIsoDate(new Date(y, m - 1, d + days));
+}

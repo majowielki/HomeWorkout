@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { exerciseMedia } from '@/assets/exercise-media';
 import { Dumbbell } from '@/components/ui/icons';
 import { cn } from '@/lib/cn';
+import { pl } from '@/strings/pl';
 
 type Props = {
   mediaKey: string | null;
@@ -25,7 +26,7 @@ export function ExerciseThumb({ mediaKey, frame = 1, className }: Props) {
     return (
       <View
         className={cn('items-center justify-center rounded-xl bg-muted', className)}
-        accessibilityLabel="Brak zdjęcia"
+        accessibilityLabel={pl.a11y.noPhoto}
       >
         <Dumbbell size={22} className="text-muted-foreground" />
       </View>

@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { hasWarmupLog, logCardio } from '@/db/repositories/cardioLogs';
-import { getMedicalProfile } from '@/db/repositories/profile';
+import { getProfile } from '@/db/repositories/profile';
 import { getLoggedStepKeys, logSet } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { getWorkout } from '@/db/repositories/workouts';
@@ -21,7 +21,7 @@ import {
 import type { Exercise, MedicalProfile } from '@/domain/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { RestTimer } from '@/features/workout/RestTimer';
-import { type SavedSetData, SetLogger } from '@/features/workout/SetLogger';
+import { type LoggedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
@@ -36,6 +36,8 @@ type Loaded = {
   trainingDate: string;
   templateName: string;
   warmupMinutes: number | null;
+  /** From the profile — shown on the warm-up card as a standing cue (PLAN §4.3). */
+  saddleHeightCm: number | null;
 };
 
 export default function ActiveSessionScreen() {
@@ -55,6 +57,7 @@ export default function ActiveSessionScreen() {
   const [substitutes, setSubstitutes] = useState<Record<number, string>>({});
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [warmupsLogged, setWarmupsLogged] = useState(0);
 
   // Initial load: workout -> template -> steps -> where to resume.
   useEffect(() => {
@@ -71,7 +74,7 @@ export default function ActiveSessionScreen() {
       const builtSteps = buildSessionSteps(template.blocks);
       const keys = await getLoggedStepKeys(id);
       const resumeIndex = findResumeIndex(builtSteps, keys);
-      const med = await getMedicalProfile();
+      const profileRow = await getProfile();
       const needsWarmup =
         resumeIndex === 0 && template.warmupMinutes ? !(await hasWarmupLog(id)) : false;
 
@@ -87,10 +90,11 @@ export default function ActiveSessionScreen() {
         trainingDate: workout.trainingDate,
         templateName: template.name,
         warmupMinutes: template.warmupMinutes,
+        saddleHeightCm: profileRow?.saddleHeightCm ?? null,
       });
       setSteps(builtSteps);
       setLoggedKeys(keys);
-      setProfile(med);
+      setProfile({ knee: profileRow?.kneeProfile ?? null });
       setCurrentIndex(resumeIndex);
       setPhase(needsWarmup ? 'warmup' : 'logging');
     }
@@ -120,44 +124,57 @@ export default function ActiveSessionScreen() {
   }
 
   async function handleLogWarmup(minutes: number) {
-    if (!loaded) return;
+    if (!loaded || saving) return;
     setSaving(true);
-    await logCardio({
-      workoutId: loaded.workoutId,
-      trainingDate: loaded.trainingDate,
-      purpose: 'warmup',
-      minutes,
-    });
-    setSaving(false);
-    setPhase('logging');
+    try {
+      await logCardio({
+        workoutId: loaded.workoutId,
+        trainingDate: loaded.trainingDate,
+        purpose: 'warmup',
+        minutes,
+      });
+      setPhase('logging');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  async function handleSaveSet(data: SavedSetData) {
+  async function handleSaveSet(data: LoggedSetData) {
     if (!loaded || !currentStep || !effectiveExercise || saving) return;
 
     // The progress sheet only allows jumping onto unlogged steps, but this
     // is the last line of defence against a duplicate (blockIndex, setNumber)
     // row — which would corrupt resume and every future progression read.
-    if (loggedKeys.has(stepKey(currentStep.blockIndex, currentStep.setNumber))) return;
+    // A warm-up set is not a step: it shares the step's position but never
+    // counts as logging it (getLoggedStepKeys ignores warm-ups).
+    const key = stepKey(currentStep.blockIndex, currentStep.setNumber);
+    if (!data.isWarmup && loggedKeys.has(key)) return;
 
     setSaving(true);
-    await logSet({
-      workoutId: loaded.workoutId,
-      exerciseId: effectiveExercise.id,
-      exerciseOrder: currentStep.blockIndex,
-      setIndex: currentStep.setNumber,
-      reps: data.reps,
-      timeSec: data.timeSec,
-      rir: data.rir,
-      weightKg: data.weightKg,
-      dumbbellMode: data.dumbbellMode,
-      bandId: data.bandId,
-      anchorPosition: data.anchorPosition,
-      estimatedLoadKg: data.estimatedLoadKg,
-    });
-    const freshKeys = await getLoggedStepKeys(loaded.workoutId);
-    setLoggedKeys(freshKeys);
-    setSaving(false);
+    let freshKeys = loggedKeys;
+    try {
+      await logSet({
+        workoutId: loaded.workoutId,
+        exerciseId: effectiveExercise.id,
+        exerciseOrder: currentStep.blockIndex,
+        setIndex: currentStep.setNumber,
+        isWarmup: data.isWarmup,
+        reps: data.reps,
+        timeSec: data.timeSec,
+        rir: data.rir,
+        weightKg: data.weightKg,
+        dumbbellMode: data.dumbbellMode,
+        bandId: data.bandId,
+        anchorPosition: data.anchorPosition,
+        estimatedLoadKg: data.estimatedLoadKg,
+      });
+      if (!data.isWarmup) {
+        freshKeys = await getLoggedStepKeys(loaded.workoutId);
+        setLoggedKeys(freshKeys);
+      }
+    } finally {
+      setSaving(false);
+    }
 
     // Nothing left anywhere in the session (not just after this index) —
     // the user may have jumped around, so scan the whole list.
@@ -166,6 +183,9 @@ export default function ActiveSessionScreen() {
       return;
     }
 
+    // After a warm-up the same step comes back once the rest is over;
+    // the remount key below includes the warm-up count so the toggle resets.
+    if (data.isWarmup) setWarmupsLogged((n) => n + 1);
     await useRestTimerStore
       .getState()
       .start(currentStep.block.restSec, pl.workout.session.restNotificationBody);
@@ -176,11 +196,13 @@ export default function ActiveSessionScreen() {
     // Synchronous first so RestTimer unmounts immediately and its own
     // interval stops, before the async store cleanup below resolves.
     setPhase('logging');
-    // Advance to the next step that still needs a log — "index + 1" is not
-    // safe once the user has jumped around via the sheet.
+    // Advance to the next step that still needs a log, starting from the
+    // current one: after a working set it is logged and the scan moves on,
+    // after a warm-up it is not and the same step comes back. "index + 1"
+    // would skip that case, and is not safe once the user has jumped around
+    // via the sheet anyway.
     const next =
-      nextUnloggedIndex(steps, loggedKeys, currentIndex + 1) ??
-      nextUnloggedIndex(steps, loggedKeys, 0);
+      nextUnloggedIndex(steps, loggedKeys, currentIndex) ?? nextUnloggedIndex(steps, loggedKeys, 0);
     if (next === null) {
       goToSummary();
     } else {
@@ -222,6 +244,7 @@ export default function ActiveSessionScreen() {
       {phase === 'warmup' && loaded.warmupMinutes ? (
         <WarmupCard
           defaultMinutes={loaded.warmupMinutes}
+          saddleHeightCm={loaded.saddleHeightCm}
           onLog={handleLogWarmup}
           onSkip={() => setPhase('logging')}
           saving={saving}
@@ -236,7 +259,7 @@ export default function ActiveSessionScreen() {
 
       {phase === 'logging' && currentStep && effectiveExercise ? (
         <SetLogger
-          key={`${currentIndex}-${effectiveExercise.id}`}
+          key={`${currentIndex}-${effectiveExercise.id}-${warmupsLogged}`}
           exercise={effectiveExercise}
           block={currentStep.block}
           setNumber={currentStep.setNumber}

@@ -12,9 +12,11 @@ import { abandonStaleWorkouts } from './repositories/workouts';
 import { seedDatabase } from './seed';
 
 /**
- * Applies pending migrations, seeds the bundled catalogue, sweeps any
- * workout left "in_progress" for more than 12 hours, and reschedules the
- * local reminders — before rendering anything that touches the database.
+ * Applies pending migrations, seeds the bundled catalogue and sweeps any
+ * workout left "in_progress" for more than 12 hours — before rendering
+ * anything that touches the database. The local reminders are then
+ * recomputed in the background: they depend on the same state, but the
+ * first screen must not wait on the notification subsystem.
  * See SPEC §7.1 and IMPLEMENTACJA.md §10.2.
  */
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
@@ -28,16 +30,14 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
     seedDatabase()
       .then(() => abandonStaleWorkouts())
-      // Reminders are recomputed from state, so a missed day or a changed
-      // clock never leaves a stale schedule behind. A failure here (denied
-      // permission, OS quirk) must not block the app — swallow and log.
-      .then(() =>
-        syncReminders().catch((e: unknown) => {
-          console.warn('reminder sync failed', e);
-        }),
-      )
       .then(() => {
         if (!cancelled) setSeeded(true);
+        // Recomputed from state, so a missed day or a changed clock never
+        // leaves a stale schedule behind. A failure here (OS quirk, no
+        // permission) is logged and must never block the app.
+        void syncReminders().catch((e: unknown) => {
+          console.warn('reminder sync failed', e);
+        });
       })
       .catch((e: unknown) => {
         if (!cancelled) setSeedError(e instanceof Error ? e : new Error(String(e)));

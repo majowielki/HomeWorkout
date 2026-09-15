@@ -13,8 +13,8 @@ import {
   upsertWeight,
 } from '@/db/repositories/bodyMetrics';
 import { getDailyLog } from '@/db/repositories/dailyLogs';
-import { movingAverage, round1, weeklyTrend } from '@/domain/metrics/series';
-import { daysBetween, toIsoDate } from '@/domain/time/trainingDate';
+import { round1, summarizeWeight } from '@/domain/metrics/series';
+import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { useSessionOverview } from '@/features/workout/useSessionOverview';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
@@ -34,11 +34,6 @@ type DailyState = {
   soreCount: number;
 };
 
-function isoDaysAgo(from: string, days: number): string {
-  const [y, m, d] = from.split('-').map(Number) as [number, number, number];
-  return toIsoDate(new Date(y, m - 1, d - days));
-}
-
 /**
  * The one screen opened every day. Three cards, each answering a single
  * question: what do I weigh, what is my next session, how do I feel.
@@ -57,21 +52,16 @@ export default function TodayScreen() {
     const [todayRow, latestRow, raw, dailyRow] = await Promise.all([
       getWeightOn(today),
       getLatestWeight(),
-      getWeightSeries(isoDaysAgo(today, 28)),
+      getWeightSeries(addDays(today, -28)),
       getDailyLog(today),
     ]);
-    const strict = movingAverage(raw, 7, 3);
-    const last = strict[strict.length - 1];
-    const trend = weeklyTrend(raw);
+    const summary = summarizeWeight(raw, today);
     setBody({
       today,
       todayWeight: todayRow?.weightKg ?? null,
       latestWeight: latestRow?.weightKg ?? null,
-      average7:
-        last && last.average !== null && daysBetween(last.date, today) < 7
-          ? round1(last.average)
-          : null,
-      trend: trend === null ? null : round1(trend),
+      average7: summary.average,
+      trend: summary.trend,
     });
     setDaily({
       exists: dailyRow !== null,
@@ -97,10 +87,13 @@ export default function TodayScreen() {
     }
     setWeightError(null);
     setSavingWeight(true);
-    await upsertWeight(body.today, round1(kg));
-    await syncReminders();
-    await load();
-    setSavingWeight(false);
+    try {
+      await upsertWeight(body.today, round1(kg));
+      await syncReminders();
+      await load();
+    } finally {
+      setSavingWeight(false);
+    }
   }
 
   if (!body || !daily || !session.data) {

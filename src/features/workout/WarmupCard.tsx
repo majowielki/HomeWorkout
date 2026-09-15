@@ -8,13 +8,15 @@ import { pl } from '@/strings/pl';
 
 type Props = {
   defaultMinutes: number;
+  /** Shown as a standing cue: saddle height has clinical weight for this knee (PLAN §4.3). */
+  saddleHeightCm?: number | null;
   onLog: (minutes: number) => void;
   onSkip: () => void;
   saving?: boolean;
 };
 
 /** First screen of a session when the template requests a bike warm-up. */
-export function WarmupCard({ defaultMinutes, onLog, onSkip, saving }: Props) {
+export function WarmupCard({ defaultMinutes, saddleHeightCm, onLog, onSkip, saving }: Props) {
   const [minutes, setMinutes] = useState(defaultMinutes);
 
   return (
@@ -22,6 +24,9 @@ export function WarmupCard({ defaultMinutes, onLog, onSkip, saving }: Props) {
       <Card>
         <CardTitle>{pl.workout.session.warmupTitle}</CardTitle>
         <CardDescription>{pl.workout.session.warmupDescription}</CardDescription>
+        {saddleHeightCm ? (
+          <CardDescription>{pl.workout.session.saddleHeight(saddleHeightCm)}</CardDescription>
+        ) : null}
         <CardContent className="mt-2 items-center gap-4">
           <Stepper
             label={pl.workout.session.minutes}

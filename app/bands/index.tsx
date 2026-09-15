@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/text';
 import { type BandRow, listBands } from '@/db/repositories/bands';
 import { BAND_CONFIG } from '@/domain/config/training';
 import { needsRecalibration } from '@/domain/progression/calibration';
+import { toIsoDate } from '@/domain/time/trainingDate';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 
@@ -15,7 +16,8 @@ function statusLine(band: BandRow): string {
   const c = band.calibration;
   if (!c) return pl.bands.notCalibrated;
   if (!c.fit || c.maxMeasuredKg === null) return pl.bands.noFit;
-  const date = band.calibratedAt ? formatDate(band.calibratedAt.slice(0, 10)) : '';
+  // calibratedAt is a UTC instant; the local day is what the user remembers.
+  const date = band.calibratedAt ? formatDate(toIsoDate(new Date(band.calibratedAt))) : '';
   return `${pl.bands.calibrated(c.maxMeasuredKg, date)} · ${
     c.fit.type === 'linear' ? pl.bands.fitLinear : pl.bands.fitQuadratic
   }`;

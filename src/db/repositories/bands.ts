@@ -39,3 +39,8 @@ export async function addBandCycles(id: string, reps: number): Promise<void> {
     .set({ cycleCount: sql`${bands.cycleCount} + ${reps}` })
     .where(eq(bands.id, id));
 }
+
+/** Query for `useLiveQuery`: every band, so a wizard save shows up in an open session. */
+export function liveBandsQuery() {
+  return db.select().from(bands);
+}

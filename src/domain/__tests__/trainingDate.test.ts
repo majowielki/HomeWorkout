@@ -1,4 +1,4 @@
-import { daysBetween, toIsoDate, trainingDate } from '../time/trainingDate';
+import { addDays, daysBetween, toIsoDate, trainingDate } from '../time/trainingDate';
 
 describe('trainingDate', () => {
   it('assigns a late-night session to the previous day', () => {
@@ -48,5 +48,18 @@ describe('daysBetween', () => {
 
   it('rejects malformed input', () => {
     expect(() => daysBetween('wczoraj', '2026-09-01')).toThrow(TypeError);
+  });
+});
+
+describe('addDays', () => {
+  it('moves forward and backward across month and year boundaries', () => {
+    expect(addDays('2026-09-15', 3)).toBe('2026-09-18');
+    expect(addDays('2026-09-30', 1)).toBe('2026-10-01');
+    expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
+    expect(addDays('2026-09-15', 0)).toBe('2026-09-15');
+  });
+
+  it('rejects malformed input', () => {
+    expect(() => addDays('yesterday', 1)).toThrow(TypeError);
   });
 });

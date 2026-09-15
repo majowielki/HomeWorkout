@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/c
 import { formatDecimal, NumberField, parseDecimal } from '@/components/ui/number-field';
 import { Text } from '@/components/ui/text';
 import { type BandRow, getBand, saveCalibration } from '@/db/repositories/bands';
+import { BAND_CONFIG } from '@/domain/config/training';
 import { LADDER_SINGLE, nextRung } from '@/domain/inventory';
 import {
   estimateBandLoad,
@@ -16,7 +17,8 @@ import {
 import type { AnchorPosition, BandCalibrationPoint } from '@/domain/types';
 import { pl } from '@/strings/pl';
 
-const PREVIEW_ROM_CM = 40;
+/** The preview assumes a squat's travel — the pattern the heavy bands exist for. */
+const PREVIEW_ROM_CM = BAND_CONFIG.romCm.Squat;
 const POSITIONS: AnchorPosition[] = [0, 1, 2, 3];
 
 type Step = 'rest' | 'points' | 'result';
@@ -111,8 +113,12 @@ function Wizard({ band }: { band: BandRow }) {
   async function handleSave() {
     if (!result || saving) return;
     setSaving(true);
-    await saveCalibration(band.id, result.calibration);
-    router.back();
+    try {
+      await saveCalibration(band.id, result.calibration);
+      router.back();
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -197,7 +203,7 @@ function Wizard({ band }: { band: BandRow }) {
 
           {result.calibration.fit ? (
             <Card>
-              <CardTitle>{w.preview}</CardTitle>
+              <CardTitle>{w.preview(PREVIEW_ROM_CM)}</CardTitle>
               <CardContent className="mt-2">
                 {POSITIONS.map((p) => (
                   <Text key={p} variant="muted">

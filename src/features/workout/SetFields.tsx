@@ -10,10 +10,8 @@ import {
   estimatedPeakKg,
   type LoadEstimate,
 } from '@/domain/progression/calibration';
-import type { AnchorPosition, BandCalibration, DumbbellMode, Exercise } from '@/domain/types';
+import type { AnchorPosition, BandCalibrationMap, DumbbellMode, Exercise } from '@/domain/types';
 import { pl } from '@/strings/pl';
-
-export type CalibrationMap = Record<string, BandCalibration | null>;
 
 /** What a set log stores about the effort — the shape both the live logger and the history editor save. */
 export interface SavedSetData {
@@ -61,7 +59,7 @@ export function bandEstimate(
   exercise: Exercise,
   bandId: string,
   position: AnchorPosition,
-  calibrations: CalibrationMap | undefined,
+  calibrations: BandCalibrationMap | undefined,
 ): LoadEstimate {
   return estimateBandLoad(
     calibrations?.[bandId] ?? null,
@@ -74,7 +72,7 @@ export function bandEstimate(
 export function toSavedSet(
   exercise: Exercise,
   v: SetFieldValues,
-  calibrations?: CalibrationMap,
+  calibrations?: BandCalibrationMap,
 ): SavedSetData {
   return {
     reps: isTimed(exercise) ? null : v.reps,
@@ -95,7 +93,7 @@ type Props = {
   values: SetFieldValues;
   onChange: (values: SetFieldValues) => void;
   /** Without it the band block shows no kilograms at all. */
-  calibrations?: CalibrationMap;
+  calibrations?: BandCalibrationMap;
 };
 
 /**

@@ -15,6 +15,9 @@ export const templateBlockSchema = z
   .refine((b) => b.repMin !== undefined || b.timeSec !== undefined, {
     message: 'block must specify either a rep range or a time (isometric)',
   })
+  .refine((b) => (b.repMin === undefined) === (b.repMax === undefined), {
+    message: 'repMin and repMax come as a pair',
+  })
   .refine((b) => b.repMin === undefined || b.repMax === undefined || b.repMin <= b.repMax, {
     message: 'repMin must be <= repMax',
   })

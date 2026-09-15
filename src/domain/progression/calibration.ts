@@ -199,6 +199,12 @@ export type LoadEstimate =
  * band's start length (rest + position steps) to that plus the exercise's
  * range of motion. A start below rest length would be slack, so the low
  * end is clamped at zero.
+ *
+ * "Never extrapolate" is enforced on both axes: the rep must end within
+ * the longest stretch that was actually measured, and the predicted force
+ * must stay under the heaviest mass hung. The first guard matters for a
+ * quadratic that bends over — past the data it can predict a modest force
+ * while being pure fiction.
  */
 export function estimateBandLoad(
   calibration: BandCalibration | null,
@@ -209,9 +215,12 @@ export function estimateBandLoad(
   if (!calibration || !calibration.fit || calibration.maxMeasuredKg === null) {
     return { kind: 'none' };
   }
-  const { restLengthCm, fit, maxMeasuredKg } = calibration;
+  const { restLengthCm, fit, maxMeasuredKg, points } = calibration;
   const startLen = restLengthCm + position * cfg.anchorStepCm;
   const endLen = startLen + romCm;
+  const maxMeasuredLen = points.reduce((max, p) => Math.max(max, p.lengthCm), 0);
+  if (points.length > 0 && endLen > maxMeasuredLen) return { kind: 'above', maxMeasuredKg };
+
   const at = (len: number) => Math.max(0, evaluate(fit, len / restLengthCm));
   const lo = Math.min(at(startLen), at(endLen));
   const hi = Math.max(at(startLen), at(endLen));

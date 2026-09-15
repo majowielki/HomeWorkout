@@ -3,8 +3,9 @@
 A single-user, offline-first workout tracker for training at home with a
 very specific set of constraints — and a rules engine that respects them.
 
-> **Status:** early development, milestones M0–M6 done (see
-> [`Documents/IMPLEMENTACJA.md`](Documents/IMPLEMENTACJA.md)). Android only.
+> **Status:** early development, milestones M0–M6 done and reviewed (see
+> [`Documents/IMPLEMENTACJA.md`](Documents/IMPLEMENTACJA.md) §0 for the milestone
+> table and every deliberate deviation from the plan). Android only.
 > The UI is in Polish by design; code, tests and documentation are in English.
 
 ## What makes it interesting
@@ -42,7 +43,7 @@ equipment, today?_
 app/            expo-router routes — thin, no logic
 src/domain/     pure TypeScript rules engine — no React, Expo or DB imports
                 (enforced by an ESLint rule; 100% test coverage required)
-src/db/         Drizzle schema, migrations, repositories (the only SQL)
+src/db/         Drizzle schema, migrations, repositories (the only SQL — lint-enforced)
 src/features/   screen-level components composed from the layers below
 src/components/ shadcn-style UI kit on NativeWind
 data/           exercise catalogue and workout templates (JSON + Zod)

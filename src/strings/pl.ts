@@ -1,3 +1,4 @@
+import { BAND_CONFIG } from '@/domain/config/training';
 import type { ExclusionCode } from '@/domain/exercises/screen';
 import type { LoadEstimate } from '@/domain/progression/calibration';
 import type {
@@ -40,7 +41,7 @@ export const pl = {
     dailyEmpty: 'Jak się dziś czujesz? Sen, energia, zakwasy — 10 sekund.',
     dailySummary: (sleep: number | null, energy: number | null, soreCount: number) =>
       [
-        sleep !== null ? `sen ${sleep} h` : null,
+        sleep !== null ? `sen ${String(sleep).replace('.', ',')} h` : null,
         energy !== null ? `energia ${energy}/5` : null,
         soreCount > 0 ? `zakwasy: ${soreCount}` : null,
       ]
@@ -68,8 +69,21 @@ export const pl = {
           : `Ostatnia sesja: ${daysAgo} dni temu`,
     noSessionsYet: 'Brak sesji w historii — zacznij od dowolnego szablonu.',
     quickCardio: 'Szybki log: rower',
+    cardio: {
+      minutes: 'Minuty',
+      resistance: 'Opór (skala roweru)',
+      rpe: 'RPE',
+      unset: '—',
+      save: 'Zapisz',
+    },
     session: {
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
+      targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
+      targetTime: (sec: number) => `cel: ${sec} s`,
+      /** Toggle on the first set of a block: log this as a warm-up, then do the working set. */
+      warmupSet: 'Seria rozgrzewkowa',
+      warmupSetHint: 'Rozgrzewkowa nie liczy się do objętości; po niej wracasz do tej samej serii.',
+      saveWarmupSet: 'Zapisz rozgrzewkową',
       dumbbellSingle: 'Hantel (jeden gryf)',
       dumbbellPaired: 'Hantle (para)',
       band: 'Guma',
@@ -84,6 +98,8 @@ export const pl = {
       upNext: 'Następne',
       warmupTitle: 'Rozgrzewka',
       warmupDescription: 'Kilka minut na rowerze przed pierwszą serią.',
+      saddleHeight: (cm: number) =>
+        `Siodełko: ${String(cm).replace('.', ',')} cm — sprawdź przed jazdą.`,
       minutes: 'Minuty',
       warmupLog: 'Zapisano, zaczynamy',
       warmupSkip: 'Pomiń rozgrzewkę',
@@ -95,7 +111,8 @@ export const pl = {
     },
     summary: {
       title: 'Podsumowanie',
-      setsLogged: (n: number) => `${n} ${n === 1 ? 'seria' : 'serii'} zalogowanych`,
+      setsLogged: (n: number) =>
+        `${n} ${n === 1 ? 'seria zalogowana' : n >= 2 && n <= 4 ? 'serie zalogowane' : 'serii zalogowanych'}`,
       previousComparison: (daysAgo: number, previousSets: number, currentSets: number) =>
         `Poprzednia sesja tego szablonu: ${daysAgo} ${daysAgo === 1 ? 'dzień' : 'dni'} temu, ${previousSets} serii (dziś: ${currentSets}).`,
       noPrevious: 'To pierwsza sesja tego szablonu w historii.',
@@ -199,6 +216,17 @@ export const pl = {
     title: 'Historia',
     empty: 'Jeszcze nic tu nie ma. Pierwsza zakończona sesja pojawi się na liście.',
     noTemplate: 'bez szablonu',
+    ride: 'Rower',
+    rideMeta: (minutes: number, resistance: number | null, rpe: number | null) =>
+      [
+        `${minutes} min`,
+        resistance !== null ? `opór ${resistance}` : null,
+        rpe !== null ? `RPE ${rpe}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    deleteRideTitle: 'Usunąć jazdę?',
+    deleteRideBody: 'Wpis roweru zniknie z historii. Tego nie da się cofnąć.',
     status: {
       in_progress: 'w trakcie',
       abandoned: 'porzucona',
@@ -212,6 +240,8 @@ export const pl = {
       noSets: 'Brak zalogowanych serii.',
       editHint: 'Stuknij serię, żeby ją poprawić lub usunąć.',
       warmup: 'rozgrzewka',
+      bike: 'Rower',
+      bikePurpose: { warmup: 'rozgrzewka', cardio: 'jazda' } as const,
       deleteWorkout: 'Usuń trening',
       deleteWorkoutTitle: 'Usunąć trening?',
       deleteWorkoutBody: 'Sesja i wszystkie jej serie znikną z historii. Tego nie da się cofnąć.',
@@ -233,6 +263,8 @@ export const pl = {
       kg: (n: number) => `${n} kg`,
       band: (label: string, position: number) => `${label} P${position}`,
       bodyweight: 'masa ciała',
+      /** The stored estimate is the top of the calibrated range, never a point value. */
+      peakKg: (n: number) => `(do ≈ ${n} kg)`,
       rir: (n: number) => `RIR ${n}`,
     },
   },
@@ -271,7 +303,7 @@ export const pl = {
         'Zawieś gumę, podwieś gryf z obciążeniem i zmierz długość. Kolejne masy z drabinki; przerwij, gdy guma przestaje się wydłużać.',
       lengthFor: (kg: number) => `${kg} kg → długość (cm)`,
       addPoint: 'Zapisz pomiar',
-      plateau: 'Ostatni przyrost poniżej 1 cm — więcej masy niewiele powie. Możesz zakończyć.',
+      plateau: `Ostatni przyrost poniżej ${BAND_CONFIG.minLengthStepCm} cm — więcej masy niewiele powie. Możesz zakończyć.`,
       pointsSoFar: (n: number) =>
         `${n} ${n === 1 ? 'pomiar' : n >= 2 && n <= 4 ? 'pomiary' : 'pomiarów'}`,
       removeLast: 'Cofnij ostatni',
@@ -281,14 +313,13 @@ export const pl = {
       reason: {
         FIT_LINEAR: 'Siła rośnie liniowo z rozciągnięciem — dopasowanie liniowe.',
         FIT_QUADRATIC: 'Siła rośnie coraz szybciej — dopasowanie kwadratowe.',
-        TOO_FEW_POINTS:
-          'Za mało pomiarów na dopasowanie (potrzeba 4). Pomiary zostaną zapisane, kilogramów nie będzie.',
+        TOO_FEW_POINTS: `Za mało pomiarów na dopasowanie (potrzeba ${BAND_CONFIG.minCalibrationPoints}). Pomiary zostaną zapisane, kilogramów nie będzie.`,
         NO_STRETCH:
           'Guma nie wydłuża się mierzalnie przy dostępnych masach. Kalibracja nie jest możliwa — to normalne dla zielonej. Silnik pracuje na pozycjach P0–P3.',
       },
       r2: (r2: number) => `R² = ${r2.toFixed(3)}`,
       maxMeasured: (kg: number) => `Zmierzona do ${kg} kg — powyżej aplikacja pokaże „> ${kg} kg”.`,
-      preview: 'Podgląd przy zakresie ruchu 40 cm',
+      preview: (romCm: number) => `Podgląd przy zakresie ruchu ${romCm} cm`,
       previewRow: (position: number, text: string) => `P${position}: ${text || '—'}`,
       save: 'Zapisz kalibrację',
       saved: 'Zapisano.',
@@ -444,6 +475,16 @@ export const pl = {
     KNEE_OPEN_CHAIN_QUAD:
       'Otwarty łańcuch na czworogłowy: maksymalna przednia siła ścinająca na przeszczep ACL w zakresie 0–30°, bez ko-kontrakcji dwugłowych.',
   } satisfies Record<ExclusionCode, string>,
+  notifications: {
+    restChannel: 'Koniec przerwy',
+    restTitle: 'Koniec przerwy',
+    reminderChannel: 'Przypomnienia',
+  },
+  a11y: {
+    decrement: (label: string) => `Zmniejsz: ${label}`,
+    increment: (label: string) => `Zwiększ: ${label}`,
+    noPhoto: 'Brak zdjęcia',
+  },
   common: {
     loading: 'Ładowanie…',
     error: 'Coś poszło nie tak.',

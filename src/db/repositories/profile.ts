@@ -95,3 +95,11 @@ export async function getReminderSettings(): Promise<ReminderSettings> {
     workout: { ...DEFAULT_REMINDER_SETTINGS.workout, ...row?.reminders?.workout },
   };
 }
+
+/** Query for `useLiveQuery`: the knee profile alone, so screens re-render when it changes. */
+export function liveKneeProfileQuery() {
+  return db
+    .select({ kneeProfile: userProfile.kneeProfile })
+    .from(userProfile)
+    .where(eq(userProfile.id, PROFILE_ID));
+}

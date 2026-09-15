@@ -143,10 +143,11 @@ describe('stretchHasPlateaued', () => {
 });
 
 describe('estimateBandLoad', () => {
-  // F(λ) = 20(λ − 1): 0 kg at rest, 2 kg per 10 % stretch, calibrated up to 12 kg.
+  // F(λ) = 20(λ − 1): 0 kg at rest, 2 kg per 10 % stretch, calibrated up to
+  // 12 kg — which the band reached at 160 cm, the longest stretch on record.
   const linear: BandCalibration = {
     restLengthCm: L0,
-    points: [],
+    points: [{ massKg: 12, lengthCm: 160 }],
     fit: { type: 'linear', coeffs: [-20, 20] },
     maxMeasuredKg: 12,
   };
@@ -165,6 +166,26 @@ describe('estimateBandLoad', () => {
   it('never extrapolates past the heaviest measured mass', () => {
     // P2 start 160 cm = 12 kg, end 200 cm would be 20 kg
     expect(estimateBandLoad(linear, 2, 40)).toEqual({ kind: 'above', maxMeasuredKg: 12 });
+    // The force cap holds on its own when no lengths are on record.
+    expect(estimateBandLoad({ ...linear, points: [] }, 2, 40)).toEqual({
+      kind: 'above',
+      maxMeasuredKg: 12,
+    });
+  });
+
+  it('never extrapolates past the longest measured stretch, even when the curve bends down', () => {
+    // A parabola fitted up to 160 cm that peaks there and falls off beyond:
+    // at 200 cm it predicts ~4 kg, comfortably under the 12 kg cap — but
+    // nothing was ever measured that far, so it must still say "> 12 kg".
+    const bending: BandCalibration = {
+      ...linear,
+      fit: { type: 'quadratic', coeffs: [-36, 60, -18.75] },
+    };
+    expect(evaluate(bending.fit!, 1.6)).toBeCloseTo(12, 5);
+    expect(evaluate(bending.fit!, 2)).toBeLessThan(12);
+    expect(estimateBandLoad(bending, 2, 40)).toEqual({ kind: 'above', maxMeasuredKg: 12 });
+    // Without any stored points the force cap is all there is to go on.
+    expect(estimateBandLoad({ ...bending, points: [] }, 2, 40).kind).toBe('range');
   });
 
   it('clamps a slack start at zero', () => {

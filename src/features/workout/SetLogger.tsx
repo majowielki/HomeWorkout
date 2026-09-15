@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
 import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
-import type { AnchorPosition, Exercise, TemplateBlock } from '@/domain/types';
+import type { AnchorPosition, BandCalibrationMap, Exercise, TemplateBlock } from '@/domain/types';
 import { pl } from '@/strings/pl';
 
 import {
-  type CalibrationMap,
   ladderFor,
   type SavedSetData,
   SetFields,
@@ -19,6 +19,9 @@ import {
 } from './SetFields';
 
 export type { SavedSetData } from './SetFields';
+
+/** What the active session receives: the set plus whether it was a warm-up. */
+export type LoggedSetData = SavedSetData & { isWarmup: boolean };
 
 export interface PrefillData {
   reps: number | null;
@@ -34,9 +37,9 @@ type Props = {
   block: TemplateBlock;
   setNumber: number;
   totalSets: number;
-  onSave: (data: SavedSetData) => void;
+  onSave: (data: LoggedSetData) => void;
   saving?: boolean;
-  calibrations?: CalibrationMap;
+  calibrations?: BandCalibrationMap;
 };
 
 /**
@@ -103,10 +106,15 @@ function SetLoggerFields({
     bandId: prefill?.bandId ?? BANDS[0]!.id,
     position: prefill?.anchorPosition ?? 1,
   }));
+  // A warm-up only makes sense before the first working set of a block —
+  // for bands it is what SPEC §5.6 requires (Mullins effect), for the knee
+  // it is plain sense. Off by default so the common path stays one tap.
+  const [isWarmup, setIsWarmup] = useState(false);
+  const warmupAvailable = setNumber === 1;
 
   const handleSave = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSave(toSavedSet(exercise, values, calibrations));
+    onSave({ ...toSavedSet(exercise, values, calibrations), isWarmup });
   };
 
   return (
@@ -128,6 +136,21 @@ function SetLoggerFields({
         </View>
       ) : null}
 
+      {warmupAvailable ? (
+        <View className="items-center gap-1">
+          <Chip
+            label={pl.workout.session.warmupSet}
+            selected={isWarmup}
+            onPress={() => setIsWarmup((v) => !v)}
+          />
+          {isWarmup ? (
+            <Text variant="muted" className="text-center text-xs">
+              {pl.workout.session.warmupSetHint}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
       <SetFields
         exercise={exercise}
         values={values}
@@ -135,12 +158,18 @@ function SetLoggerFields({
         calibrations={calibrations}
       />
 
-      <Button label={pl.workout.session.saveSet} size="lg" onPress={handleSave} disabled={saving} />
+      <Button
+        label={isWarmup ? pl.workout.session.saveWarmupSet : pl.workout.session.saveSet}
+        size="lg"
+        variant={isWarmup ? 'secondary' : 'default'}
+        onPress={handleSave}
+        disabled={saving}
+      />
     </ScrollView>
   );
 }
 
 function targetLabel(block: TemplateBlock): string {
-  if (block.timeSec !== undefined) return `cel: ${block.timeSec} s`;
-  return `cel: ${block.repMin}–${block.repMax}`;
+  if (block.timeSec !== undefined) return pl.workout.session.targetTime(block.timeSec);
+  return pl.workout.session.targetReps(block.repMin ?? 0, block.repMax ?? block.repMin ?? 0);
 }

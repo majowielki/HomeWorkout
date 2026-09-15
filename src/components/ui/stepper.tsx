@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Minus, Plus } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
+import { pl } from '@/strings/pl';
 
 type StepperProps = {
   label: string;
@@ -38,7 +39,7 @@ export function Stepper({
           onPress={onDecrement}
           disabled={decrementDisabled}
           accessibilityRole="button"
-          accessibilityLabel={`Zmniejsz: ${label}`}
+          accessibilityLabel={pl.a11y.decrement(label)}
           className={cn(
             'h-11 w-11 items-center justify-center rounded-xl bg-secondary active:opacity-70',
             decrementDisabled && 'opacity-30',
@@ -53,7 +54,7 @@ export function Stepper({
           onPress={onIncrement}
           disabled={incrementDisabled}
           accessibilityRole="button"
-          accessibilityLabel={`Zwiększ: ${label}`}
+          accessibilityLabel={pl.a11y.increment(label)}
           className={cn(
             'h-11 w-11 items-center justify-center rounded-xl bg-secondary active:opacity-70',
             incrementDisabled && 'opacity-30',

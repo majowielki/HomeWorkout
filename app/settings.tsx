@@ -63,18 +63,25 @@ export default function SettingsScreen() {
     }
     setError(null);
     setSaving(true);
-    await updateProfile({
-      heightCm: h,
-      birthYear: y,
-      sex,
-      dayBoundaryHour,
-      saddleHeightCm: saddle,
-      kneeProfile: knee,
-      reminders,
-    });
-    await syncReminders();
-    setSaving(false);
-    router.back();
+    try {
+      await updateProfile({
+        heightCm: h,
+        birthYear: y,
+        sex,
+        dayBoundaryHour,
+        saddleHeightCm: saddle,
+        kneeProfile: knee,
+        reminders,
+      });
+      // The only place that asks the OS for notification permission: the
+      // user has just looked at the reminder switches, so the dialog has
+      // context. Everywhere else a missing grant is silently tolerated.
+      const wantsReminders = reminders.weight.enabled || reminders.workout.enabled;
+      await syncReminders({ requestPermission: wantsReminders });
+      router.back();
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (!loaded || !reminders) {

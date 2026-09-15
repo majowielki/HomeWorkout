@@ -69,7 +69,13 @@ export default function BackupScreen() {
   async function handleImport() {
     if (busy !== 'idle') return;
     setNotice(null);
-    const picked = await pickBackup();
+    let picked: Awaited<ReturnType<typeof pickBackup>>;
+    try {
+      picked = await pickBackup();
+    } catch (e) {
+      setNotice({ tone: 'error', text: errorText(e) });
+      return;
+    }
     if (picked.kind === 'canceled') return;
     if (!picked.parse.ok) {
       const detail = picked.parse.detail ? `\n${picked.parse.detail}` : '';

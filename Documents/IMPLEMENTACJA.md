@@ -1,6 +1,6 @@
 # HomeWorkout — dokument implementacyjny
 
-> Wersja 2. Data: 2026-09-14 (v1: 2026-09-10).
+> Wersja 2.1. Data: 2026-09-15 (v2: 2026-09-14, v1: 2026-09-10).
 > Dokumenty nadrzędne: [PLAN.md](PLAN.md) (dlaczego), [SPEC-silnik-regul.md](SPEC-silnik-regul.md) (logika domenowa).
 > Ten dokument odpowiada na pytanie **jak** — i tam, gdzie jest sprzeczny z PLAN.md, to on obowiązuje
 > (lista różnic w §1). **Stan realizacji i odstępstwa kodu od tego dokumentu: §0.**
@@ -23,7 +23,8 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | M4 — ciało, dziennik, przypomnienia | ✅ 2026-09-15 | `f5c808b` | wzór Navy w formie metrycznej (§0.2), przypomnienia jako jednorazowe z stałym id |
 | M5 — historia, eksport / import | ✅ 2026-09-15 | `59c88a0` | picker z `expo-file-system` zamiast `expo-document-picker` (§0.2); DoD wymaga testu na urządzeniu |
 | ⛔ bramka — dwa tygodnie używania | ⏳ | | M6+ dopiero po ≥ 4 sesjach i ≥ 14 dniach wagi |
-| M6 — kalibracja gum | ✅ 2026-09-15 | — | model pozycja → rozciągnięcie doprecyzowany (§0.2); DoD wymaga trzech realnych kalibracji |
+| M6 — kalibracja gum | ✅ 2026-09-15 | `d7a309e` | model pozycja → rozciągnięcie doprecyzowany (§0.2); DoD wymaga trzech realnych kalibracji; **zrobiony przed bramką** — bramka nadal obowiązuje przed M7 |
+| review M4–M6 | ✅ 2026-09-15 | | nagłówki stacka, przypomnienia jako seria, seria rozgrzewkowa, rower w historii, granica SQL egzekwowana lintem, ten rozdział |
 | M7+ | ⏳ | | |
 
 ### 0.2 Odstępstwa od dokumentu — świadome
@@ -43,7 +44,16 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | `MovementPattern` z 8 wartościami | +`Cardio`, +`Mobility` | rower w katalogu jest obowiązkowym przypadkiem testowym filtra |
 | §7.4: `movingAverage` „dla dni bez wpisu brak punktu" | średnia liczona per wpis w oknie kalendarzowym; wykres rysuje linię od pierwszego wpisu (`minPoints=1`), nagłówek „śr. 7 dni" wymaga ≥3 wpisów | jedna funkcja, dwa progi; wykres bez linii przez pierwszy tydzień byłby pusty |
 | Navy → `body_metrics(source='navy')` | zapisywane tylko gdy istnieje waga z tego dnia lub wcześniejsza; inaczej tylko wyświetlane | `weightKg` jest `NOT NULL`; estymata bez wagi nie ma sensu |
-| przypomnienia: „DAILY" trigger dla wagi | jednorazowy `DATE` trigger pod stałym `identifier`, przeliczany przy każdym starcie / wpisie / sesji / zmianie ustawień | tylko tak da się pominąć dzień, który już ma wpis (§10.2) |
+| przypomnienia: „DAILY" trigger dla wagi | **seria** jednorazowych `DATE` triggerów na 14 dni naprzód (`reminder-weight-YYYY-MM-DD`), przeliczana przy każdym starcie / wpisie / sesji / imporcie / zmianie ustawień; dni wyciszone pomijane | tylko tak da się pominąć dzień, który już ma wpis (§10.2); pojedynczy trigger umierał po pierwszym odpaleniu — kto nie otworzył aplikacji, nie dostawał już nic, a to dokładnie osoba, dla której przypomnienie istnieje |
+| §10.2: trening — „anuluj poprzednie, zaplanuj nowe na `lastSessionDate + N`" | jw. seria od `lastSessionDate + N` przez 14 dni, każda z własnym „ostatni trening był X dni temu" | jw.; po wyciszeniu na tydzień seria sama wznawia się ósmego dnia bez otwierania aplikacji |
+| §7.2 / M3: uprawnienie do powiadomień „przy timerze" | timer i Ustawienia (zapis z włączonym przypomnieniem) proszą o uprawnienie; start aplikacji i wpis wagi **nie** — bez zgody seria po prostu nie jest planowana | dialog systemowy przed pierwszym ekranem to zły pierwszy kontakt; do tego provider czekał na odpowiedź użytkownika zanim cokolwiek wyrenderował |
+| jeden kanał Android dla wszystkich powiadomień | `rest-timer` (HIGH, wibracja) i `reminders` (DEFAULT) osobno | koniec przerwy ma się przebić w trakcie treningu; poranne „zważ się" ma dać się ściszyć bez wyłączania alarmu przerwy |
+| SPEC §5.5: „zakaz ekstrapolacji poza najwyższy zmierzony punkt" — kod sprawdzał tylko siłę | `estimateBandLoad` odmawia także, gdy koniec ruchu wykracza poza **najdłuższe zmierzone rozciągnięcie** | parabola z ujemną krzywizną poza danymi potrafi przewidzieć umiarkowaną siłę poniżej `maxMeasuredKg` — to nadal fikcja; test pilnuje obu osi |
+| SPEC §5.6: seria rozgrzewkowa gumą obowiązkowa — UI nie miało jak jej zalogować | przełącznik „Seria rozgrzewkowa" na pierwszej serii bloku; zapis z `isWarmup=true` nie „zalicza" kroku, po przerwie wraca ta sama seria | bez tego M7 flagowałby `WARMUP_MISSING` na każdym ćwiczeniu z gumą; rozgrzewkowa nie wchodzi do objętości ani do prefillu następnej sesji |
+| PLAN §11: „Log roweru: minuty, opór, kadencja, RPE"; §2.2: „rower: szybki log" | szybki log ma minuty + opór + RPE (kadencja odłożona — §0 PLAN pkt 1 wciąż otwarty); jazdy samodzielne są wierszami w Historii, rower sesji widoczny w jej szczegółach | do review dane roweru były zapisywane i nigdy nigdzie nie pokazywane |
+| §10 pkt 4: porzucona sesja < 50 % serii → powtórz szablon (domyślnie: ≥ 50 % liczy się jako zrobiona) | naprzemienność patrzy wyłącznie na ostatnią sesję **ukończoną**; porzucona — niezależnie od procentu — nie przesuwa cyklu | próg 50 % to reguła silnika (M7 `dayPlanner`), tam trafi z testem; do tego czasu prostsza zasada, bez niespodzianek |
+| §7.5: import — „walidacja Zod" | + sprawdzenie referencji **wewnątrz pliku** (`set_logs → workouts/bands`, `workouts → templates`, `cardio → workouts`) w `parseBackup`, czysto i z testem | inaczej wiszący identyfikator kończył się błędem klucza obcego ze środka transakcji, bez nazwy wiersza |
+| historia: `estimatedLoadKg` pokazywany jako „≈ 12 kg" | „(do ≈ 12 kg)" | kolumna trzyma szczyt przedziału; jedna liczba bez „do" sugerowała wartość punktową, której SPEC §5.5 zakazuje |
 | DOMS per partia „chipy" | trzy stany per partia: brak → 2 → 4 | mapuje się wprost na próg SPEC §4.3 (DOMS ≥ 4 = pomiń partię) |
 | ustawienia: minuty przypomnień | tylko pełne godziny (stepper) | minuty nie są tu wartością; stepper jest szybszy niż picker |
 | M5: `expo-document-picker` | `File.pickFileAsync()` z `expo-file-system` | SDK 57 ma picker wbudowany w file-system; jeden moduł natywny mniej |
@@ -72,6 +82,10 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 - Schematy Zod pliku backupu są przypięte do typów Drizzle w obie strony (`satisfies z.ZodType<Row>` + test typu `Equal<>`): nowa kolumna w `schema.ts` bez wpisu w `db/backup/format.ts` nie przechodzi `tsc`.
 - NativeWind zamienia `View` z klasą `active:` na `Pressable` przy pierwszym renderze — dlatego `<Link asChild><Card className="active:…">` działa, a bez `active:` po cichu nie.
 - Reguły `react-hooks/purity` i `set-state-in-effect` z `eslint-config-expo` są egzekwowane jako błędy. Praktyczne skutki: żadnego `Date.now()` w renderze, żadnego synchronicznego `setState` w ciele efektu — „reset przed fetchem" rozwiązuje się przez remount z `key`, nie przez efekt.
+- **`<Stack screenOptions={{ headerShown: false }}>` w `app/_layout.tsx` ukrywał nagłówek każdej trasy**, nie tylko grupy `(tabs)`: `Stack.Screen options={{ title }}` w ekranie dokłada tytuł, ale nie odwraca `headerShown`. Od M1 do review M4–M6 Ustawienia, Historia, Gumy i aktywna sesja nie miały tytułu, strzałki wstecz ani przycisku „Zakończ" w nagłówku — nawigacja szła wyłącznie gestem systemowym. Poprawka: `headerShown: false` tylko na `<Stack.Screen name="(tabs)">`.
+- `expo-notifications`: `scheduleNotificationAsync({ identifier })` nadpisuje powiadomienie o tym samym id, a `getAllScheduledNotificationsAsync()` zwraca identyfikatory — serię przypomnień da się przeplanować bez trzymania czegokolwiek w bazie (anuluj po prefiksie, zaplanuj od nowa).
+- Flat config ESLint: późniejszy obiekt **zastępuje** ustawienie tej samej reguły z wcześniejszego, nie łączy list. Dwie granice (`src/domain` bez frameworka; `@/db/client` i `@/db/schema` tylko w `src/db`) muszą być osobnymi blokami w kolejności od ogólnego do szczegółowego, inaczej domena traci swoją listę.
+- Repozytoria eksportują buildery `live*Query()` dla `useLiveQuery` (`liveExercisesQuery`, `liveBandsQuery`, `liveKneeProfileQuery`) — hook w `features/` woła `useLiveQuery(liveBandsQuery())` i nie widzi ani klienta, ani schematu. To jedyna forma, w jakiej SQL wychodzi poza `src/db`.
 
 ---
 
@@ -828,7 +842,8 @@ otwarciu wznowienie z tego samego miejsca; notyfikacja końca przerwy przychodzi
 5. Karta „Dziś" (§10.1): waga + trend, ostatnia sesja „N dni temu", następny szablon (naprzemiennie),
    przycisk startu, niedokończona sesja.
 6. Przypomnienia (§10.2): waga codziennie, trening po N dniach; Ustawienia z godzinami, N,
-   przełącznikami i „wycisz na 7 dni".
+   przełącznikami i „wycisz na 7 dni". Realizacja: seria jednorazowych powiadomień na 14 dni
+   naprzód (§0.2).
 
 **DoD:** 7 dni prawdziwych wpisów wagi widocznych na wykresie z poprawną średnią (sprawdzoną ręcznie);
 przypomnienie o wadze nie przychodzi w dniu, w którym wpis już jest.
@@ -900,7 +915,12 @@ Input/Output · testy red-team promptu · ciemny motyw dopracowany · F-Droid.
 - **Testy:** każdy plik w `src/domain` ma lustrzany test. Komponenty: testy tylko dla `SetLogger`
   i `RestTimer` (logika UI), reszta to kompozycja.
 - **Typy:** żadnego `any`; typy rzędów bazy (`typeof workouts.$inferSelect`) nie wyciekają poza
-  `db/repositories` — repozytoria zwracają typy domenowe.
+  `db/repositories` — repozytoria zwracają typy domenowe. *Stan faktyczny po M6:* `WorkoutRow`,
+  `SetLogRow`, `BandRow`, `ProfileRow`, `CardioLogRow` są eksportowane i używane w `app/`
+  (historia, edycja serii, gumy). Świadomy dług: przy jednym użytkowniku i płaskich tabelach typ
+  wiersza *jest* typem domenowym; mapowanie 1:1 dodałoby kod bez informacji. Wraca na stół, gdy
+  pojawi się drugi konsument (M9 AI, sync) albo gdy schemat zacznie się rozjeżdżać z tym, co ekrany
+  chcą widzieć.
 - **Nazwy plików:** `kebab-case.ts`, komponenty `PascalCase.tsx`.
 - **README:** czym jest projekt, zrzuty ekranu, architektura (ten podział), jak uruchomić, status.
   Pisany od M1, aktualizowany przy każdym kamieniu.
@@ -935,10 +955,14 @@ silnika („dziś lżej: sen 5 h") i ewentualną sugestię „po 10 dniach przer
 | **Waga** | codziennie o stałej godzinie | 07:00 | godzina, wł./wył.; **nie wysyłaj, jeśli dziś już jest wpis** |
 | **Trening** | gdy od ostatniej sesji minęło ≥ N dni, o stałej godzinie | N = 3, 17:00 | N, godzina, wł./wył. |
 
-Mechanika przypomnienia o treningu w rytmie kroczącym: przy każdym otwarciu aplikacji i po każdej
-zakończonej sesji — anuluj poprzednie, zaplanuj nowe na `lastSessionDate + N dni` o wybranej godzinie.
-Jednorazowe, nie cykliczne; jeśli dzień minie bez treningu, następne otwarcie aplikacji przeplanuje na jutro.
-Treść neutralna: *„Ostatni trening był 3 dni temu. FBW B czeka, kiedy będziesz gotowy."*
+Mechanika (oba typy, po review M4–M6): przy każdym otwarciu aplikacji, wpisie wagi, zakończonej lub
+usuniętej sesji, imporcie i zmianie ustawień — anuluj wszystkie zaplanowane pod prefiksem, zaplanuj
+**serię jednorazowych** powiadomień na 14 dni naprzód (`domain/reminders/schedule.ts`, czyste; `lib/reminders.ts`
+woła `expo-notifications`). Waga: jedno na dzień o wybranej godzinie, dzisiejsze pomijane, gdy wpis już jest.
+Trening: od `lastSessionDate + N` przez 14 dni, każde z własnym „X dni temu". Dni wyciszone są pomijane,
+więc tydzień ciszy kończy się sam. Seria zamiast pojedynczego triggera, bo pojedynczy umiera po odpaleniu:
+kto nie otworzył aplikacji następnego dnia, nie dostawał już nic.
+Treść neutralna: *„Ostatni trening był 3 dni temu. Kolejna sesja czeka, kiedy będziesz gotowy."*
 
 Oba przypomnienia mają jeden przełącznik „wycisz na 7 dni" — na tygodnie, o których pisałeś, że
 treningu prawie nie będzie. Aplikacja ma o tym wiedzieć, nie dobijać.

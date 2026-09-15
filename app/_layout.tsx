@@ -32,8 +32,15 @@ export default function RootLayout() {
       <ThemeProvider value={navTheme}>
         <StatusBar style="auto" />
         <DatabaseProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
+          {/*
+           * Only the tab group hides the stack header — the tabs draw their
+           * own. Every other route (settings, history detail, the active
+           * session with its "Zakończ" action) needs the header for its
+           * title, back arrow and header buttons. A blanket
+           * `headerShown: false` here would silently hide all of that.
+           */}
+          <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack>
         </DatabaseProvider>
       </ThemeProvider>

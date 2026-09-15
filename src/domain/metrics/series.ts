@@ -80,3 +80,32 @@ export function weeklyTrend(
 export function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
+
+export interface WeightSummary {
+  /** Trailing 7-day mean of the latest entry, if that entry is recent enough to still describe "now". */
+  average: number | null;
+  /** Slope in kg/week over the last three weeks, or null while the series is too thin. */
+  trend: number | null;
+}
+
+/**
+ * The two headline numbers every weight screen shows, rounded the way a
+ * bathroom scale would. The average is dropped once the newest entry is
+ * older than the window — a 7-day mean from a fortnight ago says nothing
+ * about today.
+ */
+export function summarizeWeight(
+  points: readonly DatedValue[],
+  today: string,
+  windowDays = 7,
+  minPoints = 3,
+): WeightSummary {
+  const smoothed = movingAverage(points, windowDays, minPoints);
+  const last = smoothed[smoothed.length - 1];
+  const average =
+    last && last.average !== null && daysBetween(last.date, today) < windowDays
+      ? round1(last.average)
+      : null;
+  const trend = weeklyTrend(points);
+  return { average, trend: trend === null ? null : round1(trend) };
+}

@@ -1,4 +1,4 @@
-import { movingAverage, round1, weeklyTrend } from '../metrics/series';
+import { movingAverage, round1, summarizeWeight, weeklyTrend } from '../metrics/series';
 
 const day = (n: number) => `2026-09-${String(n).padStart(2, '0')}`;
 
@@ -94,5 +94,33 @@ describe('round1', () => {
     expect(round1(80.449)).toBe(80.4);
     expect(round1(80.45)).toBe(80.5);
     expect(round1(-0.05)).toBe(-0);
+  });
+});
+
+describe('summarizeWeight', () => {
+  it('returns nothing for an empty series', () => {
+    expect(summarizeWeight([], day(15))).toEqual({ average: null, trend: null });
+  });
+
+  it('needs three entries in the window before it states an average', () => {
+    const two = [13, 14].map((d) => ({ date: day(d), value: 80 }));
+    expect(summarizeWeight(two, day(15)).average).toBeNull();
+    const three = [13, 14, 15].map((d) => ({ date: day(d), value: 80 + (d - 13) * 0.3 }));
+    expect(summarizeWeight(three, day(15)).average).toBe(80.3);
+  });
+
+  it('drops an average whose newest entry is older than the window', () => {
+    const stale = [1, 2, 3].map((d) => ({ date: day(d), value: 80 }));
+    expect(summarizeWeight(stale, day(10)).average).toBeNull();
+    expect(summarizeWeight(stale, day(9)).average).toBe(80);
+  });
+
+  it('rounds the weekly trend to one decimal and hides it on a thin series', () => {
+    const daily = Array.from({ length: 21 }, (_, i) => ({
+      date: day(i + 1),
+      value: 90 - i * 0.05,
+    }));
+    expect(summarizeWeight(daily, day(21)).trend).toBe(-0.4);
+    expect(summarizeWeight(daily.slice(0, 5), day(5)).trend).toBeNull();
   });
 });

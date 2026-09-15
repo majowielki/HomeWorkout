@@ -107,7 +107,44 @@ describe('SetLogger', () => {
       bandId: null,
       anchorPosition: null,
       estimatedLoadKg: null,
+      isWarmup: false,
     });
+  });
+
+  it('offers no warm-up toggle past the first set of a block', async () => {
+    mockedLastSet.mockResolvedValue(null);
+
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={2}
+        totalSets={2}
+        onSave={jest.fn()}
+      />,
+    );
+    await screen.findByText('2 kg');
+    expect(screen.queryByText('Seria rozgrzewkowa')).toBeNull();
+  });
+
+  it('flags the save as a warm-up when the toggle is on', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    await screen.findByText('2 kg');
+    await fireEvent.press(screen.getByText('Seria rozgrzewkowa'));
+    await fireEvent.press(await screen.findByText('Zapisz rozgrzewkową'));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ isWarmup: true }));
   });
 
   it('prefills from the previous log so a repeat set is one tap', async () => {

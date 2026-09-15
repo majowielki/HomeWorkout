@@ -16,11 +16,12 @@ import {
 import { getProfile } from '@/db/repositories/profile';
 import { navyBodyFatPct } from '@/domain/metrics/navy';
 import { movingAverage, type SmoothedPoint } from '@/domain/metrics/series';
-import { toIsoDate } from '@/domain/time/trainingDate';
+import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { TrendChart } from '@/features/body/TrendChart';
 import { pl } from '@/strings/pl';
 
 const FIELDS = ['waistCm', 'hipsCm', 'chestCm', 'armCm', 'thighCm', 'neckCm'] as const;
+const WAIST_CHART_DAYS = 90;
 type Field = (typeof FIELDS)[number];
 
 const LABELS: Record<Field, string> = {
@@ -38,11 +39,6 @@ type Loaded = {
   waist: SmoothedPoint[];
   profile: { heightCm: number | null; sex: 'male' | 'female' | null };
 };
-
-function isoDaysAgo(from: string, days: number): string {
-  const [y, m, d] = from.split('-').map(Number) as [number, number, number];
-  return toIsoDate(new Date(y, m - 1, d - days));
-}
 
 export default function MeasurementsScreen() {
   const [data, setData] = useState<Loaded | null>(null);
@@ -62,7 +58,7 @@ export default function MeasurementsScreen() {
     const today = toIsoDate(new Date());
     const [latest, waist, profile] = await Promise.all([
       getLatestMeasurement(),
-      getWaistSeries(isoDaysAgo(today, 90)),
+      getWaistSeries(addDays(today, -WAIST_CHART_DAYS)),
       getProfile(),
     ]);
     setData({
@@ -120,18 +116,20 @@ export default function MeasurementsScreen() {
     }
     setError(null);
     setSaving(true);
+    try {
+      await upsertMeasurement(data.today, values as MeasurementInput);
 
-    await upsertMeasurement(data.today, values as MeasurementInput);
+      if (navy.kind === 'ok') {
+        const weight = await getWeightOnOrBefore(data.today);
+        if (weight) await upsertEstimate(data.today, 'navy', weight.weightKg, navy.pct);
+      }
 
-    if (navy.kind === 'ok') {
-      const weight = await getWeightOnOrBefore(data.today);
-      if (weight) await upsertEstimate(data.today, 'navy', weight.weightKg, navy.pct);
+      await load();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
     }
-
-    await load();
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
   }
 
   if (!data) {

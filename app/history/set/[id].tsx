@@ -77,18 +77,22 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
   async function handleSave() {
     if (busy) return;
     setBusy(true);
-    const saved = toSavedSet(exercise, values, calibrations);
-    await updateSet(row.id, {
-      reps: saved.reps,
-      timeSec: saved.timeSec,
-      rir: saved.rir,
-      weightKg: saved.weightKg,
-      dumbbellMode: saved.dumbbellMode,
-      bandId: saved.bandId,
-      anchorPosition: saved.anchorPosition,
-      estimatedLoadKg: saved.estimatedLoadKg,
-    });
-    router.back();
+    try {
+      const saved = toSavedSet(exercise, values, calibrations);
+      await updateSet(row.id, {
+        reps: saved.reps,
+        timeSec: saved.timeSec,
+        rir: saved.rir,
+        weightKg: saved.weightKg,
+        dumbbellMode: saved.dumbbellMode,
+        bandId: saved.bandId,
+        anchorPosition: saved.anchorPosition,
+        estimatedLoadKg: saved.estimatedLoadKg,
+      });
+      router.back();
+    } finally {
+      setBusy(false);
+    }
   }
 
   function confirmDelete() {
@@ -101,8 +105,12 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
           void (async () => {
             if (busy) return;
             setBusy(true);
-            await deleteSet(row.id);
-            router.back();
+            try {
+              await deleteSet(row.id);
+              router.back();
+            } finally {
+              setBusy(false);
+            }
           })();
         },
       },

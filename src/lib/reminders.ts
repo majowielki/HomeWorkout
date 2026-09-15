@@ -1,49 +1,54 @@
 import { getWeightOn } from '@/db/repositories/bodyMetrics';
 import { getReminderSettings } from '@/db/repositories/profile';
 import { lastCompletedWorkout } from '@/db/repositories/workouts';
-import { nextWeightReminderAt, nextWorkoutReminderAt } from '@/domain/reminders/schedule';
+import { weightReminderTimes, workoutReminderTimes } from '@/domain/reminders/schedule';
 import { toIsoDate } from '@/domain/time/trainingDate';
 import { pl } from '@/strings/pl';
 
-import { cancelByIdentifier, scheduleAt } from './notifications';
+import { ensureNotificationPermission, replaceReminders } from './notifications';
 
-const WEIGHT_ID = 'reminder-weight';
-const WORKOUT_ID = 'reminder-workout';
+const WEIGHT_PREFIX = 'reminder-weight-';
+const WORKOUT_PREFIX = 'reminder-workout-';
 
 /**
- * Recomputes both local reminders from current state and reschedules them.
+ * Recomputes both local reminders from current state and lays them out
+ * again as a run of one-off notifications (domain/reminders/schedule.ts
+ * explains why a run and not a single "next" instant).
  *
- * Called on app start, after a weigh-in, after a completed session and
- * after a settings change — every moment the "next time" could have moved.
- * Each reminder is a one-off, not a repeating trigger, which is what lets
- * the weigh-in nudge skip a day that already has an entry.
- * See Documents/IMPLEMENTACJA.md §10.2.
+ * Called on app start, after a weigh-in, after a completed or deleted
+ * session, after an import and after a settings change — every moment the
+ * schedule could have moved. Only the settings screen asks for the OS
+ * permission; everywhere else a missing grant just means nothing is
+ * scheduled yet. See Documents/IMPLEMENTACJA.md §10.2.
  */
-export async function syncReminders(now: Date = new Date()): Promise<void> {
+export async function syncReminders(
+  options: { requestPermission?: boolean } = {},
+  now: Date = new Date(),
+): Promise<void> {
+  if (options.requestPermission) await ensureNotificationPermission();
+
   const settings = await getReminderSettings();
   const today = toIsoDate(now);
 
   const weightToday = await getWeightOn(today);
-  const weightAt = nextWeightReminderAt(settings, weightToday !== null, now);
-  if (weightAt) {
-    await scheduleAt(WEIGHT_ID, pl.reminders.weightTitle, pl.reminders.weightBody, weightAt);
-  } else {
-    await cancelByIdentifier(WEIGHT_ID);
-  }
+  await replaceReminders(
+    WEIGHT_PREFIX,
+    weightReminderTimes(settings, weightToday !== null, now).map((r) => ({
+      identifier: `${WEIGHT_PREFIX}${r.date}`,
+      title: pl.reminders.weightTitle,
+      body: pl.reminders.weightBody,
+      date: r.at,
+    })),
+  );
 
   const last = await lastCompletedWorkout();
-  const workoutAt = nextWorkoutReminderAt(settings, last?.trainingDate ?? null, now);
-  if (workoutAt && last) {
-    const daysAgo = Math.round(
-      (workoutAt.getTime() - Date.parse(`${last.trainingDate}T00:00:00`)) / 86_400_000,
-    );
-    await scheduleAt(
-      WORKOUT_ID,
-      pl.reminders.workoutTitle,
-      pl.reminders.workoutBody(daysAgo),
-      workoutAt,
-    );
-  } else {
-    await cancelByIdentifier(WORKOUT_ID);
-  }
+  await replaceReminders(
+    WORKOUT_PREFIX,
+    workoutReminderTimes(settings, last?.trainingDate ?? null, now).map((r) => ({
+      identifier: `${WORKOUT_PREFIX}${r.date}`,
+      title: pl.reminders.workoutTitle,
+      body: pl.reminders.workoutBody(r.daysSinceSession),
+      date: r.at,
+    })),
+  );
 }

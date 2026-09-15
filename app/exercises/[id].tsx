@@ -1,13 +1,11 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { eq, inArray } from 'drizzle-orm';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import { db } from '@/db/client';
-import { exercises } from '@/db/schema';
+import { liveExerciseByIdQuery, liveExerciseNamesQuery } from '@/db/repositories/exercises';
 import { screenExercise } from '@/domain/exercises/screen';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
 import { useMedicalProfile } from '@/features/exercises/useMedicalProfile';
@@ -26,17 +24,13 @@ export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const profile = useMedicalProfile();
 
-  const { data } = useLiveQuery(db.select().from(exercises).where(eq(exercises.id, id)).limit(1));
+  const { data } = useLiveQuery(liveExerciseByIdQuery(id), [id]);
   const exercise = data?.[0]?.data;
 
   const substituteIds = exercise?.substituteIds ?? [];
-  const { data: substituteRows } = useLiveQuery(
-    db
-      .select({ id: exercises.id, name: exercises.name })
-      .from(exercises)
-      .where(inArray(exercises.id, substituteIds.length > 0 ? substituteIds : ['__none__'])),
-    [substituteIds.join(',')],
-  );
+  const { data: substituteRows } = useLiveQuery(liveExerciseNamesQuery(substituteIds), [
+    substituteIds.join(','),
+  ]);
 
   const exclusions = useMemo(
     () => (exercise ? screenExercise(exercise, profile) : []),
