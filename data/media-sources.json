@@ -37,5 +37,16 @@
   "reverse-crunch": "Reverse_Crunch",
   "superman": "Superman",
   "standing-calf-raise": "Standing_Dumbbell_Calf_Raise",
-  "farmers-carry": "Farmers_Walk"
+  "farmers-carry": "Farmers_Walk",
+  "goblet-squat": "Goblet_Squat",
+  "band-squat": "Squats_-_With_Bands",
+  "hip-thrust": "Barbell_Hip_Thrust",
+  "single-leg-rdl": "Kettlebell_One-Legged_Deadlift",
+  "band-face-pull": "Face_Pull",
+  "band-lat-pulldown": "Wide-Grip_Lat_Pulldown",
+  "band-straight-arm-pulldown": "Straight-Arm_Pulldown",
+  "band-triceps-pushdown": "Triceps_Pushdown",
+  "band-external-rotation": "External_Rotation_with_Band",
+  "band-pallof-press": "Pallof_Press",
+  "stationary-bike": "Bicycling_Stationary"
 }

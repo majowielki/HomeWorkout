@@ -18,7 +18,7 @@
       "dumbbellMode": "single",
       "bandSuitability": "excellent",
       "substituteIds": ["box-squat", "band-squat", "dumbbell-squat"],
-      "media": null,
+      "media": "goblet-squat",
       "cues": [
         "Hantel pionowo przy klatce, łokcie pod nim.",
         "Schodzisz w 3 sekundy, wstajesz płynnie.",
@@ -43,7 +43,7 @@
       "equipment": ["band"],
       "bandSuitability": "excellent",
       "substituteIds": ["goblet-squat", "bodyweight-squat"],
-      "media": null,
+      "media": "band-squat",
       "cues": [
         "Guma pod środkiem stóp, końce na barkach.",
         "Opór rośnie ku górze — tam gdzie jesteś najsilniejszy.",
@@ -376,7 +376,7 @@
       "dumbbellMode": "single",
       "bandSuitability": "poor",
       "substituteIds": ["db-romanian-deadlift", "band-pull-through"],
-      "media": null,
+      "media": "single-leg-rdl",
       "cues": [
         "Cała masa na jednej nodze, bez podparcia.",
         "Ekstremalne zapotrzebowanie na stabilizację czołową kolana.",
@@ -427,7 +427,7 @@
       "dumbbellMode": "single",
       "bandSuitability": "excellent",
       "substituteIds": ["glute-bridge", "db-romanian-deadlift"],
-      "media": null,
+      "media": "hip-thrust",
       "cues": [
         "Łopatki oparte o krawędź kanapy, hantel na biodrach (ręcznik pod spód).",
         "Broda do klatki, wzrok przed siebie — nie w sufit.",
@@ -820,7 +820,7 @@
       "equipment": ["band"],
       "bandSuitability": "ok",
       "substituteIds": ["band-pull-apart", "db-reverse-flyes"],
-      "media": null,
+      "media": "band-face-pull",
       "cues": [
         "Kotwica na wysokości twarzy lub wyżej.",
         "Ciągniesz do twarzy, łokcie wysoko i szeroko, dłonie rozchodzą się na boki.",
@@ -868,7 +868,7 @@
       "equipment": ["band"],
       "bandSuitability": "poor",
       "substituteIds": ["band-straight-arm-pulldown", "db-pullover", "band-row"],
-      "media": null,
+      "media": "band-lat-pulldown",
       "cues": [
         "Kotwica na górze drzwi, siadasz lub klękasz na karimacie.",
         "Ciągniesz łokciami w dół i do tyłu, klatka do góry.",
@@ -892,7 +892,7 @@
       "equipment": ["band"],
       "bandSuitability": "ok",
       "substituteIds": ["band-lat-pulldown", "db-pullover"],
-      "media": null,
+      "media": "band-straight-arm-pulldown",
       "cues": [
         "Kotwica wysoko, stoisz w lekkim pochyleniu, ręce proste.",
         "Ściągasz ramiona do ud łukiem, łokcie nieruchome.",
@@ -1066,7 +1066,7 @@
       "equipment": ["band"],
       "bandSuitability": "excellent",
       "substituteIds": ["db-overhead-triceps-extension", "db-lying-triceps-extension"],
-      "media": null,
+      "media": "band-triceps-pushdown",
       "cues": [
         "Kotwica na górze drzwi.",
         "Łokcie przyklejone do tułowia, prostujesz w dół do pełnego wyprostu.",
@@ -1115,7 +1115,7 @@
       "equipment": ["band"],
       "bandSuitability": "ok",
       "substituteIds": ["band-face-pull"],
-      "media": null,
+      "media": "band-external-rotation",
       "cues": [
         "Kotwica na wysokości łokcia, bokiem do drzwi, łokieć przy tułowiu pod kątem 90°.",
         "Przedramię obraca się na zewnątrz jak drzwi na zawiasie.",
@@ -1309,7 +1309,7 @@
       "equipment": ["band"],
       "bandSuitability": "excellent",
       "substituteIds": ["side-plank", "dead-bug"],
-      "media": null,
+      "media": "band-pallof-press",
       "cues": [
         "Kotwica na wysokości klatki, stoisz bokiem, uchwyt oburącz przy mostku.",
         "Wyciskasz ręce przed siebie — guma chce Cię obrócić, Ty nie pozwalasz.",
@@ -1481,7 +1481,7 @@
       "equipment": ["bike"],
       "bandSuitability": "poor",
       "substituteIds": [],
-      "media": null,
+      "media": "stationary-bike",
       "cues": [
         "Wysokość siodełka: przy pedale na dole kolano lekko ugięte (~25–30°).",
         "Jazda w siodle — bez wstawania; stojąc wprowadzasz kołysanie boczne.",

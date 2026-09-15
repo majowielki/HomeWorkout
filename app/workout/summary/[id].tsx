@@ -11,6 +11,7 @@ import { countWorkingSets } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
 import { daysBetween } from '@/domain/time/trainingDate';
+import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
 
@@ -116,7 +117,10 @@ export default function SessionSummaryScreen() {
       </Card>
 
       <View className="gap-2">
-        <Text variant="muted">{pl.workout.summary.sessionRpe}</Text>
+        <View className="flex-row items-center justify-between">
+          <Text variant="muted">{pl.workout.summary.sessionRpe}</Text>
+          <GlossaryButton />
+        </View>
         <View className="flex-row flex-wrap gap-2">
           {RPE_OPTIONS.map((value) => (
             <Chip

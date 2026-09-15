@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
 import type { AnchorPosition, BandCalibrationMap, Exercise, TemplateBlock } from '@/domain/types';
+import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { pl } from '@/strings/pl';
 
 import {
@@ -119,15 +120,18 @@ function SetLoggerFields({
 
   return (
     <ScrollView className="flex-1" contentContainerClassName="gap-5 p-4">
-      <View>
-        <Text variant="heading">
-          {block.label} · {exercise.name}
-        </Text>
-        <Text variant="muted">
-          {pl.workout.session.setOf(setNumber, totalSets)} · {targetLabel(block)} · RIR{' '}
-          {block.targetRirMin}
-          {block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}
-        </Text>
+      <View className="flex-row items-start justify-between">
+        <View className="flex-1">
+          <Text variant="heading">
+            {block.label} · {exercise.name}
+          </Text>
+          <Text variant="muted">
+            {pl.workout.session.setOf(setNumber, totalSets)} · {targetLabel(block)} · RIR{' '}
+            {block.targetRirMin}
+            {block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}
+          </Text>
+        </View>
+        <GlossaryButton />
       </View>
 
       {exercise.kneeCue ? (

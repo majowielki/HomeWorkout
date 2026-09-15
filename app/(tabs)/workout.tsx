@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { QuickCardioForm } from '@/features/workout/QuickCardioForm';
 import { useSessionOverview } from '@/features/workout/useSessionOverview';
 import { pl } from '@/strings/pl';
@@ -60,11 +61,14 @@ export default function WorkoutScreen() {
         </Card>
       ) : (
         <>
-          <Text variant="muted">
-            {lastSessionDaysAgo === null
-              ? pl.workout.noSessionsYet
-              : pl.workout.lastSession(lastSessionDaysAgo)}
-          </Text>
+          <View className="flex-row items-center justify-between">
+            <Text variant="muted">
+              {lastSessionDaysAgo === null
+                ? pl.workout.noSessionsYet
+                : pl.workout.lastSession(lastSessionDaysAgo)}
+            </Text>
+            <GlossaryButton />
+          </View>
 
           {templates.map((template) => (
             <Card

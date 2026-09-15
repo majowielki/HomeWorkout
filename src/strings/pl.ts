@@ -370,6 +370,7 @@ export const pl = {
     templates: 'Szablony',
     backup: 'Eksport / Import',
     settings: 'Ustawienia',
+    glossary: 'Słownik pojęć',
     comingSoon: 'Szablony dojdą w następnych kamieniach.',
   },
   exercises: {
@@ -490,7 +491,39 @@ export const pl = {
     error: 'Coś poszło nie tak.',
     notFound: 'Nie znaleziono.',
     cancel: 'Anuluj',
+    close: 'Zamknij',
     today: 'dziś',
     yesterday: 'wczoraj',
+  },
+  glossary: {
+    title: 'Słownik pojęć',
+    trigger: 'Co oznaczają te skróty?',
+    terms: [
+      {
+        term: 'FBW A / FBW B',
+        definition:
+          'Full Body Workout — trening całego ciała w jednej sesji. A i B to dwa warianty tego samego szablonu, na przemian: po A zawsze proponujemy B, i odwrotnie, żeby te same partie mięśniowe pracowały nieco inaczej między sesjami.',
+      },
+      {
+        term: 'RIR',
+        definition:
+          'Reps In Reserve (powtórzenia w zapasie) — ile powtórzeń mógłbyś jeszcze wykonać w danej serii, zanim doszedłbyś do odmowy mięśniowej. RIR 2 oznacza „zostały mi jeszcze 2 powtórzenia”. Im niższe RIR, tym bliżej maksimum.',
+      },
+      {
+        term: 'RPE',
+        definition:
+          'Rate of Perceived Exertion (odczuwany wysiłek) — subiektywna ocena w skali 1–10, jak ciężka była cała sesja. 10 to maksymalny możliwy wysiłek.',
+      },
+      {
+        term: 'DOMS',
+        definition:
+          'Delayed Onset Muscle Soreness (opóźniona bolesność mięśni) — zakwasy, które pojawiają się zwykle 24–72 godziny po treningu, a nie od razu po nim.',
+      },
+      {
+        term: 'ACL',
+        definition:
+          'Anterior Cruciate Ligament (więzadło krzyżowe przednie) — jedno z głównych więzadeł stabilizujących kolano. Jego stan (np. po rekonstrukcji) wpływa na to, które ćwiczenia są dla Ciebie bezpieczne.',
+      },
+    ],
   },
 } as const;
