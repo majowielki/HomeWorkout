@@ -1,9 +1,9 @@
 import { randomUUID } from 'expo-crypto';
 
-import { and, desc, eq, lt, ne } from 'drizzle-orm';
+import { and, count, desc, eq, lt, ne } from 'drizzle-orm';
 
 import { db } from '../client';
-import { workouts } from '../schema';
+import { setLogs, workouts } from '../schema';
 
 export async function startWorkout(templateId: string, trainingDate: string): Promise<string> {
   const id = randomUUID();
@@ -90,4 +90,33 @@ export async function lastCompletedWorkout() {
     .orderBy(desc(workouts.startedAt))
     .limit(1);
   return row ?? null;
+}
+
+export type WorkoutRow = typeof workouts.$inferSelect;
+
+export interface WorkoutListItem extends WorkoutRow {
+  workingSets: number;
+}
+
+/**
+ * Every session, newest first, with its working-set count folded in. One
+ * grouped query for the counts rather than one per row: the list grows by
+ * a few rows a week for years and is read on every focus of the tab.
+ */
+export async function listWorkouts(): Promise<WorkoutListItem[]> {
+  const [rows, counts] = await Promise.all([
+    db.select().from(workouts).orderBy(desc(workouts.startedAt)),
+    db
+      .select({ workoutId: setLogs.workoutId, n: count() })
+      .from(setLogs)
+      .where(eq(setLogs.isWarmup, false))
+      .groupBy(setLogs.workoutId),
+  ]);
+  const byWorkout = new Map(counts.map((c) => [c.workoutId, c.n]));
+  return rows.map((row) => ({ ...row, workingSets: byWorkout.get(row.id) ?? 0 }));
+}
+
+/** Removes the session and, through ON DELETE CASCADE, its set and cardio logs. */
+export async function deleteWorkout(id: string): Promise<void> {
+  await db.delete(workouts).where(eq(workouts.id, id));
 }

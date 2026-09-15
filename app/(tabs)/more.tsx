@@ -7,6 +7,7 @@ import { pl } from '@/strings/pl';
 
 const items = [
   { href: '/exercises', label: pl.more.exercises },
+  { href: '/backup', label: pl.more.backup },
   { href: '/settings', label: pl.more.settings },
 ] as const;
 

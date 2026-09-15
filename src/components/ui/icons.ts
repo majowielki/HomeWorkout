@@ -2,6 +2,8 @@ import {
   Bike,
   CalendarCheck,
   Check,
+  ChevronRight,
+  Download,
   Dumbbell,
   Ellipsis,
   History,
@@ -9,6 +11,8 @@ import {
   Minus,
   PersonStanding,
   Plus,
+  Trash2,
+  Upload,
 } from 'lucide-react-native';
 
 import { iconWithClassName } from '@/lib/interop';
@@ -23,6 +27,8 @@ const icons = {
   Bike,
   CalendarCheck,
   Check,
+  ChevronRight,
+  Download,
   Dumbbell,
   Ellipsis,
   History,
@@ -30,6 +36,8 @@ const icons = {
   Minus,
   PersonStanding,
   Plus,
+  Trash2,
+  Upload,
 };
 
 for (const icon of Object.values(icons)) iconWithClassName(icon);
@@ -38,6 +46,8 @@ export {
   Bike,
   CalendarCheck,
   Check,
+  ChevronRight,
+  Download,
   Dumbbell,
   Ellipsis,
   History,
@@ -45,4 +55,6 @@ export {
   Minus,
   PersonStanding,
   Plus,
+  Trash2,
+  Upload,
 };

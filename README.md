@@ -3,7 +3,7 @@
 A single-user, offline-first workout tracker for training at home with a
 very specific set of constraints — and a rules engine that respects them.
 
-> **Status:** early development, milestones M0–M4 done (see
+> **Status:** early development, milestones M0–M5 done (see
 > [`Documents/IMPLEMENTACJA.md`](Documents/IMPLEMENTACJA.md)). Android only.
 > The UI is in Polish by design; code, tests and documentation are in English.
 

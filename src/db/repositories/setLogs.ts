@@ -78,3 +78,28 @@ export async function countWorkingSets(workoutId: string): Promise<number> {
   const rows = await getSetsForWorkout(workoutId);
   return rows.filter((r) => !r.isWarmup).length;
 }
+
+export type SetLogRow = typeof setLogs.$inferSelect;
+
+export async function getSet(id: string): Promise<SetLogRow | null> {
+  const [row] = await db.select().from(setLogs).where(eq(setLogs.id, id)).limit(1);
+  return row ?? null;
+}
+
+export type SetPatch = Pick<
+  SetLogRow,
+  'reps' | 'timeSec' | 'rir' | 'weightKg' | 'dumbbellMode' | 'bandId' | 'anchorPosition'
+>;
+
+/**
+ * Corrects what was performed. Position in the session (exercise, index)
+ * and the timestamp stay as logged — history edits fix a typo in the
+ * numbers, they do not rewrite when things happened.
+ */
+export async function updateSet(id: string, patch: SetPatch): Promise<void> {
+  await db.update(setLogs).set(patch).where(eq(setLogs.id, id));
+}
+
+export async function deleteSet(id: string): Promise<void> {
+  await db.delete(setLogs).where(eq(setLogs.id, id));
+}

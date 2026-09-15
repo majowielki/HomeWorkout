@@ -20,8 +20,10 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | M2 — katalog ćwiczeń | ✅ 2026-09-14 | `e592807` | 60 ćwiczeń; filtr bezpieczeństwa wyciągnięty z M7 do przodu |
 | M3 — aktywna sesja | ✅ 2026-09-14 | `5579106` | dwa cięcia zakresu, §0.2 |
 | review M0–M3 | ✅ 2026-09-14 | `c014730` | poprawki motywu i interopu, duplikaty serii, testy komponentów, ten rozdział |
-| M4 — ciało, dziennik, przypomnienia | ✅ 2026-09-15 | — | wzór Navy w formie metrycznej (§0.2), przypomnienia jako jednorazowe z stałym id |
-| M5+ | ⏳ | | |
+| M4 — ciało, dziennik, przypomnienia | ✅ 2026-09-15 | `f5c808b` | wzór Navy w formie metrycznej (§0.2), przypomnienia jako jednorazowe z stałym id |
+| M5 — historia, eksport / import | ✅ 2026-09-15 | — | picker z `expo-file-system` zamiast `expo-document-picker` (§0.2); DoD wymaga testu na urządzeniu |
+| ⛔ bramka — dwa tygodnie używania | ⏳ | | M6+ dopiero po ≥ 4 sesjach i ≥ 14 dniach wagi |
+| M6+ | ⏳ | | |
 
 ### 0.2 Odstępstwa od dokumentu — świadome
 
@@ -43,6 +45,11 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | przypomnienia: „DAILY" trigger dla wagi | jednorazowy `DATE` trigger pod stałym `identifier`, przeliczany przy każdym starcie / wpisie / sesji / zmianie ustawień | tylko tak da się pominąć dzień, który już ma wpis (§10.2) |
 | DOMS per partia „chipy" | trzy stany per partia: brak → 2 → 4 | mapuje się wprost na próg SPEC §4.3 (DOMS ≥ 4 = pomiń partię) |
 | ustawienia: minuty przypomnień | tylko pełne godziny (stepper) | minuty nie są tu wartością; stepper jest szybszy niż picker |
+| M5: `expo-document-picker` | `File.pickFileAsync()` z `expo-file-system` | SDK 57 ma picker wbudowany w file-system; jeden moduł natywny mniej |
+| §7.5: przykład `schemaVersion: 3` | `BACKUP_SCHEMA_VERSION = 1`, niezależny od numeracji migracji Drizzle | wersja pliku rośnie tylko, gdy zmienia się kształt wiersza; migracje JSON w `db/backup/parse.ts` |
+| §7.5: auto-backup „do folderu aplikacji" | `Paths.document/backups/`, pięć ostatnich, każdy do przywrócenia jednym tapnięciem z ekranu Eksport / Import | kopia, której nie da się odtworzyć bez kabla USB, to nie kopia |
+| M5: „edycja/usunięcie serii" | + usunięcie całej sesji | porzucona sesja z zerem serii nie miała innej drogi zniknięcia z listy |
+| historia: edycja serii zmienia tylko liczby | pozycja w sesji (`exercise_order`, `set_index`) i `logged_at` nieedytowalne | poprawka literówki, nie przepisywanie przebiegu sesji |
 
 ### 0.3 Ustalenia środowiskowe, których dokument nie znał
 
@@ -56,6 +63,9 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 - `@testing-library/react-native` 14 ma w pełni asynchroniczne API (`await render`, `await fireEvent.press`). `lucide-react-native` w Jest mapowany na build CJS (`moduleNameMapper`), bo warunek eksportu `react-native` wskazuje `.mjs`.
 - Wzór US Navy: powszechnie kopiowane stałe `86.010 / 70.041 / 36.76` są dla **cali**. Z centymetrami zawyżają wynik o 5–25 p.p. Kod używa formy metrycznej (gęstość → Siri: `495/D − 450`); test pilnuje, żeby nie wrócić do calowej.
 - `react-native-gifted-charts` wymaga `expo-linear-gradient` jako peera (moduł natywny) — M4 wymaga pełnego `expo run:android`.
+- `expo-file-system` 57: stare API (`readAsStringAsync` itd.) rzuca w runtime z głównego eksportu; nowe to klasy `File` / `Directory` / `Paths` z synchronicznymi `write` / `textSync` / `exists`. `File.pickFileAsync({ mimeTypes })` zwraca `{ canceled, result: File }`. `npx expo install expo-sharing` samo dopisuje plugin do `app.json`.
+- Schematy Zod pliku backupu są przypięte do typów Drizzle w obie strony (`satisfies z.ZodType<Row>` + test typu `Equal<>`): nowa kolumna w `schema.ts` bez wpisu w `db/backup/format.ts` nie przechodzi `tsc`.
+- NativeWind zamienia `View` z klasą `active:` na `Pressable` przy pierwszym renderze — dlatego `<Link asChild><Card className="active:…">` działa, a bez `active:` po cichu nie.
 - Reguły `react-hooks/purity` i `set-state-in-effect` z `eslint-config-expo` są egzekwowane jako błędy. Praktyczne skutki: żadnego `Date.now()` w renderze, żadnego synchronicznego `setState` w ciele efektu — „reset przed fetchem" rozwiązuje się przez remount z `key`, nie przez efekt.
 
 ---
@@ -818,7 +828,7 @@ otwarciu wznowienie z tego samego miejsca; notyfikacja końca przerwy przychodzi
 **DoD:** 7 dni prawdziwych wpisów wagi widocznych na wykresie z poprawną średnią (sprawdzoną ręcznie);
 przypomnienie o wadze nie przychodzi w dniu, w którym wpis już jest.
 
-### M5 — Historia, eksport / import (2–3 wieczory)
+### M5 — Historia, eksport / import (2–3 wieczory) ✅
 
 1. Historia: lista sesji (data, szablon, czas, serie), szczegóły, edycja/usunięcie serii.
 2. Eksport do pliku + `expo-sharing`. Import z `expo-document-picker` + walidacja + auto-backup przed.

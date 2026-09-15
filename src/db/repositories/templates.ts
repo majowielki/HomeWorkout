@@ -19,3 +19,8 @@ export async function getTemplate(id: string) {
     .limit(1);
   return row ?? null;
 }
+
+/** Archived ones included — history needs names for sessions of templates since retired. */
+export async function listAllTemplates() {
+  return db.select().from(workoutTemplates).orderBy(asc(workoutTemplates.sortOrder));
+}
