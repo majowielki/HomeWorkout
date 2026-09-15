@@ -1,5 +1,6 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import type { ReminderSettings } from '@/domain/reminders/schedule';
 import type {
   AnchorPosition,
   BandCalibration,
@@ -29,6 +30,8 @@ export const userProfile = sqliteTable('user_profile', {
   dayBoundaryHour: integer('day_boundary_hour').notNull().default(4),
   saddleHeightCm: real('saddle_height_cm'),
   kneeProfile: text('knee_profile', { mode: 'json' }).$type<KneeProfile | null>(),
+  /** Null = defaults from domain/reminders/schedule.ts. */
+  reminders: text('reminders', { mode: 'json' }).$type<ReminderSettings | null>(),
   updatedAt: text('updated_at').notNull(),
 });
 

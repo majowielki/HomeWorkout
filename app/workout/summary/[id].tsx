@@ -11,6 +11,7 @@ import { countWorkingSets } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
 import { daysBetween } from '@/domain/time/trainingDate';
+import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
 
 const RPE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
@@ -67,6 +68,7 @@ export default function SessionSummaryScreen() {
     if (saving) return;
     setSaving(true);
     await completeWorkout(id, rpe, notes.trim().length > 0 ? notes.trim() : null);
+    await syncReminders();
     setSaving(false);
     router.replace('/(tabs)/workout');
   }

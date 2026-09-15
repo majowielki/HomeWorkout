@@ -5,7 +5,10 @@ import { Card, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';
 
-const items = [{ href: '/exercises', label: pl.more.exercises }] as const;
+const items = [
+  { href: '/exercises', label: pl.more.exercises },
+  { href: '/settings', label: pl.more.settings },
+] as const;
 
 export default function MoreScreen() {
   return (

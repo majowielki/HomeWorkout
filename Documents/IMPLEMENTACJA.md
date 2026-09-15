@@ -19,8 +19,9 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | M1 — fundament | ✅ 2026-09-11 | `861b2ba` | |
 | M2 — katalog ćwiczeń | ✅ 2026-09-14 | `e592807` | 60 ćwiczeń; filtr bezpieczeństwa wyciągnięty z M7 do przodu |
 | M3 — aktywna sesja | ✅ 2026-09-14 | `5579106` | dwa cięcia zakresu, §0.2 |
-| review M0–M3 | ✅ 2026-09-14 | — | poprawki motywu i interopu, duplikaty serii, testy komponentów, ten rozdział |
-| M4+ | ⏳ | | |
+| review M0–M3 | ✅ 2026-09-14 | `c014730` | poprawki motywu i interopu, duplikaty serii, testy komponentów, ten rozdział |
+| M4 — ciało, dziennik, przypomnienia | ✅ 2026-09-15 | — | wzór Navy w formie metrycznej (§0.2), przypomnienia jako jednorazowe z stałym id |
+| M5+ | ⏳ | | |
 
 ### 0.2 Odstępstwa od dokumentu — świadome
 
@@ -37,6 +38,11 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | `BottomSheetModal` | `BottomSheet` (nie-modalny, zawsze zamontowany, `index={-1}`) | bez providera na poziomie roota; wystarcza |
 | SPEC §3.3: tryb konserwatywny reużywa `KNEE_UNILATERAL_UNSUPPORTED` | osobny kod `KNEE_UNILATERAL_PENDING_PHYSIO` | UI musi rozróżnić „na stałe" od „po akceptacji fizjoterapeuty" |
 | `MovementPattern` z 8 wartościami | +`Cardio`, +`Mobility` | rower w katalogu jest obowiązkowym przypadkiem testowym filtra |
+| §7.4: `movingAverage` „dla dni bez wpisu brak punktu" | średnia liczona per wpis w oknie kalendarzowym; wykres rysuje linię od pierwszego wpisu (`minPoints=1`), nagłówek „śr. 7 dni" wymaga ≥3 wpisów | jedna funkcja, dwa progi; wykres bez linii przez pierwszy tydzień byłby pusty |
+| Navy → `body_metrics(source='navy')` | zapisywane tylko gdy istnieje waga z tego dnia lub wcześniejsza; inaczej tylko wyświetlane | `weightKg` jest `NOT NULL`; estymata bez wagi nie ma sensu |
+| przypomnienia: „DAILY" trigger dla wagi | jednorazowy `DATE` trigger pod stałym `identifier`, przeliczany przy każdym starcie / wpisie / sesji / zmianie ustawień | tylko tak da się pominąć dzień, który już ma wpis (§10.2) |
+| DOMS per partia „chipy" | trzy stany per partia: brak → 2 → 4 | mapuje się wprost na próg SPEC §4.3 (DOMS ≥ 4 = pomiń partię) |
+| ustawienia: minuty przypomnień | tylko pełne godziny (stepper) | minuty nie są tu wartością; stepper jest szybszy niż picker |
 
 ### 0.3 Ustalenia środowiskowe, których dokument nie znał
 
@@ -48,6 +54,8 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 - NativeWind 4 wiąże `className` tylko z komponentami rdzenia RN. `expo-image`, `SectionList` i ikony lucide wymagają rejestracji (`src/lib/interop.ts`), inaczej klasy są po cichu ignorowane. Placeholder `TextInput` koloruje się wariantem `placeholder:`, nie osobnym propem.
 - Nawigacja (nagłówki, tab bar) nie czyta tokenów NativeWind — bierze `ThemeProvider` eksportowany z expo-router; paleta jest zdublowana w `src/lib/theme.ts` dla tych kilku miejsc, które potrzebują surowego koloru.
 - `@testing-library/react-native` 14 ma w pełni asynchroniczne API (`await render`, `await fireEvent.press`). `lucide-react-native` w Jest mapowany na build CJS (`moduleNameMapper`), bo warunek eksportu `react-native` wskazuje `.mjs`.
+- Wzór US Navy: powszechnie kopiowane stałe `86.010 / 70.041 / 36.76` są dla **cali**. Z centymetrami zawyżają wynik o 5–25 p.p. Kod używa formy metrycznej (gęstość → Siri: `495/D − 450`); test pilnuje, żeby nie wrócić do calowej.
+- `react-native-gifted-charts` wymaga `expo-linear-gradient` jako peera (moduł natywny) — M4 wymaga pełnego `expo run:android`.
 - Reguły `react-hooks/purity` i `set-state-in-effect` z `eslint-config-expo` są egzekwowane jako błędy. Praktyczne skutki: żadnego `Date.now()` w renderze, żadnego synchronicznego `setState` w ciele efektu — „reset przed fetchem" rozwiązuje się przez remount z `key`, nie przez efekt.
 
 ---
@@ -796,7 +804,7 @@ niczego, czego nie zrobisz w domu.
 **DoD:** pełny trening FBW A zalogowany na prawdziwej sesji; zabicie aplikacji w połowie → po ponownym
 otwarciu wznowienie z tego samego miejsca; notyfikacja końca przerwy przychodzi przy zablokowanym ekranie.
 
-### M4 — Ciało i dziennik dnia (3–4 wieczory)
+### M4 — Ciało i dziennik dnia (3–4 wieczory) ✅
 
 1. Profil: wzrost, płeć, rok urodzenia, granica doby, wysokość siodełka.
 2. Waga: wpis (prefill wczorajszej), wykres 60 dni: punkty + linia 7d MA + trend w kg/tydz.

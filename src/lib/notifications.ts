@@ -68,3 +68,34 @@ export async function cancelNotification(id: string | null): Promise<void> {
     // Already fired or already cancelled — nothing to do.
   });
 }
+
+/**
+ * Schedules (or replaces) a one-off notification under a fixed identifier.
+ * Reusing the identifier means "reschedule" is a single call — no ids to
+ * persist and nothing to leak if the app is killed between the two steps.
+ */
+export async function scheduleAt(
+  identifier: string,
+  title: string,
+  body: string,
+  date: Date,
+): Promise<boolean> {
+  const granted = await ensureNotificationPermission();
+  if (!granted) return false;
+
+  await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => undefined);
+  await Notifications.scheduleNotificationAsync({
+    identifier,
+    content: { title, body, sound: true },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date,
+      channelId: CHANNEL_ID,
+    },
+  });
+  return true;
+}
+
+export async function cancelByIdentifier(identifier: string): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => undefined);
+}

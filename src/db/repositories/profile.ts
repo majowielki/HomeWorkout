@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 
+import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { MedicalProfile } from '@/domain/types';
 
 import { db, type Database } from '../client';
@@ -55,4 +56,42 @@ export async function getDayBoundaryHour(): Promise<number> {
     .where(eq(userProfile.id, PROFILE_ID))
     .limit(1);
   return row?.dayBoundaryHour ?? 4;
+}
+
+export type ProfileRow = typeof userProfile.$inferSelect;
+
+export async function getProfile(): Promise<ProfileRow | null> {
+  const [row] = await db.select().from(userProfile).where(eq(userProfile.id, PROFILE_ID)).limit(1);
+  return row ?? null;
+}
+
+export type ProfileUpdate = Partial<
+  Pick<
+    ProfileRow,
+    | 'heightCm'
+    | 'birthYear'
+    | 'sex'
+    | 'dayBoundaryHour'
+    | 'saddleHeightCm'
+    | 'kneeProfile'
+    | 'reminders'
+  >
+>;
+
+export async function updateProfile(patch: ProfileUpdate): Promise<void> {
+  await db
+    .update(userProfile)
+    .set({ ...patch, updatedAt: new Date().toISOString() })
+    .where(eq(userProfile.id, PROFILE_ID));
+}
+
+/** Stored settings merged over the defaults, so a newly added field never comes back undefined. */
+export async function getReminderSettings(): Promise<ReminderSettings> {
+  const row = await getProfile();
+  return {
+    ...DEFAULT_REMINDER_SETTINGS,
+    ...row?.reminders,
+    weight: { ...DEFAULT_REMINDER_SETTINGS.weight, ...row?.reminders?.weight },
+    workout: { ...DEFAULT_REMINDER_SETTINGS.workout, ...row?.reminders?.workout },
+  };
 }
