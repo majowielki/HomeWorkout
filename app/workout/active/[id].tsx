@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
@@ -47,6 +48,7 @@ export default function ActiveSessionScreen() {
   const exerciseMap = useExerciseMap();
   const calibrations = useBandCalibrations();
   const sheetRef = useRef<BottomSheetType>(null);
+  const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -271,7 +273,10 @@ export default function ActiveSessionScreen() {
       ) : null}
 
       {phase === 'logging' && templateExercise ? (
-        <View className="flex-row justify-center gap-6 border-t border-border py-3">
+        <View
+          className="flex-row justify-center gap-6 border-t border-border pt-3"
+          style={{ paddingBottom: 12 + insets.bottom }}
+        >
           <Pressable
             className="flex-row items-center gap-1.5"
             onPress={() => sheetRef.current?.snapToIndex(0)}

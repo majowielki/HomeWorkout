@@ -1,4 +1,5 @@
 import { Modal, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/text';
 import { screenExercise } from '@/domain/exercises/screen';
@@ -23,6 +24,7 @@ export function SubstituteModal({
   onSelect,
   onClose,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const options = current.substituteIds
     .map((id) => exerciseMap[id])
     .filter((e): e is Exercise => e !== undefined)
@@ -33,6 +35,7 @@ export function SubstituteModal({
       <Pressable className="flex-1 bg-black/40" onPress={onClose}>
         <Pressable
           className="mt-auto rounded-t-2xl bg-background p-4"
+          style={{ paddingBottom: 16 + insets.bottom }}
           onPress={(e) => e.stopPropagation()}
         >
           <Text variant="heading" className="mb-3">

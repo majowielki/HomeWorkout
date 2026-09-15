@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';
@@ -10,11 +11,14 @@ type Props = {
 
 /** Bottom-sheet glossary for the abbreviations scattered across the app (FBW, RIR, RPE, DOMS, ACL). */
 export function GlossaryModal({ visible, onClose }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40" onPress={onClose}>
         <Pressable
           className="mt-auto max-h-[80%] rounded-t-2xl bg-background p-4"
+          style={{ paddingBottom: 16 + insets.bottom }}
           onPress={(e) => e.stopPropagation()}
         >
           <Text variant="heading" className="mb-3">
