@@ -3,9 +3,17 @@ import { View } from 'react-native';
 import { Chip } from '@/components/ui/chip';
 import { Stepper } from '@/components/ui/stepper';
 import { Text } from '@/components/ui/text';
+import { BAND_CONFIG } from '@/domain/config/training';
 import { BANDS, LADDER_PAIRED, LADDER_SINGLE, nextRung, previousRung } from '@/domain/inventory';
-import type { AnchorPosition, DumbbellMode, Exercise } from '@/domain/types';
+import {
+  estimateBandLoad,
+  estimatedPeakKg,
+  type LoadEstimate,
+} from '@/domain/progression/calibration';
+import type { AnchorPosition, BandCalibration, DumbbellMode, Exercise } from '@/domain/types';
 import { pl } from '@/strings/pl';
+
+export type CalibrationMap = Record<string, BandCalibration | null>;
 
 /** What a set log stores about the effort — the shape both the live logger and the history editor save. */
 export interface SavedSetData {
@@ -16,6 +24,8 @@ export interface SavedSetData {
   dumbbellMode: DumbbellMode | null;
   bandId: string | null;
   anchorPosition: AnchorPosition | null;
+  /** Peak of the calibrated range, or null whenever no honest number exists. */
+  estimatedLoadKg: number | null;
 }
 
 /**
@@ -46,8 +56,26 @@ export function ladderFor(exercise: Exercise): number[] {
   return exercise.dumbbellMode === 'single' ? LADDER_SINGLE : LADDER_PAIRED;
 }
 
+/** What the band would deliver at this position over this exercise's range of motion. */
+export function bandEstimate(
+  exercise: Exercise,
+  bandId: string,
+  position: AnchorPosition,
+  calibrations: CalibrationMap | undefined,
+): LoadEstimate {
+  return estimateBandLoad(
+    calibrations?.[bandId] ?? null,
+    position,
+    BAND_CONFIG.romCm[exercise.movementPattern],
+  );
+}
+
 /** Drops the fields the exercise does not use, so nothing irrelevant reaches the database. */
-export function toSavedSet(exercise: Exercise, v: SetFieldValues): SavedSetData {
+export function toSavedSet(
+  exercise: Exercise,
+  v: SetFieldValues,
+  calibrations?: CalibrationMap,
+): SavedSetData {
   return {
     reps: isTimed(exercise) ? null : v.reps,
     timeSec: isTimed(exercise) ? v.timeSec : null,
@@ -56,6 +84,9 @@ export function toSavedSet(exercise: Exercise, v: SetFieldValues): SavedSetData 
     dumbbellMode: usesDumbbell(exercise) ? (exercise.dumbbellMode ?? null) : null,
     bandId: usesBand(exercise) ? v.bandId : null,
     anchorPosition: usesBand(exercise) ? v.position : null,
+    estimatedLoadKg: usesBand(exercise)
+      ? estimatedPeakKg(bandEstimate(exercise, v.bandId, v.position, calibrations))
+      : null,
   };
 }
 
@@ -63,6 +94,8 @@ type Props = {
   exercise: Exercise;
   values: SetFieldValues;
   onChange: (values: SetFieldValues) => void;
+  /** Without it the band block shows no kilograms at all. */
+  calibrations?: CalibrationMap;
 };
 
 /**
@@ -71,9 +104,12 @@ type Props = {
  * the active session can prefill from the last log and the history editor
  * from the row being corrected.
  */
-export function SetFields({ exercise, values, onChange }: Props) {
+export function SetFields({ exercise, values, onChange, calibrations }: Props) {
   const ladder = ladderFor(exercise);
   const set = (patch: Partial<SetFieldValues>) => onChange({ ...values, ...patch });
+  const estimate = usesBand(exercise)
+    ? bandEstimate(exercise, values.bandId, values.position, calibrations)
+    : null;
 
   return (
     <>
@@ -124,6 +160,11 @@ export function SetFields({ exercise, values, onChange }: Props) {
               ))}
             </View>
           </View>
+          {estimate && estimate.kind !== 'none' ? (
+            <Text variant="muted" className="text-center">
+              {pl.bands.estimate(estimate)}
+            </Text>
+          ) : null}
         </View>
       ) : null}
 

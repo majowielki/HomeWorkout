@@ -21,9 +21,10 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | M3 — aktywna sesja | ✅ 2026-09-14 | `5579106` | dwa cięcia zakresu, §0.2 |
 | review M0–M3 | ✅ 2026-09-14 | `c014730` | poprawki motywu i interopu, duplikaty serii, testy komponentów, ten rozdział |
 | M4 — ciało, dziennik, przypomnienia | ✅ 2026-09-15 | `f5c808b` | wzór Navy w formie metrycznej (§0.2), przypomnienia jako jednorazowe z stałym id |
-| M5 — historia, eksport / import | ✅ 2026-09-15 | — | picker z `expo-file-system` zamiast `expo-document-picker` (§0.2); DoD wymaga testu na urządzeniu |
+| M5 — historia, eksport / import | ✅ 2026-09-15 | `59c88a0` | picker z `expo-file-system` zamiast `expo-document-picker` (§0.2); DoD wymaga testu na urządzeniu |
 | ⛔ bramka — dwa tygodnie używania | ⏳ | | M6+ dopiero po ≥ 4 sesjach i ≥ 14 dniach wagi |
-| M6+ | ⏳ | | |
+| M6 — kalibracja gum | ✅ 2026-09-15 | — | model pozycja → rozciągnięcie doprecyzowany (§0.2); DoD wymaga trzech realnych kalibracji |
+| M7+ | ⏳ | | |
 
 ### 0.2 Odstępstwa od dokumentu — świadome
 
@@ -49,6 +50,10 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | §7.5: przykład `schemaVersion: 3` | `BACKUP_SCHEMA_VERSION = 1`, niezależny od numeracji migracji Drizzle | wersja pliku rośnie tylko, gdy zmienia się kształt wiersza; migracje JSON w `db/backup/parse.ts` |
 | §7.5: auto-backup „do folderu aplikacji" | `Paths.document/backups/`, pięć ostatnich, każdy do przywrócenia jednym tapnięciem z ekranu Eksport / Import | kopia, której nie da się odtworzyć bez kabla USB, to nie kopia |
 | M5: „edycja/usunięcie serii" | + usunięcie całej sesji | porzucona sesja z zerem serii nie miała innej drogi zniknięcia z listy |
+| SPEC §5.5: `lambdaAt(anchorPosition, exerciseRomProfile)` — niezdefiniowane | długość startowa gumy = L0 + pozycja × 30 cm (`BAND_CONFIG.anchorStepCm`, taśma na podłodze co 30 cm); zakres ruchu per wzorzec ruchu w `config/training.ts` (`romCm`); estymata to **przedział** [F(λ_start), F(λ_koniec)] | aplikacja dyktuje odstęp taśmy tak samo, jak dyktuje cztery pozycje — inaczej P2 znaczy co innego w każdej sesji; ROM per wzorzec to zgrubne przybliżenie, ale karmi tylko przedział z „≈", nigdy liczbę z ułamkiem |
+| SPEC §5.5: `estimatedLoadKg = fit(...)` — jedna liczba | zapisywany **szczyt** przedziału (koniec koncentryki); `null`, gdy przedział wychodzi ponad `maxMeasuredKg` | kolumna nigdy nie trzyma ekstrapolacji; szczyt jest tym, co ogranicza progresję |
+| SPEC §5.5: kwadratowe „w przeciwnym razie" | kwadratowe tylko przy ≥ 3 różnych λ; inaczej zostaje liniowe | przy dwóch różnych długościach równania normalne są osobliwe |
+| SPEC §5.6: `cycleCount` | naliczany w `logSet` (suma powtórzeń); edycja/usunięcie w historii go nie koryguje; zerowany przy zapisie kalibracji | licznik orientacyjny, nie audyt |
 | historia: edycja serii zmienia tylko liczby | pozycja w sesji (`exercise_order`, `set_index`) i `logged_at` nieedytowalne | poprawka literówki, nie przepisywanie przebiegu sesji |
 
 ### 0.3 Ustalenia środowiskowe, których dokument nie znał
@@ -840,7 +845,7 @@ przypomnienie o wadze nie przychodzi w dniu, w którym wpis już jest.
 Nie zaczynaj M6+, dopóki nie przetrenowałeś **≥ 4 sesji i ≥ 14 dni wagi** na tej wersji. Zapisuj, co
 irytuje. Napraw to przed pójściem dalej — etap 2 buduje na nawykach z etapu 1.
 
-### M6 — Kalibracja gum (1–2 wieczory)
+### M6 — Kalibracja gum (1–2 wieczory) ✅
 
 1. `domain/progression/calibration.ts` + testy (liniowa/kwadratowa, < 4 punkty → null, `maxMeasuredKg`).
 2. Kreator: guma → `L0` → kolejne masy → długości → wynik → zapis. Zielona: ekran informuje, że

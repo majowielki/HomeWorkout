@@ -19,6 +19,7 @@ import {
   stepKey,
 } from '@/domain/session/steps';
 import type { Exercise, MedicalProfile } from '@/domain/types';
+import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { RestTimer } from '@/features/workout/RestTimer';
 import { type SavedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
@@ -42,6 +43,7 @@ export default function ActiveSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const exerciseMap = useExerciseMap();
+  const calibrations = useBandCalibrations();
   const sheetRef = useRef<BottomSheetType>(null);
 
   const [phase, setPhase] = useState<Phase>('loading');
@@ -151,7 +153,7 @@ export default function ActiveSessionScreen() {
       dumbbellMode: data.dumbbellMode,
       bandId: data.bandId,
       anchorPosition: data.anchorPosition,
-      estimatedLoadKg: null, // band calibration lands in M6
+      estimatedLoadKg: data.estimatedLoadKg,
     });
     const freshKeys = await getLoggedStepKeys(loaded.workoutId);
     setLoggedKeys(freshKeys);
@@ -241,6 +243,7 @@ export default function ActiveSessionScreen() {
           totalSets={currentStep.block.sets}
           onSave={handleSaveSet}
           saving={saving}
+          calibrations={calibrations}
         />
       ) : null}
 

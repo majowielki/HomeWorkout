@@ -106,6 +106,7 @@ describe('SetLogger', () => {
       dumbbellMode: 'single',
       bandId: null,
       anchorPosition: null,
+      estimatedLoadKg: null,
     });
   });
 
@@ -176,7 +177,54 @@ describe('SetLogger', () => {
     await fireEvent.press(screen.getByText('Zapisz serię'));
 
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ weightKg: null, bandId: 'black', anchorPosition: 3 }),
+      expect.objectContaining({
+        weightKg: null,
+        bandId: 'black',
+        anchorPosition: 3,
+        estimatedLoadKg: null,
+      }),
+    );
+  });
+
+  it('shows a calibrated band as a range, never past the measured maximum', async () => {
+    mockedLastSet.mockResolvedValue(lastSet({ bandId: 'black', anchorPosition: 1 }));
+    const onSave = jest.fn();
+    // F(λ) = 20(λ − 1) on a 100 cm band, measured up to 12 kg. A 'Pull'
+    // exercise travels 50 cm: P1 spans 130→180 cm, i.e. 6→16 kg — past 12.
+    const calibrations = {
+      black: {
+        restLengthCm: 100,
+        points: [],
+        fit: { type: 'linear' as const, coeffs: [-20, 20] },
+        maxMeasuredKg: 12,
+      },
+    };
+
+    await render(
+      <SetLogger
+        exercise={exercise({
+          id: 'band-row',
+          equipment: ['band'],
+          dumbbellMode: undefined,
+          movementPattern: 'Pull',
+        })}
+        block={{ ...block, exerciseId: 'band-row' }}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+        calibrations={calibrations}
+      />,
+    );
+
+    expect(await screen.findByText('> 12 kg')).toBeTruthy();
+
+    // P0 spans 100→150 cm: 0→10 kg, inside the calibrated range.
+    await fireEvent.press(screen.getByText('P0'));
+    expect(screen.getByText('≈ 0–10 kg')).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('Zapisz serię'));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ bandId: 'black', anchorPosition: 0, estimatedLoadKg: 10 }),
     );
   });
 

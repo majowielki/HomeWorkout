@@ -10,6 +10,7 @@ import type { AnchorPosition, Exercise, TemplateBlock } from '@/domain/types';
 import { pl } from '@/strings/pl';
 
 import {
+  type CalibrationMap,
   ladderFor,
   type SavedSetData,
   SetFields,
@@ -35,6 +36,7 @@ type Props = {
   totalSets: number;
   onSave: (data: SavedSetData) => void;
   saving?: boolean;
+  calibrations?: CalibrationMap;
 };
 
 /**
@@ -91,6 +93,7 @@ function SetLoggerFields({
   prefill,
   onSave,
   saving,
+  calibrations,
 }: Props & { prefill: PrefillData | null }) {
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: prefill?.reps ?? block.repMin ?? 10,
@@ -103,7 +106,7 @@ function SetLoggerFields({
 
   const handleSave = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSave(toSavedSet(exercise, values));
+    onSave(toSavedSet(exercise, values, calibrations));
   };
 
   return (
@@ -125,7 +128,12 @@ function SetLoggerFields({
         </View>
       ) : null}
 
-      <SetFields exercise={exercise} values={values} onChange={setValues} />
+      <SetFields
+        exercise={exercise}
+        values={values}
+        onChange={setValues}
+        calibrations={calibrations}
+      />
 
       <Button label={pl.workout.session.saveSet} size="lg" onPress={handleSave} disabled={saving} />
     </ScrollView>

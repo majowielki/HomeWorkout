@@ -12,6 +12,7 @@ export function describeSet(row: SetLogRow): string {
   } else if (row.bandId !== null) {
     const label = BANDS.find((b) => b.id === row.bandId)?.label ?? row.bandId;
     load = s.band(label, row.anchorPosition ?? 0);
+    if (row.estimatedLoadKg !== null) load += ` (≈ ${row.estimatedLoadKg} kg)`;
   } else {
     load = s.bodyweight;
   }

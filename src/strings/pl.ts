@@ -1,4 +1,5 @@
 import type { ExclusionCode } from '@/domain/exercises/screen';
+import type { LoadEstimate } from '@/domain/progression/calibration';
 import type {
   BandSuitability,
   Equipment,
@@ -235,6 +236,67 @@ export const pl = {
       rir: (n: number) => `RIR ${n}`,
     },
   },
+  bands: {
+    title: 'Gumy',
+    intro:
+      'Kalibracja zamienia kolor gumy na kilogramy. Robisz ją raz na gumę, z jednym gryfem i miarką.',
+    nominal: (min: number, max: number) => `nominalnie ${min}–${max} kg`,
+    notCalibrated: 'nieskalibrowana',
+    calibrated: (maxKg: number, date: string) => `skalibrowana do ${maxKg} kg · ${date}`,
+    noFit: 'zmierzona, bez dopasowania',
+    fitLinear: 'dopasowanie liniowe',
+    fitQuadratic: 'dopasowanie kwadratowe',
+    cycles: (n: number) => `${n} cykli`,
+    recalibrate: 'Czas na ponowną kalibrację (zużycie lub wiek).',
+    positionsHint: (stepCm: number) =>
+      `Pozycje P0–P3: taśma na podłodze co ${stepCm} cm od punktu, w którym guma jest ledwo napięta.`,
+    /** Load range shown next to a band choice. Never a decimal, never past the calibrated maximum. */
+    estimate: (e: LoadEstimate) =>
+      e.kind === 'above'
+        ? `> ${e.maxMeasuredKg} kg`
+        : e.kind === 'range'
+          ? e.minKg === e.maxKg
+            ? `≈ ${e.maxKg} kg`
+            : `≈ ${e.minKg}–${e.maxKg} kg`
+          : '',
+    wizard: {
+      title: (label: string) => `Kalibracja: ${label}`,
+      stepRest: 'Krok 1 — długość spoczynkowa',
+      restHint:
+        'Rozłóż gumę luźno i zmierz jej długość (cm). Przy pętli mierz całą pętlę tak, jak będziesz ją zawieszać.',
+      restLabel: 'L0 (cm)',
+      next: 'Dalej',
+      stepPoints: 'Krok 2 — podwieszaj masy',
+      pointsHint:
+        'Zawieś gumę, podwieś gryf z obciążeniem i zmierz długość. Kolejne masy z drabinki; przerwij, gdy guma przestaje się wydłużać.',
+      lengthFor: (kg: number) => `${kg} kg → długość (cm)`,
+      addPoint: 'Zapisz pomiar',
+      plateau: 'Ostatni przyrost poniżej 1 cm — więcej masy niewiele powie. Możesz zakończyć.',
+      pointsSoFar: (n: number) =>
+        `${n} ${n === 1 ? 'pomiar' : n >= 2 && n <= 4 ? 'pomiary' : 'pomiarów'}`,
+      removeLast: 'Cofnij ostatni',
+      back: 'Wróć do pomiarów',
+      finish: 'Zakończ i dopasuj',
+      stepResult: 'Krok 3 — wynik',
+      reason: {
+        FIT_LINEAR: 'Siła rośnie liniowo z rozciągnięciem — dopasowanie liniowe.',
+        FIT_QUADRATIC: 'Siła rośnie coraz szybciej — dopasowanie kwadratowe.',
+        TOO_FEW_POINTS:
+          'Za mało pomiarów na dopasowanie (potrzeba 4). Pomiary zostaną zapisane, kilogramów nie będzie.',
+        NO_STRETCH:
+          'Guma nie wydłuża się mierzalnie przy dostępnych masach. Kalibracja nie jest możliwa — to normalne dla zielonej. Silnik pracuje na pozycjach P0–P3.',
+      },
+      r2: (r2: number) => `R² = ${r2.toFixed(3)}`,
+      maxMeasured: (kg: number) => `Zmierzona do ${kg} kg — powyżej aplikacja pokaże „> ${kg} kg”.`,
+      preview: 'Podgląd przy zakresie ruchu 40 cm',
+      previewRow: (position: number, text: string) => `P${position}: ${text || '—'}`,
+      save: 'Zapisz kalibrację',
+      saved: 'Zapisano.',
+      invalidRest: 'Podaj długość spoczynkową między 20 a 300 cm.',
+      invalidLength: 'Długość musi być liczbą nie mniejszą niż L0.',
+      notFound: 'Nie znaleziono gumy.',
+    },
+  },
   backup: {
     title: 'Eksport / Import',
     shareTitle: 'Zapisz kopię HomeWorkout',
@@ -277,7 +339,7 @@ export const pl = {
     templates: 'Szablony',
     backup: 'Eksport / Import',
     settings: 'Ustawienia',
-    comingSoon: 'Gumy i szablony dojdą w następnych kamieniach.',
+    comingSoon: 'Szablony dojdą w następnych kamieniach.',
   },
   exercises: {
     title: 'Ćwiczenia',

@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/text';
 import { deleteSet, getSet, type SetLogRow, updateSet } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
 import type { Exercise } from '@/domain/types';
+import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { describeSet } from '@/features/history/describeSet';
 import {
   ladderFor,
@@ -62,6 +63,7 @@ export default function EditSetScreen() {
 
 function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) {
   const router = useRouter();
+  const calibrations = useBandCalibrations();
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: row.reps ?? 10,
     timeSec: row.timeSec ?? 30,
@@ -75,7 +77,7 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
   async function handleSave() {
     if (busy) return;
     setBusy(true);
-    const saved = toSavedSet(exercise, values);
+    const saved = toSavedSet(exercise, values, calibrations);
     await updateSet(row.id, {
       reps: saved.reps,
       timeSec: saved.timeSec,
@@ -84,6 +86,7 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
       dumbbellMode: saved.dumbbellMode,
       bandId: saved.bandId,
       anchorPosition: saved.anchorPosition,
+      estimatedLoadKg: saved.estimatedLoadKg,
     });
     router.back();
   }
@@ -117,7 +120,12 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
         </Text>
       </View>
 
-      <SetFields exercise={exercise} values={values} onChange={setValues} />
+      <SetFields
+        exercise={exercise}
+        values={values}
+        onChange={setValues}
+        calibrations={calibrations}
+      />
 
       <Button label={pl.history.setEdit.save} size="lg" onPress={handleSave} disabled={busy} />
       <Button

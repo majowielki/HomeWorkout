@@ -7,6 +7,7 @@ import type { AnchorPosition, DumbbellMode } from '@/domain/types';
 
 import { db } from '../client';
 import { setLogs } from '../schema';
+import { addBandCycles } from './bands';
 
 export interface LogSetInput {
   workoutId: string;
@@ -43,6 +44,9 @@ export async function logSet(input: LogSetInput): Promise<string> {
     estimatedLoadKg: input.estimatedLoadKg ?? null,
     loggedAt: new Date().toISOString(),
   });
+  // Wear counter for the recalibration nudge. Edits and deletes in history
+  // do not adjust it — it is a rough odometer, not an audit trail.
+  if (input.bandId && input.reps) await addBandCycles(input.bandId, input.reps);
   return id;
 }
 
@@ -88,7 +92,14 @@ export async function getSet(id: string): Promise<SetLogRow | null> {
 
 export type SetPatch = Pick<
   SetLogRow,
-  'reps' | 'timeSec' | 'rir' | 'weightKg' | 'dumbbellMode' | 'bandId' | 'anchorPosition'
+  | 'reps'
+  | 'timeSec'
+  | 'rir'
+  | 'weightKg'
+  | 'dumbbellMode'
+  | 'bandId'
+  | 'anchorPosition'
+  | 'estimatedLoadKg'
 >;
 
 /**
