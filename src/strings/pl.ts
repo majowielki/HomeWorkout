@@ -388,8 +388,39 @@ export const pl = {
         `Plik odwołuje się do ćwiczeń, których nie ma w tej wersji: ${ids.join(', ')}.`,
     },
   },
+  coach: {
+    title: 'Trener',
+    intro:
+      'Eksperyment. Aplikacja składa z Twojego dziennika zwięzły brief z ostatnich czterech tygodni. Wklej go razem z promptem do Gemini albo innego modelu i sprawdź, czy odpowiedzi są konkretne i czy cokolwiek zmieniają. Nic nie jest wysyłane automatycznie.',
+    loading: 'Składam brief…',
+    loadError: 'Nie udało się złożyć briefu.',
+    briefEyebrow: 'Brief',
+    summary: (sessions: number, weighIns: number, notes: number) =>
+      `${sessions} ${sessions === 1 ? 'sesja' : sessions >= 2 && sessions <= 4 ? 'sesje' : 'sesji'} · ${weighIns} ${weighIns === 1 ? 'ważenie' : weighIns >= 2 && weighIns <= 4 ? 'ważenia' : 'ważeń'} · ${notes} ${notes === 1 ? 'notatka' : notes >= 2 && notes <= 4 ? 'notatki' : 'notatek'}`,
+    size: (chars: number) => `${chars.toLocaleString('pl-PL')} znaków`,
+    sparse: 'Mało danych. Prompt każe modelowi nie mówić o trendach, dopóki nie ma więcej sesji.',
+    omittedMedical: (n: number) =>
+      `Pominięto ${n} ${n === 1 ? 'notatkę' : n >= 2 && n <= 4 ? 'notatki' : 'notatek'}, które wspominają o bólu lub urazie. Nie trafiają do briefu.`,
+    omittedScope: (n: number) =>
+      `Pominięto ${n} ${n === 1 ? 'notatkę' : n >= 2 && n <= 4 ? 'notatki' : 'notatek'} o diecie lub leku. Aplikacja w tych sprawach nie doradza.`,
+    howToEyebrow: 'Jak użyć',
+    howTo:
+      'Skopiuj prompt i brief jednym przyciskiem, wklej do rozmowy z modelem i przeczytaj odpowiedź. Przez dwa tygodnie notuj, czy powiedziała Ci coś, czego nie widać na wykresach.',
+    copyAll: 'Kopiuj prompt i brief',
+    copyPrompt: 'Kopiuj prompt',
+    copyBrief: 'Kopiuj brief',
+    copied: 'Skopiowano',
+    copyFailed: 'Nie udało się skopiować.',
+    viewPayload: 'Co dokładnie wysyłam',
+    viewPayloadHint: 'Pełna treść briefu, przed skopiowaniem',
+    payloadTitle: 'Co wysyłam',
+    payloadIntro:
+      'Dokładnie ten tekst trafia do modelu. Nie ma w nim imienia, daty urodzenia ani diagnozy: kolano opisują kody ograniczeń. Notatki o bólu, diecie i leku są pominięte.',
+  },
   more: {
     title: 'Więcej',
+    coach: 'Trener',
+    coachHint: 'Brief do wklejenia w modelu (eksperyment)',
     exercises: 'Ćwiczenia',
     bands: 'Gumy',
     templates: 'Szablony',
