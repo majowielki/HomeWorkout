@@ -26,7 +26,7 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | M6 — kalibracja gum | ✅ 2026-09-15 | `d7a309e` | model pozycja → rozciągnięcie doprecyzowany (§0.2); DoD wymaga trzech realnych kalibracji; **zrobiony przed bramką** — bramka nadal obowiązuje przed M7 |
 | review M4–M6 | ✅ 2026-09-15 | | nagłówki stacka, przypomnienia jako seria, seria rozgrzewkowa, rower w historii, granica SQL egzekwowana lintem, ten rozdział |
 | M7+ | ⏳ | | |
-| Warstwa AI (A0–A5) | ⏳ | | zastępuje M8–M9; stan i odstępstwa: [AI-INTEGRACJA.md](AI-INTEGRACJA.md) §10.0 |
+| Warstwa AI (A0–A5) | A0–A2 ✅ kod 2026-10-02 | | zastępuje M8–M9; A3 i A4 czekają na M7 i na bramkę „dwa tygodnie używania"; żaden prawdziwy model nie został wywołany. Stan i odstępstwa: [AI-INTEGRACJA.md](AI-INTEGRACJA.md) §10.0 |
 
 ### 0.2 Odstępstwa od dokumentu — świadome
 
