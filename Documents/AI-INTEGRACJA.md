@@ -436,12 +436,37 @@ użytkownik.
 | Etap | Stan | Branch | Uwagi |
 |---|---|---|---|
 | Dokumenty planu | ✅ 2026-10-01 | `docs/ai-integration-plan` | przeniesione z `poc` |
-| A0 — fundament bez sieci | ⏳ | `feat/ai-foundation` | część kodowa; DoD „2 tygodnie ręcznego używania z modelem" należy do użytkownika (bramka A0→A1 poniżej) |
+| A0 — fundament bez sieci | ✅ kod 2026-10-01 · ⏳ bramka | `feat/ai-foundation` | część kodowa zrobiona i zweryfikowana; DoD „2 tygodnie ręcznego używania z modelem" należy do użytkownika — lista kroków w „Wynik A0" poniżej |
 | A1 — Worker i F1 | ⏳ | `feat/ai-worker` | wszystko, co nie wymaga klucza dostawcy (atrapa modelu); test na żywym modelu wymaga klucza |
 | A2 — ewaluacja | ⏳ | `feat/ai-evals` | runner na żywo wymaga klucza; tryb odtwarzania nie |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7, a M7 na bramkę „dwa tygodnie używania" (IMPLEMENTACJA §8) |
 | A4 — rozmowa F4 | ⛔ | | narzędzie `getPlanExplanation` wymaga M7; reszta może iść wcześniej |
 | A5 — opcjonalnie | — | | |
+
+### Wynik A0 (2026-10-01)
+
+**Zrobione:** kontrakt `src/ai/contract` (ścisły Zod, wersja 1) · `buildCoachContext` + `redactNotes` · prompt `weekly-summary/v1` (z przypiętym hashem) · ekran „Więcej → Trener" z kopiowaniem promptu i briefu oraz ekran „Co wysyłam" · `detectTextSignal` i `detectOutOfScope` · sygnały z danych, trend ćwiczenia, objętość tygodniowa · 18 przypadków ewaluacyjnych F1 w `evals/cases/weekly-summary/` · ADR 0001–0004 w `docs/adr/`. Pokrycie `src/domain` i `src/ai` (części czyste): 100%.
+
+**Sprawdzone na urządzeniu:** debug build na emulatorze (Pixel_API36, Android 16): wpis „Trener" w Więcej, ekran z trzema przyciskami kopiowania (potwierdzenie „Skopiowano" po naciśnięciu; moduł natywny `expo-clipboard` się ładuje) i ekran „Co wysyłam" z blokiem `<coach_context>`. Na emulatorze nie ma ukończonych sesji, więc widać tylko stan „mało danych"; wypełniony brief widać dopiero na Twoich danych.
+
+**Pomiar detektora urazów (D9).** Trzy zbiory, wszystkie napisane przeze mnie, więc żaden nie szacuje skuteczności na Twoich notatkach:
+
+| Zbiór | Zdań | Wynik | Uwagi |
+|---|---|---|---|
+| dev (z PoC) | 38 | 37/38 | jedyna różnica: idiom „bolesna prawda", świadomie po bezpiecznej stronie |
+| held-out | 78 | 78/78 | pisany **przed** regułami, ale z nimi „w głowie" — zestaw regresyjny, nie dowód uogólniania |
+| unseen | 36 | **21/36 przy pierwszym przebiegu; z 23 notatek medycznych słownik złapał 8** | pisany po zamrożeniu reguł, szukał luk; po poprawkach 36/36 |
+
+Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ograniczonej czułości, a nie gwarancją. Dobrze łapie język bezpośredni, gubi pośredni („mam problem z kolanem", „pobolewa"). Zamknęły to rdzenie i reguła „sam staw bez sygnału wszystko gra = możliwa skarga". Druga warstwa (guardrail w prompcie + strażnik wyjścia) istnieje po to, żeby to, co przejdzie, nie skończyło się poradą; przypadek `note-injury-slips-through` mierzy ją osobno.
+
+**Odstępstwo od planu:** oprócz trzech ADR z v0.2 powstał czwarty (0004, bramka tekstowa), bo wynika z pomiaru, którego plan nie przewidywał.
+
+**Co zostaje po Twojej stronie (bramka A0 → wydanie A1):**
+
+1. Zbuduj dev client od nowa — `expo-clipboard` to moduł natywny (`npx expo run:android`).
+2. Przez ≥ 2 tygodnie raz w tygodniu: Więcej → Trener → „Kopiuj prompt i brief" → wklej do Gemini. Zapisuj (poza repozytorium), czy odpowiedź powiedziała coś, czego nie widać na wykresach.
+3. Zbierz **swoje prawdziwe notatki** o kolanie i zakwasach w prywatnym pliku (nie w repo — jest publiczne) i uruchom na nich detektor; to jedyna uczciwa miara jego czułości.
+4. Decyzja: czy AI wnosi wartość? Tak → A1 trafia do wydania aplikacji. Nie → warstwa zostaje jako dowód umiejętności w repo, bez ekranu.
 
 **Odstępstwa od v0.2 (świadome):**
 
@@ -525,7 +550,7 @@ Stan po weryfikacji z 2026-10-01 — dowody w [WERYFIKACJA-RESEARCH-AI.md](WERYF
 | D6 | Uwierzytelnianie aplikacji | sekret + limit + budżet dnia + Authenticated AI Gateway; ryzyko rezydualne opisane w README. Play Integrity odrzucone (nie obsługuje aplikacji spoza Play) | ✅ zdecydowane |
 | D7 | Język instrukcji w prompcie | EN instrukcje / PL odpowiedź jako hipoteza; koszt tokenów PL zmierzony (1,55×) i pomijalny | ⏳ rozstrzyga ewaluacja (A2) |
 | D8 | Narzędzie do ewaluacji | bezpieczeństwo: zwykłe testy z progiem 100%; jakość: Evalite + autoevals, scorery jako czyste funkcje (runner wymienny — Evalite stoi od listopada 2025) | ✅ zdecydowane, z zastrzeżeniem |
-| D9 | Wykrywanie sygnałów medycznych po polsku | rdzenie + kontekst (staw / mięsień, negacja); Levenshtein odrzucony (29/38 vs 37/38) | ✅ kierunek; potrzebny zbiór odłożony w A0 |
+| D9 | Wykrywanie sygnałów medycznych po polsku | rdzenie + kontekst (staw / mięsień, negacja); Levenshtein odrzucony (29/38 vs 37/38) | ✅ kierunek; zmierzone w A0 — patrz „Wynik A0" i ADR 0004 (unseen: 8/23 notatek medycznych przy pierwszym przebiegu) |
 
 ---
 

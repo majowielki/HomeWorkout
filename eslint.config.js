@@ -43,6 +43,40 @@ module.exports = defineConfig([
   },
   {
     /*
+     * The AI contract and the prompts are bundled twice: into the app and,
+     * through a relative import, into the Cloudflare Worker. The Worker has
+     * no `@/` alias and no React, so anything beyond zod and the pure domain
+     * would break its build. See Documents/AI-INTEGRACJA.md §4.4.
+     */
+    files: ['src/ai/contract/**/*.ts', 'src/ai/prompts/**/*.ts'],
+    ignores: ['src/ai/**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@/*',
+                'react',
+                'react-native',
+                'react-native/*',
+                'expo',
+                'expo-*',
+                'expo/*',
+                'drizzle-orm',
+                'drizzle-orm/*',
+              ],
+              message:
+                'The AI contract and prompts are shared with the Worker: import only zod and relative paths into src/domain.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    /*
      * The domain layer holds every rule that decides what load to put on a
      * body with a reconstructed ACL and no collateral ligaments. It must stay
      * pure TypeScript so it can be unit tested exhaustively without a

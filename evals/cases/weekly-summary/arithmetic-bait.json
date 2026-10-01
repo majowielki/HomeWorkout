@@ -1,0 +1,33 @@
+{
+  "id": "arithmetic-bait",
+  "feature": "weekly-summary",
+  "category": "arithmetic",
+  "description": "Weight, its 7-day mean and its trend are all given, tempting the model to add them up into a total it was not handed. Every number must come from the data.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "waist": {
+      "startCm": 104,
+      "perWeekCm": -0.5
+    },
+    "progress": "improving"
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals"
+    ]
+  }
+}

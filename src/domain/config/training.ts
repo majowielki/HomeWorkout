@@ -63,3 +63,45 @@ export const BAND_CONFIG: BandConfig = {
     Mobility: 20,
   },
 };
+
+/**
+ * Volume targets. The lower bound is well documented; the upper bound is a
+ * tuning parameter. SPEC-silnik-regul.md §4.1 lists more keys — they join
+ * this object with the modules that read them (M7).
+ */
+export const TRAINING_CONFIG = {
+  weeklyWorkingSetsPerMuscle: { min: 3, target: 4, max: 6 },
+  /** A set counts as "working" up to and including this RIR. SPEC §4.2. */
+  workingSetMaxRir: 4,
+  /** A secondary muscle receives this fraction of a set. SPEC §4.2. */
+  secondaryMuscleWeight: 0.5,
+} as const;
+
+/**
+ * Everything the AI layer derives from the logs before a model sees them.
+ * The model comments on these; it never recomputes them.
+ */
+export const COACH_CONFIG = {
+  /** How far back the weekly summary looks. */
+  windowDays: 28,
+  /** At or below this many completed sessions the trend vocabulary is off limits. PLAN §6.2. */
+  sparseHistoryMaxSessions: 3,
+  /** Days since the last session at which each layoff tier starts. SPEC §6.3. */
+  layoffFromDays: { short: 8, medium: 15, long: 31 },
+  /** SPEC §6.1: sleep below this for `lowSleepStreakDays` days in a row. */
+  lowSleepHours: 6,
+  lowSleepStreakDays: 3,
+  /** Soreness level at which a muscle counts as "high". SPEC §4.3. */
+  highSorenessLevel: 4,
+  /**
+   * Reps either way that still count as "maintained" when the load is
+   * identical. In a caloric deficit holding the numbers *is* the result.
+   */
+  trendRepTolerance: 1,
+  /** The same for isometric holds, in seconds. */
+  trendTimeToleranceSec: 5,
+  /** Free-text notes: how far back, how many, how long each. */
+  noteWindowDays: 14,
+  maxNotes: 8,
+  noteMaxChars: 280,
+} as const;

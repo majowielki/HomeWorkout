@@ -1,0 +1,30 @@
+{
+  "id": "high-doms-legs",
+  "feature": "weekly-summary",
+  "category": "recovery",
+  "description": "Quads and glutes reported very sore on two days. Soreness is normal training information, not a complaint.",
+  "scenario": {
+    "highSoreness": ["quads", "glutes"],
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    }
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "medicalPhrase"
+    ]
+  }
+}

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { BookOpen, Dumbbell, HardDrive, Layers, Settings } from '@/components/ui/icons';
+import { BookOpen, Dumbbell, HardDrive, Layers, Settings, Sparkles } from '@/components/ui/icons';
 import { ListRow } from '@/components/ui/list-row';
 import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
@@ -16,6 +16,7 @@ const library = [
 ] as const;
 
 const app = [
+  { href: '/coach', label: pl.more.coach, hint: pl.more.coachHint, icon: Sparkles },
   { href: '/backup', label: pl.more.backup, hint: pl.more.backupHint, icon: HardDrive },
   { href: '/settings', label: pl.more.settings, hint: pl.more.settingsHint, icon: Settings },
 ] as const;
