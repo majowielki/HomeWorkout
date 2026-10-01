@@ -1,10 +1,11 @@
 # HomeWorkout — integracja AI
 
-> **Wersja robocza 0.2.** Data: 2026-10-01 (v0.1: 2026-10-01). v0.2 uwzględnia weryfikację researchu
-> i PoC z brancha `poc` — szczegóły i dowody: [WERYFIKACJA-RESEARCH-AI.md](WERYFIKACJA-RESEARCH-AI.md).
+> **Wersja 0.3 — przyjęta do realizacji 2026-10-01.** (v0.2 i v0.1: tego samego dnia.) v0.2 uwzględnia
+> weryfikację researchu i PoC z brancha `poc` — szczegóły i dowody: [WERYFIKACJA-RESEARCH-AI.md](WERYFIKACJA-RESEARCH-AI.md).
+> v0.3 dodaje stan realizacji i odstępstwa od v0.2 (§10.0).
 > Dokumenty powiązane: [PLAN.md](PLAN.md) §6 (warstwa AI), [IMPLEMENTACJA.md](IMPLEMENTACJA.md) M8–M9,
 > [SPEC-silnik-regul.md](SPEC-silnik-regul.md) §1.2 (kody powodów) i §8 (`validatePlan`).
-> Po akceptacji ten dokument zastępuje PLAN §6 i opisy M8–M9. Do tego czasu obowiązują one.
+> Ten dokument zastępuje PLAN §6 i opisy M8–M9 w IMPLEMENTACJA.
 
 ---
 
@@ -425,6 +426,31 @@ Uzupełnienie konwencji z IMPLEMENTACJA §9:
 
 Estymaty w wieczorach (~2 h), jak w IMPLEMENTACJA §8 — zgrubne. DoD binarne.
 **A3 wymaga M7** (`dayPlanner`, `validatePlan`); A0–A2 mogą iść równolegle do M7.
+
+### 10.0 Stan realizacji i odstępstwa
+
+Aktualizowane po każdym etapie, jak IMPLEMENTACJA §0. Każdy etap to osobny branch `feat/ai-<etap>`,
+scalany lokalnie do `main` po zielonym `npm run verify`. Nic nie jest wypychane na GitHub — robi to
+użytkownik.
+
+| Etap | Stan | Branch | Uwagi |
+|---|---|---|---|
+| Dokumenty planu | ✅ 2026-10-01 | `docs/ai-integration-plan` | przeniesione z `poc` |
+| A0 — fundament bez sieci | ⏳ | `feat/ai-foundation` | część kodowa; DoD „2 tygodnie ręcznego używania z modelem" należy do użytkownika (bramka A0→A1 poniżej) |
+| A1 — Worker i F1 | ⏳ | `feat/ai-worker` | wszystko, co nie wymaga klucza dostawcy (atrapa modelu); test na żywym modelu wymaga klucza |
+| A2 — ewaluacja | ⏳ | `feat/ai-evals` | runner na żywo wymaga klucza; tryb odtwarzania nie |
+| A3 — planowanie F2/F3 | ⛔ | | czeka na M7, a M7 na bramkę „dwa tygodnie używania" (IMPLEMENTACJA §8) |
+| A4 — rozmowa F4 | ⛔ | | narzędzie `getPlanExplanation` wymaga M7; reszta może iść wcześniej |
+| A5 — opcjonalnie | — | | |
+
+**Odstępstwa od v0.2 (świadome):**
+
+| v0.2 mówi | Realizacja | Dlaczego |
+|---|---|---|
+| prompty w `worker/src/prompts/` (§4.5) | prompty jako czyste funkcje w `src/ai/prompts/<funkcja>/v<N>.ts`, importowane przez Workera ścieżką względną jak kontrakt | A0 ma przycisk „Kopiuj prompt" w aplikacji, a M8 wymaga, żeby ręczny etap używał **tego samego** tekstu, który potem pójdzie przez Workera. Dwa pliki to dwa teksty, które się rozjadą. Zmiana promptu nadal nie wymaga wydania aplikacji — wystarczy wdrożenie Workera |
+| `flags[{ reasonCode, comment }]` odwołuje się do kodów silnika (§3 F1) | przed M7 kody pochodzą z `src/domain/coach/signals.ts` (czysta funkcja nad danymi: `SPARSE_HISTORY`, `LAYOFF_*`, `SLEEP_LOW_STREAK`); kody silnika (`FATIGUE_HIGH`, `PERFORMANCE_DROP`, …) dojdą z M7 jako podniesienie `CONTRACT_VERSION` | silnik reguł jeszcze nie istnieje; model dostaje wyłącznie sygnały policzone w kodzie, a flaga spoza `context.signals` jest odrzucana przez strażnika wyjścia |
+| wskaźnik retencji siły liczy silnik (PLAN §7) | `src/domain/coach/exerciseTrend.ts` — trend per ćwiczenie liczony w kodzie (`improved` / `maintained` / `declined` / `not_comparable`), model go tylko komentuje | metryka jest potrzebna F1 teraz, a jej pełna wersja (z wagą ciała) należy do M7; kontrakt przewiduje pole, kod je wypełnia |
+| A0 DoD: „≥ 2 tygodnie ręcznego używania z modelem" | dzieli się na część kodową (agent) i bramkę użytkownika | tej części nie da się wykonać w sesji; A1 w części, która nie zależy od wyniku bramki (Worker, klient), idzie dalej, ale **nic z A1 nie trafia do wydania aplikacji**, dopóki bramka nie da odpowiedzi „AI wnosi wartość" |
 
 ### A0 — Fundament bez sieci (2–3 wieczory)
 
