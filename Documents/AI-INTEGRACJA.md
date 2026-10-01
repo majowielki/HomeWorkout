@@ -447,6 +447,8 @@ użytkownik.
 
 **Zrobione:** kontrakt `src/ai/contract` (ścisły Zod, wersja 1) · `buildCoachContext` + `redactNotes` · prompt `weekly-summary/v1` (z przypiętym hashem) · ekran „Więcej → Trener" z kopiowaniem promptu i briefu oraz ekran „Co wysyłam" · `detectTextSignal` i `detectOutOfScope` · sygnały z danych, trend ćwiczenia, objętość tygodniowa · 18 przypadków ewaluacyjnych F1 w `evals/cases/weekly-summary/` · ADR 0001–0004 w `docs/adr/`. Pokrycie `src/domain` i `src/ai` (części czyste): 100%.
 
+**Sprawdzone na urządzeniu:** debug build na emulatorze (Pixel_API36, Android 16): wpis „Trener" w Więcej, ekran z trzema przyciskami kopiowania (potwierdzenie „Skopiowano" po naciśnięciu; moduł natywny `expo-clipboard` się ładuje) i ekran „Co wysyłam" z blokiem `<coach_context>`. Na emulatorze nie ma ukończonych sesji, więc widać tylko stan „mało danych"; wypełniony brief widać dopiero na Twoich danych.
+
 **Pomiar detektora urazów (D9).** Trzy zbiory, wszystkie napisane przeze mnie, więc żaden nie szacuje skuteczności na Twoich notatkach:
 
 | Zbiór | Zdań | Wynik | Uwagi |
