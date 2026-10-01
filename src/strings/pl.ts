@@ -415,7 +415,7 @@ export const pl = {
     viewPayloadHint: 'Pełna treść briefu, przed skopiowaniem',
     payloadTitle: 'Co wysyłam',
     payloadIntro:
-      'Dokładnie ten tekst trafia do modelu. Nie ma w nim imienia, daty urodzenia ani diagnozy: kolano opisują kody ograniczeń. Notatki o bólu, diecie i leku są pominięte.',
+      'To są wszystkie Twoje dane, jakie widzi model. Obok nich dostaje stały prompt z zasadami (przycisk „Kopiuj prompt”). Nie ma tu imienia, daty urodzenia ani diagnozy: kolano opisują kody ograniczeń. Notatki o bólu, diecie i leku są pominięte.',
   },
   more: {
     title: 'Więcej',
