@@ -16,6 +16,7 @@ export const context: CoachContext = {
   goal: 'lean_mass_retention_in_deficit',
   constraints: ['knee_no_frontal_plane_under_load'],
   historicalSessionCount: 12,
+  sessionCount: 0,
   signals: [],
   sessions: [],
   weeklyVolume: [],

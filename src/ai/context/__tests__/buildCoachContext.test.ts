@@ -14,6 +14,7 @@ describe('buildCoachContext — sessions and history', () => {
     expect(context.windowDays).toBe(28);
     expect(context.goal).toBe('lean_mass_retention_in_deficit');
     expect(context.sessions).toHaveLength(9);
+    expect(context.sessionCount).toBe(9);
     expect(context.historicalSessionCount).toBe(29); // 20 older + 9 in the window
     expect(context.signals).toEqual([]);
     expect(context.sessions[0]).toMatchObject({
