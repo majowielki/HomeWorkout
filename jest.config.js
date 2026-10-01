@@ -2,6 +2,8 @@
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  // worker/ runs its own Vitest suite inside workerd.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/worker/'],
   testTimeout: 20_000,
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

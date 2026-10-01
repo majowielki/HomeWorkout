@@ -1,9 +1,35 @@
 {
-  // PoC only — never deployed from this branch.
-  "name": "homeworkout-coach-poc",
+  // The coach Worker: a stateless proxy between the app and a language model.
+  // See ../docs/adr/0002-data-and-domain-stay-on-the-phone.md and README.md here.
+  "name": "homeworkout-coach",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
-  "vars": { "PROVIDER": "fake" },
-  // One zod for the Worker code and the contract imported from ../src (R11).
+
+  "vars": {
+    // "google" calls the provider; local development uses src/dev.ts, which swaps in a fake.
+    "PROVIDER": "google",
+    // No default on purpose: pick it from the provider's published model list (decision D3).
+    "MODEL_ID": "",
+    // Hard stop for the day, counted in input + output tokens. A fence, not an accounting system.
+    "DAILY_TOKEN_BUDGET": "150000",
+    "MAX_OUTPUT_TOKENS": "900",
+    // Optional, for the estimated cost in logs. Left empty, the cost is logged as null.
+    "PRICE_INPUT_USD_PER_MTOK": "",
+    "PRICE_OUTPUT_USD_PER_MTOK": "",
+  },
+
+  // Daily token counter. `wrangler kv namespace create BUDGET`, then paste the id.
+  "kv_namespaces": [{ "binding": "BUDGET", "id": "00000000000000000000000000000000" }],
+
+  // Requests per minute, per Worker location. Cheap protection against a runaway client.
+  "ratelimits": [
+    { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 6, "period": 60 } },
+  ],
+
+  // One zod for the Worker and for the contract imported from ../src (research R11):
+  // without this the bundle holds two copies.
   "alias": { "zod": "./node_modules/zod/index.js" },
+
+  // Structured JSON lines from src/log.ts land in Workers Logs. Metadata only, never content.
+  "observability": { "enabled": true },
 }

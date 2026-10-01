@@ -36,3 +36,43 @@ jobs:
 
       - name: Test domain rules with coverage
         run: npm run test:coverage
+
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (generates the binding types first)
+        run: npm run typecheck
+
+      - name: Test in workerd (mock model, no key, no network)
+        run: npm test
+
+      - name: Bundle as a deploy would
+        run: npm run build:dry
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The Worker holds a provider key and the app holds a shared secret; neither
+      # may ever be committed. Fails the build if anything in history looks like one.
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

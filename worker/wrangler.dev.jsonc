@@ -1,0 +1,18 @@
+{
+  // Local development only: the same Worker with a fake model, so the app can
+  // be exercised end to end without a provider key. Never deployed.
+  "name": "homeworkout-coach-dev",
+  "main": "src/dev.ts",
+  "compatibility_date": "2026-09-01",
+  "vars": {
+    "PROVIDER": "fake",
+    "MODEL_ID": "fake-coach",
+    "DAILY_TOKEN_BUDGET": "1000000",
+    "MAX_OUTPUT_TOKENS": "900",
+  },
+  "kv_namespaces": [{ "binding": "BUDGET", "id": "00000000000000000000000000000000" }],
+  "ratelimits": [
+    { "name": "LIMITER", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } },
+  ],
+  "alias": { "zod": "./node_modules/zod/index.js" },
+}
