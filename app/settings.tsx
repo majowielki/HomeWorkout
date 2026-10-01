@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Stepper } from '@/components/ui/stepper';
 import { Text } from '@/components/ui/text';
 import { getProfile, getReminderSettings, updateProfile } from '@/db/repositories/profile';
+import { AiSettingsCard } from '@/features/coach/AiSettingsCard';
 import { isMuted, muteUntilDate, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { KneeProfile } from '@/domain/types';
 import { syncReminders } from '@/lib/reminders';
@@ -280,6 +281,8 @@ export default function SettingsScreen() {
           )}
         </CardContent>
       </Card>
+
+      <AiSettingsCard />
 
       {error ? <Text className="text-sm text-destructive">{error}</Text> : null}
       <Button label={pl.settings.save} size="lg" onPress={handleSave} disabled={saving} />

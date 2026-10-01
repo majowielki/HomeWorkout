@@ -13,6 +13,8 @@ module.exports = defineConfig([
       'ios/**',
       'dist/**',
       'src/db/migrations/**',
+      // A separate package with its own runtime (workerd) and toolchain.
+      'worker/**',
     ],
   },
   {

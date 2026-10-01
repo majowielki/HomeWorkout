@@ -437,7 +437,7 @@ użytkownik.
 |---|---|---|---|
 | Dokumenty planu | ✅ 2026-10-01 | `docs/ai-integration-plan` | przeniesione z `poc` |
 | A0 — fundament bez sieci | ✅ kod 2026-10-01 · ⏳ bramka | `feat/ai-foundation` | część kodowa zrobiona i zweryfikowana; DoD „2 tygodnie ręcznego używania z modelem" należy do użytkownika — lista kroków w „Wynik A0" poniżej |
-| A1 — Worker i F1 | ⏳ | `feat/ai-worker` | wszystko, co nie wymaga klucza dostawcy (atrapa modelu); test na żywym modelu wymaga klucza |
+| A1 — Worker i F1 | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-worker` | Worker, klient, `ai_exchanges`, karta w aplikacji, diagnostyka, CI; sprawdzone na emulatorze z atrapą modelu. Brakuje wywołania prawdziwego modelu (potrzebny klucz i konto Cloudflare) |
 | A2 — ewaluacja | ⏳ | `feat/ai-evals` | runner na żywo wymaga klucza; tryb odtwarzania nie |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7, a M7 na bramkę „dwa tygodnie używania" (IMPLEMENTACJA §8) |
 | A4 — rozmowa F4 | ⛔ | | narzędzie `getPlanExplanation` wymaga M7; reszta może iść wcześniej |
@@ -468,6 +468,41 @@ Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ogranic
 3. Zbierz **swoje prawdziwe notatki** o kolanie i zakwasach w prywatnym pliku (nie w repo — jest publiczne) i uruchom na nich detektor; to jedyna uczciwa miara jego czułości.
 4. Decyzja: czy AI wnosi wartość? Tak → A1 trafia do wydania aplikacji. Nie → warstwa zostaje jako dowód umiejętności w repo, bez ekranu.
 
+### Wynik A1 (2026-10-02)
+
+**Zrobione:**
+
+- `worker/`: `POST /v1/weekly-summary` — uwierzytelnienie w stałym czasie, limit zapytań, limit rozmiaru, wersja kontraktu sprawdzana **przed** pełnym schematem, dzienny budżet tokenów w KV, `generateText` + `Output.object`, kontrola schematem i strażnikami wyjścia, jedna naprawa z powodem (nigdy z cytatem), typowane odpowiedzi błędów. Log: jedna linia metadanych na wywołanie, bez treści (test pilnuje, że notatka ani odpowiedź nie trafiają do logu).
+- `src/domain/coach/outputGuards.ts`: flaga tylko z `signals`, słownictwo trendu zakazane przy skąpych danych, dieta/lek, porada przy dolegliwości. Wspólne dla Workera i przyszłych scorerów (A2).
+- `src/ai/client`: klient HTTP z wstrzykiwanym `fetch`, zegarem i losowością; unia wyników (odpowiedzi Workera + offline / własny timeout / anulowanie / nieczytelna odpowiedź); konfiguracja odrzuca zdalny adres bez https.
+- `ai_exchanges` (migracja `0003`), ekran „Diagnostyka AI", karta podsumowania w „Trenerze", przełącznik w Ustawieniach (domyślnie wyłączony), osobne zdanie dla każdego rodzaju błędu przez wyczerpujący `switch`.
+- CI: osobny job Workera (typecheck, testy w workerd, bundle na sucho) oraz skan sekretów gitleaks.
+
+**Sprawdzone:**
+
+| Co | Jak | Wynik |
+|---|---|---|
+| Worker, 60 testów | Vitest 4.1 w workerd, prawdziwy KV, atrapa modelu | ✅ |
+| Worker w warunkach CI | świeży klon, `npm ci` tylko w `worker/`, bez `node_modules` roota | ✅ po dwóch poprawkach (poniżej) |
+| Paczka produkcyjna | `wrangler deploy --dry-run` | 1,6 MB, **jedna** kopia Zoda, bez atrapy modelu |
+| Aplikacja + Worker end to end | emulator Pixel_API36, `wrangler dev` z atrapą, Metro z `EXPO_PUBLIC_*`, `adb reverse` | ✅ przełącznik → prośba → podsumowanie → wpis w diagnostyce |
+| Brak serwera | Worker zatrzymany w trakcie | ✅ „AI niedostępne… Reszta aplikacji działa bez zmian", brief ręczny nietknięty |
+| `npm run verify` | lint, format, typy, dane, 590 testów | ✅, 100% pokrycia `src/domain` i `src/ai` |
+
+**Co wyszło przy sprawdzaniu (i nie wyszłoby bez niego):**
+
+1. AI SDK ponawia nieudane wywołania samo (`maxRetries: 2`, backoff). Testy błędów dostawcy wisiały >5 s. Wyłączone; ponawia klient, na podstawie flagi `retryable`.
+2. Job Workera przechodził lokalnie tylko dlatego, że nad `worker/` leży `node_modules` roota. We świeżym klonie padały: wyszukiwanie `tsconfig.json` roota (dziedziczy po `expo/tsconfig.base`) i `zod` rozwiązywany z zewnątrz. Naprawione w `worker/vitest.config.ts` (`esbuild.tsconfigRaw` jako string i alias `zod`), sprawdzone ponownie na świeżym klonie.
+3. Stary serwer Metro po poprzedniej sesji przepisywał `.expo/types/router.d.ts` śmieciowymi trasami `/../src/...` i wywracał `tsc`. Zatrzymany; w `tooling-quirks` (pamięć) jest zapis, jak to rozpoznać.
+
+**Czego nie sprawdziłem (nie mam klucza ani konta):** wywołania prawdziwego modelu (więc też: zachowanie `Output.object` na Gemini, czy schemat odpowiedzi przechodzi przez `responseJsonSchema`, realne opóźnienie i koszt), AI Gateway, wdrożenia na Cloudflare, KV i rate limiting poza symulacją Miniflare. DoD A1 „podsumowanie na prawdziwym modelu" pozostaje otwarte.
+
+**Co zostaje po Twojej stronie:**
+
+1. Konto Cloudflare i klucz Gemini; `worker/README.md` ma komplet komend (KV, sekrety, `MODEL_ID`, wdrożenie). Wybór `MODEL_ID` z oficjalnej listy modeli — tego nie zgaduję.
+2. `.env.local` z `EXPO_PUBLIC_COACH_URL` i `EXPO_PUBLIC_COACH_SECRET` i przebudowanie aplikacji.
+3. Pierwsze wywołanie na żywo: sprawdź w Diagnostyce AI, że odpowiedź przeszła bez naprawy, i zajrzyj w log Workera.
+
 **Odstępstwa od v0.2 (świadome):**
 
 | v0.2 mówi | Realizacja | Dlaczego |
@@ -475,6 +510,11 @@ Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ogranic
 | prompty w `worker/src/prompts/` (§4.5) | prompty jako czyste funkcje w `src/ai/prompts/<funkcja>/v<N>.ts`, importowane przez Workera ścieżką względną jak kontrakt | A0 ma przycisk „Kopiuj prompt" w aplikacji, a M8 wymaga, żeby ręczny etap używał **tego samego** tekstu, który potem pójdzie przez Workera. Dwa pliki to dwa teksty, które się rozjadą. Zmiana promptu nadal nie wymaga wydania aplikacji — wystarczy wdrożenie Workera |
 | `flags[{ reasonCode, comment }]` odwołuje się do kodów silnika (§3 F1) | przed M7 kody pochodzą z `src/domain/coach/signals.ts` (czysta funkcja nad danymi: `SPARSE_HISTORY`, `LAYOFF_*`, `SLEEP_LOW_STREAK`); kody silnika (`FATIGUE_HIGH`, `PERFORMANCE_DROP`, …) dojdą z M7 jako podniesienie `CONTRACT_VERSION` | silnik reguł jeszcze nie istnieje; model dostaje wyłącznie sygnały policzone w kodzie, a flaga spoza `context.signals` jest odrzucana przez strażnika wyjścia |
 | wskaźnik retencji siły liczy silnik (PLAN §7) | `src/domain/coach/exerciseTrend.ts` — trend per ćwiczenie liczony w kodzie (`improved` / `maintained` / `declined` / `not_comparable`), model go tylko komentuje | metryka jest potrzebna F1 teraz, a jej pełna wersja (z wagą ciała) należy do M7; kontrakt przewiduje pole, kod je wypełnia |
+| `ai_exchanges` w pliku kopii zapasowej (IMPLEMENTACJA §7.5) | tabela **nie** wchodzi do backupu | to dziennik diagnostyczny, nie dane treningowe; wchodzenie do backupu wymagałoby podniesienia wersji pliku i migracji w `parse.ts`, a przywrócenie go z innego telefonu nie ma sensu. Czyszczenie nie dotyka dziennika treningowego |
+| przełącznik AI w Ustawieniach jako kolumna profilu | `expo-sqlite/kv-store` (klucz `ai.enabled`), domyślnie wyłączony | to preferencja, nie rekord: bez migracji, bez zmian w schemacie kopii; błąd odczytu = wyłączone |
+| dzienny budżet tokenów (§4.9) | licznik w KV (`tokens:YYYY-MM-DD`, TTL 2 dni), bez Durable Object | KV jest eventually consistent, więc dwa równoczesne wywołania mogą oba przejść i budżet może zostać przekroczony o jedno–dwa wywołania; to ogrodzenie, nie księgowość, a Durable Object to kolejny ruchomy element dla jednej osoby |
+| ponawianie „wykładniczo z jitterem, max 2" po stronie klienta (§4.6) | tak, ale SDK nie ponawia samo (`maxRetries: 0`); klient ponawia tylko `upstream_error` z `retryable: true`, a błąd sieci nie jest ponawiany | test wykazał, że domyślne `maxRetries: 2` w AI SDK po cichu ukrywało opóźnienie (>5 s) i koszt pod Workerem; bez sieci człowiek decyduje, a nie pętla |
+| modele w konfiguracji | `MODEL_ID` **bez wartości domyślnej** | nazwy modeli w raporcie Gemini okazały się niewiarygodne; wybór (D3) należy do oceny w A2 i do oficjalnej listy modeli dostawcy |
 | A0 DoD: „≥ 2 tygodnie ręcznego używania z modelem" | dzieli się na część kodową (agent) i bramkę użytkownika | tej części nie da się wykonać w sesji; A1 w części, która nie zależy od wyniku bramki (Worker, klient), idzie dalej, ale **nic z A1 nie trafia do wydania aplikacji**, dopóki bramka nie da odpowiedzi „AI wnosi wartość" |
 
 ### A0 — Fundament bez sieci (2–3 wieczory)

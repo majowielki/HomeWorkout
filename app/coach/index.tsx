@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Eye } from '@/components/ui/icons';
 import { ListRow } from '@/components/ui/list-row';
 import { Text } from '@/components/ui/text';
+import { AiSummarySection } from '@/features/coach/AiSummarySection';
 import { CoachBrief } from '@/features/coach/CoachBrief';
 import { useCoachBrief } from '@/features/coach/useCoachBrief';
 import { pl } from '@/strings/pl';
@@ -32,6 +33,7 @@ export default function CoachScreen() {
       {state.status === 'ready' ? (
         <>
           <CoachBrief built={state.built} />
+          <AiSummarySection context={state.built.context} />
           <Card className="py-1">
             <Link href="/coach/payload" asChild>
               <ListRow

@@ -7,3 +7,7 @@ src/db/migrations
 package-lock.json
 Documents
 src/assets/exercise-media.ts
+worker/worker-configuration.d.ts
+worker/dist
+worker/.wrangler
+worker/node_modules

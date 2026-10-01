@@ -5,8 +5,10 @@ import { scenario } from '../../testing/synthetic';
 import { coachContextSchema, loadSchema } from '../coachContext';
 import { CONTRACT_VERSION } from '../versions';
 import {
+  apiErrorSchema,
   type WeeklySummary,
   weeklySummaryRequestSchema,
+  weeklySummaryResponseSchema,
   weeklySummarySchema,
 } from '../weeklySummary';
 
@@ -125,5 +127,69 @@ describe('weeklySummaryRequestSchema', () => {
     expect(weeklySummaryRequestSchema.safeParse({ ...request(), requestId: 'short' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('weeklySummaryResponseSchema (what the Worker answers)', () => {
+  const usage = { inputTokens: 1200, outputTokens: 150 };
+  const ok = {
+    kind: 'ok',
+    requestId: 'req-0001-abcdef',
+    promptVersion: 'weekly-summary/v1',
+    model: 'some-model',
+    usage,
+    validationOutcome: 'ok',
+    summary: goodSummary,
+  };
+
+  it('accepts an ok answer, plain or repaired', () => {
+    expect(weeklySummaryResponseSchema.safeParse(ok).success).toBe(true);
+    expect(
+      weeklySummaryResponseSchema.safeParse({ ...ok, validationOutcome: 'ok_after_repair' })
+        .success,
+    ).toBe(true);
+  });
+
+  it('refuses an ok answer whose summary breaks the summary schema', () => {
+    const broken = { ...ok, summary: { ...goodSummary, headline: '' } };
+    expect(weeklySummaryResponseSchema.safeParse(broken).success).toBe(false);
+  });
+
+  it.each([
+    [{ kind: 'unauthorized' }],
+    [{ kind: 'not_found' }],
+    [{ kind: 'payload_too_large' }],
+    [{ kind: 'bad_request', issues: 3 }],
+    [{ kind: 'contract_mismatch', expected: 1, got: 2 }],
+    [{ kind: 'contract_mismatch', expected: 1, got: null }],
+    [{ kind: 'rate_limited' }],
+    [{ kind: 'budget_exhausted' }],
+    [
+      {
+        kind: 'invalid_output',
+        requestId: 'req-0001-abcdef',
+        promptVersion: 'weekly-summary/v1',
+        attempts: 2,
+        usage,
+      },
+    ],
+    [{ kind: 'upstream_error', retryable: true }],
+    [{ kind: 'timeout' }],
+    [{ kind: 'misconfigured' }],
+  ])('knows the error %j', (body) => {
+    expect(weeklySummaryResponseSchema.safeParse(body).success).toBe(true);
+    expect(apiErrorSchema.safeParse(body).success).toBe(true);
+  });
+
+  it('does not take an ok answer for an error', () => {
+    expect(apiErrorSchema.safeParse(ok).success).toBe(false);
+  });
+
+  it('rejects a kind it has never heard of, and extra fields on a known one', () => {
+    expect(weeklySummaryResponseSchema.safeParse({ kind: 'teapot' }).success).toBe(false);
+    expect(
+      weeklySummaryResponseSchema.safeParse({ kind: 'rate_limited', retryAfterSec: 60 }).success,
+    ).toBe(false);
+    expect(weeklySummaryResponseSchema.safeParse({ ...ok, extra: 1 }).success).toBe(false);
   });
 });

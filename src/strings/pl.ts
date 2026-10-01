@@ -1,4 +1,5 @@
 import { BAND_CONFIG } from '@/domain/config/training';
+import type { SignalCode } from '@/domain/coach/vocabulary';
 import type { ExclusionCode } from '@/domain/exercises/screen';
 import type { LoadEstimate } from '@/domain/progression/calibration';
 import type {
@@ -416,6 +417,78 @@ export const pl = {
     payloadTitle: 'Co wysyłam',
     payloadIntro:
       'To są wszystkie Twoje dane, jakie widzi model. Obok nich dostaje stały prompt z zasadami (przycisk „Kopiuj prompt”). Nie ma tu imienia, daty urodzenia ani diagnozy: kolano opisują kody ograniczeń. Notatki o bólu, diecie i leku są pominięte.',
+    /** Names for the signal codes the model may flag. Typed so a new code cannot be forgotten. */
+    signals: {
+      SPARSE_HISTORY: 'Mało danych',
+      LAYOFF_SHORT: 'Krótka przerwa',
+      LAYOFF_MEDIUM: 'Przerwa',
+      LAYOFF_LONG: 'Długa przerwa',
+      SLEEP_LOW_STREAK: 'Krótki sen',
+    } satisfies Record<SignalCode, string>,
+    ai: {
+      eyebrow: 'Podsumowanie od modelu',
+      disabled:
+        'Funkcje AI są wyłączone, więc aplikacja nic nigdzie nie wysyła. Włącz je w Ustawieniach, jeśli chcesz poprosić model o podsumowanie.',
+      notConfigured:
+        'Serwer AI nie jest skonfigurowany. Ustaw EXPO_PUBLIC_COACH_URL i EXPO_PUBLIC_COACH_SECRET w .env.local i zbuduj aplikację od nowa. Brief do ręcznego wklejenia działa bez tego.',
+      ask: 'Poproś o podsumowanie',
+      asking: 'Model pisze podsumowanie…',
+      cancel: 'Anuluj',
+      again: 'Poproś ponownie',
+      retry: 'Spróbuj ponownie',
+      flagsTitle: 'Na co zwrócić uwagę',
+      questionsTitle: 'Pytania na następny raz',
+      repaired: 'Pierwsza odpowiedź nie przeszła kontroli, ta jest poprawiona.',
+      disclaimer:
+        'To komentarz do liczb z dziennika, nie plan ani porada. Obciążenia ustala wyłącznie silnik reguł.',
+      meta: (model: string, tokens: number, seconds: number) =>
+        `${model} · ${tokens.toLocaleString('pl-PL')} tokenów · ${seconds.toLocaleString('pl-PL', { maximumFractionDigits: 1 })} s`,
+      errors: {
+        offline: 'AI niedostępne: brak połączenia z serwerem. Reszta aplikacji działa bez zmian.',
+        timeout: 'Model nie odpowiedział na czas.',
+        rateLimited: 'Za dużo zapytań w ostatniej minucie. Spróbuj za chwilę.',
+        upstream: 'Dostawca modelu nie odpowiada.',
+        invalidOutput:
+          'Nie udało się ułożyć podsumowania: model dwa razy odpowiedział nie tak, jak trzeba. Szczegóły są w diagnostyce.',
+        budget: 'Limit na dziś wyczerpany. Wróć jutro.',
+        unauthorized: 'Serwer odrzucił klucz aplikacji. Sprawdź konfigurację.',
+        contractMismatch: 'Aplikacja i serwer są w różnych wersjach. Zaktualizuj aplikację.',
+        misconfigured: 'Serwer jest źle skonfigurowany: brakuje klucza dostawcy albo modelu.',
+        incompatible: 'Serwer odpowiedział czymś, czego ta wersja aplikacji nie rozumie.',
+      },
+      settings: {
+        section: 'Funkcje AI',
+        toggle: 'Trener AI',
+        toggleHint:
+          'Wyłączone: aplikacja nic nigdzie nie wysyła i działa jak zawsze. Włączone: zwięzły brief (zobacz „Co wysyłam”) trafia na Twój serwer tylko wtedy, gdy o to poprosisz.',
+        configured: 'Serwer: skonfigurowany',
+        notConfigured: 'Serwer: nieskonfigurowany',
+        diagnostics: 'Diagnostyka AI',
+        diagnosticsHint: 'Ostatnie wymiany z pełną treścią, tylko na tym telefonie',
+      },
+    },
+    diagnostics: {
+      title: 'Diagnostyka AI',
+      intro:
+        'Ostatnie wymiany z serwerem, z pełną treścią. Zapisane tylko na tym telefonie; serwer trzyma wyłącznie metadane.',
+      empty: 'Jeszcze żadnej wymiany.',
+      clear: 'Wyczyść historię',
+      clearTitle: 'Wyczyścić historię AI?',
+      clearBody: 'Usuwa zapisane wymiany z tego telefonu. Dziennik treningowy zostaje.',
+      request: 'Wysłano',
+      response: 'Odpowiedź',
+      show: 'Pokaż',
+      hide: 'Ukryj',
+      line: (tokensIn: number | null, tokensOut: number | null, ms: number | null) =>
+        [
+          tokensIn !== null && tokensOut !== null ? `${tokensIn}+${tokensOut} tokenów` : null,
+          ms !== null
+            ? `${(ms / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 1 })} s`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+    },
   },
   more: {
     title: 'Więcej',

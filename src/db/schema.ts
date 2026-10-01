@@ -1,5 +1,6 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import type { CoachContext } from '@/ai/contract/coachContext';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import type {
   AnchorPosition,
@@ -165,3 +166,39 @@ export const dailyLogs = sqliteTable('daily_logs', {
   note: text('note'),
   updatedAt: text('updated_at').notNull(),
 });
+
+/**
+ * A local, diagnostic record of every call to the coach Worker, with the
+ * full request and answer. It lives only on this phone (AI-INTEGRACJA
+ * §4.8): the Worker keeps metadata, never content. It is not part of the
+ * backup file; it can be cleared without touching a single training log.
+ *
+ * `outcome` is the Worker's `validationOutcome` on success and the failure
+ * `kind` otherwise. It is a plain string so a new kind never needs a
+ * migration.
+ */
+export const aiExchanges = sqliteTable(
+  'ai_exchanges',
+  {
+    id: text('id').primaryKey(),
+    kind: text('kind', {
+      enum: ['weekly_summary', 'week_intent', 'day_adjustment', 'chat'],
+    }).notNull(),
+    requestId: text('request_id').notNull(),
+    createdAt: text('created_at').notNull(),
+    promptVersion: text('prompt_version'),
+    model: text('model'),
+    latencyMs: integer('latency_ms'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    attempts: integer('attempts'),
+    outcome: text('outcome').notNull(),
+    /** Exercises a proposal lost to validatePlan. Unused until plans exist. */
+    trimmedCount: integer('trimmed_count'),
+    request: text('request', { mode: 'json' }).$type<CoachContext>(),
+    response: text('response', { mode: 'json' }).$type<unknown>(),
+    /** Null until the person acts on a proposal. A summary is never "accepted". */
+    accepted: integer('accepted', { mode: 'boolean' }),
+  },
+  (t) => [index('ai_exchanges_created_idx').on(t.createdAt)],
+);

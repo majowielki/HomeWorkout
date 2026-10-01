@@ -45,3 +45,10 @@ yarn-error.*
 
 # test coverage
 coverage/
+
+# Cloudflare Worker
+.wrangler/
+worker/worker-configuration.d.ts
+# Worker secrets for local runs: never committed
+worker/.dev.vars
+worker/.dev.vars.*

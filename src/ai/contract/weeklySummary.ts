@@ -40,3 +40,58 @@ export const weeklySummaryRequestSchema = z.strictObject({
 });
 
 export type WeeklySummaryRequest = z.infer<typeof weeklySummaryRequestSchema>;
+
+/*
+ * What the Worker answers. One shape for every outcome, so the app can map
+ * `kind` onto a screen state with an exhaustive switch and never has to
+ * guess from a status code (AI-INTEGRACJA §4.6).
+ */
+
+const tokens = z.number().int().nonnegative();
+
+export const usageSchema = z.strictObject({ inputTokens: tokens, outputTokens: tokens });
+
+export const weeklySummaryOkSchema = z.strictObject({
+  kind: z.literal('ok'),
+  requestId: z.string(),
+  promptVersion: z.string(),
+  model: z.string(),
+  usage: usageSchema,
+  /** `ok_after_repair`: the first answer failed validation and the second passed. */
+  validationOutcome: z.enum(['ok', 'ok_after_repair']),
+  summary: weeklySummarySchema,
+});
+
+export const apiErrorSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('unauthorized') }),
+  z.strictObject({ kind: z.literal('not_found') }),
+  z.strictObject({ kind: z.literal('payload_too_large') }),
+  z.strictObject({ kind: z.literal('bad_request'), issues: tokens }),
+  z.strictObject({
+    kind: z.literal('contract_mismatch'),
+    expected: z.number().int(),
+    got: z.number().int().nullable(),
+  }),
+  z.strictObject({ kind: z.literal('rate_limited') }),
+  z.strictObject({ kind: z.literal('budget_exhausted') }),
+  /** The model's answers failed validation twice. Nothing is returned that could mislead. */
+  z.strictObject({
+    kind: z.literal('invalid_output'),
+    requestId: z.string(),
+    promptVersion: z.string(),
+    attempts: tokens,
+    usage: usageSchema,
+  }),
+  z.strictObject({ kind: z.literal('upstream_error'), retryable: z.boolean() }),
+  z.strictObject({ kind: z.literal('timeout') }),
+  z.strictObject({ kind: z.literal('misconfigured') }),
+]);
+
+export const weeklySummaryResponseSchema = z.discriminatedUnion('kind', [
+  weeklySummaryOkSchema,
+  ...apiErrorSchema.options,
+]);
+
+export type WeeklySummaryOk = z.infer<typeof weeklySummaryOkSchema>;
+export type ApiError = z.infer<typeof apiErrorSchema>;
+export type WeeklySummaryResponse = z.infer<typeof weeklySummaryResponseSchema>;
