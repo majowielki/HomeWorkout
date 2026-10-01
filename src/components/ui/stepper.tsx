@@ -31,7 +31,7 @@ export function Stepper({
 }: StepperProps) {
   return (
     <View className={cn('gap-1.5', className)}>
-      <Text variant="muted" className="text-center text-xs uppercase tracking-wide">
+      <Text variant="eyebrow" className="text-center">
         {label}
       </Text>
       <View className="flex-row items-center justify-center gap-2">
@@ -41,13 +41,13 @@ export function Stepper({
           accessibilityRole="button"
           accessibilityLabel={pl.a11y.decrement(label)}
           className={cn(
-            'h-11 w-11 items-center justify-center rounded-xl bg-secondary active:opacity-70',
+            'h-11 w-11 items-center justify-center rounded-full bg-secondary active:scale-95 active:opacity-70',
             decrementDisabled && 'opacity-30',
           )}
         >
           <Minus size={20} className="text-secondary-foreground" />
         </Pressable>
-        <Text variant="metric" className="min-w-[84px] text-center text-3xl">
+        <Text variant="metric" className="min-w-[56px] text-center text-3xl">
           {value}
         </Text>
         <Pressable
@@ -56,7 +56,7 @@ export function Stepper({
           accessibilityRole="button"
           accessibilityLabel={pl.a11y.increment(label)}
           className={cn(
-            'h-11 w-11 items-center justify-center rounded-xl bg-secondary active:opacity-70',
+            'h-11 w-11 items-center justify-center rounded-full bg-secondary active:scale-95 active:opacity-70',
             incrementDisabled && 'opacity-30',
           )}
         >

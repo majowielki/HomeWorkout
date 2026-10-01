@@ -118,7 +118,7 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
   }
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-5 p-4 pb-10">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-5 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: pl.history.setEdit.title }} />
 
       <View>

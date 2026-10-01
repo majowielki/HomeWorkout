@@ -34,7 +34,7 @@ export function SubstituteModal({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40" onPress={onClose}>
         <Pressable
-          className="mt-auto rounded-t-2xl bg-background p-4"
+          className="mt-auto rounded-t-[32px] bg-background px-5 pb-6 pt-3"
           style={{ paddingBottom: 16 + insets.bottom }}
           onPress={(e) => e.stopPropagation()}
         >
@@ -57,7 +57,7 @@ export function SubstituteModal({
             ))
           )}
           <Pressable onPress={onClose} className="items-center py-3.5">
-            <Text className="text-primary">{pl.common.cancel}</Text>
+            <Text className="font-display-semibold text-highlight">{pl.common.cancel}</Text>
           </Pressable>
         </Pressable>
       </Pressable>

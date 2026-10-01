@@ -3,8 +3,12 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardEyebrow } from '@/components/ui/card';
+import { HeroGlow } from '@/components/ui/hero-glow';
+import { Check, Moon, Ruler } from '@/components/ui/icons';
+import { ListRow } from '@/components/ui/list-row';
 import { formatDecimal, NumberField, parseDecimal } from '@/components/ui/number-field';
+import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import {
   getLatestWeight,
@@ -20,6 +24,8 @@ import {
 } from '@/domain/metrics/series';
 import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { TrendChart } from '@/features/body/TrendChart';
+import { WeightTrendBadge } from '@/features/body/WeightTrendBadge';
+import { formatDate } from '@/lib/format';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
 
@@ -99,62 +105,111 @@ export default function BodyScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentContainerClassName="gap-3 p-4 pb-10"
-      keyboardShouldPersistTaps="handled"
-    >
-      <Card>
-        <CardTitle>{pl.body.weightSection}</CardTitle>
-        <CardContent>
-          <View className="flex-row items-end gap-2">
+    <View className="flex-1 bg-background">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-4 px-5 pb-12"
+        keyboardShouldPersistTaps="handled"
+      >
+        <PageHeader eyebrow={formatDate(data.today, 'long')} title={pl.body.title} />
+
+        <Card variant="inverse" className="gap-5 p-6">
+          <HeroGlow />
+          <View className="flex-row items-center justify-between">
+            <Text variant="eyebrow" className="text-inverse-muted">
+              {pl.body.weightSection}
+            </Text>
+            {data.trend !== null ? <WeightTrendBadge kgPerWeek={data.trend} /> : null}
+          </View>
+          <View className="flex-row items-baseline gap-2">
+            <Text variant="metric" className="text-7xl leading-[80px] text-inverse-foreground">
+              {data.latestWeight !== null ? formatDecimal(data.latestWeight) : pl.today.noValue}
+            </Text>
+            <Text className="font-display-medium text-2xl text-inverse-muted">{pl.today.kg}</Text>
+          </View>
+          <View className="flex-row gap-6">
+            <HeroStat
+              label={pl.today.average7Label}
+              value={
+                data.average7 !== null
+                  ? `${formatDecimal(data.average7)} ${pl.today.kg}`
+                  : pl.today.noValue
+              }
+            />
+            <HeroStat
+              label={pl.today.trendLabel}
+              value={data.trend !== null ? pl.today.trendValue(data.trend) : pl.today.noValue}
+            />
+          </View>
+          {data.trend === null ? (
+            <Text className="text-sm text-inverse-muted">{pl.body.noTrendYet}</Text>
+          ) : null}
+        </Card>
+
+        <Card className="gap-3">
+          <CardEyebrow className="mb-0">{pl.body.weightInputLabel}</CardEyebrow>
+          <View className="flex-row items-center gap-2">
             <NumberField
-              label={pl.body.weightInputLabel}
+              accessibilityLabel={pl.body.weightInputLabel}
               value={input}
               onChangeText={setInput}
               placeholder="82,5"
               className="flex-1"
+              inputClassName="h-14 font-display-semibold text-2xl"
             />
-            <Button label={pl.body.weightSave} onPress={handleSave} disabled={saving} />
+            <Button
+              label={pl.body.weightSave}
+              variant="inverse"
+              className="h-14"
+              onPress={handleSave}
+              disabled={saving}
+            />
           </View>
           {error ? <Text className="text-sm text-destructive">{error}</Text> : null}
           {savedFlash || data.todayWeight !== null ? (
-            <Text variant="muted">{pl.body.weightSavedToday}</Text>
+            <View className="flex-row items-center gap-1.5">
+              <Check size={14} className="text-highlight" />
+              <Text variant="muted" className="flex-1">
+                {pl.body.weightSavedToday}
+              </Text>
+            </View>
           ) : null}
-          <View className="mt-1 flex-row flex-wrap gap-x-4">
-            {data.average7 !== null ? (
-              <Text variant="muted">{pl.today.average7(data.average7)}</Text>
-            ) : null}
-            {data.trend !== null ? (
-              <Text variant="muted">{pl.today.trend(data.trend)}</Text>
-            ) : (
-              <Text variant="muted">{pl.body.noTrendYet}</Text>
-            )}
-          </View>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardTitle>{pl.body.chartTitle}</CardTitle>
-        <CardDescription>{pl.body.chartLegend}</CardDescription>
-        <CardContent>
-          <TrendChart points={data.series} unit="kg" emptyText={pl.body.chartEmpty} />
-        </CardContent>
-      </Card>
-
-      <Link href="/body/measurements" asChild>
-        <Card className="active:opacity-70">
-          <CardTitle>{pl.body.measurementsLink}</CardTitle>
-          <CardDescription>{pl.body.measurementsHint}</CardDescription>
         </Card>
-      </Link>
 
-      <Link href="/body/daily" asChild>
-        <Card className="active:opacity-70">
-          <CardTitle>{pl.body.dailyLink}</CardTitle>
-          <CardDescription>{pl.body.dailyHint}</CardDescription>
+        <Card className="gap-1">
+          <CardEyebrow>{pl.body.chartTitle}</CardEyebrow>
+          <CardDescription>{pl.body.chartLegend}</CardDescription>
+          <CardContent className="mt-3">
+            <TrendChart points={data.series} unit="kg" emptyText={pl.body.chartEmpty} />
+          </CardContent>
         </Card>
-      </Link>
-    </ScrollView>
+
+        <Text variant="eyebrow" className="mt-2">
+          {pl.body.trackingEyebrow}
+        </Text>
+        <Card className="py-1">
+          <Link href="/body/measurements" asChild>
+            <ListRow
+              icon={Ruler}
+              title={pl.body.measurementsLink}
+              subtitle={pl.body.measurementsHint}
+            />
+          </Link>
+          <Link href="/body/daily" asChild>
+            <ListRow icon={Moon} title={pl.body.dailyLink} subtitle={pl.body.dailyHint} divider />
+          </Link>
+        </Card>
+      </ScrollView>
+      <StatusBarScrim />
+    </View>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="gap-0.5">
+      <Text className="text-xs text-inverse-muted">{label}</Text>
+      <Text className="font-display-semibold text-base text-inverse-foreground">{value}</Text>
+    </View>
   );
 }

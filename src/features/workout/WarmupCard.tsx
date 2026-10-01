@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription } from '@/components/ui/card';
+import { IconBadge } from '@/components/ui/icon-badge';
+import { Bike, Info } from '@/components/ui/icons';
 import { Stepper } from '@/components/ui/stepper';
+import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';
 
 type Props = {
@@ -20,14 +23,20 @@ export function WarmupCard({ defaultMinutes, saddleHeightCm, onLog, onSkip, savi
   const [minutes, setMinutes] = useState(defaultMinutes);
 
   return (
-    <View className="flex-1 justify-center p-4">
-      <Card>
-        <CardTitle>{pl.workout.session.warmupTitle}</CardTitle>
+    <View className="flex-1 justify-center p-5">
+      <Card className="gap-2 p-6">
+        <IconBadge icon={Bike} tone="accent" size="lg" className="mb-3" />
+        <Text variant="title">{pl.workout.session.warmupTitle}</Text>
         <CardDescription>{pl.workout.session.warmupDescription}</CardDescription>
         {saddleHeightCm ? (
-          <CardDescription>{pl.workout.session.saddleHeight(saddleHeightCm)}</CardDescription>
+          <View className="mt-2 flex-row items-center gap-2 self-start rounded-full bg-secondary px-3 py-1.5">
+            <Info size={14} className="text-highlight" />
+            <Text className="text-xs text-secondary-foreground">
+              {pl.workout.session.saddleHeight(saddleHeightCm)}
+            </Text>
+          </View>
         ) : null}
-        <CardContent className="mt-2 items-center gap-4">
+        <CardContent className="mt-6 items-center gap-4">
           <Stepper
             label={pl.workout.session.minutes}
             value={String(minutes)}

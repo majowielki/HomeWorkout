@@ -2,13 +2,17 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
+import { Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
 import type { AnchorPosition, BandCalibrationMap, Exercise, TemplateBlock } from '@/domain/types';
+import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
+import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
 import {
@@ -119,24 +123,38 @@ function SetLoggerFields({
   };
 
   return (
-    <ScrollView className="flex-1" contentContainerClassName="gap-5 p-4">
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1">
-          <Text variant="heading">
-            {block.label} · {exercise.name}
+    <ScrollView className="flex-1" contentContainerClassName="gap-5 px-5 pb-6 pt-4">
+      <View className="flex-row items-start gap-4">
+        <ExerciseThumb mediaKey={exercise.media} className="h-20 w-20 rounded-2xl" />
+        <View className="flex-1 gap-1">
+          <Text variant="eyebrow" className="text-highlight">
+            {block.label} · {pl.workout.session.setOf(setNumber, totalSets)}
           </Text>
-          <Text variant="muted">
-            {pl.workout.session.setOf(setNumber, totalSets)} · {targetLabel(block)} · RIR{' '}
-            {block.targetRirMin}
-            {block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}
+          <Text variant="title" className="leading-8">
+            {exercise.name}
           </Text>
         </View>
-        <GlossaryButton />
+        <GlossaryButton className="-mr-3 -mt-2" />
+      </View>
+
+      <View className="flex-row gap-2">
+        <SetProgress done={setNumber - 1} total={totalSets} />
+      </View>
+
+      <View className="flex-row flex-wrap gap-2">
+        <Badge variant="outline" label={targetLabel(block)} />
+        <Badge
+          variant="outline"
+          label={`RIR ${block.targetRirMin}${block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}`}
+        />
       </View>
 
       {exercise.kneeCue ? (
-        <View className="rounded-xl bg-secondary p-3">
-          <Text className="text-sm">{exercise.kneeCue}</Text>
+        <View className="flex-row gap-3 rounded-2xl bg-secondary p-4">
+          <Info size={18} className="mt-0.5 text-highlight" />
+          <Text className="flex-1 text-sm leading-5 text-secondary-foreground">
+            {exercise.kneeCue}
+          </Text>
         </View>
       ) : null}
 
@@ -170,6 +188,23 @@ function SetLoggerFields({
         disabled={saving}
       />
     </ScrollView>
+  );
+}
+
+/** One segment per set of the block; finished sets filled, the current one outlined. */
+function SetProgress({ done, total }: { done: number; total: number }) {
+  return (
+    <>
+      {Array.from({ length: total }, (_, i) => (
+        <View
+          key={i}
+          className={cn(
+            'h-1.5 flex-1 rounded-full',
+            i < done ? 'bg-primary' : i === done ? 'bg-foreground' : 'bg-secondary',
+          )}
+        />
+      ))}
+    </>
   );
 }
 

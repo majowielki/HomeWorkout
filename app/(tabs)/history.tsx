@@ -2,7 +2,9 @@ import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, View } from 'react-native';
 
-import { Bike, ChevronRight, Trash2 } from '@/components/ui/icons';
+import { IconBadge } from '@/components/ui/icon-badge';
+import { Bike, ChevronRight, Dumbbell, History, Trash2 } from '@/components/ui/icons';
+import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import {
   type CardioLogRow,
@@ -76,24 +78,40 @@ export default function HistoryScreen() {
   }
 
   return (
-    <FlatList
-      className="flex-1 bg-background"
-      contentContainerClassName="gap-2 p-4 pb-8"
-      data={rows}
-      keyExtractor={(row) => `${row.kind}-${row.id}`}
-      ListEmptyComponent={
-        <Text variant="muted" className="py-8 text-center">
-          {pl.history.empty}
-        </Text>
-      }
-      renderItem={({ item }) =>
-        item.kind === 'workout' ? (
-          <WorkoutRow item={item.workout} templateName={item.templateName} />
-        ) : (
-          <RideRow ride={item.ride} onDelete={() => confirmDeleteRide(item.ride)} />
-        )
-      }
-    />
+    <View className="flex-1 bg-background">
+      <FlatList
+        className="flex-1"
+        contentContainerClassName="gap-2.5 px-5 pb-12"
+        data={rows}
+        keyExtractor={(row) => `${row.kind}-${row.id}`}
+        ListHeaderComponent={
+          <PageHeader
+            title={pl.history.title}
+            eyebrow={rows.length > 0 ? pl.history.entries(rows.length) : undefined}
+            className="pb-3"
+          />
+        }
+        ListEmptyComponent={
+          <View className="items-center gap-4 rounded-3xl border border-dashed border-border px-8 py-14">
+            <IconBadge icon={History} size="lg" />
+            <Text variant="title" className="text-center">
+              {pl.history.emptyTitle}
+            </Text>
+            <Text variant="muted" className="text-center">
+              {pl.history.empty}
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) =>
+          item.kind === 'workout' ? (
+            <WorkoutRow item={item.workout} templateName={item.templateName} />
+          ) : (
+            <RideRow ride={item.ride} onDelete={() => confirmDeleteRide(item.ride)} />
+          )
+        }
+      />
+      <StatusBarScrim />
+    </View>
   );
 }
 
@@ -112,21 +130,22 @@ function WorkoutRow({ item, templateName }: { item: WorkoutListItem; templateNam
     <Link href={{ pathname: '/history/[id]', params: { id: item.id } }} asChild>
       <View
         className={cn(
-          'flex-row items-center gap-3 rounded-2xl border border-border bg-card p-4 active:opacity-70',
+          'flex-row items-center gap-4 rounded-3xl border border-border bg-card p-4 active:opacity-70',
           dimmed && 'opacity-60',
         )}
         accessibilityRole="button"
       >
+        <IconBadge icon={Dumbbell} tone={dimmed ? 'default' : 'accent'} />
         <View className="flex-1 gap-0.5">
-          <View className="flex-row items-baseline gap-2">
-            <Text className="font-semibold">{formatDate(item.trainingDate)}</Text>
+          <View className="flex-row items-center gap-2">
+            <Text variant="eyebrow">{formatDate(item.trainingDate)}</Text>
             {item.status !== 'completed' ? (
-              <Text variant="muted" className="text-xs uppercase">
+              <Text className="font-display-medium text-xs text-warning">
                 {pl.history.status[item.status]}
               </Text>
             ) : null}
           </View>
-          <Text>{templateName}</Text>
+          <Text variant="heading">{templateName}</Text>
           <Text variant="muted">{meta}</Text>
         </View>
         <ChevronRight size={18} className="text-muted-foreground" />
@@ -138,11 +157,11 @@ function WorkoutRow({ item, templateName }: { item: WorkoutListItem; templateNam
 /** A standalone ride has nothing to open; the trash icon deletes it after a confirmation. */
 function RideRow({ ride, onDelete }: { ride: CardioLogRow; onDelete: () => void }) {
   return (
-    <View className="flex-row items-center gap-3 rounded-2xl border border-border bg-card p-4">
-      <Bike size={18} className="text-muted-foreground" />
+    <View className="flex-row items-center gap-4 rounded-3xl border border-border bg-card p-4">
+      <IconBadge icon={Bike} />
       <View className="flex-1 gap-0.5">
-        <Text className="font-semibold">{formatDate(ride.trainingDate)}</Text>
-        <Text>{pl.history.ride}</Text>
+        <Text variant="eyebrow">{formatDate(ride.trainingDate)}</Text>
+        <Text variant="heading">{pl.history.ride}</Text>
         <Text variant="muted">
           {pl.history.rideMeta(ride.minutes, ride.resistanceLevel, ride.rpe)}
         </Text>

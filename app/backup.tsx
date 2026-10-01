@@ -135,7 +135,7 @@ export default function BackupScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-3 p-4 pb-10">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-3 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: pl.backup.title }} />
 
       <Card>

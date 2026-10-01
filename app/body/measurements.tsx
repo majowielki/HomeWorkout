@@ -143,7 +143,7 @@ export default function MeasurementsScreen() {
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerClassName="gap-3 p-4 pb-10"
+      contentContainerClassName="gap-3 px-5 pb-12 pt-4"
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: pl.measurements.title }} />

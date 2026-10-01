@@ -9,59 +9,82 @@
  *
  * Values are space-separated HSL channels so Tailwind can wrap them in
  * hsl(...) and apply opacity modifiers.
+ *
+ * Palette "Volt": graphite neutrals and one electric lime accent. The
+ * accent is a *fill* colour (buttons, selected chips, the active tab) and
+ * always carries dark text, so it reads in both themes. Where the accent
+ * has to be text or a thin line on a light surface — links, chart lines —
+ * use `highlight`, which darkens to olive in light mode.
+ *
+ * `inverse` is the hero surface: ink-dark in both themes, so the one card
+ * that matters most on a screen stands out whichever theme is active.
  */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
+    --background: 60 9% 97%;
+    --foreground: 240 14% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
+    --card-foreground: 240 14% 7%;
 
-    --primary: 240 6% 10%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 76 92% 52%;
+    --primary-foreground: 240 14% 7%;
 
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
+    --secondary: 60 6% 92%;
+    --secondary-foreground: 240 14% 7%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    --muted: 60 6% 93%;
+    --muted-foreground: 240 4% 42%;
 
-    --destructive: 0 72% 51%;
+    --highlight: 82 85% 30%;
+
+    --inverse: 240 12% 9%;
+    --inverse-foreground: 60 9% 97%;
+    --inverse-muted: 240 5% 65%;
+
+    --destructive: 4 80% 54%;
     --destructive-foreground: 0 0% 98%;
 
-    --success: 142 71% 45%;
+    --success: 142 64% 38%;
+    --warning: 32 95% 48%;
 
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 240 5% 65%;
+    --border: 60 5% 88%;
+    --input: 60 5% 86%;
+    --ring: 76 92% 45%;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: 240 10% 4%;
-      --foreground: 0 0% 98%;
+      --background: 240 7% 5%;
+      --foreground: 60 9% 96%;
 
-      --card: 240 6% 10%;
-      --card-foreground: 0 0% 98%;
+      --card: 240 6% 9%;
+      --card-foreground: 60 9% 96%;
 
-      --primary: 0 0% 98%;
-      --primary-foreground: 240 6% 10%;
+      --primary: 76 95% 58%;
+      --primary-foreground: 240 10% 5%;
 
-      --secondary: 240 4% 16%;
-      --secondary-foreground: 0 0% 98%;
+      --secondary: 240 5% 14%;
+      --secondary-foreground: 60 9% 96%;
 
-      --muted: 240 4% 16%;
-      --muted-foreground: 240 5% 65%;
+      --muted: 240 5% 14%;
+      --muted-foreground: 240 5% 62%;
 
-      --destructive: 0 63% 31%;
+      --highlight: 76 95% 58%;
+
+      --inverse: 240 6% 12%;
+      --inverse-foreground: 60 9% 96%;
+      --inverse-muted: 240 5% 62%;
+
+      --destructive: 0 72% 58%;
       --destructive-foreground: 0 0% 98%;
 
-      --success: 142 71% 45%;
+      --success: 142 64% 48%;
+      --warning: 32 95% 55%;
 
-      --border: 240 4% 16%;
-      --input: 240 4% 16%;
-      --ring: 240 5% 84%;
+      --border: 240 5% 15%;
+      --input: 240 5% 18%;
+      --ring: 76 95% 58%;
     }
   }
 }

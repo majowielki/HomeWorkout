@@ -64,7 +64,7 @@ export function TrendChart({ points, showAverage = true, unit, emptyText, minPoi
       <LineChart
         data={raw}
         data2={showAverage ? smoothed : undefined}
-        width={width - 64}
+        width={width - 96}
         height={200}
         adjustToWidth
         yAxisOffset={yOffset}
@@ -76,15 +76,15 @@ export function TrendChart({ points, showAverage = true, unit, emptyText, minPoi
         yAxisColor={colors.border}
         xAxisColor={colors.border}
         rulesColor={colors.border}
-        rulesType="solid"
+        rulesType="dashed"
         // series 1: raw entries — dots only
         color1="transparent"
         thickness1={0}
         dataPointsColor1={colors.mutedForeground}
         dataPointsRadius={3}
         // series 2: trailing average — line only
-        color2={colors.primary}
-        thickness2={2}
+        color2={colors.highlight}
+        thickness2={3}
         hideDataPoints2
         curved
         isAnimated={false}

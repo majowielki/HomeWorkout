@@ -1,23 +1,22 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Switch, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { formatDecimal, NumberField, parseDecimal } from '@/components/ui/number-field';
+import { Switch } from '@/components/ui/switch';
 import { Stepper } from '@/components/ui/stepper';
 import { Text } from '@/components/ui/text';
 import { getProfile, getReminderSettings, updateProfile } from '@/db/repositories/profile';
 import { isMuted, muteUntilDate, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { KneeProfile } from '@/domain/types';
 import { syncReminders } from '@/lib/reminders';
-import { useThemeColors } from '@/lib/theme';
 import { pl } from '@/strings/pl';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const colors = useThemeColors();
 
   const [loaded, setLoaded] = useState(false);
   const [heightCm, setHeightCm] = useState('');
@@ -93,12 +92,11 @@ export default function SettingsScreen() {
   }
 
   const muted = isMuted(reminders, new Date());
-  const switchColors = { false: colors.border, true: colors.primary };
 
   return (
     <ScrollView
       className="flex-1 bg-background"
-      contentContainerClassName="gap-3 p-4 pb-10"
+      contentContainerClassName="gap-3 px-5 pb-12 pt-4"
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: pl.settings.title }} />
@@ -123,7 +121,7 @@ export default function SettingsScreen() {
             />
           </View>
           <View className="gap-1">
-            <Text variant="muted">{pl.settings.sex}</Text>
+            <Text variant="eyebrow">{pl.settings.sex}</Text>
             <View className="flex-row gap-2">
               <Chip
                 label={pl.settings.sexMale}
@@ -164,7 +162,6 @@ export default function SettingsScreen() {
               <Switch
                 value={knee.physioApproved}
                 onValueChange={(v) => setKnee({ ...knee, physioApproved: v })}
-                trackColor={switchColors}
               />
             </View>
             <Text variant="muted" className="text-xs">
@@ -185,7 +182,6 @@ export default function SettingsScreen() {
                 onValueChange={(v) =>
                   setReminders({ ...reminders, weight: { ...reminders.weight, enabled: v } })
                 }
-                trackColor={switchColors}
               />
             </View>
             <Stepper
@@ -214,7 +210,6 @@ export default function SettingsScreen() {
                 onValueChange={(v) =>
                   setReminders({ ...reminders, workout: { ...reminders.workout, enabled: v } })
                 }
-                trackColor={switchColors}
               />
             </View>
             <View className="flex-row gap-3">

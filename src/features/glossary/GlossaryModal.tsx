@@ -17,7 +17,7 @@ export function GlossaryModal({ visible, onClose }: Props) {
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40" onPress={onClose}>
         <Pressable
-          className="mt-auto max-h-[80%] rounded-t-2xl bg-background p-4"
+          className="mt-auto max-h-[80%] rounded-t-[32px] bg-background px-5 pb-6 pt-3"
           style={{ paddingBottom: 16 + insets.bottom }}
           onPress={(e) => e.stopPropagation()}
         >
@@ -35,7 +35,7 @@ export function GlossaryModal({ visible, onClose }: Props) {
             ))}
           </ScrollView>
           <Pressable onPress={onClose} className="items-center py-3.5">
-            <Text className="text-primary">{pl.common.close}</Text>
+            <Text className="font-display-semibold text-highlight">{pl.common.close}</Text>
           </Pressable>
         </Pressable>
       </Pressable>

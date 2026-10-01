@@ -11,6 +11,7 @@ import {
   type LoadEstimate,
 } from '@/domain/progression/calibration';
 import type { AnchorPosition, BandCalibrationMap, DumbbellMode, Exercise } from '@/domain/types';
+import { bandSwatch } from '@/features/bands/bandSwatch';
 import { pl } from '@/strings/pl';
 
 /** What a set log stores about the effort — the shape both the live logger and the history editor save. */
@@ -129,14 +130,13 @@ export function SetFields({ exercise, values, onChange, calibrations }: Props) {
       {usesBand(exercise) ? (
         <View className="gap-3">
           <View className="gap-1.5">
-            <Text variant="muted" className="text-xs uppercase tracking-wide">
-              {pl.workout.session.band}
-            </Text>
+            <Text variant="eyebrow">{pl.workout.session.band}</Text>
             <View className="flex-row flex-wrap gap-2">
               {BANDS.map((b) => (
                 <Chip
                   key={b.id}
                   label={b.label}
+                  swatch={bandSwatch(b.id)}
                   selected={values.bandId === b.id}
                   onPress={() => set({ bandId: b.id })}
                 />
@@ -144,9 +144,7 @@ export function SetFields({ exercise, values, onChange, calibrations }: Props) {
             </View>
           </View>
           <View className="gap-1.5">
-            <Text variant="muted" className="text-xs uppercase tracking-wide">
-              {pl.workout.session.anchorPosition}
-            </Text>
+            <Text variant="eyebrow">{pl.workout.session.anchorPosition}</Text>
             <View className="flex-row gap-2">
               {POSITIONS.map((p) => (
                 <Chip
@@ -185,7 +183,7 @@ export function SetFields({ exercise, values, onChange, calibrations }: Props) {
       )}
 
       <View className="gap-1.5">
-        <Text variant="muted" className="text-center text-xs uppercase tracking-wide">
+        <Text variant="eyebrow" className="text-center">
           RIR
         </Text>
         <View className="flex-row justify-center gap-2">

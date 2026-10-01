@@ -49,6 +49,24 @@ export const pl = {
         .join(' · ') || 'Wpis zapisany.',
     fillDaily: 'Uzupełnij',
     editDaily: 'Edytuj',
+    greeting: (hour: number) =>
+      hour < 5 ? 'Dobranoc' : hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór',
+    nextSessionEyebrow: 'Następny trening',
+    inProgressEyebrow: 'Sesja w trakcie',
+    loggedToday: 'zapisano dziś',
+    average7Label: 'Średnia 7 dni',
+    trendLabel: 'Trend',
+    trendValue: (kgPerWeek: number) =>
+      kgPerWeek === 0
+        ? 'stabilnie'
+        : `${kgPerWeek > 0 ? '+' : ''}${String(kgPerWeek).replace('.', ',')} kg/tydz.`,
+    kg: 'kg',
+    sleepLabel: 'Sen',
+    energyLabel: 'Energia',
+    sorenessLabel: 'Zakwasy',
+    hours: (h: number) => `${String(h).replace('.', ',')} h`,
+    outOfFive: (n: number) => `${n}/5`,
+    noValue: '—',
   },
   workout: {
     title: 'Trening',
@@ -69,6 +87,9 @@ export const pl = {
           : `Ostatnia sesja: ${daysAgo} dni temu`,
     noSessionsYet: 'Brak sesji w historii — zacznij od dowolnego szablonu.',
     quickCardio: 'Szybki log: rower',
+    quickCardioHint: 'Jazda poza sesją — najbezpieczniejsza objętość dla nóg',
+    templatesEyebrow: 'Szablony',
+    moreExercises: (n: number) => `+${n}`,
     cardio: {
       minutes: 'Minuty',
       resistance: 'Opór (skala roweru)',
@@ -137,6 +158,7 @@ export const pl = {
     dailyLink: 'Dziennik dnia',
     dailyHint: 'Sen, energia, stres, zakwasy',
     invalidWeight: 'Podaj wagę między 30 a 300 kg.',
+    trackingEyebrow: 'Pomiary',
   },
   measurements: {
     title: 'Obwody',
@@ -215,6 +237,9 @@ export const pl = {
   history: {
     title: 'Historia',
     empty: 'Jeszcze nic tu nie ma. Pierwsza zakończona sesja pojawi się na liście.',
+    emptyTitle: 'Czysta karta',
+    entries: (n: number) =>
+      `${n} ${n === 1 ? 'wpis' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'wpisy' : 'wpisów'}`,
     noTemplate: 'bez szablonu',
     ride: 'Rower',
     rideMeta: (minutes: number, resistance: number | null, rpe: number | null) =>
@@ -372,6 +397,13 @@ export const pl = {
     settings: 'Ustawienia',
     glossary: 'Słownik pojęć',
     comingSoon: 'Szablony dojdą w następnych kamieniach.',
+    libraryEyebrow: 'Biblioteka',
+    appEyebrow: 'Aplikacja',
+    exercisesHint: 'Baza ruchów, zdjęcia, wykluczenia',
+    bandsHint: 'Kalibracja gum i pozycje kotwicy',
+    backupHint: 'Kopia całego dziennika w pliku JSON',
+    settingsHint: 'Profil, kolano, przypomnienia',
+    glossaryHint: 'RIR, RPE, DOMS i reszta skrótów',
   },
   exercises: {
     title: 'Ćwiczenia',

@@ -1,4 +1,4 @@
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
@@ -8,25 +8,33 @@ type ChipProps = {
   selected: boolean;
   onPress: () => void;
   className?: string;
+  /** Colour dot before the label — e.g. the physical colour of a band. */
+  swatch?: string;
 };
 
 /** Single-choice pill button — used for RIR, band colour and anchor position. */
-export function Chip({ label, selected, onPress, className }: ChipProps) {
+export function Chip({ label, selected, onPress, className, swatch }: ChipProps) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       className={cn(
-        'items-center justify-center rounded-full border px-3.5 py-2',
-        selected ? 'border-primary bg-primary' : 'border-border bg-transparent',
+        'min-h-10 flex-row items-center justify-center gap-2 rounded-full border px-4 py-2 active:opacity-80',
+        selected ? 'border-primary bg-primary' : 'border-transparent bg-secondary',
         className,
       )}
     >
+      {swatch ? (
+        <View
+          className="h-3 w-3 rounded-full border border-foreground/20"
+          style={{ backgroundColor: swatch }}
+        />
+      ) : null}
       <Text
         className={cn(
-          'text-sm font-medium',
-          selected ? 'text-primary-foreground' : 'text-foreground',
+          'font-display-medium text-sm',
+          selected ? 'text-primary-foreground' : 'text-secondary-foreground',
         )}
       >
         {label}

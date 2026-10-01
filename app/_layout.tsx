@@ -1,16 +1,30 @@
 import '../global.css';
 import '@/lib/interop';
 
+import {
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+  useFonts,
+} from '@expo-google-fonts/space-grotesk';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { DatabaseProvider } from '@/db/provider';
-import { useIsDark, useThemeColors } from '@/lib/theme';
+import { fonts, useIsDark, useThemeColors } from '@/lib/theme';
 
 export default function RootLayout() {
   const isDark = useIsDark();
   const colors = useThemeColors();
+  // Bundled with the app, so this resolves in a frame or two; a font that
+  // fails to load must not brick the app, hence `|| fontError`.
+  const [fontsLoaded, fontError] = useFonts({
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+  });
 
   // Navigation chrome (headers, tab bar) does not read NativeWind tokens;
   // it takes a React Navigation theme. Feed it the same palette so the
@@ -20,12 +34,16 @@ export default function RootLayout() {
     colors: {
       ...(isDark ? DarkTheme : DefaultTheme).colors,
       background: colors.background,
-      card: colors.card,
+      card: colors.background,
       text: colors.foreground,
       border: colors.border,
-      primary: colors.primary,
+      primary: colors.highlight,
     },
   };
+
+  if (!fontsLoaded && !fontError) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -39,7 +57,14 @@ export default function RootLayout() {
            * title, back arrow and header buttons. A blanket
            * `headerShown: false` here would silently hide all of that.
            */}
-          <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
+          <Stack
+            screenOptions={{
+              headerBackButtonDisplayMode: 'minimal',
+              headerShadowVisible: false,
+              headerTitleStyle: { fontFamily: fonts.displaySemibold, fontSize: 19 },
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack>
         </DatabaseProvider>

@@ -10,6 +10,7 @@ import { BAND_CONFIG } from '@/domain/config/training';
 import { needsRecalibration } from '@/domain/progression/calibration';
 import { toIsoDate } from '@/domain/time/trainingDate';
 import { formatDate } from '@/lib/format';
+import { bandSwatch } from '@/features/bands/bandSwatch';
 import { pl } from '@/strings/pl';
 
 function statusLine(band: BandRow): string {
@@ -44,14 +45,18 @@ export default function BandsScreen() {
   const now = new Date();
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-3 p-4 pb-10">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-3 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: pl.bands.title }} />
       <Text variant="muted">{pl.bands.intro}</Text>
       <Text variant="muted">{pl.bands.positionsHint(BAND_CONFIG.anchorStepCm)}</Text>
 
       {rows.map((band) => (
         <Link key={band.id} href={{ pathname: '/bands/[id]', params: { id: band.id } }} asChild>
-          <Card className="flex-row items-center gap-3 active:opacity-70">
+          <Card className="flex-row items-center gap-4 active:opacity-70">
+            <View
+              className="h-11 w-11 rounded-2xl border border-foreground/10"
+              style={{ backgroundColor: bandSwatch(band.id) }}
+            />
             <View className="flex-1 gap-0.5">
               <CardTitle>{band.label}</CardTitle>
               <CardDescription>

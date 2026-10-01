@@ -237,7 +237,9 @@ export default function ActiveSessionScreen() {
           title: loaded.templateName,
           headerRight: () => (
             <Pressable onPress={goToSummary} hitSlop={8}>
-              <Text className="text-primary">{pl.workout.session.finishEarly}</Text>
+              <Text className="font-display-semibold text-highlight">
+                {pl.workout.session.finishEarly}
+              </Text>
             </Pressable>
           ),
         }}

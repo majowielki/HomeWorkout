@@ -4,7 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 
 type Props = {
-  label: string;
+  /** Visible label; when omitted (the card already titles the field) it is still read out. */
+  label?: string;
+  accessibilityLabel?: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
@@ -12,6 +14,7 @@ type Props = {
   /** 'decimal' allows a comma/dot; 'integer' shows the plain number pad. */
   kind?: 'decimal' | 'integer';
   className?: string;
+  inputClassName?: string;
 };
 
 /**
@@ -20,19 +23,25 @@ type Props = {
  */
 export function NumberField({
   label,
+  accessibilityLabel,
   value,
   onChangeText,
   placeholder,
   hint,
   kind = 'decimal',
   className,
+  inputClassName,
 }: Props) {
   return (
     <View className={className}>
-      <Text variant="muted" className="mb-1">
-        {label}
-      </Text>
+      {label ? (
+        <Text variant="eyebrow" className="mb-2">
+          {label}
+        </Text>
+      ) : null}
       <Input
+        className={inputClassName}
+        accessibilityLabel={accessibilityLabel ?? label}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

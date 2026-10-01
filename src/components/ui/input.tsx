@@ -13,7 +13,7 @@ export function Input({ className, ...props }: InputProps) {
   return (
     <TextInput
       className={cn(
-        'h-12 rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground',
+        'h-12 rounded-2xl border border-transparent bg-secondary px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-ring',
         className,
       )}
       {...props}

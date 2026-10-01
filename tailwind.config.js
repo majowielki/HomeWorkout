@@ -23,14 +23,32 @@ module.exports = {
           DEFAULT: 'hsl(var(--muted))',
           foreground: 'hsl(var(--muted-foreground))',
         },
+        highlight: 'hsl(var(--highlight))',
+        inverse: {
+          DEFAULT: 'hsl(var(--inverse))',
+          foreground: 'hsl(var(--inverse-foreground))',
+          muted: 'hsl(var(--inverse-muted))',
+        },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
           foreground: 'hsl(var(--destructive-foreground))',
         },
         success: 'hsl(var(--success))',
+        warning: 'hsl(var(--warning))',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
+      },
+      /*
+       * Space Grotesk for headings and numerals, the system face for body
+       * copy. Each weight is its own family on Android — never combine a
+       * `font-display*` class with `font-bold`/`font-semibold`, or Android
+       * synthesises a second, smeared bold on top of the real one.
+       */
+      fontFamily: {
+        display: ['SpaceGrotesk_700Bold'],
+        'display-semibold': ['SpaceGrotesk_600SemiBold'],
+        'display-medium': ['SpaceGrotesk_500Medium'],
       },
     },
   },

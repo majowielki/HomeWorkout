@@ -4,7 +4,7 @@ import { Pressable, Text } from 'react-native';
 import { cn } from '@/lib/cn';
 
 const buttonVariants = cva(
-  'flex-row items-center justify-center gap-2 rounded-xl active:opacity-80',
+  'flex-row items-center justify-center gap-2 rounded-full active:scale-[0.98] active:opacity-85',
   {
     variants: {
       variant: {
@@ -13,12 +13,14 @@ const buttonVariants = cva(
         destructive: 'bg-destructive',
         outline: 'border border-border bg-transparent',
         ghost: 'bg-transparent',
+        /** High-contrast ink button — the strongest action on a plain surface. */
+        inverse: 'bg-foreground',
       },
       size: {
-        default: 'h-12 px-5',
-        sm: 'h-9 px-3',
+        default: 'h-12 px-6',
+        sm: 'h-9 px-4',
         /** Thumb-sized target for logging sets mid-workout. */
-        lg: 'h-16 px-6',
+        lg: 'h-16 px-8',
         icon: 'h-12 w-12 px-0',
       },
     },
@@ -26,7 +28,7 @@ const buttonVariants = cva(
   },
 );
 
-const labelVariants = cva('font-semibold', {
+const labelVariants = cva('font-display-semibold tracking-[-0.2px]', {
   variants: {
     variant: {
       default: 'text-primary-foreground',
@@ -34,6 +36,7 @@ const labelVariants = cva('font-semibold', {
       destructive: 'text-destructive-foreground',
       outline: 'text-foreground',
       ghost: 'text-foreground',
+      inverse: 'text-background',
     },
     size: {
       default: 'text-base',
@@ -49,6 +52,8 @@ type ButtonProps = React.ComponentProps<typeof Pressable> &
   VariantProps<typeof buttonVariants> & {
     label?: string;
     labelClassName?: string;
+    /** Rendered before the label, e.g. `<Play size={18} className="text-primary-foreground" />`. */
+    icon?: React.ReactNode;
   };
 
 export function Button({
@@ -57,6 +62,7 @@ export function Button({
   variant,
   size,
   label,
+  icon,
   children,
   disabled,
   ...props
@@ -69,7 +75,10 @@ export function Button({
       {...props}
     >
       {label ? (
-        <Text className={cn(labelVariants({ variant, size }), labelClassName)}>{label}</Text>
+        <>
+          {icon}
+          <Text className={cn(labelVariants({ variant, size }), labelClassName)}>{label}</Text>
+        </>
       ) : (
         children
       )}
@@ -77,4 +86,4 @@ export function Button({
   );
 }
 
-export { buttonVariants };
+export { buttonVariants, labelVariants };

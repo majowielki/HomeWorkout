@@ -4,6 +4,8 @@ import { cancelNotification, scheduleRestEndNotification } from '@/lib/notificat
 
 interface RestTimerState {
   restEndsAt: number | null;
+  /** Full length of the current rest including extensions — the progress ring's 100%. */
+  restTotalMs: number | null;
   notificationId: string | null;
   start: (seconds: number, notificationBody: string) => Promise<void>;
   extend: (seconds: number, notificationBody: string) => Promise<void>;
@@ -19,13 +21,14 @@ interface RestTimerState {
  */
 export const useRestTimerStore = create<RestTimerState>((set, get) => ({
   restEndsAt: null,
+  restTotalMs: null,
   notificationId: null,
 
   start: async (seconds, notificationBody) => {
     await cancelNotification(get().notificationId);
     const endsAt = new Date(Date.now() + seconds * 1000);
     const notificationId = await scheduleRestEndNotification(endsAt, notificationBody);
-    set({ restEndsAt: endsAt.getTime(), notificationId });
+    set({ restEndsAt: endsAt.getTime(), restTotalMs: seconds * 1000, notificationId });
   },
 
   extend: async (seconds, notificationBody) => {
@@ -33,11 +36,15 @@ export const useRestTimerStore = create<RestTimerState>((set, get) => ({
     await cancelNotification(get().notificationId);
     const endsAt = new Date(current + seconds * 1000);
     const notificationId = await scheduleRestEndNotification(endsAt, notificationBody);
-    set({ restEndsAt: endsAt.getTime(), notificationId });
+    set({
+      restEndsAt: endsAt.getTime(),
+      restTotalMs: (get().restTotalMs ?? 0) + seconds * 1000,
+      notificationId,
+    });
   },
 
   stop: async () => {
     await cancelNotification(get().notificationId);
-    set({ restEndsAt: null, notificationId: null });
+    set({ restEndsAt: null, restTotalMs: null, notificationId: null });
   },
 }));

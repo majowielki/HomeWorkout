@@ -72,17 +72,17 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
               disabled={done}
               onPress={() => onJump(index)}
               className={cn(
-                'flex-row items-center gap-3 rounded-xl px-2 py-2.5',
+                'flex-row items-center gap-3 rounded-2xl px-3 py-3',
                 isCurrent && 'bg-secondary',
               )}
             >
               <View
                 className={cn(
                   'h-6 w-6 items-center justify-center rounded-full border',
-                  done ? 'border-success bg-success' : 'border-border',
+                  done ? 'border-primary bg-primary' : 'border-border',
                 )}
               >
-                {done ? <Check size={14} className="text-white" /> : null}
+                {done ? <Check size={14} className="text-primary-foreground" /> : null}
               </View>
               <Text className={cn('flex-1', done && 'text-muted-foreground line-through')}>
                 {step.block.label} · {exercise?.name ?? step.block.exerciseId} · #{step.setNumber}

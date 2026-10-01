@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { useThemeColors } from '@/lib/theme';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
@@ -10,6 +12,11 @@ type Props = {
   nextLabel: string | null;
   onDone: () => void;
 };
+
+const RING_SIZE = 260;
+const RING_STROKE = 14;
+const RADIUS = (RING_SIZE - RING_STROKE) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 function formatRemaining(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -26,10 +33,14 @@ function formatRemaining(ms: number): string {
  * entirely while the JS thread is backgrounded; recomputing from the
  * timestamp self-corrects the instant the screen is looked at again.
  * See SPEC §7.2.
+ *
+ * The ring drains from full to empty over the whole rest, extensions
+ * included, so "+30 s" visibly refills it.
  */
 export function RestTimer({ nextLabel, onDone }: Props) {
-  const { restEndsAt, extend, stop } = useRestTimerStore();
+  const { restEndsAt, restTotalMs, extend, stop } = useRestTimerStore();
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const colors = useThemeColors();
 
   useEffect(() => {
     // No synchronous setState here on purpose — the render-pure rule flags
@@ -47,22 +58,52 @@ export function RestTimer({ nextLabel, onDone }: Props) {
 
   if (restEndsAt === null || remainingMs === null) return null;
 
+  const fraction = restTotalMs ? Math.min(1, Math.max(0, remainingMs / restTotalMs)) : 1;
+
   return (
-    <View className="items-center gap-3 rounded-2xl bg-secondary p-5">
-      <Text variant="muted">{pl.workout.session.restLabel}</Text>
-      <Text variant="metric" className="text-5xl">
-        {formatRemaining(remainingMs)}
-      </Text>
-      <View className="flex-row gap-2">
+    <View className="items-center gap-8">
+      <View style={{ width: RING_SIZE, height: RING_SIZE }}>
+        <Svg width={RING_SIZE} height={RING_SIZE}>
+          <Circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RADIUS}
+            stroke={colors.secondary}
+            strokeWidth={RING_STROKE}
+            fill="none"
+          />
+          <Circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RADIUS}
+            stroke={colors.primary}
+            strokeWidth={RING_STROKE}
+            strokeLinecap="round"
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={CIRCUMFERENCE * (1 - fraction)}
+            fill="none"
+            // Start the arc at 12 o'clock.
+            transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+          />
+        </Svg>
+        <View className="absolute inset-0 items-center justify-center gap-1">
+          <Text variant="eyebrow">{pl.workout.session.restLabel}</Text>
+          <Text variant="metric" className="text-6xl leading-[72px]">
+            {formatRemaining(remainingMs)}
+          </Text>
+        </View>
+      </View>
+
+      <View className="w-full flex-row gap-3">
         <Button
-          variant="outline"
-          size="sm"
+          variant="secondary"
+          className="flex-1"
           label={pl.workout.session.restExtend}
           onPress={() => void extend(30, pl.workout.session.restNotificationBody)}
         />
         <Button
-          variant="outline"
-          size="sm"
+          variant="inverse"
+          className="flex-1"
           label={pl.workout.session.restSkip}
           onPress={() => {
             void stop();
@@ -70,10 +111,14 @@ export function RestTimer({ nextLabel, onDone }: Props) {
           }}
         />
       </View>
+
       {nextLabel ? (
-        <Text variant="muted" className="text-center">
-          {pl.workout.session.upNext}: {nextLabel}
-        </Text>
+        <View className="w-full gap-1 rounded-3xl bg-secondary p-4">
+          <Text variant="eyebrow">{pl.workout.session.upNext}</Text>
+          <Text className="font-display-semibold text-base text-secondary-foreground">
+            {nextLabel}
+          </Text>
+        </View>
       ) : null}
     </View>
   );

@@ -50,7 +50,7 @@ export default function ExerciseDetailScreen() {
   const b = pl.exercises.biomechanics;
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-4 p-4 pb-10">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-4 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: exercise.name }} />
 
       {exercise.media ? (
@@ -148,7 +148,7 @@ export default function ExerciseDetailScreen() {
               <Link
                 key={sub.id}
                 href={{ pathname: '/exercises/[id]', params: { id: sub.id } }}
-                className="py-1 text-base text-primary"
+                className="py-1 font-display-semibold text-base text-highlight"
               >
                 {sub.name}
               </Link>

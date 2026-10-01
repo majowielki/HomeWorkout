@@ -72,7 +72,7 @@ export default function ExercisesScreen() {
       <SectionList
         sections={sections}
         keyExtractor={(row) => row.exercise.id}
-        contentContainerClassName="px-4 pb-8"
+        contentContainerClassName="px-5 pb-12"
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <Text variant="muted" className="py-3">
@@ -80,7 +80,7 @@ export default function ExercisesScreen() {
           </Text>
         }
         renderSectionHeader={({ section }) => (
-          <Text variant="heading" className="bg-background pb-2 pt-4">
+          <Text variant="eyebrow" className="bg-background pb-3 pt-6">
             {section.title}
           </Text>
         )}
@@ -88,13 +88,18 @@ export default function ExercisesScreen() {
           <Link href={{ pathname: '/exercises/[id]', params: { id: item.exercise.id } }} asChild>
             <View
               className={cn(
-                'mb-2 flex-row items-center gap-3 rounded-2xl border border-border bg-card p-3 active:opacity-70',
+                'mb-2.5 flex-row items-center gap-4 rounded-3xl border border-border bg-card p-3 active:opacity-70',
                 item.excluded && 'opacity-60',
               )}
             >
-              <ExerciseThumb mediaKey={item.exercise.media} className="h-16 w-16" />
+              <ExerciseThumb
+                mediaKey={item.exercise.media}
+                className="h-[72px] w-[72px] rounded-2xl"
+              />
               <View className="flex-1 gap-0.5">
-                <Text className="font-semibold">{item.exercise.name}</Text>
+                <Text variant="heading" className="text-base leading-5">
+                  {item.exercise.name}
+                </Text>
                 <Text variant="muted">
                   {item.exercise.equipment.map((e) => pl.labels.equipment[e]).join(' · ')}
                 </Text>
@@ -108,7 +113,9 @@ export default function ExercisesScreen() {
                     {item.pendingPhysio ? pl.exercises.pendingPhysio : pl.exercises.excluded}
                   </Text>
                 ) : item.exercise.loadsKnee ? (
-                  <Text className="text-xs text-muted-foreground">{pl.exercises.kneeFlag}</Text>
+                  <Text className="font-display-medium text-xs text-warning">
+                    {pl.exercises.kneeFlag}
+                  </Text>
                 ) : null}
               </View>
             </View>

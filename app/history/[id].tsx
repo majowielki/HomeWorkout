@@ -125,7 +125,7 @@ export default function WorkoutDetailScreen() {
     .join(' · ');
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-3 p-4 pb-10">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-3 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: formatDate(workout.trainingDate) }} />
 
       <Card>
@@ -133,9 +133,7 @@ export default function WorkoutDetailScreen() {
         <CardDescription>{meta}</CardDescription>
         {workout.notes ? (
           <CardContent className="mt-2">
-            <Text variant="muted" className="text-xs uppercase tracking-wide">
-              {pl.history.detail.notes}
-            </Text>
+            <Text variant="eyebrow">{pl.history.detail.notes}</Text>
             <Text>{workout.notes}</Text>
           </CardContent>
         ) : null}
