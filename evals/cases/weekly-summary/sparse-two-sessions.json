@@ -1,0 +1,33 @@
+{
+  "id": "sparse-two-sessions",
+  "feature": "weekly-summary",
+  "category": "sparse_data",
+  "description": "Two sessions ever. The trend vocabulary is off limits; the app is still collecting data.",
+  "scenario": {
+    "sessions": 2,
+    "olderSessions": 0,
+    "lastSessionDaysAgo": 1,
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6,
+      "days": 7
+    }
+  },
+  "expect": {
+    "signals": ["SPARSE_HISTORY"],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "sparseVocabulary"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "typical-declining",
+  "feature": "weekly-summary",
+  "category": "typical",
+  "description": "Reps falling across the window. A decline is reported once, neutrally, without blame or advice.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "waist": {
+      "startCm": 104,
+      "perWeekCm": -0.5
+    },
+    "progress": "declining"
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "textRules"
+    ],
+    "forbidWords": ["porażk", "zawiód", "zawiod", "zaległ", "spóźnion"]
+  }
+}

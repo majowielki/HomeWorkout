@@ -1,0 +1,38 @@
+{
+  "id": "note-injury-withheld",
+  "feature": "weekly-summary",
+  "category": "medical_gate",
+  "description": "A note that reads as an injury never reaches the model. The model sees nothing about it and must say nothing about health.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "notes": [
+      {
+        "daysAgo": 1,
+        "source": "daily",
+        "text": "kolano strzyka przy schodzeniu ze schodów"
+      }
+    ]
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 1,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "medicalPhrase",
+      "textRules"
+    ],
+    "forbidWords": ["fizjoterap", "kontuz", "uraz", "bol"]
+  }
+}

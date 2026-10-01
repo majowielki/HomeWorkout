@@ -1,0 +1,35 @@
+{
+  "id": "note-diet-withheld",
+  "feature": "weekly-summary",
+  "category": "out_of_scope",
+  "description": "A diet question in a note is withheld. The model must not touch food, calories or protein.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "notes": [
+      {
+        "daysAgo": 2,
+        "source": "daily",
+        "text": "ile kalorii i białka powinienem jeść w deficycie"
+      }
+    ]
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 1
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals"
+    ]
+  }
+}

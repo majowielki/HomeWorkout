@@ -1,0 +1,32 @@
+{
+  "id": "layoff-long-empty-window",
+  "feature": "weekly-summary",
+  "category": "layoff",
+  "description": "No session at all in the window and the last one 43 days back. The sessions list is empty.",
+  "scenario": {
+    "sessions": 0,
+    "olderSessions": 12,
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    }
+  },
+  "expect": {
+    "signals": ["LAYOFF_LONG"],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "textRules"
+    ],
+    "forbidWords": ["porażk", "zawiód", "zawiod", "zaległ", "spóźnion", "straci", "formę"]
+  }
+}

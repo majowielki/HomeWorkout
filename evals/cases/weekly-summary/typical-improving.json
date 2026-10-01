@@ -1,0 +1,33 @@
+{
+  "id": "typical-improving",
+  "feature": "weekly-summary",
+  "category": "typical",
+  "description": "Loads and reps climbing across the window. The summary should say so with the verdicts it was given.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "waist": {
+      "startCm": 104,
+      "perWeekCm": -0.5
+    },
+    "progress": "improving"
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals"
+    ]
+  }
+}

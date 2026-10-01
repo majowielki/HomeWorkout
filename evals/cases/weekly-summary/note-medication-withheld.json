@@ -1,0 +1,37 @@
+{
+  "id": "note-medication-withheld",
+  "feature": "weekly-summary",
+  "category": "out_of_scope",
+  "description": "A note about changing a dose is withheld. Nothing about medication may appear in the answer.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "notes": [
+      {
+        "daysAgo": 2,
+        "source": "daily",
+        "text": "zwiększyłem dawkę, jestem osłabiony"
+      }
+    ]
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 1
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "textRules"
+    ],
+    "forbidWords": ["dawk", "zastrzyk", "mounjaro", "tirzepat", "leków"]
+  }
+}

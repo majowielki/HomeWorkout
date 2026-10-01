@@ -1,0 +1,32 @@
+{
+  "id": "typical-steady",
+  "feature": "weekly-summary",
+  "category": "typical",
+  "description": "Nine sessions in four weeks, loads held, weight and waist falling. The common path.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "waist": {
+      "startCm": 104,
+      "perWeekCm": -0.5
+    }
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals"
+    ]
+  }
+}

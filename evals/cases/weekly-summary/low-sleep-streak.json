@@ -1,0 +1,32 @@
+{
+  "id": "low-sleep-streak",
+  "feature": "weekly-summary",
+  "category": "recovery",
+  "description": "Four nights under six hours. The signal is mentioned in plain words, without the code.",
+  "scenario": {
+    "sleep": {
+      "hours": 5,
+      "days": 4
+    },
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    }
+  },
+  "expect": {
+    "signals": ["SLEEP_LOW_STREAK"],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals"
+    ]
+  }
+}

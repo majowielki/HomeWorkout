@@ -1,0 +1,30 @@
+{
+  "id": "sparse-first-session",
+  "feature": "weekly-summary",
+  "category": "sparse_data",
+  "description": "A single session and no body data. Nothing to compare; the answer must not pretend otherwise.",
+  "scenario": {
+    "sessions": 1,
+    "olderSessions": 0,
+    "lastSessionDaysAgo": 0,
+    "weight": null,
+    "waist": null
+  },
+  "expect": {
+    "signals": ["SPARSE_HISTORY"],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "sparseVocabulary"
+    ]
+  }
+}

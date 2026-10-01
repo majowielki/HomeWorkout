@@ -43,16 +43,45 @@ equipment, today?_
 app/            expo-router routes — thin, no logic
 src/domain/     pure TypeScript rules engine — no React, Expo or DB imports
                 (enforced by an ESLint rule; 100% test coverage required)
+src/ai/         the optional AI layer: strict contract, context builder, versioned
+                prompts — pure, and held to the same 100% coverage gate
 src/db/         Drizzle schema, migrations, repositories (the only SQL — lint-enforced)
 src/features/   screen-level components composed from the layers below
 src/components/ shadcn-style UI kit on NativeWind
 data/           exercise catalogue and workout templates (JSON + Zod)
 scripts/        CI validation and media import
+evals/          evaluation cases for the AI layer (synthetic data only)
+docs/adr/       architecture decision records
 ```
 
 `src/domain` is the point of the project. It is the part that decides what
 load to put on an injured knee, so it is the part that is exhaustively
 tested and kept free of anything that needs a device to run.
+
+## The AI layer
+
+An LLM never touches a number that matters. The rules engine owns every
+load; a model is asked to _comment_ on a weekly snapshot the app computes
+in code, and its answer has to be a typed object that passes a schema
+before the app looks at it. Today the person pastes the brief into a chat
+by hand to judge whether the answers are worth an integration; the Worker
+that makes the call is the next stage. What is built so far, and why each
+part exists:
+
+- **A strict context contract.** Every object lists its fields, so a new
+  database column cannot reach a prompt by accident. The person can read
+  the exact text before anything is copied or sent.
+- **A text gate that runs before any network call.** Notes that read as an
+  injury, or that touch diet or medication, never reach a model. It is a
+  lexicon, measured and documented as a first layer rather than a
+  guarantee ([ADR 0004](docs/adr/0004-the-text-gate-is-a-floor.md)).
+- **Versioned prompts.** A published prompt is pinned by a hash in a test;
+  changing it means a new file and an evaluation report.
+- **No call to a real model in CI.** Everything above is deterministic.
+
+The decisions are in [`docs/adr/`](docs/adr/), including what was
+deliberately left out and why ([ADR 0003](docs/adr/0003-what-we-do-not-do.md)).
+The working plan is in Polish: [`Documents/AI-INTEGRACJA.md`](Documents/AI-INTEGRACJA.md).
 
 ## Stack
 

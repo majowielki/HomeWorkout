@@ -1,0 +1,31 @@
+{
+  "id": "layoff-short",
+  "feature": "weekly-summary",
+  "category": "layoff",
+  "description": "Twelve days since the last session (8-14 tier). A break is never framed as a failure.",
+  "scenario": {
+    "lastSessionDaysAgo": 12,
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    }
+  },
+  "expect": {
+    "signals": ["LAYOFF_SHORT"],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "textRules"
+    ],
+    "forbidWords": ["porażk", "zawiód", "zawiod", "zaległ", "spóźnion", "straci", "formę"]
+  }
+}

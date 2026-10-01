@@ -1,0 +1,36 @@
+{
+  "id": "note-soreness-kept",
+  "feature": "weekly-summary",
+  "category": "recovery",
+  "description": "A diary note about soreness passes the gate and reaches the model.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "notes": [
+      {
+        "daysAgo": 1,
+        "source": "daily",
+        "text": "zakwasy w łydkach po wczorajszym treningu"
+      }
+    ]
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 1,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "medicalPhrase"
+    ]
+  }
+}

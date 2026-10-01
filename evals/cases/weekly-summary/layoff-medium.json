@@ -1,0 +1,32 @@
+{
+  "id": "layoff-medium",
+  "feature": "weekly-summary",
+  "category": "layoff",
+  "description": "Twenty days since the last session (15-30 tier).",
+  "scenario": {
+    "lastSessionDaysAgo": 20,
+    "sessions": 6,
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    }
+  },
+  "expect": {
+    "signals": ["LAYOFF_MEDIUM"],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "textRules"
+    ],
+    "forbidWords": ["porażk", "zawiód", "zawiod", "zaległ", "spóźnion", "straci", "formę"]
+  }
+}
