@@ -11,12 +11,21 @@ module.exports = {
     '^lucide-react-native$':
       '<rootDir>/node_modules/lucide-react-native/dist/cjs/lucide-react-native.js',
   },
-  collectCoverageFrom: ['src/domain/**/*.ts', '!src/domain/**/__tests__/**'],
+  collectCoverageFrom: [
+    'src/domain/**/*.ts',
+    // The pure parts of the AI layer: what goes to a model and what comes back.
+    'src/ai/contract/**/*.ts',
+    'src/ai/context/**/*.ts',
+    'src/ai/prompts/**/*.ts',
+    '!**/__tests__/**',
+  ],
   // The rules engine decides real training loads; it is the one place
   // where full coverage is a requirement rather than a vanity metric.
   // Component tests (src/features/**/__tests__) run in the same suite but
   // are deliberately not held to a coverage bar.
   coverageThreshold: {
     'src/domain/**/*.ts': { statements: 100, branches: 100, functions: 100, lines: 100 },
+    // What reaches a model and what is accepted back is decision logic too.
+    'src/ai/**/*.ts': { statements: 100, branches: 100, functions: 100, lines: 100 },
   },
 };
