@@ -18,6 +18,7 @@ module.exports = {
     // The pure parts of the AI layer: what goes to a model and what comes back.
     'src/ai/contract/**/*.ts',
     'src/ai/context/**/*.ts',
+    'src/ai/client/**/*.ts',
     'src/ai/prompts/**/*.ts',
     '!**/__tests__/**',
   ],
