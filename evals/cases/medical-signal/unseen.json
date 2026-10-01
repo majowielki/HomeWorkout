@@ -1,0 +1,182 @@
+[
+  {
+    "id": "unseen-001",
+    "text": "pobolewa mnie kolano od rana",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-002",
+    "text": "mam problem z kolanem",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-003",
+    "text": "czuję dyskomfort w lewym barku",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-004",
+    "text": "kolano daje o sobie znać",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-005",
+    "text": "mam przeciążony nadgarstek",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-006",
+    "text": "uszkodziłem sobie bark",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-007",
+    "text": "złamałem palec u nogi",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-008",
+    "text": "operacja kolana za miesiąc",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-009",
+    "text": "na rezonansie wyszło uszkodzenie łękotki",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-010",
+    "text": "czuję rwanie w udzie",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-011",
+    "text": "ścięgno mnie piecze przy każdym kroku",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-012",
+    "text": "robi mi się ciemno przed oczami przy wstawaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-013",
+    "text": "łokieć mi siadł od tych pompek",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-014",
+    "text": "stawy dają mi się we znaki",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-015",
+    "text": "kolano wygląda na spuchnięte",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-016",
+    "text": "pierwszy raz od kontuzji wróciłem do przysiadów",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-017",
+    "text": "cos mnie strzyknelo w plecach",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-018",
+    "text": "kontuzjowany bark, trenuję tylko nogi",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-019",
+    "text": "stopa mi cierpnie przy rowerze",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-020",
+    "text": "bol w kolanie po zejsciu ze schodow",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-021",
+    "text": "ból mnie nie opuszcza",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-022",
+    "text": "jestem rozbity po wczorajszym, wszystko mnie boli",
+    "expected": "medical"
+  },
+  {
+    "id": "unseen-023",
+    "text": "nie czuję bólu w kolanie, ale pobolewa łydka",
+    "expected": "soreness"
+  },
+  {
+    "id": "unseen-024",
+    "text": "zakwasy jak nigdy",
+    "expected": "soreness"
+  },
+  {
+    "id": "unseen-025",
+    "text": "zakwasy w nogach po wczoraj, ale dziś kolano ok i bez bólu",
+    "expected": "soreness"
+  },
+  {
+    "id": "unseen-026",
+    "text": "jakie zakwasy w pośladkach po tych mostkach!",
+    "expected": "soreness"
+  },
+  {
+    "id": "unseen-027",
+    "text": "łydki bolą od skakanki",
+    "expected": "soreness"
+  },
+  {
+    "id": "unseen-028",
+    "text": "czworogłowe bolą po przysiadach",
+    "expected": "soreness"
+  },
+  {
+    "id": "unseen-029",
+    "text": "uciekł mi autobus, trening będzie krótszy",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-030",
+    "text": "dłonie spocone, guma się ślizga",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-031",
+    "text": "dobry trening, bark nie boli",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-032",
+    "text": "stopień trudności wiosłowania w sam raz",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-033",
+    "text": "kolano stabilne, przysiad do równoległej poszedł gładko",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-034",
+    "text": "czuję się dobrze, żadnych dolegliwości",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-035",
+    "text": "bez bólu i bez kontuzji, trenuję normalnie",
+    "expected": "none"
+  },
+  {
+    "id": "unseen-036",
+    "text": "skurcz wiosłowania w górnym punkcie trzymam 2 sekundy",
+    "expected": "none"
+  }
+]

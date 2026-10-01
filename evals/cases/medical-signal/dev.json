@@ -1,0 +1,192 @@
+[
+  {
+    "id": "dev-001",
+    "text": "strzyknęło mi w kolanie przy przysiadzie",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-002",
+    "text": "kłuje mnie w prawym kolanie",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-003",
+    "text": "kolano mi uciekło na bok przy wstawaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-004",
+    "text": "boli mnie kolano od rana",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-005",
+    "text": "chyba naciągnąłem mięsień dwugłowy",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-006",
+    "text": "mam kontuzję barku",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-007",
+    "text": "po upadku spuchła mi kostka",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-008",
+    "text": "ból w dolnym odcinku kręgosłupa promieniuje do nogi",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-009",
+    "text": "drętwieją mi palce przy wiosłowaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-010",
+    "text": "kolano przeskakuje i trzeszczy",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-011",
+    "text": "byłem u ortopedy, mam zakaz biegania",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-012",
+    "text": "uraz nadgarstka z zeszłego tygodnia",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-013",
+    "text": "bolało mnie ścięgno Achillesa przy rowerze",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-014",
+    "text": "czuję ostry ból w łokciu przy wyciskaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-015",
+    "text": "mam rwę kulszową",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-016",
+    "text": "lekarz pozwolił mi trenować normalnie",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-017",
+    "text": "strzyknelo w kolanie",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-018",
+    "text": "kluje w kolanie",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-019",
+    "text": "strzykneło mi w kolanie",
+    "expected": "medical"
+  },
+  {
+    "id": "dev-020",
+    "text": "mam zakwasy w łydkach",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-021",
+    "text": "zakwasy po wczorajszym treningu nóg",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-022",
+    "text": "bolą mnie nogi po wczorajszym",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-023",
+    "text": "uda bolą mnie po przysiadach z soboty",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-024",
+    "text": "mocne DOMS w pośladkach",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-025",
+    "text": "plecy obolałe po wiosłowaniu, ale to zakwasy",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-026",
+    "text": "zakwasy w lydkach",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-027",
+    "text": "zakwsy w udach",
+    "expected": "soreness"
+  },
+  {
+    "id": "dev-028",
+    "text": "dziś mam tylko 25 minut",
+    "expected": "none"
+  },
+  {
+    "id": "dev-029",
+    "text": "jestem u rodziców, mam tylko gumy",
+    "expected": "none"
+  },
+  {
+    "id": "dev-030",
+    "text": "zrobię raz więcej serii jeśli dam radę",
+    "expected": "none"
+  },
+  {
+    "id": "dev-031",
+    "text": "wznosy bokiem poszły dobrze",
+    "expected": "none"
+  },
+  {
+    "id": "dev-032",
+    "text": "chcę dziś lżej, słabo spałem",
+    "expected": "none"
+  },
+  {
+    "id": "dev-033",
+    "text": "trening na rowerze 30 minut",
+    "expected": "none"
+  },
+  {
+    "id": "dev-034",
+    "text": "skręty tułowia pominę",
+    "expected": "none"
+  },
+  {
+    "id": "dev-035",
+    "text": "kolano dziś stabilne, bez problemu",
+    "expected": "none"
+  },
+  {
+    "id": "dev-036",
+    "text": "przysiady poszły bez bólu",
+    "expected": "none"
+  },
+  {
+    "id": "dev-037",
+    "text": "zapomniałem klucza do piwnicy z hantlami",
+    "expected": "none"
+  },
+  {
+    "id": "dev-038",
+    "text": "bolesna prawda: nie chce mi się",
+    "expected": "none"
+  }
+]

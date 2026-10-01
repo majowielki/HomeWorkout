@@ -1,0 +1,392 @@
+[
+  {
+    "id": "held-out-001",
+    "text": "coś mi strzeliło w barku przy wyciskaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-002",
+    "text": "boli mnie w okolicy rzepki od tygodnia",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-003",
+    "text": "lewe kolano puchnie po treningu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-004",
+    "text": "ścięgno achillesa dokucza przy rowerze",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-005",
+    "text": "czuję ucisk w klatce piersiowej przy wysiłku",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-006",
+    "text": "mam wrażenie, że kolano się blokuje przy wstawaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-007",
+    "text": "nadgarstek strzela i boli przy pompkach",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-008",
+    "text": "od trzech dni drętwieje mi lewa ręka",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-009",
+    "text": "po upadku z roweru mam stłuczone biodro",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-010",
+    "text": "lekarz kazał oszczędzać kolano",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-011",
+    "text": "umówiłem się do fizjoterapeuty w czwartek",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-012",
+    "text": "mam zapalenie ścięgna",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-013",
+    "text": "rwie mnie w krzyżu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-014",
+    "text": "ból promieniuje do łydki",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-015",
+    "text": "bark mnie boli od dwóch dni",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-016",
+    "text": "kolano mi się wykręciło przy schodzeniu ze schodów",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-017",
+    "text": "ból w kolanie przy zginaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-018",
+    "text": "ostry ból w plecach przy martwym ciągu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-019",
+    "text": "plecy mnie bolą",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-020",
+    "text": "jakby mi coś pękło w łydce",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-021",
+    "text": "zerwałem sobie mięsień",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-022",
+    "text": "uraz kolana sprzed roku się odezwał",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-023",
+    "text": "kolano dziś dokucza",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-024",
+    "text": "czuję kłucie w prawym barku",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-025",
+    "text": "bolało mnie w kolanie po rowerze, ale już przeszło",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-026",
+    "text": "boli mnie w pachwinie",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-027",
+    "text": "boli mnie brzuch",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-028",
+    "text": "ból głowy po kawie",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-029",
+    "text": "zakręciło mi się w głowie przy wstawaniu z podłogi",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-030",
+    "text": "lekki trening bo lekarz dał zielone światło",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-031",
+    "text": "kolano mnie boli i trzeszczy",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-032",
+    "text": "strzyka mnie w kolanie jak wstaje",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-033",
+    "text": "naciagnalem dwuglowe",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-034",
+    "text": "spuchla kostka po treningu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-035",
+    "text": "bark boli przy wyciskaniu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-036",
+    "text": "kluje w boku",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-037",
+    "text": "naderwalem sciegno",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-038",
+    "text": "Zmęczony po pracy, zakwasy po poniedziałku, ale kolano trochę strzyka przy schodzeniu.",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-039",
+    "text": "Czuję jakby coś mi ciągnęło w pachwinie.",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-040",
+    "text": "zemdlało mi się po treningu",
+    "expected": "medical"
+  },
+  {
+    "id": "held-out-041",
+    "text": "zakwasy po przysiadach",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-042",
+    "text": "dzisiaj czuję pośladki po wczorajszych mostkach, solidne zakwasy",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-043",
+    "text": "uda mnie bolą jak diabli po rowerze",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-044",
+    "text": "klatka boli po pompkach, normalnie",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-045",
+    "text": "mam delikatne zakwasy w ramionach",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-046",
+    "text": "zakwasy w czworogłowych",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-047",
+    "text": "bolą mnie dwugłowe uda po RDL",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-048",
+    "text": "plecy bolą po wiosłowaniu",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-049",
+    "text": "pośladki bolą po mostku biodrowym",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-050",
+    "text": "mam taki ból mięśni, że schody to wyzwanie",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-051",
+    "text": "mam zakwasy ale kolano ok",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-052",
+    "text": "Rower 30 min, spokojnie. Plecy trochę bolą po wiosłowaniu.",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-053",
+    "text": "lydki bola jak po maratonie, zakwasy straszne",
+    "expected": "soreness"
+  },
+  {
+    "id": "held-out-054",
+    "text": "dzisiaj 40 minut, mam gumy i hantle",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-055",
+    "text": "trening poszedł świetnie, dołożyłem powtórzenie",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-056",
+    "text": "kolano w porządku, bez żadnych dolegliwości",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-057",
+    "text": "nic mnie nie boli",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-058",
+    "text": "brak bólu w kolanie",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-059",
+    "text": "wczoraj spałem tylko 5 godzin, jestem zmęczony",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-060",
+    "text": "bardzo mało energii dziś",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-061",
+    "text": "mam wyjazd w weekend, trening w hotelu",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-062",
+    "text": "dziś rower 20 minut w spokojnym tempie",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-063",
+    "text": "dołożę serię przysiadów jeśli dam radę",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-064",
+    "text": "wyciskanie barkowe poszło lekko",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-065",
+    "text": "jestem po przeziębieniu, pierwszy trening od tygodnia",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-066",
+    "text": "nudności od rana, ale trening zrobię",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-067",
+    "text": "waga stoi w miejscu od tygodnia",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-068",
+    "text": "chcę wyciskać więcej niż w zeszłym tygodniu",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-069",
+    "text": "tylko gumy dziś, 25 min, bez przysiadów",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-070",
+    "text": "czuję się silniejszy w wiosłowaniu",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-071",
+    "text": "nie mam żadnych kontuzji",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-072",
+    "text": "bez urazów od roku",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-073",
+    "text": "nic nie strzyka w kolanie",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-074",
+    "text": "dziś bez bólu pleców",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-075",
+    "text": "Dobry trening. Przysiady poszły lepiej. Kolano nic nie dokuczało.",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-076",
+    "text": "mostek biodrowy z gumą poszedł super",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-077",
+    "text": "uginanie kolan w pozycji leżącej pominę",
+    "expected": "none"
+  },
+  {
+    "id": "held-out-078",
+    "text": "pompki barkowe i wiosłowanie, łącznie 30 minut",
+    "expected": "none"
+  }
+]
