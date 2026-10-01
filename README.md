@@ -77,6 +77,12 @@ part exists:
   guarantee ([ADR 0004](docs/adr/0004-the-text-gate-is-a-floor.md)).
 - **Versioned prompts.** A published prompt is pinned by a hash in a test;
   changing it means a new file and an evaluation report.
+- **Evaluation, with the scorers tested too.** Eighteen synthetic cases, ten
+  scorers (eight of them safety), and a deliberately broken answer for each rule
+  that its scorer must reject: a scorer that cannot fail is not a scorer. Reports
+  can be compared across prompt versions; a safety regression fails the build.
+  No real model has been evaluated yet, and the reports say so
+  ([evals/README.md](evals/README.md)).
 - **No call to a real model in CI.** Everything above is deterministic.
 
 The decisions are in [`docs/adr/`](docs/adr/), including what was

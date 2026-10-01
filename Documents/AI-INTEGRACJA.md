@@ -438,7 +438,7 @@ użytkownik.
 | Dokumenty planu | ✅ 2026-10-01 | `docs/ai-integration-plan` | przeniesione z `poc` |
 | A0 — fundament bez sieci | ✅ kod 2026-10-01 · ⏳ bramka | `feat/ai-foundation` | część kodowa zrobiona i zweryfikowana; DoD „2 tygodnie ręcznego używania z modelem" należy do użytkownika — lista kroków w „Wynik A0" poniżej |
 | A1 — Worker i F1 | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-worker` | Worker, klient, `ai_exchanges`, karta w aplikacji, diagnostyka, CI; sprawdzone na emulatorze z atrapą modelu. Brakuje wywołania prawdziwego modelu (potrzebny klucz i konto Cloudflare) |
-| A2 — ewaluacja | ⏳ | `feat/ai-evals` | runner na żywo wymaga klucza; tryb odtwarzania nie |
+| A2 — ewaluacja | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-evals` | scorery, runner, raporty, porównanie, szkielet sędziego, CI w trybie odtwarzania; nie oceniono żadnego prawdziwego modelu (brak klucza), sędzia nieskalibrowany |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7, a M7 na bramkę „dwa tygodnie używania" (IMPLEMENTACJA §8) |
 | A4 — rozmowa F4 | ⛔ | | narzędzie `getPlanExplanation` wymaga M7; reszta może iść wcześniej |
 | A5 — opcjonalnie | — | | |
@@ -503,6 +503,38 @@ Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ogranic
 2. `.env.local` z `EXPO_PUBLIC_COACH_URL` i `EXPO_PUBLIC_COACH_SECRET` i przebudowanie aplikacji.
 3. Pierwsze wywołanie na żywo: sprawdź w Diagnostyce AI, że odpowiedź przeszła bez naprawy, i zajrzyj w log Workera.
 
+### Wynik A2 (2026-10-02)
+
+**Zrobione** (`evals/`, opis w [`evals/README.md`](../evals/README.md)):
+
+- 10 scorerów: osiem bezpieczeństwa (`schemaValid`, `noLoads`, `numbersFaithful`, `sparseVocabulary`, `medicalPhrase`, `outOfScope`, `flagsFromSignals`, `textRules`) i dwa jakościowe (`polishOutput`, `signalsCovered`). Używają tych samych kontroli co Worker w czasie działania (`checkSummary`), więc mierzone i egzekwowane nie mogą się rozjechać.
+- `src/domain/coach/numbers.ts`: liczby w polskim tekście (cyfry z przecinkiem lub kropką, zakresy, daty, liczebniki słowne w odmianie) — R9.
+- Runner z trzema responderami: `reference` (reguły, bez modelu), `recorded` (zapisane odpowiedzi), `live` (prawdziwy model przez kod generowania Workera). Raport JSON + Markdown, porównanie dwóch raportów z wykrywaniem regresji, kod wyjścia ≠ 0 przy porażce scorera bezpieczeństwa.
+- 14 mutacji (kontrole negatywne): odpowiedź zepsuta w dokładnie jednym punkcie; test wymaga, żeby właściwy scorer ją odrzucił na każdym przypadku, na którym działa. Scorer, który nie potrafi zawieść, nie jest scorerem.
+- Szkielet sędziego LLM: rubryka (przydatność, ton, klarowność, skala 1–5), parsowanie odpowiedzi, wymóg innego modelu niż autor, kalibracja względem ocen ręcznych (zgodność w granicach 1, ważone kwadratowo kappa Cohena) z progami zapisanymi z góry.
+- CI: `npm run eval` po testach (artefakt z raportem) i ręczny workflow `eval-live.yml`.
+
+**Co mierzy, a czego nie** (ważne, żeby nie sprzedać tego jako więcej):
+
+| Co | Wynik | Znaczenie |
+|---|---|---|
+| `npm run eval` (responder referencyjny) | 18/18 na wszystkich scorerach | działa potok i scorery. **Nic o żadnym modelu** |
+| Mutacje | każda łapana przez swój scorer | scorery nie są pobłażliwe |
+| Ścieżka `live` przeciw lokalnemu serwerowi w formacie Gemini | przeszła do końca (wywołanie, schemat, strażniki, scoring, nagranie, kod wyjścia 1 przy brakującym zdaniu odsyłającym) | okablowanie działa; **nie** mówi, jak odpowiada model |
+| Żądanie, które provider faktycznie wysyła | `responseMimeType: application/json` + `responseJsonSchema` (draft-07, `enum`, bez `const` i `anyOf`, z zachowanymi limitami długości); instrukcje jako `systemInstruction`, dane jako `contents` | potwierdza w praktyce R3/R4 |
+| Sędzia | przetestowany na atrapie; **nieskalibrowany** | w żadnym raporcie nie ma jeszcze oceny sędziego |
+
+**Co wyszło po drodze:**
+
+1. Responder referencyjny sam złamał kontrakt (pięć punktów przy limicie czterech) — wykrył to `schemaValid` przy pierwszym uruchomieniu. Błąd był w responderze, nie w scorerze, ale to dokładnie ten rodzaj błędu, który scorer ma łapać.
+2. Pierwsze mutacje łamały przy okazji schemat, więc „łapał" je niewłaściwy scorer. Teraz każda zachowuje schemat, a test to sprawdza.
+3. `compareReports` oznaczał jako regresję także brak zmiany, gdy oba raporty były niebezpieczne. Regresja = gorzej niż było; bezwzględną bramką jest kod wyjścia samego uruchomienia.
+4. Liczba sesji nie była w kontekście, więc żaden model nie mógłby jej zacytować bez liczenia. Dodane pole `sessionCount` (odstępstwo od niezmienności v1 w tabeli powyżej).
+
+**Znane luki scorerów:** `numbersFaithful` traktuje „1 200" jako 1 i 200 (separator tysięcy); pomija „jeden/jedna/jedno"; nie rozumie liczb typu „półtora". `noLoads` szuka zdania z czasownikiem zalecającym i słowem o obciążeniu, więc rozkaz bez takiego słowa przejdzie. Obie luki wyjdą dopiero na prawdziwych odpowiedziach.
+
+**Co zostaje po Twojej stronie:** klucz i `MODEL_ID`, potem `npm run eval:live` (lub workflow ręczny), 20+ odpowiedzi ocenionych ręcznie do kalibracji sędziego, a przy zmianie promptu `npm run eval:compare` w opisie PR.
+
 **Odstępstwa od v0.2 (świadome):**
 
 | v0.2 mówi | Realizacja | Dlaczego |
@@ -515,6 +547,9 @@ Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ogranic
 | dzienny budżet tokenów (§4.9) | licznik w KV (`tokens:YYYY-MM-DD`, TTL 2 dni), bez Durable Object | KV jest eventually consistent, więc dwa równoczesne wywołania mogą oba przejść i budżet może zostać przekroczony o jedno–dwa wywołania; to ogrodzenie, nie księgowość, a Durable Object to kolejny ruchomy element dla jednej osoby |
 | ponawianie „wykładniczo z jitterem, max 2" po stronie klienta (§4.6) | tak, ale SDK nie ponawia samo (`maxRetries: 0`); klient ponawia tylko `upstream_error` z `retryable: true`, a błąd sieci nie jest ponawiany | test wykazał, że domyślne `maxRetries: 2` w AI SDK po cichu ukrywało opóźnienie (>5 s) i koszt pod Workerem; bez sieci człowiek decyduje, a nie pętla |
 | modele w konfiguracji | `MODEL_ID` **bez wartości domyślnej** | nazwy modeli w raporcie Gemini okazały się niewiarygodne; wybór (D3) należy do oceny w A2 i do oficjalnej listy modeli dostawcy |
+| D8: Evalite + autoevals dla jakości (§11) | własny runner (~150 linii) z wymiennym `Responder`; scorery to czyste funkcje, więc przejście na Evalite zostaje możliwe | Evalite stoi od listopada 2025 i jest na AI SDK 5, a runner musi dzielić kod generowania z Workerem (AI SDK 7); D8 sam zastrzegał „runner wymienny" |
+| `numbersFaithful` jako strażnik wyjścia „docelowo" (§2, I6) | na razie wyłącznie scorer; nie blokuje odpowiedzi w Workerze | wykrywanie liczb w polskim tekście (R9) ma znane luki (spacja jako separator tysięcy, „jeden/jedna" pominięte celowo), a fałszywy alarm kosztuje ponowienie i tokeny; najpierw potrzebna jest miara na prawdziwych odpowiedziach |
+| prompt `weekly-summary/v1` niezmienny od publikacji (§4.5) | zmieniony **przed** pierwszym użyciem (pole `sessionCount` + zdanie w opisie danych), hash w teście przypięty ponownie | scorer wierności liczb pokazał, że model nie ma jak zacytować liczby sesji, której w danych nie ma (musiałby ją policzyć). V1 uznaję za opublikowaną od pierwszego użycia przez Ciebie albo pierwszej oceny na żywo; od tej chwili każda zmiana to `v2` |
 | A0 DoD: „≥ 2 tygodnie ręcznego używania z modelem" | dzieli się na część kodową (agent) i bramkę użytkownika | tej części nie da się wykonać w sesji; A1 w części, która nie zależy od wyniku bramki (Worker, klient), idzie dalej, ale **nic z A1 nie trafia do wydania aplikacji**, dopóki bramka nie da odpowiedzi „AI wnosi wartość" |
 
 ### A0 — Fundament bez sieci (2–3 wieczory)
