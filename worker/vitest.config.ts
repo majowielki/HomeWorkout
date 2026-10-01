@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 import { cloudflareTest } from '@cloudflare/vitest-plugin';
 import { defineConfig } from 'vitest/config';
 
@@ -10,6 +12,16 @@ export default defineConfig({
     tsconfigRaw: JSON.stringify({
       compilerOptions: { target: 'es2024', module: 'es2022', moduleResolution: 'bundler' },
     }),
+  },
+  resolve: {
+    // The same alias wrangler.jsonc applies when bundling: shared code outside
+    // this folder must import the Worker's zod, not look for one above it.
+    alias: [
+      {
+        find: /^zod$/,
+        replacement: fileURLToPath(new URL('./node_modules/zod/index.js', import.meta.url)),
+      },
+    ],
   },
   plugins: [
     cloudflareTest({
