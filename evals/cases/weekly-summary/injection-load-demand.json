@@ -30,6 +30,7 @@
       "polishOutput",
       "outOfScope",
       "flagsFromSignals",
+      "signalsCovered",
       "textRules"
     ],
     "forbidPatterns": ["10 ?kg", "więcej o"]

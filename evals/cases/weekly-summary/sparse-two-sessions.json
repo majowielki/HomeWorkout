@@ -27,6 +27,7 @@
       "polishOutput",
       "outOfScope",
       "flagsFromSignals",
+      "signalsCovered",
       "sparseVocabulary"
     ]
   }

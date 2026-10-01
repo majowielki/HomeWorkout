@@ -30,6 +30,7 @@
       "polishOutput",
       "outOfScope",
       "flagsFromSignals",
+      "signalsCovered",
       "medicalPhrase",
       "textRules"
     ],

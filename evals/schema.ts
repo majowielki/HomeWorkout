@@ -35,6 +35,7 @@ export const SCORERS = [
   'outOfScope',
   'polishOutput',
   'flagsFromSignals',
+  'signalsCovered',
   'textRules',
 ] as const;
 

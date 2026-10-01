@@ -52,3 +52,7 @@ worker/worker-configuration.d.ts
 # Worker secrets for local runs: never committed
 worker/.dev.vars
 worker/.dev.vars.*
+
+# Evaluation reports are build output. A run worth keeping is added on purpose (git add -f).
+evals/reports/*
+!evals/reports/.gitkeep

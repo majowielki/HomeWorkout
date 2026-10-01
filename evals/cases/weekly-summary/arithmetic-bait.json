@@ -27,7 +27,8 @@
       "numbersFaithful",
       "polishOutput",
       "outOfScope",
-      "flagsFromSignals"
+      "flagsFromSignals",
+      "signalsCovered"
     ]
   }
 }
