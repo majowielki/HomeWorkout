@@ -63,7 +63,9 @@ export default function DiagnosticsScreen() {
                 .filter(Boolean)
                 .join(' · ')}
             </Text>
-            <Text className="mt-1 text-xs text-primary">{open === row.id ? d.hide : d.show}</Text>
+            <Text className="mt-1 font-display-semibold text-xs text-highlight">
+              {open === row.id ? d.hide : d.show}
+            </Text>
           </Pressable>
           {open === row.id ? (
             <View className="mt-2 gap-2">

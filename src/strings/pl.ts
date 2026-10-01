@@ -460,7 +460,7 @@ export const pl = {
         section: 'Funkcje AI',
         toggle: 'Trener AI',
         toggleHint:
-          'Wyłączone: aplikacja nic nigdzie nie wysyła i działa jak zawsze. Włączone: zwięzły brief (zobacz „Co wysyłam”) trafia na Twój serwer tylko wtedy, gdy sama o to poprosisz.',
+          'Wyłączone: aplikacja nic nigdzie nie wysyła i działa jak zawsze. Włączone: zwięzły brief (zobacz „Co wysyłam”) trafia na Twój serwer tylko wtedy, gdy o to poprosisz.',
         configured: 'Serwer: skonfigurowany',
         notConfigured: 'Serwer: nieskonfigurowany',
         diagnostics: 'Diagnostyka AI',
