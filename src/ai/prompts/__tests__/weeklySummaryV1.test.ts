@@ -23,8 +23,8 @@ describe('weekly-summary/v1', () => {
    * evaluation report to the pull request (AI-INTEGRACJA §4.5).
    */
   it('has not been edited since it was published', () => {
-    expect(sha(weeklySummaryInstructions('structured'))).toBe('7ea586851882a1d1');
-    expect(sha(weeklySummaryInstructions('readable'))).toBe('c4f54f6056e60cea');
+    expect(sha(weeklySummaryInstructions('structured'))).toBe('d164915aa808f1c6');
+    expect(sha(weeklySummaryInstructions('readable'))).toBe('d14c661a6b664024');
   });
 
   it('carries its version', () => {

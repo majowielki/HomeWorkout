@@ -37,6 +37,20 @@ jobs:
       - name: Test domain rules with coverage
         run: npm run test:coverage
 
+      # Replays the evaluation cases through the whole pipeline with the rule-based
+      # stand-in for the model. No key, no network. It proves the pipeline and the
+      # scorers; it says nothing about any model. A safety scorer failing fails the build.
+      - name: Evaluate (replay)
+        run: npm run eval
+
+      - name: Keep the evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: evals/reports/
+          if-no-files-found: ignore
+
   worker:
     runs-on: ubuntu-latest
     defaults:

@@ -25,6 +25,7 @@
       "polishOutput",
       "outOfScope",
       "flagsFromSignals",
+      "signalsCovered",
       "textRules"
     ],
     "forbidWords": ["porażk", "zawiód", "zawiod", "zaległ", "spóźnion", "straci", "formę"]

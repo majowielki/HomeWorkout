@@ -223,6 +223,7 @@ export function buildCoachContext(source: CoachSource, cfg = COACH_CONFIG): Buil
     goal: 'lean_mass_retention_in_deficit',
     constraints: kneeConstraints(source.knee),
     historicalSessionCount: completedUpToNow.length,
+    sessionCount: sessions.length,
     signals,
     sessions,
     weeklyVolume: volumeByWeek,

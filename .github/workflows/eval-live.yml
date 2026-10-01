@@ -1,0 +1,53 @@
+name: Evaluate against a real model
+
+# Manual only. Calls the provider with the cases in evals/cases, so it costs a few cents and
+# needs two things set up in the repository settings:
+#   - the secret GOOGLE_GENERATIVE_AI_API_KEY
+#   - the model id, passed as the input below (no default: choose it from the provider's list)
+#
+# Not run yet: there was no key when this was written. The same path was exercised locally
+# against a stand-in HTTP server that speaks the provider's wire format.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_id:
+        description: Model id as the provider lists it
+        required: true
+        type: string
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install the app's dependencies
+        run: npm ci
+
+      # The live path runs the Worker's own generation code, so it needs the Worker's packages.
+      - name: Install the Worker's dependencies
+        run: npm ci
+        working-directory: worker
+
+      - name: Evaluate
+        run: npm run eval:live
+        env:
+          PROVIDER: google
+          MODEL_ID: ${{ inputs.model_id }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+
+      - name: Keep the report and the recorded answers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-live
+          path: |
+            evals/reports/
+            evals/recorded/live/
+          if-no-files-found: ignore

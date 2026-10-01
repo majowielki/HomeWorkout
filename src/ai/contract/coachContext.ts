@@ -126,6 +126,11 @@ export const coachContextSchema = z.strictObject({
   constraints: z.array(z.enum(CONSTRAINT_CODES)),
   /** Completed sessions ever, not only those in the window. */
   historicalSessionCount: count,
+  /**
+   * Sessions in the window, as a number to quote. Without it a model would
+   * have to count the list, and counting is the arithmetic it is told not to do.
+   */
+  sessionCount: count,
   signals: z.array(z.enum(SIGNAL_CODES)),
   sessions: z.array(sessionSchema),
   /** Newest week first. */
