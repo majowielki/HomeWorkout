@@ -1,4 +1,5 @@
 import { BAND_CONFIG } from '@/domain/config/training';
+import type { ToolName } from '@/ai/contract/chatTools';
 import type { SignalCode } from '@/domain/coach/vocabulary';
 import type { ExclusionCode } from '@/domain/exercises/screen';
 import type { LoadEstimate } from '@/domain/progression/calibration';
@@ -412,6 +413,8 @@ export const pl = {
     copyBrief: 'Kopiuj brief',
     copied: 'Skopiowano',
     copyFailed: 'Nie udało się skopiować.',
+    chatEntry: 'Porozmawiaj z trenerem',
+    chatEntryHint: 'Pytania o Twoje dane, odpowiedź pojawia się na żywo',
     viewPayload: 'Co dokładnie wysyłam',
     viewPayloadHint: 'Pełna treść briefu, przed skopiowaniem',
     payloadTitle: 'Co wysyłam',
@@ -425,6 +428,47 @@ export const pl = {
       LAYOFF_LONG: 'Długa przerwa',
       SLEEP_LOW_STREAK: 'Krótki sen',
     } satisfies Record<SignalCode, string>,
+    chat: {
+      title: 'Rozmowa z trenerem',
+      intro:
+        'Pytaj o to, co widać w dzienniku: serie, postępy w ćwiczeniach, objętość, waga. Model sam sprawdza dane na Twoim telefonie i niczego nie zmienia w planie. Nie doradza w sprawie diety, leków ani dolegliwości.',
+      placeholder: 'Zadaj pytanie o swój trening',
+      send: 'Wyślij',
+      stop: 'Stop',
+      newChat: 'Nowa rozmowa',
+      you: 'Ty',
+      coach: 'Trener',
+      empty:
+        'Na przykład: „Jak mi idzie z wiosłowaniem?” albo „Ile serii na plecy zrobiłem w tym tygodniu?”',
+      disclaimer:
+        'To komentarz do liczb z dziennika, nie plan ani porada. Obciążenia ustala wyłącznie silnik reguł.',
+      counter: (used: number, max: number) => `${used}/${max}`,
+      /** What the app says while the model looks something up. Typed so a new tool cannot be forgotten. */
+      tools: {
+        getRecentSessions: 'Sprawdzam ostatnie sesje…',
+        getExerciseHistory: 'Sprawdzam historię ćwiczenia…',
+        getWeeklyVolume: 'Liczę serie z tygodnia…',
+        getBodyTrend: 'Sprawdzam wagę i talię…',
+        findExercises: 'Szukam ćwiczenia…',
+      } satisfies Record<ToolName, string>,
+      /** The app's own replies, when it does not ask the model at all. */
+      blocked: {
+        medical: 'Dolegliwości omów z fizjoterapeutą lub lekarzem.',
+        outOfScope: 'Aplikacja nie doradza w sprawie diety ani leków. Zapytaj mnie o trening.',
+        tooLong: (max: number) => `Wiadomość jest za długa. Limit to ${max} znaków.`,
+        empty: 'Napisz najpierw pytanie.',
+      },
+      withheld:
+        'Ta odpowiedź nie przeszła kontroli aplikacji, więc jej nie pokazuję. Spróbuj zadać pytanie inaczej. Szczegóły są w diagnostyce.',
+      truncated: 'Odpowiedź została ucięta.',
+      interrupted: 'Odpowiedź została przerwana.',
+      stopped: 'Zatrzymano.',
+      retry: 'Spróbuj ponownie',
+      errors: {
+        toolLimit: 'Model za długo szukał danych i nie zdążył odpowiedzieć. Spróbuj prościej.',
+        emptyReply: 'Model nie odpowiedział niczym. Spróbuj jeszcze raz.',
+      },
+    },
     ai: {
       eyebrow: 'Podsumowanie od modelu',
       disabled:
