@@ -126,6 +126,31 @@ export const PROGRESSION_CONFIG = {
   fallbackTimeRange: [20, 60] as [number, number],
 } as const;
 
+/** Overload signals, SPEC §6.1. */
+export const AUTOREGULATION_CONFIG = {
+  /** Only sessions this recent can raise FATIGUE_HIGH or PERFORMANCE_DROP. */
+  signalWindowDays: 14,
+  lowSleepHours: 6,
+  lowSleepStreakDays: 3,
+  highSorenessLevel: 4,
+  /** "DOMS ≥ 4 for more than 72 h": the same muscle sore on 4 daily logs in a row. */
+  sorenessStreakDays: 4,
+  /** This many different signals at once bring the deload forward. */
+  reactiveDeloadSignals: 2,
+} as const;
+
+/** Mesocycle and deload, SPEC §6.2 and §10.2. */
+export const BLOCK_CONFIG = {
+  /** Calendar days of work before the deload week. */
+  workDays: 28,
+  deloadDays: 7,
+  /** A reactive deload never comes in the first week of a block. */
+  reactiveDeloadMinDays: 7,
+  /** Volume during the deload: −50%, but never below one set. */
+  deloadSetFactor: 0.5,
+  deloadRir: [4, 5] as [number, number],
+} as const;
+
 /** The daily ride, SPEC §7 v1.2. */
 export const BIKE_CONFIG = {
   minutes: { min: 10, max: 20 },

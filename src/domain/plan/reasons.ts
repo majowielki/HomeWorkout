@@ -22,9 +22,27 @@ export const PROGRESSION_REASONS = [
   'LAYOFF_SHORT',
   'LAYOFF_MEDIUM',
   'LAYOFF_RECALIBRATION',
+  'DELOAD',
 ] as const;
 
 export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
+
+/** Overload signals, SPEC §6.1. Two or more at once bring the deload forward. */
+export const FATIGUE_SIGNALS = ['FATIGUE_HIGH', 'PERFORMANCE_DROP', 'RECOVERY_LOW'] as const;
+
+export type FatigueSignal = (typeof FATIGUE_SIGNALS)[number];
+
+/** What happened to the block (mesocycle) on this date, SPEC §10.2. */
+export const BLOCK_EVENTS = [
+  'BLOCK_STARTED',
+  'BLOCK_CLOCK_RESET',
+  'DELOAD_SCHEDULED',
+  'DELOAD_REACTIVE',
+  'BLOCK_ROTATED',
+  'SELECTION_REPLACED',
+] as const;
+
+export type BlockEvent = (typeof BLOCK_EVENTS)[number];
 
 /** Why the bike is set the way it is. */
 export const BIKE_REASONS = [

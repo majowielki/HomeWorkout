@@ -278,6 +278,33 @@ describe('prescribe', () => {
     });
   });
 
+  it('keeps load and reps in a deload week, at RIR 4-5 (SPEC §6.2)', () => {
+    const sessions = [session('2026-10-06', [15, 15]), session('2026-10-08', [15, 15])];
+    expect(prescribe(input({ sessions, deload: true }))).toMatchObject({
+      load: db(6),
+      target: 15,
+      rir: [4, 5],
+      reasons: ['DELOAD'],
+    });
+  });
+
+  it('lets a medium layoff step down even in a deload week', () => {
+    const sessions = [session('2026-09-20', [15]), session('2026-09-22', [15])];
+    const medium: LayoffState = { tier: 'medium', gapDays: 18, recalibrating: false };
+    expect(prescribe(input({ sessions, deload: true, layoff: medium }))).toMatchObject({
+      load: db(4),
+      rir: [4, 5],
+      reasons: ['LAYOFF_MEDIUM'],
+    });
+  });
+
+  it('starts a never-done exercise at RIR 4-5 in a deload week', () => {
+    expect(prescribe(input({ deload: true }))).toMatchObject({
+      rir: [4, 5],
+      reasons: ['FIRST_EXPOSURE'],
+    });
+  });
+
   it('asks for a band warm-up and reports a missed one', () => {
     const row = exercise({ id: 'press', equipment: ['band'] });
     const r = band('red', 1);
