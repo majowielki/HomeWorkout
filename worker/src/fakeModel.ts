@@ -7,7 +7,8 @@ import { MockLanguageModelV4 } from 'ai/test';
  * import this file.
  *
  * For the chat it behaves like a model that needs one lookup: asked a
- * question, it requests a tool; shown the result, it streams an answer a
+ * question, it requests a tool (the plan one when the question mentions the
+ * plan, the weekly volume otherwise); shown the result, it streams an answer a
  * word at a time, slowly enough to watch, and notes in the log when the
  * Worker aborts it, so cancelling can be seen reaching the provider.
  */
@@ -76,6 +77,11 @@ function streamOf(parts: Part[], signal: AbortSignal | undefined, delayMs: numbe
   });
 }
 
+/** The latest message the person typed, whatever shape the SDK gives it. */
+function lastUserMessage(prompt: readonly { role: string; content?: unknown }[]): unknown {
+  return [...prompt].reverse().find((m) => m.role === 'user')?.content ?? null;
+}
+
 export function fakeModel() {
   const summary = {
     headline: 'To odpowiedź atrapy, nie modelu.',
@@ -93,6 +99,7 @@ export function fakeModel() {
     },
     doStream: async (options) => {
       const afterTool = options.prompt[options.prompt.length - 1]?.role === 'tool';
+      const asksAboutPlan = /plan/i.test(JSON.stringify(lastUserMessage(options.prompt)));
       const parts: Part[] = afterTool
         ? [
             { type: 'text-start', id: 't1' },
@@ -108,8 +115,8 @@ export function fakeModel() {
             {
               type: 'tool-call',
               toolCallId: `fake-${options.prompt.length}`,
-              toolName: 'getWeeklyVolume',
-              input: JSON.stringify({ weeksAgo: 0 }),
+              toolName: asksAboutPlan ? 'getPlanExplanation' : 'getWeeklyVolume',
+              input: JSON.stringify(asksAboutPlan ? { daysAgo: 0 } : { weeksAgo: 0 }),
             },
             {
               type: 'finish',

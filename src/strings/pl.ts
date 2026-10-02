@@ -587,7 +587,7 @@ export const pl = {
     chat: {
       title: 'Rozmowa z trenerem',
       intro:
-        'Pytaj o to, co widać w dzienniku: serie, postępy w ćwiczeniach, objętość, waga. Model sam sprawdza dane na Twoim telefonie i niczego nie zmienia w planie. Nie doradza w sprawie diety, leków ani dolegliwości.',
+        'Pytaj o to, co widać w dzienniku i w planie: serie, postępy w ćwiczeniach, objętość, waga, powody planu na dziś. Model sam sprawdza dane na Twoim telefonie i niczego nie zmienia w planie. Nie doradza w sprawie diety, leków ani dolegliwości.',
       placeholder: 'Zadaj pytanie o swój trening',
       send: 'Wyślij',
       stop: 'Stop',
@@ -595,7 +595,7 @@ export const pl = {
       you: 'Ty',
       coach: 'Trener',
       empty:
-        'Na przykład: „Jak mi idzie z wiosłowaniem?” albo „Ile serii na plecy zrobiłem w tym tygodniu?”',
+        'Na przykład: „Jak mi idzie z wiosłowaniem?”, „Ile serii na plecy zrobiłem w tym tygodniu?” albo „Czemu dziś nie ma przysiadów?”',
       disclaimer:
         'To komentarz do liczb z dziennika, nie plan ani porada. Obciążenia ustala wyłącznie silnik reguł.',
       counter: (used: number, max: number) => `${used}/${max}`,
