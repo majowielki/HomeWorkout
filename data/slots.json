@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "_comment": "Movement slots for the daily planner (SPEC-silnik-regul.md §10). exerciseIds are in rotation order, easier first. start.* are guesses for a never-done exercise, not research; the first two sessions of every exercise run at RIR 4 so a wrong guess is harmless.",
+  "slots": [
+    {
+      "id": "squat",
+      "name": "Przysiad",
+      "kind": "compound",
+      "region": "lower",
+      "exerciseIds": [
+        "box-squat",
+        "goblet-squat",
+        "band-squat",
+        "dumbbell-squat",
+        "bodyweight-squat",
+        "wall-sit",
+        "band-leg-extension"
+      ],
+      "repRange": [10, 20],
+      "timeRange": [20, 60],
+      "rir": [2, 3],
+      "restSec": 120,
+      "start": { "single": 6, "paired": 4, "band": "black" }
+    },
+    {
+      "id": "lunge",
+      "name": "Wykrok",
+      "kind": "compound",
+      "region": "lower",
+      "exerciseIds": ["split-squat", "step-up", "reverse-lunge", "lateral-lunge"],
+      "repRange": [10, 20],
+      "rir": [2, 3],
+      "restSec": 90,
+      "start": { "paired": 2, "single": 4 }
+    },
+    {
+      "id": "hinge",
+      "name": "Zawias biodrowy",
+      "kind": "compound",
+      "region": "lower",
+      "exerciseIds": [
+        "glute-bridge",
+        "band-pull-through",
+        "db-romanian-deadlift",
+        "hip-thrust",
+        "band-good-morning",
+        "band-hip-extension",
+        "single-leg-rdl"
+      ],
+      "repRange": [10, 20],
+      "rir": [2, 3],
+      "restSec": 120,
+      "start": { "paired": 6, "single": 8, "band": "black" }
+    },
+    {
+      "id": "calves",
+      "name": "Łydki",
+      "kind": "accessory",
+      "region": "lower",
+      "exerciseIds": ["standing-calf-raise"],
+      "repRange": [12, 20],
+      "rir": [0, 1],
+      "restSec": 60,
+      "start": { "paired": 4 }
+    },
+    {
+      "id": "push-horizontal",
+      "name": "Pchanie poziome",
+      "kind": "compound",
+      "region": "push",
+      "exerciseIds": [
+        "incline-push-up",
+        "db-floor-press",
+        "band-chest-press",
+        "push-up",
+        "band-push-up"
+      ],
+      "repRange": [8, 15],
+      "rir": [2, 3],
+      "restSec": 90,
+      "start": { "paired": 4, "band": "red" }
+    },
+    {
+      "id": "chest-iso",
+      "name": "Klatka — izolacja",
+      "kind": "accessory",
+      "region": "push",
+      "exerciseIds": ["db-floor-flyes"],
+      "repRange": [10, 15],
+      "rir": [1, 2],
+      "restSec": 60,
+      "start": { "paired": 2 }
+    },
+    {
+      "id": "push-vertical",
+      "name": "Pchanie pionowe",
+      "kind": "compound",
+      "region": "push",
+      "exerciseIds": ["seated-db-shoulder-press", "band-shoulder-press", "db-shoulder-press"],
+      "repRange": [8, 15],
+      "rir": [2, 3],
+      "restSec": 90,
+      "start": { "paired": 4, "band": "yellow" }
+    },
+    {
+      "id": "pull-horizontal",
+      "name": "Przyciąganie poziome",
+      "kind": "compound",
+      "region": "pull",
+      "exerciseIds": ["band-row", "one-arm-db-row", "db-bent-over-row"],
+      "repRange": [8, 15],
+      "rir": [2, 3],
+      "restSec": 90,
+      "start": { "single": 8, "paired": 4, "band": "red" }
+    },
+    {
+      "id": "pull-vertical",
+      "name": "Przyciąganie pionowe",
+      "kind": "compound",
+      "region": "pull",
+      "exerciseIds": ["band-lat-pulldown", "band-straight-arm-pulldown", "db-pullover"],
+      "repRange": [8, 15],
+      "rir": [2, 3],
+      "restSec": 90,
+      "start": { "single": 4, "band": "red" }
+    },
+    {
+      "id": "rear-delts",
+      "name": "Tył barków i rotatory",
+      "kind": "accessory",
+      "region": "shoulders",
+      "exerciseIds": [
+        "band-face-pull",
+        "band-pull-apart",
+        "db-reverse-flyes",
+        "band-external-rotation"
+      ],
+      "repRange": [12, 20],
+      "rir": [1, 2],
+      "restSec": 60,
+      "start": { "paired": 2, "band": "yellow" }
+    },
+    {
+      "id": "lateral-delts",
+      "name": "Boki barków",
+      "kind": "accessory",
+      "region": "shoulders",
+      "exerciseIds": ["lateral-raise"],
+      "repRange": [10, 20],
+      "rir": [0, 1],
+      "restSec": 60,
+      "start": { "paired": 2 }
+    },
+    {
+      "id": "biceps",
+      "name": "Biceps",
+      "kind": "accessory",
+      "region": "arms",
+      "exerciseIds": ["db-bicep-curl", "hammer-curl"],
+      "repRange": [10, 15],
+      "rir": [0, 1],
+      "restSec": 60,
+      "start": { "paired": 4 }
+    },
+    {
+      "id": "triceps",
+      "name": "Triceps",
+      "kind": "accessory",
+      "region": "arms",
+      "exerciseIds": [
+        "band-triceps-pushdown",
+        "db-overhead-triceps-extension",
+        "db-lying-triceps-extension",
+        "close-grip-push-up"
+      ],
+      "repRange": [10, 15],
+      "rir": [0, 1],
+      "restSec": 60,
+      "start": { "single": 4, "paired": 2, "band": "yellow" }
+    },
+    {
+      "id": "core-front",
+      "name": "Brzuch",
+      "kind": "core",
+      "region": "core",
+      "exerciseIds": ["dead-bug", "plank", "reverse-crunch", "hollow-hold"],
+      "repRange": [8, 12],
+      "timeRange": [20, 60],
+      "rir": [1, 2],
+      "restSec": 45,
+      "start": {}
+    },
+    {
+      "id": "core-side",
+      "name": "Boki tułowia",
+      "kind": "core",
+      "region": "core",
+      "exerciseIds": ["side-plank", "band-pallof-press", "suitcase-carry"],
+      "timeRange": [15, 45],
+      "rir": [1, 2],
+      "restSec": 45,
+      "start": { "single": 4, "band": "yellow" }
+    },
+    {
+      "id": "core-back",
+      "name": "Prostowniki grzbietu",
+      "kind": "core",
+      "region": "core",
+      "exerciseIds": ["bird-dog", "superman"],
+      "repRange": [8, 12],
+      "rir": [1, 2],
+      "restSec": 45,
+      "start": {}
+    },
+    {
+      "id": "carry",
+      "name": "Chwyt i kaptury",
+      "kind": "accessory",
+      "region": "arms",
+      "exerciseIds": ["farmers-carry", "db-shrug"],
+      "repRange": [10, 15],
+      "timeRange": [20, 45],
+      "rir": [1, 2],
+      "restSec": 60,
+      "start": { "paired": 6 }
+    },
+    {
+      "id": "mobility",
+      "name": "Mobilność",
+      "kind": "filler",
+      "region": "mobility",
+      "exerciseIds": ["cat-cow", "open-book", "supine-figure-four"],
+      "repRange": [6, 10],
+      "timeRange": [30, 45],
+      "rir": [4, 5],
+      "restSec": 15,
+      "start": {}
+    }
+  ]
+}

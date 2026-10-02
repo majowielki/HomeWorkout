@@ -1,5 +1,5 @@
 import type { DatedValue } from '@/domain/metrics/series';
-import type { DumbbellMode, KneeProfile, MuscleGroup } from '@/domain/types';
+import type { DumbbellMode, KneeProfile, MovementPattern, MuscleGroup } from '@/domain/types';
 
 /*
  * Plain rows, in domain terms, that `buildCoachContext` turns into a
@@ -38,6 +38,8 @@ export interface SourceSet {
 export interface SourceExercise {
   id: string;
   name: string;
+  /** Mobility and cardio never count as working sets (SPEC §4.2). */
+  movementPattern: MovementPattern;
   primaryMuscles: readonly MuscleGroup[];
   secondaryMuscles: readonly MuscleGroup[];
 }

@@ -1,7 +1,7 @@
 import { MUSCLE_GROUPS, type VolumeStatus } from '../coach/vocabulary';
 import { TRAINING_CONFIG } from '../config/training';
 import { daysBetween } from '../time/trainingDate';
-import type { MuscleGroup } from '../types';
+import type { MovementPattern, MuscleGroup } from '../types';
 
 export interface VolumeSet {
   exerciseId: string;
@@ -12,15 +12,29 @@ export interface VolumeSet {
 }
 
 export interface VolumeExercise {
+  movementPattern: MovementPattern;
   primaryMuscles: readonly MuscleGroup[];
   secondaryMuscles: readonly MuscleGroup[];
+}
+
+/**
+ * Whether sets of this exercise count towards a muscle's weekly volume.
+ * Cat-cow lists "back" as its primary muscle, but it is not a hard set for
+ * the back, and the bike is not one for the quads (SPEC §4.2, v1.2).
+ */
+export function countsAsVolume(
+  exercise: Pick<VolumeExercise, 'movementPattern'>,
+  cfg = TRAINING_CONFIG,
+): boolean {
+  return !cfg.volumeExcludedPatterns.includes(exercise.movementPattern);
 }
 
 /**
  * Working sets per muscle group over the 7 days ending on `endDate`
  * (inclusive). SPEC §4.2: a primary muscle earns a full set, a secondary
  * one half; warm-ups do not count; a set with no recorded RIR counts,
- * because skipping the field is not the same as an easy set.
+ * because skipping the field is not the same as an easy set; mobility and
+ * cardio do not count at all.
  */
 export function weeklyVolume(
   sets: readonly VolumeSet[],
@@ -35,7 +49,7 @@ export function weeklyVolume(
     if (age < 0 || age >= 7) continue;
     if (set.isWarmup || (set.rir !== null && set.rir > cfg.workingSetMaxRir)) continue;
     const exercise = exercises[set.exerciseId];
-    if (!exercise) continue;
+    if (!exercise || !countsAsVolume(exercise, cfg)) continue;
     for (const muscle of exercise.primaryMuscles) out[muscle] += 1;
     for (const muscle of exercise.secondaryMuscles) out[muscle] += cfg.secondaryMuscleWeight;
   }

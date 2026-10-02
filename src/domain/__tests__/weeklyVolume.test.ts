@@ -1,11 +1,23 @@
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
-import { type VolumeExercise, type VolumeSet, volumeStatus, weeklyVolume } from '../volume/weekly';
+import {
+  countsAsVolume,
+  type VolumeExercise,
+  type VolumeSet,
+  volumeStatus,
+  weeklyVolume,
+} from '../volume/weekly';
 
 const END = '2026-10-07';
 
 const exercises: Record<string, VolumeExercise> = {
-  squat: { primaryMuscles: ['quads', 'glutes'], secondaryMuscles: ['core'] },
-  row: { primaryMuscles: ['back'], secondaryMuscles: ['biceps', 'core'] },
+  squat: {
+    movementPattern: 'Squat',
+    primaryMuscles: ['quads', 'glutes'],
+    secondaryMuscles: ['core'],
+  },
+  row: { movementPattern: 'Pull', primaryMuscles: ['back'], secondaryMuscles: ['biceps', 'core'] },
+  catCow: { movementPattern: 'Mobility', primaryMuscles: ['back', 'core'], secondaryMuscles: [] },
+  bike: { movementPattern: 'Cardio', primaryMuscles: ['quads'], secondaryMuscles: ['calves'] },
 };
 
 const set = (patch: Partial<VolumeSet> = {}): VolumeSet => ({
@@ -52,6 +64,28 @@ describe('weeklyVolume', () => {
 
   it('ignores an exercise it does not know', () => {
     expect(weeklyVolume([set({ exerciseId: 'ghost' })], exercises, END).quads).toBe(0);
+  });
+
+  it('does not count mobility or cardio as hard sets', () => {
+    const out = weeklyVolume(
+      [set({ exerciseId: 'catCow' }), set({ exerciseId: 'bike' })],
+      exercises,
+      END,
+    );
+    expect(out.back).toBe(0);
+    expect(out.core).toBe(0);
+    expect(out.quads).toBe(0);
+  });
+});
+
+describe('countsAsVolume', () => {
+  it.each([
+    ['Squat', true],
+    ['Core', true],
+    ['Mobility', false],
+    ['Cardio', false],
+  ] as const)('%s -> %s', (movementPattern, expected) => {
+    expect(countsAsVolume({ movementPattern })).toBe(expected);
   });
 });
 

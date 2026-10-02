@@ -5,10 +5,11 @@ import { MUSCLE_GROUPS } from '@/domain/coach/vocabulary';
 import { COACH_CONFIG } from '@/domain/config/training';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
 import { round1 } from '@/domain/metrics/series';
+import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
 
 import { coachContextSchema, type CoachContext, type LoadContext } from '../contract/coachContext';
-import { bodySummary, loadOf, volumeWeek } from './derive';
+import { bodySummary, volumeWeek } from './derive';
 import { redactNotes, type NoteOmissions, type RawNote } from './redact';
 import type { CoachSource, SourceSet } from './source';
 
@@ -61,7 +62,7 @@ export function buildCoachContext(source: CoachSource, cfg = COACH_CONFIG): Buil
     const groups = groupSetsByExercise(sets);
     for (const group of groups) {
       const perSession = group.sets.map((s) => ({
-        load: loadOf(s),
+        load: loadOfSet(s),
         reps: s.reps,
         timeSec: s.timeSec,
       }));
@@ -80,7 +81,7 @@ export function buildCoachContext(source: CoachSource, cfg = COACH_CONFIG): Buil
           reps: s.reps,
           timeSec: s.timeSec,
           rir: s.rir,
-          load: loadOf(s) satisfies LoadContext,
+          load: loadOfSet(s) satisfies LoadContext,
         })),
       })),
     };

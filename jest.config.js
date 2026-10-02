@@ -4,6 +4,9 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   // worker/ runs its own Vitest suite inside workerd.
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/worker/'],
+  // Only *.test files are suites, so shared fixtures can live next to them
+  // in __tests__ — out of the coverage count and not run as a suite.
+  testMatch: ['**/?(*.)+(test).[jt]s?(x)'],
   testTimeout: 20_000,
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

@@ -10,8 +10,12 @@ import { join } from 'node:path';
 
 import catalogue from '../data/exercises.json';
 import { exerciseCatalogueSchema } from '../data/exercises.schema';
+import slotCatalogue from '../data/slots.json';
+import { slotCatalogueSchema } from '../data/slots.schema';
 import templateCatalogue from '../data/templates.json';
 import { templateCatalogueSchema } from '../data/templates.schema';
+import { BANDS } from '../src/domain/inventory';
+import { slotCatalogProblems } from '../src/domain/plan/slotCatalog';
 
 const MEDIA_DIR = join(__dirname, '..', 'assets', 'exercise-media');
 
@@ -111,6 +115,34 @@ function main(): void {
     process.exit(1);
   }
 
+  const parsedSlots = slotCatalogueSchema.safeParse(slotCatalogue);
+  if (!parsedSlots.success) {
+    console.error('slots.json does not match the schema:\n');
+    for (const issue of parsedSlots.error.issues) {
+      console.error(`  ${issue.path.join('.') || '(root)'}: ${issue.message}`);
+    }
+    process.exit(1);
+  }
+
+  // The knee the catalogue must keep working for: this user's documented
+  // condition without the conservative mode (SPEC §10.1). Every slot needs
+  // a candidate it allows.
+  const slotErrors = slotCatalogProblems(parsedSlots.data.slots, exercises, {
+    knee: {
+      side: 'right',
+      missingCollaterals: true,
+      aclReconstructed: true,
+      varusThrust: true,
+      physioApproved: true,
+    },
+    bandIds: BANDS.map((b) => b.id),
+  });
+  if (slotErrors.length > 0) {
+    console.error('slots.json has problems:\n');
+    for (const error of slotErrors) console.error(`  ${error}`);
+    process.exit(1);
+  }
+
   const kneeLoading = exercises.filter((e) => e.loadsKnee).length;
   console.log(
     `exercises.json OK — ${exercises.length} exercises (v${parsed.data.version}), ` +
@@ -119,6 +151,9 @@ function main(): void {
   console.log(
     `templates.json OK — ${parsedTemplates.data.templates.length} templates, ` +
       `all exerciseIds resolve`,
+  );
+  console.log(
+    `slots.json OK — ${parsedSlots.data.slots.length} slots, every exercise in exactly one`,
   );
 }
 

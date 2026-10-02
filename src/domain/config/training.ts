@@ -75,6 +75,23 @@ export const TRAINING_CONFIG = {
   workingSetMaxRir: 4,
   /** A secondary muscle receives this fraction of a set. SPEC §4.2. */
   secondaryMuscleWeight: 0.5,
+  /** Never hard sets for a muscle, whatever the catalogue lists as primary. SPEC §4.2 v1.2. */
+  volumeExcludedPatterns: ['Mobility', 'Cardio'] as readonly MovementPattern[],
+} as const;
+
+/**
+ * Ranking of a replacement exercise, SPEC §3.4. The weights favour what
+ * protects a reconstructed ACL (hinge, both feet down, closed chain) over
+ * a mere match of pattern; below the threshold nothing is offered, because
+ * a bad substitute is worse than none.
+ */
+export const SUBSTITUTE_CONFIG = {
+  sharedPrimaryWeight: 50,
+  hingeWeight: 30,
+  bilateralWeight: 20,
+  closedChainWeight: 10,
+  samePatternWeight: 5,
+  threshold: 40,
 } as const;
 
 /**
