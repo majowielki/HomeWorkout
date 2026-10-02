@@ -67,7 +67,7 @@ for (const day of days) {
   for (const e of plan.exercises) {
     const amount = e.unit === 'sec' ? `${e.target}s` : `${e.target} (${e.repMin}-${e.repMax})`;
     console.log(
-      `   ${e.label.padEnd(3)} ${e.exerciseId.padEnd(30)} ${e.sets}x ${amount.padEnd(12)} ${load(e.load).padEnd(10)} RIR ${e.targetRirMin}-${e.targetRirMax}  ${e.reasons.join(',')}`,
+      `   ${e.label.padEnd(3)} ${(catalog[e.exerciseId]?.name ?? e.exerciseId).padEnd(36)} ${e.sets}x ${amount.padEnd(12)} ${load(e.load).padEnd(10)} RIR ${e.targetRirMin}-${e.targetRirMax}  ${e.reasons.join(',')}`,
     );
   }
   const skipped = plan.skipped.map((s) => `${s.slotId}:${s.reason}`).join(' ');
