@@ -61,29 +61,42 @@ tested and kept free of anything that needs a device to run.
 ## The AI layer
 
 An LLM never touches a number that matters. The rules engine owns every
-load; a model is asked to _comment_ on a weekly snapshot the app computes
-in code, and its answer has to be a typed object that passes a schema
-before the app looks at it. Today the person pastes the brief into a chat
-by hand to judge whether the answers are worth an integration; the Worker
-that makes the call is the next stage. What is built so far, and why each
-part exists:
+load; a model is asked to _comment_ on figures the app computes in code, and
+what it says has to pass the app's checks before anyone reads it. It is a
+layer on top: with the switch off, or no network, the app is unchanged.
+Whether it earns its place in a release is a question for two weeks of use,
+not for this repository. What is built, and why each part exists:
 
 - **A strict context contract.** Every object lists its fields, so a new
   database column cannot reach a prompt by accident. The person can read
   the exact text before anything is copied or sent.
-- **A text gate that runs before any network call.** Notes that read as an
-  injury, or that touch diet or medication, never reach a model. It is a
-  lexicon, measured and documented as a first layer rather than a
-  guarantee ([ADR 0004](docs/adr/0004-the-text-gate-is-a-floor.md)).
+- **A text gate that runs before any network call.** Notes and questions
+  that read as an injury, or that touch diet or medication, never reach a
+  model; the app answers with a fixed sentence. It is a lexicon, measured
+  and documented as a first layer rather than a guarantee
+  ([ADR 0004](docs/adr/0004-the-text-gate-is-a-floor.md)).
+- **A stateless Worker** between the app and the provider: shared-secret
+  auth, a rate limit, a daily token budget, typed errors, logs that hold
+  counts and never content ([worker/README.md](worker/README.md)).
+- **A weekly summary** that must be a typed object and gets one repair
+  attempt, and **a chat** where the model reads the log through read-only
+  tools that run on the phone, with the answer streaming in and stoppable all
+  the way to the provider. The loop, its limits and the wire format are the
+  app's own ([ADR 0005](docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md)).
+  A reply that breaks a rule is withdrawn, not shown.
 - **Versioned prompts.** A published prompt is pinned by a hash in a test;
   changing it means a new file and an evaluation report.
-- **Evaluation, with the scorers tested too.** Eighteen synthetic cases, ten
-  scorers (eight of them safety), and a deliberately broken answer for each rule
-  that its scorer must reject: a scorer that cannot fail is not a scorer. Reports
-  can be compared across prompt versions; a safety regression fails the build.
-  No real model has been evaluated yet, and the reports say so
+- **Evaluation, with the scorers tested too.** Thirty-six synthetic cases for
+  the two features, safety scorers that gate the build, and a deliberately
+  broken answer for each rule that its scorer must reject: a scorer that
+  cannot fail is not a scorer. The chat cases run through the real loop and
+  the real tools. Reports can be compared across prompt versions
   ([evals/README.md](evals/README.md)).
-- **No call to a real model in CI.** Everything above is deterministic.
+- **No call to a real model, anywhere.** CI is deterministic, and so far so is
+  every check made by hand: the Worker and the app were exercised end to end
+  against a stand-in model. A green evaluation shows the pipeline and the
+  scorers work together; it says nothing about how a model answers, and the
+  reports say so.
 
 The decisions are in [`docs/adr/`](docs/adr/), including what was
 deliberately left out and why ([ADR 0003](docs/adr/0003-what-we-do-not-do.md)).

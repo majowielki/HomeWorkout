@@ -440,7 +440,7 @@ użytkownik.
 | A1 — Worker i F1 | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-worker` | Worker, klient, `ai_exchanges`, karta w aplikacji, diagnostyka, CI; sprawdzone na emulatorze z atrapą modelu. Brakuje wywołania prawdziwego modelu (potrzebny klucz i konto Cloudflare) |
 | A2 — ewaluacja | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-evals` | scorery, runner, raporty, porównanie, szkielet sędziego, CI w trybie odtwarzania; nie oceniono żadnego prawdziwego modelu (brak klucza), sędzia nieskalibrowany |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7, a M7 na bramkę „dwa tygodnie używania" (IMPLEMENTACJA §8) |
-| A4 — rozmowa F4 | ⛔ | | narzędzie `getPlanExplanation` wymaga M7; reszta może iść wcześniej |
+| A4 — rozmowa F4 | ✅ kod 2026-10-02 · ⏳ żywy model · ⛔ `getPlanExplanation` | `feat/ai-chat` | pętla narzędzi na telefonie, streaming, anulowanie, ekran rozmowy, 18 przypadków ewaluacyjnych; sprawdzone na emulatorze z atrapą modelu. DoD „czemu dziś nie ma przysiadów” czeka na M7, bo narzędzie wyjaśniające plan wymaga silnika |
 | A5 — opcjonalnie | — | | |
 
 ### Wynik A0 (2026-10-01)
@@ -552,6 +552,76 @@ Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ogranic
 | prompt `weekly-summary/v1` niezmienny od publikacji (§4.5) | zmieniony **przed** pierwszym użyciem (pole `sessionCount` + zdanie w opisie danych), hash w teście przypięty ponownie | scorer wierności liczb pokazał, że model nie ma jak zacytować liczby sesji, której w danych nie ma (musiałby ją policzyć). V1 uznaję za opublikowaną od pierwszego użycia przez Ciebie albo pierwszej oceny na żywo; od tej chwili każda zmiana to `v2` |
 | A0 DoD: „≥ 2 tygodnie ręcznego używania z modelem" | dzieli się na część kodową (agent) i bramkę użytkownika | tej części nie da się wykonać w sesji; A1 w części, która nie zależy od wyniku bramki (Worker, klient), idzie dalej, ale **nic z A1 nie trafia do wydania aplikacji**, dopóki bramka nie da odpowiedzi „AI wnosi wartość" |
 
+### Wynik A4 (2026-10-02)
+
+**Zrobione:**
+
+- `src/ai/contract/chat.ts`, `chatTools.ts`: kontrakt rozmowy. Wiadomości, gramatyka konwersacji (pytanie, rundy wywołań z odpowiedziami, odpowiedź), zdarzenia strumienia (NDJSON: `start`, `text`, `tool_call`, `finish`, `error`), limity w jednym miejscu. Narzędzia zadeklarowane raz: nazwa, opis, schemat wejścia i **ścisły** schemat wyjścia.
+- `src/ai/tools/`: pięć narzędzi tylko do odczytu, liczone na telefonie na tych samych funkcjach co brief tygodniowy (`context/derive.ts`): `getRecentSessions`, `getExerciseHistory`, `getWeeklyVolume`, `getBodyTrend`, `findExercises`. Wynik przechodzi przez swój schemat wyjścia, zanim trafi do modelu; żadne pole nie niesie wolnego tekstu poza nazwą ćwiczenia z katalogu.
+- `src/ai/chat/runTurn.ts`: pętla tury. Bramka tekstu przed wysłaniem, krok modelu, wykonanie narzędzi, kolejny krok; limity rund i wywołań po obu stronach; odpowiedź sprawdzana po strumieniu i wycofywana, jeśli łamie regułę. Rozmowa pamięta pytania i odpowiedzi, nie ruch narzędzi.
+- `src/ai/client/chatClient.ts`, `ndjson.ts`: klient strumieniowy. Dzieli bajty po znaku nowej linii **przed** dekodowaniem, więc polska litera rozcięta między porcjami sieci przeżywa bez strumieniowego `TextDecoder` (dokumentacja Expo SDK 57: „not spec-compliant”). Porażka przed pierwszym bajtem i w strumieniu kończą się tak samo dla wywołującego.
+- `worker/`: `POST /v1/chat`, jeden krok modelu na żądanie, bez stanu. Własny limiter (`CHAT_LIMITER`), gramatyka konwersacji sprawdzana **zanim** wydamy token, ta sama bramka tekstu co na telefonie, `toolChoice: 'none'` po ostatniej rundzie, anulowanie przerywające wywołanie dostawcy, wywołanie bez zużycia naliczane szacunkiem. Wspólna „brama” obu tras przeniesiona do `http.ts`.
+- UI: ekran „Rozmowa z trenerem”, pasek aktywności narzędzia, Stop, ponowienie, „Nowa rozmowa”; tury w `ai_exchanges` (poza przerwanymi i zablokowanymi).
+- Ewaluacja: 18 przypadków czatu, 9 scorerów bezpieczeństwa i 2 jakościowe, odpowiedź kontrolna prowadząca prawdziwą pętlę, 12 mutacji. `npm run eval` uruchamia teraz oba zestawy.
+- [ADR 0005](../docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md): dlaczego własny protokół, a nie `useChat`.
+
+**Sprawdzone:**
+
+| Co | Jak | Wynik |
+|---|---|---|
+| Worker, 107 testów (47 nowych) | Vitest w workerd, prawdziwy KV, atrapa modelu ze strumieniem | ✅ |
+| Worker w warunkach CI | świeży klon, `npm ci` tylko w `worker/`: typy, testy, bundle | ✅, 316 KiB gzip, bez atrapy modelu |
+| Aplikacja | `npm run verify`: lint, format, typy, dane, 1333 testy | ✅, 100% pokrycia `src/domain` i `src/ai` (w tym nowych `chat/` i `tools/`) |
+| Strumień przez prawdziwy workerd | `curl -N` do `wrangler dev` | ✅ zdarzenia co ~220 ms, nie na końcu |
+| Anulowanie | zerwanie połączenia w trakcie strumienia | ✅ w logu `outcome: "aborted"`, atrapa dostawcy zgłasza przerwanie |
+| Aplikacja end to end | emulator Pixel_API36, Metro, `adb reverse`, `expo/fetch` | ✅ pytanie → narzędzie wykonane w SQLite telefonu → odpowiedź płynie słowo po słowie; Stop zostawia urwany tekst i „Zatrzymano.”; pamięć pytania; opis urazu dostaje stałe zdanie i **Worker nie widzi żadnego żądania**; bez serwera „AI niedostępne” z ponowieniem; wiersze w Diagnostyce AI |
+| `npm run eval` | oba zestawy, odpowiedzi kontrolne | ✅ wszystkie scorery bezpieczeństwa 100%, każda mutacja łapana |
+
+**Co wyszło przy sprawdzaniu (i nie wyszłoby bez niego):**
+
+1. SDK zgłasza anulowanie i przekroczenie czasu jako **zakończony strumień**, nie jako wyjątek. Błąd przed pierwszym zdarzeniem wracał jako status 200 z pustym ciałem. Teraz strumień zakończony, zanim cokolwiek powiedział, jest traktowany jak błąd przed pierwszym bajtem (właściwy status, 499 przy anulowaniu).
+2. SDK sam dopisuje `finish` do strumienia urwanego bez powodu. Telefon czyta `finish` inny niż `stop` jako „odpowiedź ucięta”, nie jako kompletną.
+3. Limit 6 żądań na minutę z F1 zablokowałby czat: jedno pytanie to do pięciu żądań. Własny `CHAT_LIMITER`, 30/min.
+4. Domyślny `onError` w `streamText` loguje błąd dostawcy, który może cytować wysłane żądanie. Wyłączony; test pilnuje, że log nie zawiera treści.
+5. Pętla uznawała za odpowiedź tekst sprzed wywołania narzędzia („Sprawdzam…”) przy pustym kroku po wynikach. Pustość liczy się na tekście ostatniego kroku.
+6. **Na Androidzie pole pytania chowało się za klawiaturą**, a testy komponentu tego nie widzą. `KeyboardAvoidingView` liczy zasłonięcie względem rodzica, a ekran leży pod nagłówkiem, więc brakowało dokładnie jego wysokości. Widok mierzy teraz, gdzie się zaczyna w oknie.
+7. Pierwszy przebieg ewaluacji czatu: 17/18. Jedyna porażka to zbyt ścisła oczekiwana fraza w przypadku („waga”, a odpowiedź mówi „ważenie”), czyli błąd przypadku, nie scorera.
+
+**Czego nie sprawdziłem (nie mam klucza ani konta):** żadnego wywołania prawdziwego modelu. Trzy rzeczy napisane wprost do udokumentowanego zachowania SDK i przetestowane na atrapie, ale nie na żywo: `toolChoice: 'none'` z wcześniejszymi wywołaniami w historii (Gemini może odrzucić taki układ), schematy narzędzi przez podzbiór function calling Gemini, oraz że anulowanie zamyka strumień HTTP u dostawcy (potwierdzone tylko do atrapy dostawcy). Nie sprawdziłem też buildu release ani prawdziwego Pixela, ani TLS przez internet; strumień szedł przez `adb reverse` w buildzie debug.
+
+**Granice (ważne, żeby nie sprzedać tego jako więcej):**
+
+- **Tekst odpowiedzi jest widoczny, gdy płynie**, a wycofywany dopiero po końcu. Odpowiedź łamiąca regułę jest na ekranie tak długo, jak trwa. Bufor do końca usunąłby to okno razem z sensem strumieniowania; stąd wycofanie, nie naprawa jak w F1.
+- Strażnik „zalecenie obciążenia” (`prescribesLoad`) to ta sama heurystyka co scorer `noLoads` z A2: zdanie z czasownikiem zalecającym i słowem o obciążeniu. Rozkaz bez takiego słowa przejdzie, a „ustawiłeś hantle na 12 kg” (opis przeszłości) może zostać wycofane. Fałszywy alarm kosztuje jedną wycofaną odpowiedź; dopiero żywe odpowiedzi pokażą, jak często.
+- Bramka tekstu to słownik (ADR 0004). Skarga sformułowana pośrednio może przejść; wtedy drugą warstwą jest prompt i strażnik odpowiedzi. Tego nie mierzy żaden przypadek: pętla nie ma ścieżki omijającej bramkę (opis w `evals/README.md`).
+- `numbersFaithful` w czacie ma luki z A2 (spacja jako separator tysięcy, „jeden/jedna”, „półtora”).
+- Zbiór przypadków pisałem ja, razem z odpowiedzią kontrolną. Zielone `npm run eval` mówi, że pętla, narzędzia, bramka i scorery działają razem, **nie** że model odpowiada dobrze.
+
+**DoD A4:**
+
+| Kryterium | Stan |
+|---|---|
+| „czemu dziś nie ma przysiadów?” → odpowiedź oparta na kodach powodów z narzędzia | ⛔ czeka na M7. Czat mówi wprost, że nie widzi planu (prompt, przypadek `plan-boundary`) |
+| anulowanie w trakcie strumienia przerywa generowanie u dostawcy, widać w logu | ✅ do atrapy dostawcy (test w workerd + emulator); ⏳ u prawdziwego dostawcy |
+| limit wywołań narzędzi egzekwowany testem | ✅ Worker (`toolChoice: 'none'` po czwartej rundzie), pętla (`tool_limit` po dokładnie czterech), mutacja `neverStopsAskingForTools` |
+| przypadki: prompt injection, przynęty arytmetyczne, kilka narzędzi | ✅ po dwa przypadki injection (w pytaniu i w nazwie ćwiczenia) i arytmetyki (suma, prognoza), jeden na kilka narzędzi |
+
+**Odstępstwa od v0.2 (świadome):**
+
+| v0.2 mówi | Realizacja | Dlaczego |
+|---|---|---|
+| `useChat` + `DefaultChatTransport` „do decyzji w A4” (D2) | własny protokół NDJSON i własna pętla | [ADR 0005](../docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md): jeden kontrakt Zod po obu stronach, kontrole między krokami, mniej niesprawdzonego na urządzeniu |
+| `getPlanExplanation(date)` wśród narzędzi (§3 F4) | brak do M7 | wymaga silnika reguł; dodanie to jeden wpis w kontrakcie i jeden w implementacjach, a typ nie skompiluje się bez drugiego |
+| `getWeeklyVolume(weekStart)` | `getWeeklyVolume(weeksAgo)` | model nie powinien liczyć dat; `weeksAgo: 0` to siedem dni kończących się dziś |
+| narzędzia: plan + `getExerciseHistory`, `getWeeklyVolume`, `getBodyTrend`, `findExercises` | dodane `getRecentSessions` | „co ostatnio trenowałem?” to najprostsze pytanie i nie miało narzędzia |
+| ten sam limiter dla wszystkich tras | osobny `CHAT_LIMITER` (30/min) | jedno pytanie to do pięciu żądań; limit 6/min z F1 uniemożliwiłby rozmowę |
+| naprawa odpowiedzi jednym ponowieniem (§4.3, jak w F1) | wycofanie odpowiedzi, bez naprawy | odpowiedź jest już na ekranie, kiedy strażnik może ją ocenić |
+| fakty o danych tylko przez narzędzia | mały blok faktów w każdym żądaniu (data, liczba sesji, sygnały, kody ograniczeń) | reguła bezpieczeństwa (skąpa historia, I5) nie może zależeć od tego, czy model pamięta o zapytaniu |
+| `ai_exchanges.request` jako `CoachContext` | `unknown` (tylko typ, bez migracji) | tura czatu zapisuje fakty i rozmowę; tury przerwane i zablokowane bramką nie zapisują nic |
+| `CONTRACT_VERSION` podnoszony przy zmianie kontraktu | nadal 1 | nowy endpoint i wspólna unia błędów; nic z A1 nie trafiło jeszcze do wydania, więc nie ma partnera w starej wersji |
+
+**Co zostaje po Twojej stronie:** to samo co po A1 i A2 (klucz Gemini, konto Cloudflare, `MODEL_ID`, dev client, dwa tygodnie ręcznego używania). Dla czatu dodatkowo: `npm run eval:live` ocenia teraz i podsumowanie, i czat (kroki czatu zapisuje w `evals/recorded/live/chat/`); pierwsze wywołanie na żywo sprawdzi trzy rzeczy z listy „czego nie sprawdziłem”.
+
 ### A0 — Fundament bez sieci (2–3 wieczory)
 
 1. `src/ai/contract` dla F1; `buildCoachContext` + `redact`; ekran „co wysyłam" + „Kopiuj brief" /
@@ -618,7 +688,7 @@ Stan po weryfikacji z 2026-10-01 — dowody w [WERYFIKACJA-RESEARCH-AI.md](WERYF
 | # | Decyzja | Rekomendacja | Stan |
 |---|---|---|---|
 | D1 | Gdzie działa pętla narzędzi F4 | **na telefonie**: Worker zwraca żądanie wywołania narzędzia, telefon wykonuje je lokalnie i odsyła wynik. Dane zostają lokalne, Worker bezstanowy | ✅ potwierdzone PoC (zwrot wywołania, streaming i abort na Androidzie) |
-| D2 | Vercel AI SDK czy własny adapter | **AI SDK 7 w Workerze** (`generateText` + `Output.object`, `isStepCount`). Telefon ↔ Worker: własny kontrakt Zod dla F1–F3; dla F4 `useChat` + `DefaultChatTransport` do decyzji w A4 | ✅ potwierdzone PoC w workerd |
+| D2 | Vercel AI SDK czy własny adapter | **AI SDK 7 w Workerze** (`generateText` + `Output.object`, `isStepCount`). Telefon ↔ Worker: własny kontrakt Zod dla F1–F3; dla F4 `useChat` + `DefaultChatTransport` do decyzji w A4 | ✅ potwierdzone PoC w workerd. **A4: dla F4 własny protokół, nie `useChat`** — [ADR 0005](../docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md) |
 | D3 | Dostawca i model | start: Gemini — dla Ciebie w EOG bez trenowania na danych także na kluczu darmowym; demo dla innych osób → plan płatny. Drugi dostawca wybierany ewaluacją (§5.4) | ⏳ ostatecznie po A2/A5 |
 | D4 | Współdzielenie kodu aplikacja ↔ Worker | `worker/` z własnym `package.json`, kontrakt importowany ścieżką względną, alias `zod` na wejście ESM, `worker/` wykluczony z narzędzi roota | ✅ potwierdzone PoC |
 | D5 | Runner testów Workera | `@cloudflare/vitest-plugin` + **Vitest 4.1** (nie 5) — uzasadnione odstępstwo od IMPLEMENTACJA §1.2 (inny runtime) | ✅ potwierdzone PoC |
