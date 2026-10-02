@@ -1,3 +1,4 @@
+import { prescribesLoad } from './loadGuard';
 import { fold, hasStem } from './text';
 import { detectOutOfScope, type OutOfScopeTopic } from './topicGuard';
 
@@ -29,7 +30,9 @@ export type GuardViolation =
   | { kind: 'flag_not_in_signals'; code: string }
   | { kind: 'sparse_vocabulary'; word: string }
   | { kind: 'out_of_scope'; topic: OutOfScopeTopic }
-  | { kind: 'medical_advice'; word: string };
+  | { kind: 'medical_advice'; word: string }
+  /** Free text only: a summary has no field for a load, a chat reply does not. */
+  | { kind: 'load_prescription' };
 
 /** Direction words that need history to mean anything. PLAN §6.2. */
 export const SPARSE_FORBIDDEN_STEMS = ['trend', 'progres', 'stagnacj', 'adaptacj', 'regres'];
@@ -74,23 +77,40 @@ export function checkSummary(summary: SummaryText, facts: SummaryFacts): GuardVi
       out.push({ kind: 'flag_not_in_signals', code: flag.code });
   }
 
-  for (const text of summaryStrings(summary)) {
-    const words = wordsOf(text);
+  for (const text of summaryStrings(summary)) out.push(...checkText(text, facts.sparse));
 
-    if (facts.sparse) {
-      for (const stem of SPARSE_FORBIDDEN_STEMS) {
-        if (hasStem(words, [stem])) out.push({ kind: 'sparse_vocabulary', word: stem });
-      }
-    }
+  return dedupe(out);
+}
 
-    const topic = detectOutOfScope(text);
-    if (topic !== null) out.push({ kind: 'out_of_scope', topic });
+/** The word-level checks every piece of model text must pass, whatever its shape. */
+function checkText(text: string, sparse: boolean): GuardViolation[] {
+  const out: GuardViolation[] = [];
+  const words = wordsOf(text);
 
-    for (const stem of MEDICAL_ADVICE_STEMS) {
-      if (hasStem(words, [stem])) out.push({ kind: 'medical_advice', word: stem });
+  if (sparse) {
+    for (const stem of SPARSE_FORBIDDEN_STEMS) {
+      if (hasStem(words, [stem])) out.push({ kind: 'sparse_vocabulary', word: stem });
     }
   }
 
+  const topic = detectOutOfScope(text);
+  if (topic !== null) out.push({ kind: 'out_of_scope', topic });
+
+  for (const stem of MEDICAL_ADVICE_STEMS) {
+    if (hasStem(words, [stem])) out.push({ kind: 'medical_advice', word: stem });
+  }
+  return out;
+}
+
+/**
+ * The same checks for a chat reply, plus the one a summary's schema makes
+ * unnecessary: no load for a future session. The reply has already been
+ * shown while it streamed, so a violation means the app takes it back
+ * (see src/ai/chat); there is no repair as in the weekly summary.
+ */
+export function checkReply(text: string, facts: { sparse: boolean }): GuardViolation[] {
+  const out = checkText(text, facts.sparse);
+  if (prescribesLoad(text)) out.push({ kind: 'load_prescription' });
   return dedupe(out);
 }
 
@@ -117,6 +137,8 @@ export function describeViolations(violations: readonly GuardViolation[]): strin
           return `the answer touches ${v.topic}, which is out of scope`;
         case 'medical_advice':
           return `the answer gives advice about a complaint ("${v.word}")`;
+        case 'load_prescription':
+          return 'the answer tells the person what load, reps or band to use next';
       }
     })
     .join('; ');

@@ -21,7 +21,7 @@ import {
   VOLUME_STATUSES,
 } from '../../domain/coach/vocabulary';
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const muscle = z.enum(MUSCLE_GROUPS);
 const count = z.number().int().nonnegative();
 
@@ -39,7 +39,7 @@ export const loadSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('bodyweight') }),
 ]);
 
-const setSchema = z.strictObject({
+export const setSchema = z.strictObject({
   reps: count.nullable(),
   timeSec: count.nullable(),
   rir: z.number().int().min(0).max(10).nullable(),
@@ -61,7 +61,7 @@ const sessionSchema = z.strictObject({
   ),
 });
 
-const volumeWeekSchema = z.strictObject({
+export const volumeWeekSchema = z.strictObject({
   /** The 7 days ending on this date. */
   endDate: isoDate,
   muscles: z.array(
@@ -80,7 +80,7 @@ const trendSchema = z.strictObject({
   sessions: count,
 });
 
-const weightSchema = z.strictObject({
+export const weightSchema = z.strictObject({
   latestKg: z.number(),
   latestDate: isoDate,
   /** Mean of the weigh-ins in the 7 days ending on the latest one, if there are enough. */
@@ -91,7 +91,7 @@ const weightSchema = z.strictObject({
   entries: count,
 });
 
-const waistSchema = z.strictObject({
+export const waistSchema = z.strictObject({
   latestCm: z.number(),
   latestDate: isoDate,
   changeCm: z.number().nullable(),

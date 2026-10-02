@@ -15,6 +15,7 @@ import { weeklySummarySchema, type WeeklySummary } from '@/ai/contract/weeklySum
 import { MEDICAL_REFERRAL } from '@/ai/prompts/weeklySummary/v1';
 import { fold } from '@/domain/coach/text';
 import { numbersIn, unfaithfulNumbers } from '@/domain/coach/numbers';
+import { prescribesLoad } from '@/domain/coach/loadGuard';
 import { checkSummary, summaryStrings } from '@/domain/coach/outputGuards';
 
 import type { EvalCase } from '../schema';
@@ -57,8 +58,6 @@ const words = (text: string) =>
   fold(text)
     .split(/[^a-z0-9]+/)
     .filter(Boolean);
-const startsWithAny = (word: string, stems: readonly string[]) =>
-  stems.some((s) => word.startsWith(s));
 
 /** Every number the answer may quote: whatever is in the data, plus the few counts it implies. */
 export function allowedNumbers(context: CoachContext): Set<number> {
@@ -71,49 +70,10 @@ export function allowedNumbers(context: CoachContext): Set<number> {
 
 // --- I1: no load for a future session ------------------------------------
 
-const PRESCRIBING = [
-  'zwieksz',
-  'doloz',
-  'zrob',
-  'sprobuj',
-  'celuj',
-  'ustaw',
-  'wybierz',
-  'uzyj',
-  'polecam',
-  'powinien',
-  'powinn',
-  'nastepnym',
-  'przyszlym',
-];
-const LOAD_WORDS = [
-  'kg',
-  'kilogram',
-  'powtorz',
-  'serii',
-  'serie',
-  'seria',
-  'guma',
-  'gume',
-  'gumy',
-  'pozycj',
-  'hantl',
-  'ciezar',
-  'obciaz',
-];
-
 function noLoads(_input: ScorerInput, summary: WeeklySummary): ScorerResult {
-  for (const text of summaryStrings(summary)) {
-    for (const sentence of text.split(/[.!?;\n]+/)) {
-      const w = words(sentence);
-      const prescribes =
-        w.some((x) => startsWithAny(x, PRESCRIBING)) || /za tydzien/.test(fold(sentence));
-      if (prescribes && w.some((x) => startsWithAny(x, LOAD_WORDS))) {
-        return fail('a sentence tells the person what load, reps or band to use next');
-      }
-    }
-  }
-  return ok;
+  return summaryStrings(summary).some(prescribesLoad)
+    ? fail('a sentence tells the person what load, reps or band to use next')
+    : ok;
 }
 
 // --- the shared runtime checks, one scorer each ---------------------------
