@@ -1,5 +1,6 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import type { SessionPlan } from '@/domain/plan/types';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import type {
   AnchorPosition,
@@ -32,6 +33,8 @@ export const userProfile = sqliteTable('user_profile', {
   kneeProfile: text('knee_profile', { mode: 'json' }).$type<KneeProfile | null>(),
   /** Null = defaults from domain/reminders/schedule.ts. */
   reminders: text('reminders', { mode: 'json' }).$type<ReminderSettings | null>(),
+  /** Exercises the person asked never to be offered again (SPEC §10.2). Null = none. */
+  excludedExerciseIds: text('excluded_exercise_ids', { mode: 'json' }).$type<string[] | null>(),
   updatedAt: text('updated_at').notNull(),
 });
 
@@ -76,6 +79,11 @@ export const workouts = sqliteTable(
     templateId: text('template_id').references(() => workoutTemplates.id),
     sessionRpe: integer('session_rpe'),
     notes: text('notes'),
+    /**
+     * What the rules engine proposed, frozen when the session started
+     * (SPEC §10.5). Null for a template session.
+     */
+    plan: text('plan', { mode: 'json' }).$type<SessionPlan | null>(),
   },
   (t) => [index('workouts_date_idx').on(t.trainingDate), index('workouts_status_idx').on(t.status)],
 );
@@ -110,6 +118,27 @@ export const setLogs = sqliteTable(
     index('set_logs_workout_idx').on(t.workoutId),
     index('set_logs_exercise_idx').on(t.exerciseId),
   ],
+);
+
+/**
+ * Blocks (mesocycles), one row each: which exercise every slot uses for
+ * the block, and the dates that decide its phase (SPEC §10.2). The open
+ * block has no closedOn; past rows are the rotation history.
+ */
+export const trainingBlocks = sqliteTable(
+  'training_blocks',
+  {
+    id: text('id').primaryKey(),
+    blockIndex: integer('block_index').notNull(),
+    startedOn: text('started_on').notNull(),
+    deloadFrom: text('deload_from'),
+    deloadReason: text('deload_reason', { enum: ['DELOAD_SCHEDULED', 'DELOAD_REACTIVE'] }),
+    /** slotId -> exerciseId. */
+    selections: text('selections', { mode: 'json' }).$type<Record<string, string>>().notNull(),
+    closedOn: text('closed_on'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [index('training_blocks_closed_idx').on(t.closedOn)],
 );
 
 export const cardioLogs = sqliteTable(

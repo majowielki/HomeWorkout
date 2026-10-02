@@ -25,7 +25,7 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | ⛔ bramka — dwa tygodnie używania | ⏭ pominięta 2026-10-02 | tag `pre-m7` | **świadoma decyzja użytkownika**: pełny silnik teraz jako eksperyment — działający silnik pokaże, co zmienić albo które założenie odrzucić. Punkt powrotu: lokalny tag `pre-m7` |
 | M6 — kalibracja gum | ✅ 2026-09-15 | `d7a309e` | model pozycja → rozciągnięcie doprecyzowany (§0.2); DoD wymaga trzech realnych kalibracji; **zrobiony przed bramką** — bramka nadal obowiązuje przed M7 |
 | review M4–M6 | ✅ 2026-09-15 | | nagłówki stacka, przypomnienia jako seria, seria rozgrzewkowa, rower w historii, granica SQL egzekwowana lintem, ten rozdział |
-| M7 — silnik reguł | 🚧 od 2026-10-02 | | wg SPEC v1.2: sloty i rotacja co blok, trening codzienny (rower + 20–30 min), objętość 3–6, kolano tylko twarde wykluczenia (tryb konserwatywny wyłącza użytkownik w Ustawieniach). Etapy w §8 „M7" |
+| M7 — silnik reguł | ✅ 2026-10-02 (etapy 0–5) | | wg SPEC v1.2: sloty i rotacja co blok, trening codzienny (rower + 20–30 min), objętość 3–6, kolano tylko twarde wykluczenia (tryb konserwatywny wyłącza użytkownik w Ustawieniach). Etapy w §8 „M7" |
 | Warstwa AI (A0–A5) | A0–A2, A4 ✅ 2026-10-02 | | zastępuje M8–M9; A3 i narzędzie `getPlanExplanation` czekają na M7. Stan i odstępstwa: [AI-INTEGRACJA.md](AI-INTEGRACJA.md) §10.0 |
 
 ### 0.2 Odstępstwa od dokumentu — świadome

@@ -18,6 +18,9 @@ import { getDailyLog } from '@/db/repositories/dailyLogs';
 import { round1, summarizeWeight } from '@/domain/metrics/series';
 import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { WeightTrendBadge } from '@/features/body/WeightTrendBadge';
+import { planTitle } from '@/features/plan/format';
+import { PlanHero } from '@/features/plan/PlanHero';
+import { usePlanToday } from '@/features/plan/usePlanToday';
 import { SessionHero } from '@/features/workout/SessionHero';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { useSessionOverview } from '@/features/workout/useSessionOverview';
@@ -48,6 +51,7 @@ type DailyState = {
  */
 export default function TodayScreen() {
   const session = useSessionOverview();
+  const today = usePlanToday();
   const exerciseMap = useExerciseMap();
   const [body, setBody] = useState<BodyState | null>(null);
   const [daily, setDaily] = useState<DailyState | null>(null);
@@ -115,14 +119,10 @@ export default function TodayScreen() {
     );
   }
 
-  const { inProgress, suggested, templates, lastTemplateName, lastSessionDaysAgo } = session.data;
+  const { inProgress, templates } = session.data;
   const inProgressTemplate = inProgress
     ? templates.find((t) => t.id === inProgress.templateId)
     : undefined;
-  const lastLine =
-    lastSessionDaysAgo === null
-      ? pl.workout.noSessionsYet
-      : `${pl.workout.lastSession(lastSessionDaysAgo)}${lastTemplateName ? ` · ${lastTemplateName}` : ''}`;
 
   return (
     <View className="flex-1 bg-background">
@@ -136,9 +136,9 @@ export default function TodayScreen() {
         {inProgress ? (
           <SessionHero
             eyebrow={pl.today.inProgressEyebrow}
-            title={inProgressTemplate?.name ?? ''}
+            title={inProgress.plan ? planTitle(inProgress.plan) : (inProgressTemplate?.name ?? '')}
             badge={pl.history.status.in_progress}
-            blocks={inProgressTemplate?.blocks}
+            blocks={inProgress.plan?.exercises ?? inProgressTemplate?.blocks}
             exerciseMap={exerciseMap}
           >
             <Button
@@ -148,28 +148,9 @@ export default function TodayScreen() {
               onPress={() => session.resume(inProgress.id)}
             />
           </SessionHero>
-        ) : suggested ? (
-          <SessionHero
-            eyebrow={pl.today.nextSessionEyebrow}
-            title={suggested.name}
-            badge={pl.workout.suggested}
-            meta={
-              lastSessionDaysAgo === null
-                ? pl.workout.blockCount(suggested.blocks.length)
-                : `${pl.workout.blockCount(suggested.blocks.length)} · ${lastLine}`
-            }
-            blocks={suggested.blocks}
-            exerciseMap={exerciseMap}
-          >
-            <Button
-              size="lg"
-              label={pl.today.startNext(suggested.name)}
-              icon={<Play size={18} className="text-primary-foreground" />}
-              onPress={() => session.start(suggested.id)}
-              disabled={session.starting}
-            />
-          </SessionHero>
-        ) : null}
+        ) : (
+          <PlanHero today={today} exerciseMap={exerciseMap} />
+        )}
 
         <Card className="gap-4">
           <View className="flex-row items-center justify-between">

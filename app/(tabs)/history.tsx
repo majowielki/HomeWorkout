@@ -16,6 +16,7 @@ import { listWorkouts, type WorkoutListItem } from '@/db/repositories/workouts';
 import { durationMinutes } from '@/domain/history/summary';
 import { cn } from '@/lib/cn';
 import { formatDate } from '@/lib/format';
+import { planTitle } from '@/features/plan/format';
 import { pl } from '@/strings/pl';
 
 /**
@@ -43,7 +44,9 @@ export default function HistoryScreen() {
         id: w.id,
         at: w.startedAt,
         workout: w,
-        templateName: (w.templateId && names.get(w.templateId)) || pl.history.noTemplate,
+        templateName:
+          (w.templateId && names.get(w.templateId)) ||
+          (w.plan ? planTitle(w.plan) : pl.history.noTemplate),
       })),
       ...rides.map((r): Row => ({ kind: 'ride', id: r.id, at: r.loggedAt, ride: r })),
     ];

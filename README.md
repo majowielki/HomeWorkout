@@ -3,7 +3,8 @@
 A single-user, offline-first workout tracker for training at home with a
 very specific set of constraints — and a rules engine that respects them.
 
-> **Status:** early development, milestones M0–M6 done and reviewed (see
+> **Status:** early development, milestones M0–M7 done — M7 is the rules engine that plans
+> every day (see
 > [`Documents/IMPLEMENTACJA.md`](Documents/IMPLEMENTACJA.md) §0 for the milestone
 > table and every deliberate deviation from the plan). Android only.
 > The UI is in Polish by design; code, tests and documentation are in English.
@@ -33,6 +34,16 @@ equipment, today?_
 - **Weight loss on a GLP-1/GIP agonist.** The programme targets lean-mass
   retention in a caloric deficit: low weekly volume, full-body sessions,
   2–3 RIR on compounds, frequent deloads that cut volume but never load.
+- **The whole body over months, not twelve exercises on repeat.** The
+  engine plans every day from movement slots (squat, hinge, horizontal
+  push, calves …): each block of four weeks fixes one exercise per slot so
+  progression has something to measure, and the next block rotates every
+  slot to its next variant. A day takes the muscles furthest below their
+  weekly target that are not still recovering, fits them into 20–30
+  minutes, and says why every other movement is left out. A 12-week
+  simulation on the shipped catalogue is a test (`npx tsx
+scripts/simulate-plan.ts` prints the calendar), and its first runs
+  changed the design — see SPEC §10.8.
 - **A human in the loop, then an LLM.** The rules engine owns every number.
   The planned AI layer only interprets, and its output is validated by the
   same schema before it can touch a plan.
@@ -48,8 +59,8 @@ src/ai/         the optional AI layer: strict contract, context builder, version
 src/db/         Drizzle schema, migrations, repositories (the only SQL — lint-enforced)
 src/features/   screen-level components composed from the layers below
 src/components/ shadcn-style UI kit on NativeWind
-data/           exercise catalogue and workout templates (JSON + Zod)
-scripts/        CI validation and media import
+data/           exercise catalogue, movement slots and templates (JSON + Zod)
+scripts/        CI validation, media import, the plan simulation
 evals/          evaluation cases for the AI layer (synthetic data only)
 docs/adr/       architecture decision records
 ```

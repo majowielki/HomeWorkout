@@ -12,6 +12,7 @@ import { getTemplate } from '@/db/repositories/templates';
 import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
 import { daysBetween } from '@/domain/time/trainingDate';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
+import { planTitle } from '@/features/plan/format';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
 
@@ -21,6 +22,8 @@ type Loaded = {
   templateName: string;
   currentSets: number;
   comparison: { daysAgo: number; previousSets: number } | null;
+  /** A session from the engine's plan: no template to compare against. */
+  planned: boolean;
 };
 
 type State = { kind: 'loading' } | { kind: 'notFound' } | { kind: 'ready'; data: Loaded };
@@ -40,13 +43,13 @@ export default function SessionSummaryScreen() {
     async function run() {
       const workout = await getWorkout(id);
       const template = workout?.templateId ? await getTemplate(workout.templateId) : null;
-      if (!workout || !template) {
+      if (!workout || (!template && !workout.plan)) {
         if (!cancelled) setState({ kind: 'notFound' });
         return;
       }
 
       const currentSets = await countWorkingSets(id);
-      const previous = await findPreviousCompleted(template.id, id);
+      const previous = template ? await findPreviousCompleted(template.id, id) : null;
       const comparison = previous
         ? {
             daysAgo: daysBetween(previous.trainingDate, workout.trainingDate),
@@ -55,7 +58,15 @@ export default function SessionSummaryScreen() {
         : null;
 
       if (!cancelled) {
-        setState({ kind: 'ready', data: { templateName: template.name, currentSets, comparison } });
+        setState({
+          kind: 'ready',
+          data: {
+            templateName: template ? template.name : planTitle(workout.plan!),
+            currentSets,
+            comparison,
+            planned: !template,
+          },
+        });
       }
     }
 
@@ -94,7 +105,7 @@ export default function SessionSummaryScreen() {
     );
   }
 
-  const { templateName, currentSets, comparison } = state.data;
+  const { templateName, currentSets, comparison, planned } = state.data;
 
   return (
     <View className="flex-1 gap-4 bg-background p-4">
@@ -111,7 +122,9 @@ export default function SessionSummaryScreen() {
                   comparison.previousSets,
                   currentSets,
                 )
-              : pl.workout.summary.noPrevious}
+              : planned
+                ? pl.workout.summary.plannedNext
+                : pl.workout.summary.noPrevious}
           </Text>
         </CardContent>
       </Card>

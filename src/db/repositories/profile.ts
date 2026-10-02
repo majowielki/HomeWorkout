@@ -103,3 +103,28 @@ export function liveKneeProfileQuery() {
     .from(userProfile)
     .where(eq(userProfile.id, PROFILE_ID));
 }
+
+/** Exercises the person asked never to be offered again (SPEC §10.2). */
+export async function getExcludedExerciseIds(): Promise<string[]> {
+  const [row] = await db
+    .select({ ids: userProfile.excludedExerciseIds })
+    .from(userProfile)
+    .where(eq(userProfile.id, PROFILE_ID))
+    .limit(1);
+  return row?.ids ?? [];
+}
+
+/** Adds (`excluded: true`) or removes an exercise from the do-not-suggest list. */
+export async function setExerciseExcluded(
+  exerciseId: string,
+  excluded: boolean,
+  now: Date = new Date(),
+): Promise<void> {
+  const current = new Set(await getExcludedExerciseIds());
+  if (excluded) current.add(exerciseId);
+  else current.delete(exerciseId);
+  await db
+    .update(userProfile)
+    .set({ excludedExerciseIds: [...current], updatedAt: now.toISOString() })
+    .where(eq(userProfile.id, PROFILE_ID));
+}

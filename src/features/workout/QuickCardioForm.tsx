@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Stepper } from '@/components/ui/stepper';
 import { logCardio } from '@/db/repositories/cardioLogs';
+import { BIKE_CONFIG } from '@/domain/config/training';
 import { pl } from '@/strings/pl';
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
 };
 
 const MINUTE_STEP = 5;
-const RESISTANCE_MAX = 20;
+const RESISTANCE_MAX = BIKE_CONFIG.resistanceMax;
 const RPE_MAX = 10;
 
 /**

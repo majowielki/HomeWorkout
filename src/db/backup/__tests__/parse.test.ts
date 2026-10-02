@@ -10,6 +10,7 @@ import {
   dailyLogRowSchema,
   measurementRowSchema,
   setLogRowSchema,
+  trainingBlockRowSchema,
   userProfileRowSchema,
   workoutRowSchema,
   workoutTemplateRowSchema,
@@ -22,6 +23,7 @@ import type {
   dailyLogs,
   measurements,
   setLogs,
+  trainingBlocks,
   userProfile,
   workouts,
   workoutTemplates,
@@ -48,7 +50,11 @@ const _cardio: Equal<z.infer<typeof cardioLogRowSchema>, typeof cardioLogs.$infe
 const _body: Equal<z.infer<typeof bodyMetricRowSchema>, typeof bodyMetrics.$inferSelect> = true;
 const _meas: Equal<z.infer<typeof measurementRowSchema>, typeof measurements.$inferSelect> = true;
 const _daily: Equal<z.infer<typeof dailyLogRowSchema>, typeof dailyLogs.$inferSelect> = true;
-void [_profile, _bands, _templates, _workouts, _sets, _cardio, _body, _meas, _daily];
+const _blocks: Equal<
+  z.infer<typeof trainingBlockRowSchema>,
+  typeof trainingBlocks.$inferSelect
+> = true;
+void [_profile, _bands, _templates, _workouts, _sets, _cardio, _body, _meas, _daily, _blocks];
 
 function validBackup(): BackupFile {
   return {
@@ -72,6 +78,7 @@ function validBackup(): BackupFile {
             physioApproved: false,
           },
           reminders: null,
+          excludedExerciseIds: null,
           updatedAt: '2026-09-15T08:00:00.000Z',
         },
       ],
@@ -117,6 +124,7 @@ function validBackup(): BackupFile {
           templateId: 'a',
           sessionRpe: 7,
           notes: null,
+          plan: null,
         },
       ],
       set_logs: [
@@ -160,6 +168,18 @@ function validBackup(): BackupFile {
           steps: null,
           note: null,
           updatedAt: '2026-09-15T08:00:00.000Z',
+        },
+      ],
+      training_blocks: [
+        {
+          id: 'b1',
+          blockIndex: 1,
+          startedOn: '2026-09-14',
+          deloadFrom: null,
+          deloadReason: null,
+          selections: { squat: 'goblet-squat' },
+          closedOn: null,
+          updatedAt: '2026-09-14T17:00:00.000Z',
         },
       ],
     },
@@ -230,6 +250,44 @@ describe('parseBackup', () => {
     expect(result.detail).toContain('set_logs.s1.bandId -> green');
     expect(result.detail).toContain('workouts.w1.templateId -> gone');
     expect(result.detail).toContain('cardio_logs.c1.workoutId -> w-missing');
+  });
+
+  it('lifts a version 1 file: no exclusions, no plans, no blocks', () => {
+    const v2 = validBackup();
+    const v1 = {
+      ...v2,
+      schemaVersion: 1,
+      tables: {
+        ...v2.tables,
+        user_profile: v2.tables.user_profile.map(({ excludedExerciseIds: _, ...row }) => row),
+        workouts: v2.tables.workouts.map(({ plan: _, ...row }) => row),
+        training_blocks: undefined,
+      },
+    };
+    expect(parseBackup(JSON.stringify(v1))).toEqual({
+      ok: true,
+      data: { ...v2, tables: { ...v2.tables, training_blocks: [] } },
+    });
+  });
+
+  it('lifts a version 1 file even without the tables it extends', () => {
+    const v1 = { ...validBackup(), schemaVersion: 1 };
+    const tables: Partial<BackupFile['tables']> = { ...v1.tables };
+    delete tables.user_profile;
+    delete tables.workouts;
+    expect(parseBackup(JSON.stringify({ ...v1, tables }))).toMatchObject({
+      ok: false,
+      reason: 'invalid',
+    });
+  });
+
+  it('keeps a stored plan as written, checking only its envelope', () => {
+    const doc = validBackup();
+    const plan = { version: 1, exercises: [], somethingNewer: true };
+    doc.tables.workouts[0]!.plan = plan as never;
+    expect(parseBackup(JSON.stringify(doc))).toMatchObject({ ok: true });
+    doc.tables.workouts[0]!.plan = { version: 2 } as never;
+    expect(parseBackup(JSON.stringify(doc))).toMatchObject({ ok: false, reason: 'invalid' });
   });
 
   it('accepts a set log without a workout only when its workout is in the file', () => {
