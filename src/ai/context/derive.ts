@@ -1,37 +1,19 @@
 import { MUSCLE_GROUPS } from '@/domain/coach/vocabulary';
 import { movingAverage, round1, summarizeWeight, type DatedValue } from '@/domain/metrics/series';
-import type { AnchorPosition, PlannedLoad } from '@/domain/types';
 import { volumeStatus, weeklyVolume, type VolumeSet } from '@/domain/volume/weekly';
 
 import type { CoachContext } from '../contract/coachContext';
-import type { CoachSource, SourceSet } from './source';
+import type { CoachSource } from './source';
 
 /*
  * Figures the brief and the chat tools both report. They live here, once,
  * so a weekly volume quoted in the summary and the same week asked for in
- * the chat can never be computed two ways.
+ * the chat can never be computed two ways. What load a logged set carried
+ * is the rules engine's question too, so that one lives in
+ * `@/domain/progression/load`.
  */
 
 const byDate = (a: DatedValue, b: DatedValue) => a.date.localeCompare(b.date);
-
-function clampPosition(position: number | null): AnchorPosition {
-  return position === 1 || position === 2 || position === 3 ? position : 0;
-}
-
-/**
- * What a logged set carried, as the load kinds the rest of the app uses.
- * A band set always names a band; a dumbbell set always has a weight. The
- * fallbacks cover rows that broke that, rather than throwing on old data.
- */
-export function loadOf(set: SourceSet): PlannedLoad {
-  if (set.bandId !== null) {
-    return { kind: 'band', bandId: set.bandId, position: clampPosition(set.anchorPosition) };
-  }
-  if (set.weightKg !== null && set.weightKg > 0) {
-    return { kind: 'dumbbell', mode: set.dumbbellMode ?? 'single', kg: set.weightKg };
-  }
-  return { kind: 'bodyweight' };
-}
 
 /** Working sets per muscle for the 7 days ending on `endDate`, muscles with none left out. */
 export function volumeWeek(
@@ -48,7 +30,11 @@ export function volumeWeek(
   const volumeExercises = Object.fromEntries(
     source.exercises.map((e) => [
       e.id,
-      { primaryMuscles: e.primaryMuscles, secondaryMuscles: e.secondaryMuscles },
+      {
+        movementPattern: e.movementPattern,
+        primaryMuscles: e.primaryMuscles,
+        secondaryMuscles: e.secondaryMuscles,
+      },
     ]),
   );
   const totals = weeklyVolume(volumeSets, volumeExercises, endDate);

@@ -55,6 +55,7 @@ export async function loadCoachSource(
     exercises: exerciseRows.map((row) => ({
       id: row.id,
       name: row.name,
+      movementPattern: row.data.movementPattern,
       primaryMuscles: row.data.primaryMuscles,
       secondaryMuscles: row.data.secondaryMuscles,
     })),

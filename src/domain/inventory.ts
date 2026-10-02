@@ -9,6 +9,8 @@
  * See Documents/SPEC-silnik-regul.md §5.0-5.1.
  */
 
+import type { Equipment } from './types';
+
 export interface PlateStock {
   massKg: number;
   count: number;
@@ -37,6 +39,15 @@ export const DUMBBELLS: DumbbellInventory = {
     { massKg: 2, count: 4 },
   ],
 };
+
+/** Everything in the room. An exercise is possible when all of its equipment is here. */
+export const AVAILABLE_EQUIPMENT: readonly Equipment[] = [
+  'dumbbell',
+  'band',
+  'mat',
+  'bike',
+  'bodyweight',
+];
 
 export const BANDS: BandSpec[] = [
   { id: 'yellow', label: 'żółta', nominalMinKg: 2, nominalMaxKg: 7 },

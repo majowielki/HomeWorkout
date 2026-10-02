@@ -10,7 +10,7 @@
 import exercisesJson from '@data/exercises.json';
 import templatesJson from '@data/templates.json';
 
-import type { MuscleGroup, KneeProfile } from '@/domain/types';
+import type { MovementPattern, MuscleGroup, KneeProfile } from '@/domain/types';
 import { addDays } from '@/domain/time/trainingDate';
 
 import type {
@@ -47,6 +47,7 @@ export interface ScenarioSpec {
 interface CatalogueEntry {
   id: string;
   name: string;
+  movementPattern: MovementPattern;
   primaryMuscles: MuscleGroup[];
   secondaryMuscles: MuscleGroup[];
 }
@@ -56,6 +57,7 @@ const catalogue = (exercisesJson as { exercises: CatalogueEntry[] }).exercises;
 export const SYNTHETIC_EXERCISES: SourceExercise[] = catalogue.map((e) => ({
   id: e.id,
   name: e.name,
+  movementPattern: e.movementPattern,
   primaryMuscles: e.primaryMuscles,
   secondaryMuscles: e.secondaryMuscles,
 }));

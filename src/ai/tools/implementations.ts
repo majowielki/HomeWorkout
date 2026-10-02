@@ -1,6 +1,7 @@
 import { exerciseTrend } from '@/domain/coach/exerciseTrend';
 import { fold } from '@/domain/coach/text';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
+import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
 
 import {
@@ -10,7 +11,7 @@ import {
   type ToolName,
   type ToolOutput,
 } from '../contract/chatTools';
-import { bodySummary, loadOf, volumeWeek } from '../context/derive';
+import { bodySummary, volumeWeek } from '../context/derive';
 import type { CoachSource, SourceSet } from '../context/source';
 
 /**
@@ -103,7 +104,7 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
 
     const { verdict } = exerciseTrend(
       appearances.map(({ sets }) =>
-        sets.map((s) => ({ load: loadOf(s), reps: s.reps, timeSec: s.timeSec })),
+        sets.map((s) => ({ load: loadOfSet(s), reps: s.reps, timeSec: s.timeSec })),
       ),
     );
     return {
@@ -113,7 +114,12 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
       verdict,
       sessions: appearances.slice(-TOOL_LIMITS.historySessionsShown).map(({ workout, sets }) => ({
         date: workout.trainingDate,
-        sets: sets.map((s) => ({ reps: s.reps, timeSec: s.timeSec, rir: s.rir, load: loadOf(s) })),
+        sets: sets.map((s) => ({
+          reps: s.reps,
+          timeSec: s.timeSec,
+          rir: s.rir,
+          load: loadOfSet(s),
+        })),
       })),
     };
   },
