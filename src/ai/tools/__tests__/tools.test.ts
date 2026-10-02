@@ -112,6 +112,22 @@ describe('getRecentSessions', () => {
   });
 });
 
+describe('a set of an exercise the catalogue does not have', () => {
+  it('is listed under its id rather than lost', async () => {
+    const source = scenario({ sessions: 1 });
+    const odd = {
+      ...source,
+      sets: source.sets.map((s, i) => (i === 0 ? { ...s, exerciseId: 'retired-move' } : s)),
+    };
+    const out = (await run('getRecentSessions', { count: 1 }, odd)) as {
+      sessions: { exercises: { id: string; name: string }[] }[];
+    };
+    expect(out.sessions[0]!.exercises).toContainEqual(
+      expect.objectContaining({ id: 'retired-move', name: 'retired-move' }),
+    );
+  });
+});
+
 describe('getExerciseHistory', () => {
   const history = (spec: ScenarioSpec, weeks = 4, exerciseId = 'goblet-squat') =>
     run('getExerciseHistory', { exerciseId, weeks }, scenario(spec)) as Promise<{
@@ -171,6 +187,34 @@ describe('getExerciseHistory', () => {
     expect(await run('getExerciseHistory', { exerciseId: 'tail-curl', weeks: 4 })).toEqual({
       error: 'unknown_exercise',
     });
+  });
+
+  it('puts two sessions on one day in the order they started', async () => {
+    const source = scenario({ sessions: 2 });
+    const first = source.completedWorkouts.find((w) => w.id === 'w-0')!;
+    const sets = source.sets.filter(
+      (s) => s.workoutId === 'w-0' && s.exerciseId === 'goblet-squat',
+    );
+    const same = {
+      ...source,
+      completedWorkouts: [
+        ...source.completedWorkouts,
+        { ...first, id: 'earlier', startedAt: `${first.trainingDate}T08:00:00.000Z` },
+      ],
+      sets: [
+        ...source.sets,
+        ...sets.map((s) => ({ ...s, id: `e-${s.id}`, workoutId: 'earlier', reps: 77 })),
+      ],
+    };
+    const out = (await run(
+      'getExerciseHistory',
+      { exerciseId: 'goblet-squat', weeks: 4 },
+      same,
+    )) as {
+      sessions: { date: string; sets: { reps: number }[] }[];
+    };
+    const onThatDay = out.sessions.filter((x) => x.date === first.trainingDate);
+    expect(onThatDay.map((x) => x.sets[0]!.reps === 77)).toEqual([true, false]);
   });
 
   it('puts two sets logged for one index in the order they were logged', async () => {

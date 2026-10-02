@@ -4,7 +4,7 @@ import { deriveSignals } from '@/domain/coach/signals';
 import { MUSCLE_GROUPS } from '@/domain/coach/vocabulary';
 import { COACH_CONFIG } from '@/domain/config/training';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
-import { round1, type DatedValue } from '@/domain/metrics/series';
+import { round1 } from '@/domain/metrics/series';
 import { addDays } from '@/domain/time/trainingDate';
 
 import { coachContextSchema, type CoachContext, type LoadContext } from '../contract/coachContext';
@@ -17,8 +17,6 @@ export interface BuiltCoachContext {
   /** What was held back, so the screen can say so. Never sent. */
   omissions: NoteOmissions;
 }
-
-const byDate = (a: DatedValue, b: DatedValue) => a.date.localeCompare(b.date);
 
 function mean(values: readonly number[]): number | null {
   if (values.length === 0) return null;

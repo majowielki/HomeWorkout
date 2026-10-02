@@ -1,5 +1,4 @@
 import {
-  checkReply,
   checkSummary,
   describeViolations,
   MEDICAL_ADVICE_STEMS,
