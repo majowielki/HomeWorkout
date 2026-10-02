@@ -131,6 +131,7 @@ export const pl = {
       restNotificationBody: 'Wracaj do treningu — czas na kolejną serię.',
       upNext: 'Następne',
       warmupTitle: 'Rozgrzewka',
+      rideTitle: 'Rower',
       warmupDescription: 'Kilka minut na rowerze przed pierwszą serią.',
       rideDescription:
         'Codzienna jazda przed ćwiczeniami — rozgrzewa kolano. Zapisz opór i jak ciężko było (RPE): od tego zależy jutrzejsza jazda.',
@@ -218,7 +219,8 @@ export const pl = {
     deloadNote:
       'W tym tygodniu obniżamy objętość treningową. Kwestie żywieniowe w trakcie terapii omów z lekarzem prowadzącym.',
     progression: {
-      FIRST_EXPOSURE: 'Pierwszy raz: dobierz ciężar tak, żeby zostały ~4 powtórzenia w zapasie.',
+      FIRST_EXPOSURE:
+        'Pierwszy raz: zostaw ~4 powtórzenia w zapasie. Za lekko albo za ciężko — popraw obciążenie przy zapisie, plan się dostosuje.',
       INTRO_EXPOSURE: 'Druga sesja tego ćwiczenia — nadal z zapasem RIR 4.',
       RE_EXPOSURE: 'Dawno nierobione: krok lżej niż ostatnio, z zapasem.',
       REP_TARGET_MET: 'Wszystkie serie na górze zakresu — o szczebel cięższe.',

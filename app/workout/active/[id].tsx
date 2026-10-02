@@ -21,6 +21,7 @@ import {
   stepKey,
 } from '@/domain/session/steps';
 import type { PlannedExercise, SessionPlan } from '@/domain/plan/types';
+import { loadKindOf } from '@/domain/progression/load';
 import type { Exercise, MedicalProfile } from '@/domain/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { planTitle } from '@/features/plan/format';
@@ -298,8 +299,10 @@ export default function ActiveSessionScreen() {
           block={currentStep.block}
           planned={loaded.plan ? (currentStep.block as PlannedExercise) : undefined}
           defaultWarmup={
+            // The band warm-up of SPEC §5.6 — for the exercise actually done,
+            // which a swap may have turned into a dumbbell one.
             loaded.plan !== null &&
-            (currentStep.block as PlannedExercise).warmupSet &&
+            loadKindOf(effectiveExercise) === 'band' &&
             !warmedBlocks.has(currentStep.blockIndex)
           }
           setNumber={currentStep.setNumber}

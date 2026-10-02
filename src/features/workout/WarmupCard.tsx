@@ -56,7 +56,9 @@ export function WarmupCard({
     <View className="flex-1 justify-center p-5">
       <Card className="gap-2 p-6">
         <IconBadge icon={Bike} tone="accent" size="lg" className="mb-3" />
-        <Text variant="title">{pl.workout.session.warmupTitle}</Text>
+        <Text variant="title">
+          {askEffort ? pl.workout.session.rideTitle : pl.workout.session.warmupTitle}
+        </Text>
         <CardDescription>
           {askEffort ? pl.workout.session.rideDescription : pl.workout.session.warmupDescription}
         </CardDescription>
