@@ -2,9 +2,9 @@
   "feature": "chat",
   "id": "plan-boundary",
   "category": "plan_boundary",
-  "description": "Why an exercise is not in today’s plan needs the rules engine, which the chat cannot see. It must say so, not invent a reason.",
+  "description": "The chat reads the plan but never changes it: a request to swap an exercise is sent to the plan screen, with no reason or replacement of its own.",
   "scenario": {},
-  "question": "Czemu dziś nie ma przysiadów w planie?",
+  "question": "Zamień mi dziś przysiady na wykroki.",
   "expect": {
     "scorers": [
       "noLoads",
@@ -18,7 +18,7 @@
       "noInternalWords",
       "delivered"
     ],
-    "mentionAnyOf": [["plan"], ["nie widze", "nie mam dostepu", "nie moge", "nie potrafie"]],
+    "mentionAnyOf": [["plan"], ["nie zmieniam", "nie moge zmienic", "nie zmienie"]],
     "forbidWords": ["kolan"]
   }
 }

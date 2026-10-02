@@ -8,6 +8,7 @@ import {
   type ToolCall,
   type ToolResult,
 } from '../../contract/chat';
+import { CONTRACT_VERSION } from '../../contract/versions';
 import { runTurn, type TurnDeps, type TurnListener } from '../runTurn';
 
 const facts: ChatFacts = {
@@ -97,7 +98,7 @@ describe('a question answered at once', () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({
-      contractVersion: 1,
+      contractVersion: CONTRACT_VERSION,
       facts,
       messages: [{ role: 'user', text: 'Ile mam sesji?' }],
     });

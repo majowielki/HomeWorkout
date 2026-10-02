@@ -10,3 +10,8 @@ import type { Slot } from '@/domain/plan/types';
 export const SLOTS: readonly Slot[] = slotCatalogueSchema.parse(slotCatalogue).slots;
 
 export const SLOT_BY_ID: ReadonlyMap<string, Slot> = new Map(SLOTS.map((s) => [s.id, s]));
+
+/** Slot id to its Polish name — what the chat's plan tool calls a movement. */
+export const SLOT_NAMES: Readonly<Record<string, string>> = Object.fromEntries(
+  SLOTS.map((s) => [s.id, s.name]),
+);

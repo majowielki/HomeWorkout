@@ -98,3 +98,6 @@ revisit, not a reason to keep going.
 - `getPlanExplanation` is not a tool until the rules engine exists (M7). The
   chat says plainly that it cannot see or explain the plan, and the prompt and
   a case in the evaluation hold it to that.
+  _Update 2026-10-02:_ M7 exists; the tool was added in contract version 2
+  with prompt `chat/v2` (AI-INTEGRACJA, „Wynik etapu 6 M7”). The decision
+  above — the loop and every tool on the phone — is unchanged.

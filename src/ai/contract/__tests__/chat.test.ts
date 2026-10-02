@@ -66,6 +66,27 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
     total: 1,
     exercises: [{ id: 'row', name: 'Wiosłowanie', primaryMuscles: ['back', 'lats'] }],
   },
+  getPlanExplanation: {
+    date: '2026-10-01',
+    source: 'today',
+    blockIndex: 1,
+    phase: 'work',
+    dayReasons: ['LIGHT_DAY'],
+    signals: [],
+    bike: { minutes: 12, reasons: ['BIKE_TIME_UP'] },
+    exercises: [
+      {
+        exercise: { id: 'row', name: 'Wiosłowanie' },
+        movement: 'Przyciąganie poziome',
+        sets: 2,
+        reasons: ['REP_PROGRESSION'],
+      },
+    ],
+    skipped: [
+      { movement: 'Przysiad', exercise: { id: 'goblet', name: 'Goblet' }, reason: 'DOMS_HIGH' },
+      { movement: 'Wykrok', exercise: null, reason: 'NO_CANDIDATE' },
+    ],
+  },
 };
 
 const INPUTS: Record<ToolName, ToolCall['input']> = {
@@ -74,6 +95,7 @@ const INPUTS: Record<ToolName, ToolCall['input']> = {
   getWeeklyVolume: { weeksAgo: 0 },
   getBodyTrend: { days: 28 },
   findExercises: { query: 'wios' },
+  getPlanExplanation: { daysAgo: 0 },
 };
 
 const user = (text = 'Jak idzie wiosłowanie?'): ChatMessage => ({ role: 'user', text });

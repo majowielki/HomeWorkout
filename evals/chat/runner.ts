@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 import { runTurn, type TurnDeps } from '@/ai/chat/runTurn';
+import { syntheticPlan } from '@/ai/testing/plan';
 import { executeTool } from '@/ai/tools/execute';
 
 import { buildReport, type CaseReport, type Report } from '../report';
@@ -61,7 +62,11 @@ export async function runChatCase(
       }
       return { kind: 'failed', failure: { kind: 'offline' } };
     },
-    executeTool: (call) => executeTool(call, { load: async () => source }),
+    executeTool: (call) =>
+      executeTool(call, {
+        load: async () => source,
+        plan: async (daysAgo) => syntheticPlan(source, daysAgo),
+      }),
     newRequestId: () => `eval-${evalCase.id}-${(ids += 1)}`.slice(0, 64).padEnd(8, '0'),
     now,
   };

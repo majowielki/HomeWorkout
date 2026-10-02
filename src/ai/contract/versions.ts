@@ -4,5 +4,7 @@
  * old app (or the other way round) fails with a typed "update the app"
  * error instead of a Zod issue list. Bump it for any change a peer running
  * the previous version cannot parse. See Documents/AI-INTEGRACJA.md §4.4.
+ *
+ * 2 (M7): the chat tool getPlanExplanation and the tool error no_plan.
  */
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;

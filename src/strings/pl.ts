@@ -606,6 +606,7 @@ export const pl = {
         getWeeklyVolume: 'Liczę serie z tygodnia…',
         getBodyTrend: 'Sprawdzam wagę i talię…',
         findExercises: 'Szukam ćwiczenia…',
+        getPlanExplanation: 'Sprawdzam plan dnia…',
       } satisfies Record<ToolName, string>,
       /** The app's own replies, when it does not ask the model at all. */
       blocked: {

@@ -16,13 +16,20 @@
  * Tools only read. A change to the plan goes the F3 route (validation plus
  * the person's acceptance), never through a tool (I7).
  *
- * `getPlanExplanation` is not here yet: it needs the rules engine (M7).
- * Adding it is one entry in `CHAT_TOOLS` and one in the phone's
- * implementations; the typecheck fails in the second place until it exists.
+ * `getPlanExplanation` reads the rules engine's plan (M7) as reason codes:
+ * the model explains a decision the engine made, never one of its own,
+ * and the tool carries no load, so there is nothing to prescribe from.
  */
 import { z } from 'zod';
 
 import { MUSCLE_GROUPS, TREND_VERDICTS } from '../../domain/coach/vocabulary';
+import {
+  BIKE_REASONS,
+  DAY_REASONS,
+  FATIGUE_SIGNALS,
+  PROGRESSION_REASONS,
+  SKIP_REASONS,
+} from '../../domain/plan/reasons';
 import { isoDate, setSchema, volumeWeekSchema, waistSchema, weightSchema } from './coachContext';
 
 export const TOOL_NAMES = [
@@ -31,6 +38,7 @@ export const TOOL_NAMES = [
   'getWeeklyVolume',
   'getBodyTrend',
   'findExercises',
+  'getPlanExplanation',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -46,6 +54,10 @@ export const TOOL_LIMITS = {
   bodyDays: { min: 7, max: 90 },
   findResults: 10,
   queryChars: 40,
+  /** 0 is today; a past day has a plan only if a session was started from one. */
+  planDaysAgo: { min: 0, max: 13 },
+  planExercisesShown: 12,
+  planSkippedShown: 20,
 } as const;
 
 const count = z.number().int().nonnegative();
@@ -55,7 +67,7 @@ const exerciseRef = z.strictObject({
   name: z.string().min(1).max(120),
 });
 
-export const TOOL_ERRORS = ['invalid_input', 'unknown_exercise', 'failed'] as const;
+export const TOOL_ERRORS = ['invalid_input', 'unknown_exercise', 'no_plan', 'failed'] as const;
 
 /**
  * What any tool may return instead of its output. A failure is data the
@@ -148,6 +160,47 @@ export const CHAT_TOOLS = {
       exercises: z
         .array(exerciseRef.extend({ primaryMuscles: z.array(z.enum(MUSCLE_GROUPS)) }))
         .max(TOOL_LIMITS.findResults),
+    }),
+  },
+
+  getPlanExplanation: {
+    description:
+      "The app's training plan for one day and why it looks the way it does, as reason codes computed by the app's rules engine: the day as a whole, the bike, each planned exercise, and every movement left out that day with the reason. daysAgo 0 is today (the plan as it stands now, or as frozen when today's session started); a past day has a plan only if a session was started from one. Use it for questions like why an exercise is or is not in the plan. It carries no loads: the plan screen shows them.",
+    input: z.strictObject({
+      daysAgo: z.number().int().min(TOOL_LIMITS.planDaysAgo.min).max(TOOL_LIMITS.planDaysAgo.max),
+    }),
+    output: z.strictObject({
+      date: isoDate,
+      /** `session`: frozen when that day's session started. `today`: computed now, not started yet. */
+      source: z.enum(['session', 'today']),
+      blockIndex: z.number().int().positive(),
+      phase: z.enum(['work', 'deload']),
+      dayReasons: z.array(z.enum(DAY_REASONS)),
+      signals: z.array(z.enum(FATIGUE_SIGNALS)),
+      bike: z.strictObject({
+        minutes: count,
+        reasons: z.array(z.enum(BIKE_REASONS)),
+      }),
+      exercises: z
+        .array(
+          z.strictObject({
+            exercise: exerciseRef,
+            /** The movement slot, in Polish, from the shipped data. */
+            movement: z.string().min(1).max(60),
+            sets: count,
+            reasons: z.array(z.enum(PROGRESSION_REASONS)),
+          }),
+        )
+        .max(TOOL_LIMITS.planExercisesShown),
+      skipped: z
+        .array(
+          z.strictObject({
+            movement: z.string().min(1).max(60),
+            exercise: exerciseRef.nullable(),
+            reason: z.enum(SKIP_REASONS),
+          }),
+        )
+        .max(TOOL_LIMITS.planSkippedShown),
     }),
   },
 } as const satisfies Record<ToolName, { description: string; input: z.ZodType; output: z.ZodType }>;

@@ -899,7 +899,7 @@ zielonym `npm run verify`):
 | 3 | `feat/m7-autoregulation` | sygnały zmęczenia, deload, cykl życia bloku i rotacja |
 | 4 | `feat/m7-day-planner` | `dayPlanner`, `validatePlan`, symulacja 12 tygodni, `scripts/simulate-plan.ts` |
 | 5 | `feat/m7-plan-ui` | migracja (`workouts.plan`, `training_blocks`, lista „nie proponuj"), kopia v2, ekrany |
-| 6 | `feat/ai-plan-explanation` | opcjonalnie: narzędzie czatu `getPlanExplanation` |
+| 6 | `feat/ai-plan-explanation` | ✅ narzędzie czatu `getPlanExplanation`, kontrakt v2, prompt `chat/v2` |
 
 DoD dodatkowo: test symulacji z SPEC §10.6 przechodzi; kalendarz 5 tygodni z `simulate-plan`
 obejrzany przez użytkownika przed instalacją.
