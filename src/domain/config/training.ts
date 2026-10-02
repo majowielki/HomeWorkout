@@ -95,6 +95,50 @@ export const SUBSTITUTE_CONFIG = {
 } as const;
 
 /**
+ * Days since the last session at which each layoff tier starts, SPEC §6.3.
+ * One table for the engine and for the AI signals, so "a short layoff"
+ * means the same in a plan and in a weekly summary.
+ */
+export const LAYOFF_FROM_DAYS = { short: 8, medium: 15, long: 31 } as const;
+
+/**
+ * Double progression over every load ladder, SPEC §5.1, §5.4 and §5.8.
+ * Apart from the rules quoted from the SPEC these are tuning parameters,
+ * not research results.
+ */
+export const PROGRESSION_CONFIG = {
+  repStep: 1,
+  /** Holds progress in 5-second steps. */
+  timeStepSec: 5,
+  /** The first N sessions of an exercise run at `introRir` (FIRST_EXPOSURE). */
+  introExposures: 2,
+  introRir: 4,
+  /** An exercise not done for this long comes back one step lighter (RE_EXPOSURE). */
+  reExposureAfterDays: 31,
+  /** Sessions at `introRir` after a layoff of LAYOFF_FROM_DAYS.long or more. */
+  recalibrationSessions: 2,
+  /** A never-done band exercise starts here. SPEC §5.4. */
+  bandStartPosition: 1 as const,
+  /** Above this jump in estimated force, a new band starts at P0, not P1. SPEC §5.4. */
+  bandMacroMaxJump: 0.15,
+  /** Used only when a slot lacks the range a candidate needs (the data check prevents it). */
+  fallbackRepRange: [8, 15] as [number, number],
+  fallbackTimeRange: [20, 60] as [number, number],
+} as const;
+
+/** The daily ride, SPEC §7 v1.2. */
+export const BIKE_CONFIG = {
+  minutes: { min: 10, max: 20 },
+  stepMinutes: 2,
+  /** RPE at or under this is "easy". */
+  easyRpe: 5,
+  /** RPE at or over this is "too hard". */
+  hardRpe: 8,
+  /** Top of this bike's own dial, as the logging form allows it. */
+  resistanceMax: 20,
+} as const;
+
+/**
  * Everything the AI layer derives from the logs before a model sees them.
  * The model comments on these; it never recomputes them.
  */
@@ -104,7 +148,7 @@ export const COACH_CONFIG = {
   /** At or below this many completed sessions the trend vocabulary is off limits. PLAN §6.2. */
   sparseHistoryMaxSessions: 3,
   /** Days since the last session at which each layoff tier starts. SPEC §6.3. */
-  layoffFromDays: { short: 8, medium: 15, long: 31 },
+  layoffFromDays: LAYOFF_FROM_DAYS,
   /** SPEC §6.1: sleep below this for `lowSleepStreakDays` days in a row. */
   lowSleepHours: 6,
   lowSleepStreakDays: 3,
