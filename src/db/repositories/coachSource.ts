@@ -64,7 +64,8 @@ export async function loadCoachSource(
       trainingDate: workout.trainingDate,
       startedAt: workout.startedAt,
       finishedAt: workout.finishedAt,
-      templateName: templateName ?? 'custom',
+      // A session from the engine's plan has no template; it is still a session.
+      templateName: templateName ?? (workout.plan ? 'plan' : 'custom'),
       sessionRpe: workout.sessionRpe,
       notes: workout.notes,
     })),

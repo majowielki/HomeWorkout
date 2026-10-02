@@ -9,8 +9,15 @@ import { formatDecimal, NumberField, parseDecimal } from '@/components/ui/number
 import { Switch } from '@/components/ui/switch';
 import { Stepper } from '@/components/ui/stepper';
 import { Text } from '@/components/ui/text';
-import { getProfile, getReminderSettings, updateProfile } from '@/db/repositories/profile';
+import {
+  getExcludedExerciseIds,
+  getProfile,
+  getReminderSettings,
+  setExerciseExcluded,
+  updateProfile,
+} from '@/db/repositories/profile';
 import { AiSettingsCard } from '@/features/coach/AiSettingsCard';
+import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { isMuted, muteUntilDate, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { KneeProfile } from '@/domain/types';
 import { syncReminders } from '@/lib/reminders';
@@ -18,6 +25,7 @@ import { pl } from '@/strings/pl';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const exerciseMap = useExerciseMap();
 
   const [loaded, setLoaded] = useState(false);
   const [heightCm, setHeightCm] = useState('');
@@ -27,22 +35,26 @@ export default function SettingsScreen() {
   const [saddleHeightCm, setSaddleHeightCm] = useState('');
   const [knee, setKnee] = useState<KneeProfile | null>(null);
   const [reminders, setReminders] = useState<ReminderSettings | null>(null);
+  const [excluded, setExcluded] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getProfile(), getReminderSettings()]).then(([profile, rem]) => {
-      if (cancelled) return;
-      setHeightCm(formatDecimal(profile?.heightCm));
-      setBirthYear(profile?.birthYear ? String(profile.birthYear) : '');
-      setSex(profile?.sex ?? null);
-      setDayBoundaryHour(profile?.dayBoundaryHour ?? 4);
-      setSaddleHeightCm(formatDecimal(profile?.saddleHeightCm));
-      setKnee(profile?.kneeProfile ?? null);
-      setReminders(rem);
-      setLoaded(true);
-    });
+    Promise.all([getProfile(), getReminderSettings(), getExcludedExerciseIds()]).then(
+      ([profile, rem, excludedIds]) => {
+        if (cancelled) return;
+        setHeightCm(formatDecimal(profile?.heightCm));
+        setBirthYear(profile?.birthYear ? String(profile.birthYear) : '');
+        setSex(profile?.sex ?? null);
+        setDayBoundaryHour(profile?.dayBoundaryHour ?? 4);
+        setSaddleHeightCm(formatDecimal(profile?.saddleHeightCm));
+        setKnee(profile?.kneeProfile ?? null);
+        setReminders(rem);
+        setExcluded(excludedIds);
+        setLoaded(true);
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -159,18 +171,43 @@ export default function SettingsScreen() {
           <CardTitle>{pl.settings.kneeSection}</CardTitle>
           <CardContent>
             <View className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1">{pl.settings.physioApproved}</Text>
+              <Text className="flex-1">{pl.settings.conservativeKnee}</Text>
               <Switch
-                value={knee.physioApproved}
-                onValueChange={(v) => setKnee({ ...knee, physioApproved: v })}
+                value={!knee.physioApproved}
+                onValueChange={(v) => setKnee({ ...knee, physioApproved: !v })}
               />
             </View>
             <Text variant="muted" className="text-xs">
-              {pl.settings.physioApprovedHint}
+              {pl.settings.conservativeKneeHint}
             </Text>
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardTitle>{pl.settings.excludedSection}</CardTitle>
+        <CardContent className="gap-2">
+          {excluded.length === 0 ? (
+            <Text variant="muted" className="text-sm">
+              {pl.settings.excludedEmpty}
+            </Text>
+          ) : (
+            excluded.map((id) => (
+              <View key={id} className="flex-row items-center justify-between gap-3">
+                <Text className="flex-1">{exerciseMap[id]?.name ?? id}</Text>
+                <Button
+                  label={pl.settings.excludedRestore}
+                  variant="ghost"
+                  onPress={() => {
+                    void setExerciseExcluded(id, false);
+                    setExcluded((prev) => prev.filter((x) => x !== id));
+                  }}
+                />
+              </View>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardTitle>{pl.settings.remindersSection}</CardTitle>

@@ -9,6 +9,7 @@ import { Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
+import type { PlannedExercise } from '@/domain/plan/types';
 import type { AnchorPosition, BandCalibrationMap, Exercise, TemplateBlock } from '@/domain/types';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
@@ -40,12 +41,35 @@ export interface PrefillData {
 type Props = {
   exercise: Exercise;
   block: TemplateBlock;
+  /**
+   * The engine's prescription for this step, when the session runs a plan.
+   * Its load and target prefill the first set of the planned exercise; later
+   * sets, and a substitute, prefill from the last logged set as before.
+   */
+  planned?: PlannedExercise;
+  /** Start with the warm-up toggle on (bands, SPEC §5.6). */
+  defaultWarmup?: boolean;
   setNumber: number;
   totalSets: number;
   onSave: (data: LoggedSetData) => void;
   saving?: boolean;
   calibrations?: BandCalibrationMap;
 };
+
+/**
+ * The first set of a planned exercise starts from the plan; every other
+ * set starts from the last one logged for the exercise.
+ */
+export function SetLogger(props: Props) {
+  const fromPlan =
+    props.planned !== undefined &&
+    props.planned.exerciseId === props.exercise.id &&
+    props.setNumber === 1
+      ? props.planned
+      : null;
+  if (fromPlan) return <SetLoggerFields {...props} prefill={plannedPrefill(fromPlan)} />;
+  return <SetLoggerFromHistory {...props} />;
+}
 
 /**
  * Fetches the previous log for this exercise before rendering the fields.
@@ -57,7 +81,7 @@ type Props = {
  * per step, this component's initial `undefined` already *is* the reset;
  * nothing needs to synchronously clear a stale value.
  */
-export function SetLogger(props: Props) {
+function SetLoggerFromHistory(props: Props) {
   const [prefill, setPrefill] = useState<PrefillData | null | undefined>(undefined);
 
   useEffect(() => {
@@ -102,6 +126,7 @@ function SetLoggerFields({
   onSave,
   saving,
   calibrations,
+  defaultWarmup,
 }: Props & { prefill: PrefillData | null }) {
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: prefill?.reps ?? block.repMin ?? 10,
@@ -114,8 +139,8 @@ function SetLoggerFields({
   // A warm-up only makes sense before the first working set of a block —
   // for bands it is what SPEC §5.6 requires (Mullins effect), for the knee
   // it is plain sense. Off by default so the common path stays one tap.
-  const [isWarmup, setIsWarmup] = useState(false);
   const warmupAvailable = setNumber === 1;
+  const [isWarmup, setIsWarmup] = useState(Boolean(defaultWarmup) && warmupAvailable);
 
   const handleSave = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -206,6 +231,18 @@ function SetProgress({ done, total }: { done: number; total: number }) {
       ))}
     </>
   );
+}
+
+/** The engine's load and first-set target as the logger's starting values. */
+function plannedPrefill(p: PlannedExercise): PrefillData {
+  return {
+    reps: p.unit === 'reps' ? p.target : null,
+    timeSec: p.unit === 'sec' ? p.target : null,
+    rir: p.targetRirMin,
+    weightKg: p.load.kind === 'dumbbell' ? p.load.kg : null,
+    bandId: p.load.kind === 'band' ? p.load.bandId : null,
+    anchorPosition: p.load.kind === 'band' ? p.load.position : null,
+  };
 }
 
 function targetLabel(block: TemplateBlock): string {

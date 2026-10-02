@@ -8,6 +8,9 @@ import { ListRow } from '@/components/ui/list-row';
 import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
+import { planTitle } from '@/features/plan/format';
+import { PlanHero } from '@/features/plan/PlanHero';
+import { usePlanToday } from '@/features/plan/usePlanToday';
 import { ExercisePreview } from '@/features/workout/ExercisePreview';
 import { QuickCardioForm } from '@/features/workout/QuickCardioForm';
 import { SessionHero } from '@/features/workout/SessionHero';
@@ -17,6 +20,7 @@ import { pl } from '@/strings/pl';
 
 export default function WorkoutScreen() {
   const { data, starting, start, resume, discard } = useSessionOverview();
+  const today = usePlanToday();
   const exerciseMap = useExerciseMap();
   const [showQuickCardio, setShowQuickCardio] = useState(false);
 
@@ -41,12 +45,10 @@ export default function WorkoutScreen() {
     );
   }
 
-  const { templates, inProgress, suggested, lastSessionDaysAgo, todayTrainingDate } = data;
+  const { templates, inProgress, lastSessionDaysAgo, todayTrainingDate } = data;
   const inProgressTemplate = inProgress
     ? templates.find((t) => t.id === inProgress.templateId)
     : undefined;
-  // The suggested template is the hero; the rest are listed below it.
-  const others = templates.filter((t) => t.id !== suggested?.id);
 
   return (
     <View className="flex-1 bg-background">
@@ -68,9 +70,9 @@ export default function WorkoutScreen() {
         {inProgress ? (
           <SessionHero
             eyebrow={pl.today.inProgressEyebrow}
-            title={inProgressTemplate?.name ?? ''}
+            title={inProgress.plan ? planTitle(inProgress.plan) : (inProgressTemplate?.name ?? '')}
             badge={pl.history.status.in_progress}
-            blocks={inProgressTemplate?.blocks}
+            blocks={inProgress.plan?.exercises ?? inProgressTemplate?.blocks}
             exerciseMap={exerciseMap}
           >
             <Button
@@ -88,31 +90,17 @@ export default function WorkoutScreen() {
           </SessionHero>
         ) : (
           <>
-            {suggested ? (
-              <SessionHero
-                eyebrow={pl.today.nextSessionEyebrow}
-                title={suggested.name}
-                badge={pl.workout.suggested}
-                meta={pl.workout.blockCount(suggested.blocks.length)}
-                blocks={suggested.blocks}
-                exerciseMap={exerciseMap}
-              >
-                <Button
-                  size="lg"
-                  label={pl.workout.start}
-                  icon={<Play size={18} className="text-primary-foreground" />}
-                  onPress={() => start(suggested.id)}
-                  disabled={starting}
-                />
-              </SessionHero>
-            ) : null}
+            <PlanHero today={today} exerciseMap={exerciseMap} />
 
-            {others.length > 0 ? (
-              <Text variant="eyebrow" className="mt-2">
-                {pl.workout.templatesEyebrow}
-              </Text>
+            {templates.length > 0 ? (
+              <View className="mt-2 gap-1">
+                <Text variant="eyebrow">{pl.plan.manualEyebrow}</Text>
+                <Text variant="muted" className="text-sm">
+                  {pl.plan.manualHint}
+                </Text>
+              </View>
             ) : null}
-            {others.map((template) => (
+            {templates.map((template) => (
               <Card key={template.id} className="gap-4">
                 <View className="gap-1">
                   <Text variant="title">{template.name}</Text>

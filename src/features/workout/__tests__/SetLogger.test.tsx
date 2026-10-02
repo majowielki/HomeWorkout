@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
+import type { PlannedExercise } from '@/domain/plan/types';
 import type { Exercise, TemplateBlock } from '@/domain/types';
 
 import { SetLogger } from '../SetLogger';
@@ -307,5 +308,102 @@ describe('SetLogger', () => {
       />,
     );
     expect(await screen.findByText('Kolano nad stopą.')).toBeTruthy();
+  });
+
+  describe('a session from the engine plan', () => {
+    const planned: PlannedExercise = {
+      ...block,
+      slotId: 'squat',
+      load: { kind: 'dumbbell', mode: 'single', kg: 8 },
+      unit: 'reps',
+      target: 13,
+      warmupSet: false,
+      reasons: ['REP_PROGRESSION'],
+      confidence: 'high',
+    };
+
+    it('starts the first set from the plan, without reading the last log', async () => {
+      const onSave = jest.fn();
+      await render(
+        <SetLogger
+          exercise={exercise({})}
+          block={planned}
+          planned={planned}
+          setNumber={1}
+          totalSets={2}
+          onSave={onSave}
+        />,
+      );
+      expect(await screen.findByText('8 kg')).toBeTruthy();
+      expect(screen.getByText('13')).toBeTruthy();
+      expect(mockedLastSet).not.toHaveBeenCalled();
+
+      await fireEvent.press(screen.getByText('Zapisz serię'));
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ reps: 13, weightKg: 8, rir: 2, isWarmup: false }),
+      );
+    });
+
+    it('reads the last log for later sets and for a substitute', async () => {
+      mockedLastSet.mockResolvedValue(lastSet({ weightKg: 10, reps: 12 }));
+      await render(
+        <SetLogger
+          exercise={exercise({})}
+          block={planned}
+          planned={planned}
+          setNumber={2}
+          totalSets={2}
+          onSave={jest.fn()}
+        />,
+      );
+      expect(await screen.findByText('10 kg')).toBeTruthy();
+
+      mockedLastSet.mockResolvedValue(null);
+      await render(
+        <SetLogger
+          exercise={exercise({ id: 'box-squat' })}
+          block={planned}
+          planned={planned}
+          setNumber={1}
+          totalSets={2}
+          onSave={jest.fn()}
+        />,
+      );
+      expect(await screen.findByText('2 kg')).toBeTruthy();
+    });
+
+    it('prefills a band and a hold from the plan', async () => {
+      const hold: PlannedExercise = {
+        ...planned,
+        repMin: undefined,
+        repMax: undefined,
+        timeSec: 30,
+        unit: 'sec',
+        target: 30,
+        load: { kind: 'band', bandId: 'red', position: 2 },
+        warmupSet: true,
+      };
+      const onSave = jest.fn();
+      await render(
+        <SetLogger
+          exercise={exercise({
+            equipment: ['band'],
+            dumbbellMode: undefined,
+            forceProfile: 'Isometric',
+          })}
+          block={hold}
+          planned={hold}
+          defaultWarmup
+          setNumber={1}
+          totalSets={2}
+          onSave={onSave}
+        />,
+      );
+      expect(await screen.findByText('30 s')).toBeTruthy();
+      await fireEvent.press(screen.getByText('Zapisz rozgrzewkową'));
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ timeSec: 30, bandId: 'red', anchorPosition: 2, isWarmup: true }),
+      );
+    });
   });
 });

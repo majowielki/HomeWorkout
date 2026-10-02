@@ -7,10 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import { hasWarmupLog, logCardio } from '@/db/repositories/cardioLogs';
-import { getProfile } from '@/db/repositories/profile';
+import { getCardioForWorkout, hasWarmupLog, logCardio } from '@/db/repositories/cardioLogs';
+import { getExcludedExerciseIds, getProfile, setExerciseExcluded } from '@/db/repositories/profile';
 import { getLoggedStepKeys, logSet } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
+import { getCurrentBlock, setBlockSelection } from '@/db/repositories/trainingBlocks';
 import { getWorkout } from '@/db/repositories/workouts';
 import {
   buildSessionSteps,
@@ -19,14 +20,16 @@ import {
   type SessionStep,
   stepKey,
 } from '@/domain/session/steps';
+import type { PlannedExercise, SessionPlan } from '@/domain/plan/types';
 import type { Exercise, MedicalProfile } from '@/domain/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
+import { planTitle } from '@/features/plan/format';
 import { RestTimer } from '@/features/workout/RestTimer';
 import { type LoggedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
-import { WarmupCard } from '@/features/workout/WarmupCard';
+import { WarmupCard, type WarmupResult } from '@/features/workout/WarmupCard';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
@@ -35,8 +38,10 @@ type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'notFound';
 type Loaded = {
   workoutId: string;
   trainingDate: string;
-  templateName: string;
+  title: string;
   warmupMinutes: number | null;
+  /** The engine's plan the session was started from; null for a template session. */
+  plan: SessionPlan | null;
   /** From the profile — shown on the warm-up card as a standing cue (PLAN §4.3). */
   saddleHeightCm: number | null;
 };
@@ -56,10 +61,14 @@ export default function ActiveSessionScreen() {
   const [loggedKeys, setLoggedKeys] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [profile, setProfile] = useState<MedicalProfile>({ knee: null });
+  // blockIndex -> exercise swapped in for the rest of this session.
   const [substitutes, setSubstitutes] = useState<Record<number, string>>({});
+  const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [warmupsLogged, setWarmupsLogged] = useState(0);
+  // Blocks that had their warm-up set this session, so the toggle defaults off again.
+  const [warmedBlocks, setWarmedBlocks] = useState<ReadonlySet<number>>(new Set());
 
   // Initial load: workout -> template -> steps -> where to resume.
   useEffect(() => {
@@ -67,18 +76,29 @@ export default function ActiveSessionScreen() {
 
     async function run() {
       const workout = await getWorkout(id);
-      const template = workout?.templateId ? await getTemplate(workout.templateId) : null;
-      if (!workout || !template) {
+      const plan = workout?.plan ?? null;
+      const template =
+        workout && !plan && workout.templateId ? await getTemplate(workout.templateId) : null;
+      if (!workout || (!plan && !template)) {
         if (!cancelled) setPhase('notFound');
         return;
       }
 
-      const builtSteps = buildSessionSteps(template.blocks);
+      const builtSteps = buildSessionSteps(plan ? plan.exercises : template!.blocks);
       const keys = await getLoggedStepKeys(id);
       const resumeIndex = findResumeIndex(builtSteps, keys);
       const profileRow = await getProfile();
+      const excluded = await getExcludedExerciseIds();
+      // A planned session always starts on the bike (SPEC §7 v1.2); a
+      // template only when it asks for a warm-up.
       const needsWarmup =
-        resumeIndex === 0 && template.warmupMinutes ? !(await hasWarmupLog(id)) : false;
+        resumeIndex !== 0
+          ? false
+          : plan
+            ? (await getCardioForWorkout(id)).length === 0
+            : template!.warmupMinutes
+              ? !(await hasWarmupLog(id))
+              : false;
 
       if (cancelled) return;
 
@@ -90,13 +110,15 @@ export default function ActiveSessionScreen() {
       setLoaded({
         workoutId: id,
         trainingDate: workout.trainingDate,
-        templateName: template.name,
-        warmupMinutes: template.warmupMinutes,
+        title: plan ? planTitle(plan) : template!.name,
+        warmupMinutes: plan ? plan.bike.minutes : template!.warmupMinutes,
+        plan,
         saddleHeightCm: profileRow?.saddleHeightCm ?? null,
       });
       setSteps(builtSteps);
       setLoggedKeys(keys);
       setProfile({ knee: profileRow?.kneeProfile ?? null });
+      setExcludedIds(new Set(excluded));
       setCurrentIndex(resumeIndex);
       setPhase(needsWarmup ? 'warmup' : 'logging');
     }
@@ -110,7 +132,7 @@ export default function ActiveSessionScreen() {
   const currentStep = steps[currentIndex] ?? null;
   const templateExercise = currentStep ? exerciseMap[currentStep.block.exerciseId] : undefined;
   const effectiveExercise: Exercise | undefined = currentStep
-    ? (exerciseMap[substitutes[currentIndex] ?? ''] ?? templateExercise)
+    ? (exerciseMap[substitutes[currentStep.blockIndex] ?? ''] ?? templateExercise)
     : undefined;
 
   const nextLabel = useMemo(() => {
@@ -125,15 +147,17 @@ export default function ActiveSessionScreen() {
     router.replace({ pathname: '/workout/summary/[id]', params: { id: loaded.workoutId } });
   }
 
-  async function handleLogWarmup(minutes: number) {
+  async function handleLogWarmup(result: WarmupResult) {
     if (!loaded || saving) return;
     setSaving(true);
     try {
       await logCardio({
         workoutId: loaded.workoutId,
         trainingDate: loaded.trainingDate,
-        purpose: 'warmup',
-        minutes,
+        purpose: loaded.plan ? 'cardio' : 'warmup',
+        minutes: result.minutes,
+        resistanceLevel: result.resistance,
+        rpe: result.rpe,
       });
       setPhase('logging');
     } finally {
@@ -187,7 +211,10 @@ export default function ActiveSessionScreen() {
 
     // After a warm-up the same step comes back once the rest is over;
     // the remount key below includes the warm-up count so the toggle resets.
-    if (data.isWarmup) setWarmupsLogged((n) => n + 1);
+    if (data.isWarmup) {
+      setWarmupsLogged((n) => n + 1);
+      setWarmedBlocks((prev) => new Set(prev).add(currentStep.blockIndex));
+    }
     await useRestTimerStore
       .getState()
       .start(currentStep.block.restSec, pl.workout.session.restNotificationBody);
@@ -234,7 +261,7 @@ export default function ActiveSessionScreen() {
     <View className="flex-1 bg-background">
       <Stack.Screen
         options={{
-          title: loaded.templateName,
+          title: loaded.title,
           headerRight: () => (
             <Pressable onPress={goToSummary} hitSlop={8}>
               <Text className="font-display-semibold text-highlight">
@@ -249,6 +276,9 @@ export default function ActiveSessionScreen() {
         <WarmupCard
           defaultMinutes={loaded.warmupMinutes}
           saddleHeightCm={loaded.saddleHeightCm}
+          askEffort={loaded.plan !== null}
+          defaultResistance={loaded.plan?.bike.resistance ?? null}
+          note={loaded.plan?.bike.reasons.map((r) => pl.plan.bike[r]).join(' ')}
           onLog={handleLogWarmup}
           onSkip={() => setPhase('logging')}
           saving={saving}
@@ -266,6 +296,12 @@ export default function ActiveSessionScreen() {
           key={`${currentIndex}-${effectiveExercise.id}-${warmupsLogged}`}
           exercise={effectiveExercise}
           block={currentStep.block}
+          planned={loaded.plan ? (currentStep.block as PlannedExercise) : undefined}
+          defaultWarmup={
+            loaded.plan !== null &&
+            (currentStep.block as PlannedExercise).warmupSet &&
+            !warmedBlocks.has(currentStep.blockIndex)
+          }
           setNumber={currentStep.setNumber}
           totalSets={currentStep.block.sets}
           onSave={handleSaveSet}
@@ -286,7 +322,7 @@ export default function ActiveSessionScreen() {
             <List size={16} className="text-muted-foreground" />
             <Text variant="muted">{pl.workout.session.progressTitle}</Text>
           </Pressable>
-          {templateExercise.substituteIds.length > 0 ? (
+          {templateExercise.substituteIds.length > 0 || loaded.plan ? (
             <Pressable onPress={() => setSubstituteModalOpen(true)}>
               <Text variant="muted">{pl.workout.session.substituteTitle}</Text>
             </Pressable>
@@ -314,9 +350,22 @@ export default function ActiveSessionScreen() {
           current={templateExercise}
           exerciseMap={exerciseMap}
           profile={profile}
-          onSelect={(exercise) => {
-            setSubstitutes((prev) => ({ ...prev, [currentIndex]: exercise.id }));
+          excludedIds={excludedIds}
+          planned={loaded.plan !== null}
+          onSelect={(choice) => {
+            if (!currentStep) return;
+            setSubstitutes((prev) => ({ ...prev, [currentStep.blockIndex]: choice.exercise.id }));
             setSubstituteModalOpen(false);
+            if (choice.forBlock && choice.slotId) {
+              const slotId = choice.slotId;
+              void getCurrentBlock().then((block) =>
+                block ? setBlockSelection(block.id, slotId, choice.exercise.id) : undefined,
+              );
+            }
+          }}
+          onExclude={(exercise) => {
+            void setExerciseExcluded(exercise.id, true);
+            setExcludedIds((prev) => new Set(prev).add(exercise.id));
           }}
           onClose={() => setSubstituteModalOpen(false)}
         />

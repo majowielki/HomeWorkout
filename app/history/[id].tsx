@@ -21,6 +21,7 @@ import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { cn } from '@/lib/cn';
 import { formatDate, formatTime } from '@/lib/format';
 import { syncReminders } from '@/lib/reminders';
+import { planTitle } from '@/features/plan/format';
 import { pl } from '@/strings/pl';
 
 type Loaded = {
@@ -55,7 +56,8 @@ export default function WorkoutDetailScreen() {
       kind: 'ready',
       data: {
         workout,
-        templateName: template?.name ?? pl.history.noTemplate,
+        templateName:
+          template?.name ?? (workout.plan ? planTitle(workout.plan) : pl.history.noTemplate),
         sets,
         groups: groupSetsByExercise(sets),
         cardio,

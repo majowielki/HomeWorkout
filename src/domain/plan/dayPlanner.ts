@@ -93,24 +93,7 @@ export function planDay(
     ((today.sleepHours !== null && today.sleepHours < cfg.lowReadiness.sleepHours) ||
       (today.energy !== null && today.energy <= cfg.lowReadiness.energy));
 
-  // Direct sets: the research behind 3-6 counts sets aimed at the muscle
-  // (SPEC §4.1), and half-sets from other exercises would let a squat's
-  // core work crowd out every core exercise.
-  const volume = weeklyVolume(
-    past.flatMap((s) =>
-      s.sets
-        .filter((set) => !set.isWarmup)
-        .map((set) => ({
-          exerciseId: set.exerciseId,
-          date: s.date,
-          isWarmup: false,
-          rir: set.rir,
-        })),
-    ),
-    catalog,
-    asOf,
-    { ...training, secondaryMuscleWeight: 0 },
-  );
+  const volume = directVolume(past, catalog, asOf, training);
   const { lastPrimary, lastSlot } = lastTrained(past, catalog, slotOf, training);
 
   const skipped: SkippedSlot[] = [];
@@ -344,6 +327,33 @@ function mobilityPrescription(exercise: Exercise, slot: Slot): Prescription {
     reasons: [],
     confidence: 'high',
   };
+}
+
+/**
+ * Direct working sets per muscle over the 7 days ending on `asOf` — sets
+ * where it is primary. The research behind 3-6 counts sets aimed at the
+ * muscle (SPEC §4.1); half-sets from other exercises would let a squat's
+ * core work crowd out every core exercise (SPEC §10.8).
+ */
+export function directVolume(
+  sessions: readonly HistorySession[],
+  catalog: Readonly<Record<string, Exercise>>,
+  asOf: string,
+  training = TRAINING_CONFIG,
+): Record<MuscleGroup, number> {
+  return weeklyVolume(
+    sessions.flatMap((s) =>
+      s.sets.map((set) => ({
+        exerciseId: set.exerciseId,
+        date: s.date,
+        isWarmup: set.isWarmup,
+        rir: set.rir,
+      })),
+    ),
+    catalog,
+    asOf,
+    { ...training, secondaryMuscleWeight: 0 },
+  );
 }
 
 /**
