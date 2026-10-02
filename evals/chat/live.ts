@@ -19,6 +19,7 @@ import { liveChatResponder, type ChatResponder } from './responders';
 
 interface WorkerModel {
   modelFromEnv(env: Record<string, string | undefined>): unknown | null;
+  providerOptionsFromEnv(env: Record<string, string | undefined>): unknown;
 }
 interface WorkerChat {
   newStats(): unknown;
@@ -30,6 +31,7 @@ interface WorkerChat {
       maxOutputTokens: number;
       tally: { inputTokens: number; outputTokens: number };
       stats: unknown;
+      providerOptions?: unknown;
     },
   ): AsyncGenerator<ChatEvent>;
 }
@@ -40,16 +42,19 @@ const load = async <T>(specifier: string): Promise<T> => (await import(specifier
 const STEP_TIMEOUT_MS = 45_000;
 
 export async function createLiveChatResponder(recordTo?: string): Promise<ChatResponder> {
-  const { modelFromEnv } = await load<WorkerModel>('../../worker/src/model');
+  const { modelFromEnv, providerOptionsFromEnv } =
+    await load<WorkerModel>('../../worker/src/model');
   const { streamChatStep, newStats } = await load<WorkerChat>('../../worker/src/chat');
 
-  const model = modelFromEnv({
+  const env = {
     PROVIDER: process.env.PROVIDER ?? 'google',
     MODEL_ID: process.env.MODEL_ID ?? '',
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
     AI_GATEWAY_TOKEN: process.env.AI_GATEWAY_TOKEN,
-  });
+    THINKING_LEVEL: process.env.THINKING_LEVEL,
+  };
+  const model = modelFromEnv(env);
   if (!model) {
     throw new Error(
       'No model: set PROVIDER, MODEL_ID and GOOGLE_GENERATIVE_AI_API_KEY (see worker/README.md).',
@@ -63,9 +68,10 @@ export async function createLiveChatResponder(recordTo?: string): Promise<ChatRe
       try {
         for await (const event of streamChatStep(model, request, {
           abortSignal: AbortSignal.timeout(STEP_TIMEOUT_MS),
-          maxOutputTokens: 900,
+          maxOutputTokens: Number(process.env.MAX_OUTPUT_TOKENS ?? 2048),
           tally: { inputTokens: 0, outputTokens: 0 },
           stats: newStats(),
+          providerOptions: providerOptionsFromEnv(env),
         })) {
           events.push(event);
         }

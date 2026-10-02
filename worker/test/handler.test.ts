@@ -516,3 +516,36 @@ describe('response shape', () => {
       expect(weeklySummaryResponseSchema.safeParse(body).success).toBe(true);
   });
 });
+
+describe('the weekly summary: provider settings and failures', () => {
+  it('tells the provider the configured thinking level', async () => {
+    const model = mockModel(answer(GOOD));
+    const env = testEnv({ THINKING_LEVEL: 'minimal' });
+    await call(handlerWith(model), post(requestBody()), env);
+    expect(model.doGenerateCalls[0]!.providerOptions).toEqual({
+      google: { thinkingConfig: { thinkingLevel: 'minimal' } },
+    });
+  });
+
+  it('logs the status a provider refused with, and not what it said', async () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const model = new MockLanguageModelV4({
+      modelId: 'mock-coach',
+      doGenerate: async () => {
+        throw new APICallError({
+          message: 'API key not valid. Please pass a valid API key.',
+          url: 'https://p',
+          requestBodyValues: {},
+          statusCode: 400,
+        });
+      },
+    });
+    await call(handlerWith(model), post(requestBody()));
+    const logged = spy.mock.calls.map((c) => String(c[0]));
+    expect(JSON.parse(logged.at(-1)!)).toMatchObject({
+      outcome: 'upstream_error',
+      upstreamStatus: 400,
+    });
+    expect(logged.join('\n')).not.toContain('API key not valid');
+  });
+});

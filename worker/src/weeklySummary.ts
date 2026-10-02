@@ -4,6 +4,7 @@ import type { CoachContext } from '../../src/ai/contract/coachContext';
 import { weeklySummarySchema, type WeeklySummary } from '../../src/ai/contract/weeklySummary';
 import { buildWeeklySummaryPrompt } from '../../src/ai/prompts/weeklySummary/v1';
 import { checkSummary, describeViolations } from '../../src/domain/coach/outputGuards';
+import type { CallProviderOptions } from './model';
 
 /** One try, and one more with the reason it failed. More would only spend tokens on a stuck model. */
 export const MAX_ATTEMPTS = 2;
@@ -22,6 +23,7 @@ interface Options {
   abortSignal?: AbortSignal;
   maxOutputTokens: number;
   tally: Tally;
+  providerOptions?: CallProviderOptions;
 }
 
 function add(tally: Tally, usage: { inputTokens?: number; outputTokens?: number } | undefined) {
@@ -70,6 +72,7 @@ export async function generateWeeklySummary(
         maxRetries: 0,
         maxOutputTokens: options.maxOutputTokens,
         abortSignal: options.abortSignal,
+        providerOptions: options.providerOptions,
       });
       add(options.tally, result.usage);
 

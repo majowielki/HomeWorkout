@@ -94,15 +94,27 @@ of the request's bytes in tokens), so a cancelled call is not free.
 `toolRound` (rounds the question had used), `toolCalls`, `droppedCalls` (calls
 beyond three in a round, ignored), `replyChars`, `finishReason`,
 `guardViolations` (how many rules the reply broke, measured on the Worker and
-enforced on the phone, which withdraws such a reply) and `reason: "text_gate"`
-for a refused message. Never the text of a question, a reply or a tool result.
-The SDK's own error logging is switched off: a provider error can quote the
-request.
+enforced on the phone, which withdraws such a reply), `reasoningTokens` (of the
+output tokens, how many were thinking), `firstEventMs` (how long until the
+provider produced anything) and `reason: "text_gate"` for a refused message.
+Both routes also log `upstreamStatus`, the HTTP status a provider refused with
+(a number: 400 is usually a bad key or request, 404 an unknown model, 429 the
+rate limit, 5xx the provider's own trouble). Never the text of a question, a
+reply, a tool result or the provider's message. The SDK's own error logging is
+switched off: a provider error can quote the request.
 
-Not run against a real provider: `toolChoice: 'none'` with earlier calls in the
-history, the tool schemas through Gemini's function-calling subset, and that a
-cancel closes the provider's HTTP stream. Written to the SDK's documented
-behaviour, tested against a mock model in workerd.
+**Thinking.** Gemini 3 thinks before it answers, at `medium` by default, which
+is many seconds per step, and its thinking tokens count against
+`MAX_OUTPUT_TOKENS`. `THINKING_LEVEL` sets it per call; the shipped value is
+`low`, a starting point that the evaluation should confirm or move.
+
+The first live run (2026-10-02, `gemini-3.8-flash` at its default thinking
+level) is what showed this: a two-step question took 20 s. It also showed that
+Gemini accepts the tool declarations, asks for the tools and reads their results.
+Still not run against a real provider: `toolChoice: 'none'` after the last
+allowed round (no question has needed four rounds), and that a cancel closes the
+provider's HTTP stream. Written to the SDK's documented behaviour, tested against
+a mock model in workerd.
 
 ## Configuration
 
@@ -118,7 +130,8 @@ Plain variables are in [`wrangler.jsonc`](wrangler.jsonc); secrets are set with
 | `MODEL_ID`                     | variable   | **no default**: choose from the provider's published list (D3)    |
 | `AI_GATEWAY_BASE_URL`          | variable   | optional; routes through Cloudflare AI Gateway for logs and spend |
 | `DAILY_TOKEN_BUDGET`           | variable   | input + output tokens per UTC day                                 |
-| `MAX_OUTPUT_TOKENS`            | variable   | per call                                                          |
+| `MAX_OUTPUT_TOKENS`            | variable   | per call; thinking tokens count against it, so keep it generous   |
+| `THINKING_LEVEL`               | variable   | `minimal`, `low`, `medium` or `high`; unset = the provider's own  |
 | `PRICE_*_USD_PER_MTOK`         | variable   | optional, for the estimated cost in the log; otherwise `null`     |
 | `BUDGET`                       | KV         | the day's token counter                                           |
 | `LIMITER`                      | rate limit | summary requests per minute                                       |

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { constantTimeEqual, isAuthorized } from '../src/auth';
 import { dailyBudget } from '../src/budget';
 import { estimateCostUsd, logRecord, type LogRecord } from '../src/log';
+import { providerOptionsFromEnv } from '../src/model';
 import { freshDay, testEnv } from './helpers';
 
 describe('constantTimeEqual', () => {
@@ -120,5 +121,28 @@ describe('logRecord', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0]).not.toContain('\n');
     expect(JSON.parse(lines[0]!)).toEqual(record);
+  });
+});
+
+describe('providerOptionsFromEnv', () => {
+  it('turns a known thinking level into the Gemini setting', () => {
+    for (const level of ['minimal', 'low', 'medium', 'high']) {
+      expect(providerOptionsFromEnv({ PROVIDER: 'google', THINKING_LEVEL: level })).toEqual({
+        google: { thinkingConfig: { thinkingLevel: level } },
+      });
+    }
+  });
+
+  it('leaves the provider default alone when nothing, or something unknown, is configured', () => {
+    expect(providerOptionsFromEnv({ PROVIDER: 'google' })).toBeUndefined();
+    expect(providerOptionsFromEnv({ PROVIDER: 'google', THINKING_LEVEL: '' })).toBeUndefined();
+    expect(
+      providerOptionsFromEnv({ PROVIDER: 'google', THINKING_LEVEL: 'extreme' }),
+    ).toBeUndefined();
+    expect(providerOptionsFromEnv({ PROVIDER: 'google', THINKING_LEVEL: 'LOW' })).toBeUndefined();
+  });
+
+  it('does not send a Google setting to another provider', () => {
+    expect(providerOptionsFromEnv({ PROVIDER: 'fake', THINKING_LEVEL: 'low' })).toBeUndefined();
   });
 });

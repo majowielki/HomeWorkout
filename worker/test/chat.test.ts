@@ -703,3 +703,94 @@ describe('the summary endpoint next to it', () => {
     expect((await handler.fetch!(wrong as never, testEnv(), ctx)).status).toBe(400);
   });
 });
+
+describe('how long the model thinks, and what is logged about it', () => {
+  const sentOptions = (model: MockLanguageModelV4) => model.doStreamCalls[0]!.providerOptions;
+
+  it('tells the provider the configured thinking level', async () => {
+    const model = streamingModel(textStep(['ok']));
+    const env = testEnv({ THINKING_LEVEL: 'low' });
+    const { response, settled } = await call(handlerWith(model), postChat(chatBody([ask()])), env);
+    await response.arrayBuffer();
+    await settled();
+    expect(sentOptions(model)).toEqual({ google: { thinkingConfig: { thinkingLevel: 'low' } } });
+  });
+
+  it('sends no setting when none is configured, or the level is unknown', async () => {
+    for (const level of [undefined, 'extreme']) {
+      const model = streamingModel(textStep(['ok']));
+      const env = testEnv({ THINKING_LEVEL: level });
+      const { response, settled } = await call(
+        handlerWith(model),
+        postChat(chatBody([ask()])),
+        env,
+      );
+      await response.arrayBuffer();
+      await settled();
+      expect(sentOptions(model)).toBeUndefined();
+    }
+  });
+
+  it('logs how many of the output tokens were thinking, and how long until the first event', async () => {
+    const thinking = [
+      { type: 'stream-start', warnings: [] },
+      { type: 'text-start', id: 't' },
+      { type: 'text-delta', id: 't', delta: 'Krótko.' },
+      { type: 'text-end', id: 't' },
+      {
+        type: 'finish',
+        finishReason: { unified: 'stop', raw: 'STOP' },
+        usage: {
+          inputTokens: { total: 900, noCache: 900, cacheRead: 0, cacheWrite: 0 },
+          outputTokens: { total: 300, text: 40, reasoning: 260 },
+        },
+      },
+    ];
+    const result = await run(streamingModel(thinking), chatBody([ask()]));
+    expect(result.lines.at(-1)).toMatchObject({
+      tokensOut: 300,
+      reasoningTokens: 260,
+      firstEventMs: expect.any(Number),
+    });
+  });
+
+  it('logs the status a provider refused with, a number and never its message', async () => {
+    const refusing = (statusCode: number, message: string) =>
+      new MockLanguageModelV4({
+        modelId: 'mock-coach',
+        doStream: async () => {
+          throw new APICallError({
+            message,
+            url: 'https://p',
+            requestBodyValues: {},
+            statusCode,
+          });
+        },
+      });
+
+    for (const [status, message] of [
+      [400, 'API key not valid. Please pass a valid API key.'],
+      [429, 'Resource has been exhausted'],
+      [503, 'The model is overloaded'],
+    ] as const) {
+      const result = await run(refusing(status, message), chatBody([ask()]));
+      expect(result.lines.at(-1)).toMatchObject({
+        outcome: 'upstream_error',
+        upstreamStatus: status,
+      });
+      expect(JSON.stringify(result.lines)).not.toContain(message);
+    }
+  });
+
+  it('has no status to log for a failure that is not the provider refusing', async () => {
+    const model = new MockLanguageModelV4({
+      modelId: 'mock-coach',
+      doStream: async () => {
+        throw new Error('socket closed');
+      },
+    });
+    const result = await run(model, chatBody([ask()]));
+    expect(result.lines.at(-1)).toMatchObject({ outcome: 'upstream_error' });
+    expect(result.lines.at(-1)).not.toHaveProperty('upstreamStatus');
+  });
+});
