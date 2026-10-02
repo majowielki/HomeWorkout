@@ -667,6 +667,7 @@ interface Slot {
   rir: [number, number];
   restSec: number;
   start: { paired?: number; single?: number; band?: string };  // ciężar startowy, §5.8
+  lightFill?: boolean;                // może dopełniać krótki dzień lekką pracą przy RIR 5
 }
 ```
 
@@ -707,21 +708,34 @@ jazdy na rowerze, dziennik dnia (sen, energia, DOMS), kalibracje gum. Zwykłe ob
    |---|---|
    | `NO_CANDIDATE` | w slocie nie ma dozwolonego ćwiczenia |
    | `DOMS_HIGH` | DOMS ≥ 4 w partii głównej (dzisiejszy dziennik) |
-   | `RECOVERING` | partia główna miała serie robocze wczoraj albo dziś |
-   | `VOLUME_AT_MAX` | nie mieści się ani jedna seria bez przekroczenia max (główne 1,0, pomocnicze 0,5) |
+   | `RECOVERING` | partia główna miała serie robocze wczoraj albo dziś (serie przy RIR 5 się nie liczą) |
+   | `VOLUME_AT_MAX` | nie mieści się ani jedna seria bez przekroczenia tygodniowego max serii bezpośrednich |
+   | `ALREADY_TODAY` | partia główna ma już dziś `maxDirectSetsPerMuscleDay` serii z innego slotu |
+   | `VOLUME_ON_TARGET` | partie główne mają już cel tygodnia, a slot był niedawno (< `forceStaleDays`) |
    | `FATIGUE_BILATERAL_ONLY` | `FATIGUE_HIGH`, ćwiczenie jest jednostronne, a w slocie nie ma obunożnego |
    | `NOT_PICKED` | slot się kwalifikował, ale przegrał z innymi o budżet czasu |
 
    `RECOVERING` przy treningu codziennym sam tworzy naprzemienność partii.
+
+   **Planer liczy serie bezpośrednie** — tylko te, w których partia jest główna. Tak brzmi zalecenie
+   z researchu („3–6 bezpośrednich, ciężkich serii", §4.1), a pół-serie z innych ćwiczeń zapychały
+   limit: brzuch, pomocniczy w przysiadzie, pompkach i noszeniu, nie dostawał ani jednego ćwiczenia
+   na brzuch (§10.8). Wskaźnik dla AI (§4.2) nadal liczy pomocnicze po 0,5.
 3. **Punktacja:** `2 × niedobór + min(dni od ostatniego wykonania slotu, 14) / 7 + (compound ? 1 : 0)`,
-   gdzie niedobór = suma po partiach głównych z `max(0, cel − objętość 7 dni − zaplanowane dziś)`.
-   Przeliczana po każdym wyborze. Składnik „dni od ostatniego razu" pilnuje, żeby rzadkie sloty
-   (łydki, biceps) nie zniknęły.
+   gdzie niedobór = suma po partiach głównych z
+   `max(0, cel − serie bezpośrednie 7 dni − zaplanowane dziś) / liczba slotów, które ją trenują`.
+   Dzielnik sprawia, że partia z jednym slotem (dwójki uda: tylko hinge) wygrywa z partią z czterema
+   (pośladki), zanim wspólny limit zostanie zużyty. Przeliczana po każdym wyborze. Slot wchodzi tylko,
+   gdy jego partie mają niedobór albo czekał ≥ `forceStaleDays` (10) dni — wtedy wraca mimo celu,
+   żeby żaden ruch nie zniknął na stałe.
 4. **Wypełnianie:** sloty od najwyższej punktacji, dopóki szacowany czas < `sessionMinutes.target`
    i dodanie nie przekroczy `sessionMinutes.max`; najwyżej `maxExercisesPerSession`. Serie:
-   `setsPerExercise`, w deloadzie 1, mniej, gdy brakuje miejsca w objętości.
-5. **Dopełnienie:** gdy czas < `sessionMinutes.min` → ćwiczenia slotu `filler`. Gdy ciężkiej pracy
-   jest mniej niż połowa min → `LIGHT_DAY`.
+   `setsPerExercise`, w deloadzie 1, mniej, gdy brakuje miejsca w limicie tygodnia albo dnia
+   (`maxDirectSetsPerMuscleDay`, 2 — rozkłada tydzień na dni, zamiast ładować go w pierwszy).
+5. **Dopełnienie:** gdy czas < `sessionMinutes.min` → najpierw lekka praca slotów z `lightFill`
+   (core, rotatory) przy RIR 5, której nie ma już w planie — od najdłużej czekającego; RIR 5 to nie
+   seria robocza (§4.2), więc nie liczy się do objętości ani do regeneracji. Potem mobilność, bez
+   progresji. Gdy ciężkiej pracy jest mniej niż połowa min → `LIGHT_DAY`.
 6. **Recepta** dla każdego ćwiczenia: §5.8 → przerwa (§6.3) → deload (§6.2: 1 seria, RIR 4–5,
    obciążenie i ilość z ostatniej sesji) → gotowość. Ćwiczenie z gumą dostaje serię rozgrzewkową.
 7. **Kolejność:** rower; ćwiczenia złożone w parach dół + góra (A1/A2, B1/B2); akcesoria; core;
@@ -748,7 +762,7 @@ na „czemu dziś nie ma przysiadów?" — dla ekranu i dla narzędzia AI `getPl
 codziennie i wykonuje plan. Wymagane właściwości:
 
 - żadna partia główna nie ma serii roboczych dwa dni z rzędu;
-- objętość 7 dni żadnej partii nigdy nie przekracza max;
+- serie bezpośrednie z 7 dni żadnej partii nigdy nie przekraczają jej max;
 - nigdy nie pojawia się ćwiczenie odrzucone przez filtr kolana ani z listy „nie proponuj";
 - plan dnia mieści się w `sessionMinutes.max`;
 - każdy slot z dozwolonym kandydatem pojawia się przynajmniej raz w każdym bloku;
@@ -763,9 +777,26 @@ konfiguracji, nie błąd algorytmu.
 
 ### 10.7 Konfiguracja — nowe klucze
 
-`sessionMinutes {min 20, target 25, max 30}` · `bikeMinutes {min 10, max 20}` · `setsPerExercise 2` ·
-`maxExercisesPerSession 6` · `introExposures 2` · `reExposureAfterDays 31` · `blockWorkDays 28` ·
+`sessionMinutes {min 20, target 20, max 30}` · `bikeMinutes {min 10, max 20}` · `setsPerExercise 2` ·
+`maxExercisesPerSession 6` · `maxDirectSetsPerMuscleDay 2` · `forceStaleDays 10` · `fillerSets 2` ·
+`lightFillRir 5` · `introExposures 2` · `reExposureAfterDays 31` · `blockWorkDays 28` ·
 `deloadDays 7` · `reactiveDeloadMinDays 7` · wagi punktacji · `secondsPerRep 4` ·
-`exerciseChangeoverSec 30` · `bandWarmupSec 60` · progi roweru (RPE 5 / 8, krok 2 min).
+`exerciseChangeoverSec 30` · `bandWarmupSec 60` · progi roweru (RPE 5 / 8, krok 2 min) ·
+`maxDirectSetsOverride {glutes 8, back 8}`.
 
-Wszystkie poza objętością (§4.1) to parametry do strojenia, **nie wyniki badań**.
+Wszystkie poza dolną granicą objętości (§4.1) to parametry do strojenia, **nie wyniki badań**.
+
+### 10.8 Czego nauczyła pierwsza symulacja (2026-10-02)
+
+Silnik powstał przed realnym używaniem, więc pierwszym „użytkownikiem" była symulacja
+(`npx tsx scripts/simulate-plan.ts --weeks 12`). Cztery przebiegi, cztery poprawki:
+
+| Przebieg | Co wyszło | Zmiana |
+|---|---|---|
+| 1 | brzuch ani razu jako ćwiczenie; dzień 1 — 28 min, potem dni z samą mobilnością | serie bezpośrednie zamiast pół-serii; limit dnia 2 serie na partię; slot tylko przy niedoborze (albo po 10 dniach) |
+| 2 | dwójki uda bez ani jednej serii w bloku 1 — hinge zaczynał od mostka (same pośladki) | osobny slot „Pośladki"; hinge zawsze trenuje dwójki |
+| 3 | dwójki uda i przedramiona pod normą — ich jedyny slot przegrywał o limit pośladków / pleców | niedobór dzielony przez liczbę slotów partii; lekka praca przy RIR 5 nie jest blokowana przez `validatePlan` |
+| 4 | przy max 6 czwórki i dwójki uda (oraz najszersze i przedramiona) nie mieszczą się razem w normie — 3 + 3 serie to już 6 na pośladki | max 8 serii bezpośrednich dla pośladków i pleców — partii głównych w wielu slotach. Górna granica jest tą do strojenia (§4.1) |
+
+Wynik dla 12 tygodni: dzień 18–25 min ćwiczeń (śr. 22) + rower; każda partia w normie przez
+większość dni — pod normą głównie w tygodniach deloadu, czyli zgodnie z planem.

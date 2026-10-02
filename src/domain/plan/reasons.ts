@@ -23,6 +23,12 @@ export const PROGRESSION_REASONS = [
   'LAYOFF_MEDIUM',
   'LAYOFF_RECALIBRATION',
   'DELOAD',
+  /** Overload signals: a one-legged variant was swapped for a two-legged one in its slot. */
+  'BILATERAL_SWAP',
+  /** Poor sleep or low energy today: one more rep in reserve (SPEC §4.3). */
+  'LOW_READINESS',
+  /** Light practice at RIR 5 to fill a short day; not a working set (SPEC §10.4). */
+  'LIGHT_FILL',
 ] as const;
 
 export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
@@ -58,3 +64,46 @@ export const BIKE_REASONS = [
 export type BikeReason = (typeof BIKE_REASONS)[number];
 
 export type Confidence = 'high' | 'low';
+
+/** Why a slot is not in today's plan, SPEC §10.4. */
+export const SKIP_REASONS = [
+  'NO_CANDIDATE',
+  'DOMS_HIGH',
+  'RECOVERING',
+  'VOLUME_AT_MAX',
+  'VOLUME_ON_TARGET',
+  'ALREADY_TODAY',
+  'FATIGUE_BILATERAL_ONLY',
+  'NOT_PICKED',
+] as const;
+
+export type SkipReason = (typeof SKIP_REASONS)[number];
+
+/** What shapes the whole day. */
+export const DAY_REASONS = [
+  'FIRST_DAY',
+  'DELOAD_WEEK',
+  'LAYOFF_SHORT',
+  'LAYOFF_MEDIUM',
+  'LAYOFF_LONG',
+  'LAYOFF_RECALIBRATION',
+  'LOW_READINESS',
+  'LIGHT_DAY',
+] as const;
+
+export type DayReason = (typeof DAY_REASONS)[number];
+
+/** What validatePlan changed, SPEC §8. */
+export const VALIDATION_CODES = [
+  'UNKNOWN_EXERCISE',
+  'MEDICAL_EXCLUSION',
+  'USER_EXCLUDED',
+  'EXERCISE_UNAVAILABLE',
+  'LOAD_NOT_AVAILABLE',
+  'RANGE_CLAMPED',
+  'LOAD_JUMP_CLAMPED',
+  'VOLUME_TRIMMED',
+  'TIME_TRIMMED',
+] as const;
+
+export type ValidationCode = (typeof VALIDATION_CODES)[number];

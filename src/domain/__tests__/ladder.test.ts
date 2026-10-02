@@ -119,6 +119,25 @@ describe('bandLoadLadder', () => {
   });
 });
 
+describe('snap', () => {
+  it('keeps a load the equipment can make and lowers one it cannot', () => {
+    const paired = dumbbellLoadLadder('paired', 4);
+    expect(paired.snap(db(6))).toEqual(db(6));
+    expect(paired.snap(db(7))).toEqual(db(6));
+    expect(paired.snap(db(1))).toEqual(db(2));
+    expect(paired.snap(band('red', 1))).toBeNull();
+  });
+
+  it('accepts known bands only, and bodyweight on its own ladder', () => {
+    const ladder = bandLoadLadder('red', 50);
+    expect(ladder.snap(band('red', 2))).toEqual(band('red', 2));
+    expect(ladder.snap(band('pink', 2))).toBeNull();
+    expect(ladder.snap(db(4))).toBeNull();
+    expect(BODYWEIGHT_LADDER.snap(bw)).toEqual(bw);
+    expect(BODYWEIGHT_LADDER.snap(db(4))).toBeNull();
+  });
+});
+
 describe('BODYWEIGHT_LADDER', () => {
   it('has a single rung and its own ceiling', () => {
     expect(BODYWEIGHT_LADDER.rank(bw)).toBe(0);

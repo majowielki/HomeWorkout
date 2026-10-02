@@ -38,6 +38,11 @@ export interface LoadLadder {
   up(load: PlannedLoad): LadderStep | null;
   /** One step lighter, or null at the floor. */
   down(load: PlannedLoad): PlannedLoad | null;
+  /**
+   * The load itself when the equipment can make it, the nearest lighter
+   * one it can make otherwise, null when it does not belong on this ladder.
+   */
+  snap(load: PlannedLoad): PlannedLoad | null;
   /** What `up` returning null means for this ladder. */
   ceilingReason: ProgressionReason;
   /** Where a never-done exercise begins. */
@@ -63,6 +68,12 @@ export function dumbbellLoadLadder(mode: DumbbellMode, startKg: number): LoadLad
       const kg = kgOf(load);
       if (kg === null || kg <= rungs[0]!) return null;
       return { kind: 'dumbbell', mode, kg: previousRung(rungs, kg) };
+    },
+    snap(load) {
+      const kg = kgOf(load);
+      if (kg === null) return null;
+      if (rungs.includes(kg)) return load;
+      return { kind: 'dumbbell', mode, kg: [...rungs].reverse().find((r) => r < kg) ?? rungs[0]! };
     },
     ceilingReason: 'LOAD_CEILING_REACHED',
     start: { kind: 'dumbbell', mode, kg: startKg },
@@ -132,6 +143,9 @@ export function bandLoadLadder(
       if (load.position > 0) return at(index, (load.position - 1) as AnchorPosition);
       return index > 0 ? at(index - 1, 3) : null;
     },
+    snap(load) {
+      return load.kind === 'band' && indexOf(load.bandId) !== -1 ? load : null;
+    },
     ceilingReason: 'LOAD_CEILING_REACHED',
     start: {
       kind: 'band',
@@ -145,6 +159,7 @@ export const BODYWEIGHT_LADDER: LoadLadder = {
   rank: (load) => (load.kind === 'bodyweight' ? 0 : null),
   up: () => null,
   down: () => null,
+  snap: (load) => (load.kind === 'bodyweight' ? load : null),
   ceilingReason: 'BODYWEIGHT_CEILING',
   start: { kind: 'bodyweight' },
 };

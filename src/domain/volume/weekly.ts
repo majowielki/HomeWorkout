@@ -11,6 +11,13 @@ export interface VolumeSet {
   rir: number | null;
 }
 
+/** What counting volume reads from the config; a caller may count direct sets only. */
+export interface VolumeConfig {
+  workingSetMaxRir: number;
+  secondaryMuscleWeight: number;
+  volumeExcludedPatterns: readonly MovementPattern[];
+}
+
 export interface VolumeExercise {
   movementPattern: MovementPattern;
   primaryMuscles: readonly MuscleGroup[];
@@ -24,7 +31,7 @@ export interface VolumeExercise {
  */
 export function countsAsVolume(
   exercise: Pick<VolumeExercise, 'movementPattern'>,
-  cfg = TRAINING_CONFIG,
+  cfg: Pick<VolumeConfig, 'volumeExcludedPatterns'> = TRAINING_CONFIG,
 ): boolean {
   return !cfg.volumeExcludedPatterns.includes(exercise.movementPattern);
 }
@@ -40,7 +47,7 @@ export function weeklyVolume(
   sets: readonly VolumeSet[],
   exercises: Readonly<Record<string, VolumeExercise>>,
   endDate: string,
-  cfg = TRAINING_CONFIG,
+  cfg: VolumeConfig = TRAINING_CONFIG,
 ): Record<MuscleGroup, number> {
   const out = Object.fromEntries(MUSCLE_GROUPS.map((m) => [m, 0])) as Record<MuscleGroup, number>;
 
@@ -54,6 +61,17 @@ export function weeklyVolume(
     for (const muscle of exercise.secondaryMuscles) out[muscle] += cfg.secondaryMuscleWeight;
   }
   return out;
+}
+
+/** The weekly maximum of direct sets for one muscle (SPEC §4.1, with the overrides). */
+export function maxDirectSets(
+  muscle: MuscleGroup,
+  cfg: Pick<
+    typeof TRAINING_CONFIG,
+    'weeklyWorkingSetsPerMuscle' | 'maxDirectSetsOverride'
+  > = TRAINING_CONFIG,
+): number {
+  return cfg.maxDirectSetsOverride[muscle] ?? cfg.weeklyWorkingSetsPerMuscle.max;
 }
 
 export function volumeStatus(sets: number, cfg = TRAINING_CONFIG): VolumeStatus {

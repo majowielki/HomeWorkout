@@ -24,6 +24,7 @@ export const slotSchema = z.object({
     single: kgOnSomeLadder.optional(),
     band: z.string().min(1).optional(),
   }),
+  lightFill: z.boolean().optional(),
 }) satisfies z.ZodType<Slot>;
 
 export const slotCatalogueSchema = z.object({
