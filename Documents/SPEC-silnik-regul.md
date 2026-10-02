@@ -4,7 +4,11 @@
 > Wszystkie wartości liczbowe pochodzą z deep researchów w `Documents/Gemini deep research docs/`
 > i są **parametrami konfiguracyjnymi**, nie stałymi w kodzie — patrz §1.3.
 >
-> Wersja 1.1. Data: 2026-09-14 (v1: 2026-09-10). Sekcje §2, §3 i §5.0 są zaimplementowane w `src/domain`; kod jest źródłem prawdy, ten dokument opisuje intencję.
+> Wersja 1.2. Data: 2026-10-02 (v1.1: 2026-09-14, v1: 2026-09-10). Sekcje §2, §3 i §5.0 są zaimplementowane w `src/domain`; kod jest źródłem prawdy, ten dokument opisuje intencję.
+>
+> **v1.2:** plan dnia ze slotów zamiast stałych szablonów, rotacja ćwiczeń co blok, trening codzienny
+> (§10), progresja masy ciała i roweru (§5.8, §7), poprawka kierunku RIR w §4.3. Decyzje użytkownika
+> z 2026-10-02; bramka „dwa tygodnie używania" świadomie pominięta (IMPLEMENTACJA §0.1).
 
 ---
 
@@ -241,7 +245,8 @@ export const TRAINING_CONFIG = {
 ### 4.2 Liczenie objętości
 
 Okno 7 dni wstecz od podanej daty. Seria liczy się jako **robocza**, gdy `rir <= 4`.
-Serie rozgrzewkowe nie wchodzą do puli.
+Serie rozgrzewkowe nie wchodzą do puli. *v1.2:* ćwiczenia `Mobility` i `Cardio` też nie — kot-krowa
+ma w katalogu `primaryMuscles: back`, ale nie jest ciężką serią na plecy.
 
 Wkład w grupę mięśniową:
 - `primaryMuscles` → 1,0 serii
@@ -255,10 +260,15 @@ Wejście: `DailyLog` (sen, DOMS per partia, energia) + objętość z okna 7 dni.
 
 ```
 DOMS danej partii >= 4          → wyklucz ćwiczenia, gdzie jest primary
-sen < 6 h LUB energia <= 2      → obniż docelowe RIR o 1 (czyli trenuj lżej)
+sen < 6 h LUB energia <= 2      → podnieś docelowe RIR o 1 (czyli trenuj lżej)
 objętość partii >= max          → nie dokładaj serii tej partii
 zmęczenie skumulowane wysokie   → tylko Bilateral (patrz raport o taksonomii, §Integracja Zmęczenia)
 ```
+
+*Poprawka v1.2:* v1.1 mówiło „obniż RIR o 1 (czyli trenuj lżej)". To sprzeczność: niższe RIR to
+bliżej upadku, czyli ciężej. Obowiązuje intencja: **lżej = RIR +1**, z górną granicą 5.
+
+Przy treningu codziennym te reguły są częścią planera dnia — §10.4.
 
 ---
 
@@ -449,6 +459,33 @@ albo po 6 miesiącach, cokolwiek nastąpi pierwsze.
 | `ok` | neutralne | dowolnie |
 | `poor` | krzywa zstępująca (wiosłowanie, przyciąganie) — guma najcięższa tam, gdzie najsłabszy | preferuj hantle; przy gumie zwiększ pre-stretch i skróć zakres ruchu, dodaj cue |
 
+### 5.8 Jeden algorytm, trzy drabinki (v1.2)
+
+§5.1 i §5.4 to ten sam double progression nad różnymi drabinkami obciążenia:
+
+| Sprzęt | Drabinka | Krok w górę | Sufit |
+|---|---|---|---|
+| hantle | `LADDER_PAIRED` / `LADDER_SINGLE` (§5.0) | następny szczebel | ostatni szczebel → `LOAD_CEILING_REACHED` |
+| guma | (guma, pozycja) w kolejności żółta P0…P3, czerwona P0…P3, … | pozycja +1 (`BAND_MICRO_PROGRESSION`); z P3 następna guma od P1 (`BAND_MACRO_PROGRESSION`), od P0 gdy skoku nie da się oszacować albo przekracza 15% | zielona P3 |
+| masa ciała | jeden szczebel | — | od razu: `BODYWEIGHT_CEILING` |
+
+**Ilość** to powtórzenia albo — dla ćwiczeń izometrycznych (`forceProfile: 'Isometric'`) — sekundy,
+z krokiem 1 powtórzenie / 5 s. Warunek awansu, regres i „+1 w pierwszej serii poniżej max" są wspólne.
+Ćwiczenie na sufit drabinki trzyma ilość na max i czeka na rotację w następnym bloku (§10.2), która
+w slocie przechodzi do kolejnego wariantu.
+
+**Seria bez rozgrzewki przy gumie** (§5.6): pierwsza seria robocza ćwiczenia z gumą, przed którą
+w tej sesji nie było serii rozgrzewkowej, dostaje `WARMUP_MISSING` i nie wchodzi do porównań. Plan
+każe zrobić rozgrzewkę przed każdym ćwiczeniem z gumą.
+
+**Pierwszy kontakt.** Ćwiczenie bez historii zaczyna od ciężaru startowego slotu (§10.1). Pierwsze
+`introExposures` (2) sesje ćwiczenia idą przy RIR 4 (`FIRST_EXPOSURE`). Ciężary startowe to
+**zgadywanie, nie wynik badań** — RIR 4 jest po to, żeby pomyłka w górę była bezpieczna, a w dół
+nieszkodliwa. Silnik uczy się z tego, co faktycznie zalogowano, nie z tego, co zaproponował.
+
+Ten sam mechanizm obsługuje ćwiczenie niewykonywane od > 30 dni (wróciło po rotacji albo po długiej
+przerwie): szczebel w dół od ostatniego obciążenia, RIR 4, `RE_EXPOSURE`.
+
 ---
 
 ## 6. Autoregulacja i deload
@@ -518,6 +555,19 @@ interface CardioLog {
 Progresja: czas → kadencja → opór, w tej kolejności. Bez pretendowania do watów — Hop-Sport Bravo
 nie mierzy mocy, a przeliczenia „opór × kadencja = waty" byłyby zmyśleniem.
 
+**v1.2 — rower codziennie, 10–20 min, na początku sesji** (rozgrzewa kolano przed ćwiczeniami).
+Kadencja jest opcjonalna w logu, więc decyduje RPE ostatniej jazdy:
+
+| Ostatnia jazda | Następna |
+|---|---|
+| brak historii | `bikeMinutes.min`, opór do wyboru — `FIRST_EXPOSURE` |
+| RPE ≥ 8 | −2 min, nie mniej niż min — `BIKE_EASE_OFF` |
+| RPE ≤ 5 i minuty < max | +2 min — `BIKE_TIME_UP` |
+| RPE ≤ 5 w dwóch ostatnich jazdach, minuty = max | opór +1 — `BIKE_RESISTANCE_UP` |
+| w pozostałych przypadkach | bez zmian — `BIKE_HOLD` |
+
+Przerwa ≥ 15 dni → minuty wracają do min. Rower nie wchodzi do objętości partii (§4.2).
+
 Stałe zalecenia (cue'y wyświetlane przy logowaniu, wynikające z profilu kolana):
 - jazda w siodle, bez wstawania,
 - wysokość siodełka zapisana w ustawieniach i niezmieniana,
@@ -547,6 +597,12 @@ Naruszenie → plan jest **przycinany**, nie odrzucany, a użytkownik dostaje in
 zostało zmienione. Wyjątek: naruszenie punktu 2 (bezpieczeństwo medyczne) → ćwiczenie usuwane w całości,
 bez przycinania.
 
+*v1.2:* punkt 2 obejmuje też listę „nie proponuj" użytkownika (`USER_EXCLUDED`, usunięcie w całości).
+Kontekst walidacji niesie objętość z ostatnich 7 dni oraz ostatnie obciążenie każdego ćwiczenia
+z informacją, czy cel powtórzeń został osiągnięty — punkt 4 sprawdza plan z silnika i plan z LLM
+(A3) tak samo. Kolejność: 1, 2 (usuwanie) → 3, 6 (klamry wartości) → 4 → 5 (przycięcie serii od
+końca planu) → 7 (usuwanie ćwiczeń od końca).
+
 ---
 
 ## 9. Plan testów jednostkowych
@@ -567,6 +623,10 @@ portfolio w projekcie.
 | `deload` | wyzwalacz czasowy, wyzwalacz reaktywny, **ciężar niezmieniony** |
 | `layoff` | wszystkie cztery progi z §6.3 |
 | `validatePlan` | każda z siedmiu klamer osobno + przypadek medyczny (usunięcie, nie przycięcie) |
+| `bodyweightProgression`, `bike` | sufit masy ciała, ćwiczenia na czas, wszystkie wiersze tabeli z §7 |
+| `block` | start, deload planowy i reaktywny, zerowanie licznika po przerwie, rotacja cykliczna, wymiana wykluczonego |
+| `dayPlanner` | każdy kod pominięcia slotu z §10.4, budżet czasu, dopełnienie, deload, kolejność |
+| **symulacja** | 12 tygodni codziennego treningu — właściwości z §10.6 |
 
 Test, który warto napisać jako pierwszy, bo pilnuje najważniejszej poprawki w całym projekcie:
 
@@ -576,3 +636,136 @@ it('nie wyklucza wznosów bokiem mimo płaszczyzny czołowej', () => {
   expect(screenExercise(lateralRaise, kneeProfile)).toEqual([]);
 });
 ```
+
+---
+
+## 10. Plan dnia: sloty, bloki, trening codzienny (v1.2)
+
+### 10.0 Skąd ta zmiana
+
+Dwa szablony FBW A/B to 12 ćwiczeń na zmianę. Cel użytkownika jest inny: pewność, że w dłuższym
+okresie trenuje całe ciało, a nie „kilka ćwiczeń na zmianę". Do tego trenuje **codziennie**: 10–20 min
+roweru + 20–30 min ćwiczeń, a objętość zostaje 3–6 serii na partię tygodniowo (§4.1, nadal deficyt).
+Z arytmetyki: to około 6 ciężkich serii dziennie dla partii, które są „do zrobienia", plus lekkie
+dopełnienie.
+
+Szablony FBW A/B zostają w aplikacji jako „trening ręczny" — silnik ich nie używa.
+
+### 10.1 Slot
+
+Slot opisuje **ruch**, nie ćwiczenie: „pchanie poziome", „hinge", „łydki". `data/slots.json`:
+
+```ts
+interface Slot {
+  id: string;
+  name: string;                       // po polsku, do UI
+  kind: 'compound' | 'accessory' | 'core' | 'filler';
+  region: 'lower' | 'push' | 'pull' | 'shoulders' | 'arms' | 'core' | 'mobility';
+  exerciseIds: string[];              // kolejność = łatwiejsze najpierw
+  repRange: [number, number];
+  timeRange?: [number, number];       // wymagane, gdy któryś kandydat jest izometryczny
+  rir: [number, number];
+  restSec: number;
+  start: { paired?: number; single?: number; band?: string };  // ciężar startowy, §5.8
+}
+```
+
+`validate-data` pilnuje: każde ćwiczenie poza `Cardio` jest w dokładnie jednym slocie; id istnieją;
+każdy slot ma kandydata, który przechodzi twardy filtr kolana (§3.2 bez trybu konserwatywnego);
+ciężar startowy leży na drabince, guma istnieje; `timeRange` jest tam, gdzie trzeba.
+
+Slot `filler` (mobilność) jest wyjątkiem: używa wszystkich swoich dozwolonych ćwiczeń, nie rotuje
+i nie wchodzi do objętości (§4.2).
+
+### 10.2 Blok (mezocykl) i rotacja
+
+- Blok to `blockWorkDays` (28) dni kalendarzowych pracy, potem `deloadDays` (7) deloadu (§6.2),
+  potem następny blok.
+- W bloku każdy slot ma **jedno** ćwiczenie — double progression musi mieć co porównywać.
+- **Rotacja:** w nowym bloku slot bierze następne dozwolone ćwiczenie po tym z poprzedniego bloku,
+  cyklicznie. Pierwszy blok bierze pierwsze dozwolone, czyli najłatwiejsze.
+- **Dozwolone** = `screenExercise` puste + nie na liście „nie proponuj" użytkownika + sprzęt dostępny.
+- Wybór, który w trakcie bloku przestał być dozwolony, zastępuje następny dozwolony w slocie
+  (`SELECTION_REPLACED`). Zamiana w sesji „do końca bloku" nadpisuje wybór slotu.
+- Przerwa ≥ 8 dni zeruje licznik bloku: start = dziś, wybory zostają (`BLOCK_CLOCK_RESET`).
+  Inaczej przerwa tuż przed deloadem dałaby deload zaraz po przerwie (IMPLEMENTACJA, tabela ryzyk).
+- Deload reaktywny (§6.1, ≥ 2 sygnały) najwcześniej po `reactiveDeloadMinDays` (7) dniach bloku.
+- Stan bloku jest zapisywany (wybory muszą przetrwać restart); faza wynika z dat.
+
+### 10.3 Dzień — wejście
+
+Data, katalog, sloty, profil medyczny, lista „nie proponuj", stan bloku, ukończone sesje z seriami,
+jazdy na rowerze, dziennik dnia (sen, energia, DOMS), kalibracje gum. Zwykłe obiekty (§1.1).
+
+### 10.4 Dzień — algorytm
+
+1. **Kontekst dnia:** przerwa (§6.3), sygnały (§6.1), faza bloku, gotowość — sen < 6 h albo
+   energia ≤ 2 → RIR +1 dla całego dnia (`LOW_READINESS`).
+2. **Kwalifikacja** każdego slotu z jego ćwiczeniem z bloku. Slot, który odpada, dostaje kod:
+
+   | Kod | Kiedy |
+   |---|---|
+   | `NO_CANDIDATE` | w slocie nie ma dozwolonego ćwiczenia |
+   | `DOMS_HIGH` | DOMS ≥ 4 w partii głównej (dzisiejszy dziennik) |
+   | `RECOVERING` | partia główna miała serie robocze wczoraj albo dziś |
+   | `VOLUME_AT_MAX` | nie mieści się ani jedna seria bez przekroczenia max (główne 1,0, pomocnicze 0,5) |
+   | `FATIGUE_BILATERAL_ONLY` | `FATIGUE_HIGH`, ćwiczenie jest jednostronne, a w slocie nie ma obunożnego |
+   | `NOT_PICKED` | slot się kwalifikował, ale przegrał z innymi o budżet czasu |
+
+   `RECOVERING` przy treningu codziennym sam tworzy naprzemienność partii.
+3. **Punktacja:** `2 × niedobór + min(dni od ostatniego wykonania slotu, 14) / 7 + (compound ? 1 : 0)`,
+   gdzie niedobór = suma po partiach głównych z `max(0, cel − objętość 7 dni − zaplanowane dziś)`.
+   Przeliczana po każdym wyborze. Składnik „dni od ostatniego razu" pilnuje, żeby rzadkie sloty
+   (łydki, biceps) nie zniknęły.
+4. **Wypełnianie:** sloty od najwyższej punktacji, dopóki szacowany czas < `sessionMinutes.target`
+   i dodanie nie przekroczy `sessionMinutes.max`; najwyżej `maxExercisesPerSession`. Serie:
+   `setsPerExercise`, w deloadzie 1, mniej, gdy brakuje miejsca w objętości.
+5. **Dopełnienie:** gdy czas < `sessionMinutes.min` → ćwiczenia slotu `filler`. Gdy ciężkiej pracy
+   jest mniej niż połowa min → `LIGHT_DAY`.
+6. **Recepta** dla każdego ćwiczenia: §5.8 → przerwa (§6.3) → deload (§6.2: 1 seria, RIR 4–5,
+   obciążenie i ilość z ostatniej sesji) → gotowość. Ćwiczenie z gumą dostaje serię rozgrzewkową.
+7. **Kolejność:** rower; ćwiczenia złożone w parach dół + góra (A1/A2, B1/B2); akcesoria; core;
+   dopełnienie. Bloki planu mają kształt `TemplateBlock`, więc sesję prowadzi istniejący
+   `buildSessionSteps`.
+8. **`validatePlan`** (§8).
+
+Szacunek czasu: seria = praca (powtórzenia × `secondsPerRep` albo sekundy) + przerwa; ćwiczenie
++`exerciseChangeoverSec`; rozgrzewka gumą +`bandWarmupSec`. To parametr do strojenia.
+
+### 10.5 Wyjście
+
+`SessionPlan`: data, blok, faza, rower, ćwiczenia (kształt `TemplateBlock` + slot, obciążenie,
+cel ilości, seria rozgrzewkowa, kody), **pominięte sloty z kodami**, kody dnia, szacowany czas
+i poprawki z `validatePlan`.
+
+Plan jest liczony na żywo aż do startu sesji, potem zamrożony w `workouts.plan`: historia pokazuje,
+co zaproponowano wtedy, a nie co silnik zaproponowałby dziś. Pominięte sloty z kodami to odpowiedź
+na „czemu dziś nie ma przysiadów?" — dla ekranu i dla narzędzia AI `getPlanExplanation`.
+
+### 10.6 Symulacja — co ma być prawdą
+
+`domain/plan/__tests__/simulation.test.ts`: syntetyczny użytkownik przez 12 tygodni trenuje
+codziennie i wykonuje plan. Wymagane właściwości:
+
+- żadna partia główna nie ma serii roboczych dwa dni z rzędu;
+- objętość 7 dni żadnej partii nigdy nie przekracza max;
+- nigdy nie pojawia się ćwiczenie odrzucone przez filtr kolana ani z listy „nie proponuj";
+- plan dnia mieści się w `sessionMinutes.max`;
+- każdy slot z dozwolonym kandydatem pojawia się przynajmniej raz w każdym bloku;
+- sloty z ≥ 2 kandydatami zmieniają ćwiczenie między blokami;
+- deload co ~5 tygodni, obciążenie w deloadzie równe obciążeniu sprzed niego;
+- po 10 dniach przerwy pierwsza sesja nie ma progresji.
+
+Pokrycie partii (ile dni każda partia jest w 3–6) jest **raportowane** przez `scripts/simulate-plan.ts`,
+nie wymuszane. Przy limicie 3–6 i nakładających się partiach głównych (pośladki są główne
+w przysiadzie, wykroku i hinge'u) część partii może stale leżeć pod min — to sygnał do strojenia
+konfiguracji, nie błąd algorytmu.
+
+### 10.7 Konfiguracja — nowe klucze
+
+`sessionMinutes {min 20, target 25, max 30}` · `bikeMinutes {min 10, max 20}` · `setsPerExercise 2` ·
+`maxExercisesPerSession 6` · `introExposures 2` · `reExposureAfterDays 31` · `blockWorkDays 28` ·
+`deloadDays 7` · `reactiveDeloadMinDays 7` · wagi punktacji · `secondsPerRep 4` ·
+`exerciseChangeoverSec 30` · `bandWarmupSec 60` · progi roweru (RPE 5 / 8, krok 2 min).
+
+Wszystkie poza objętością (§4.1) to parametry do strojenia, **nie wyniki badań**.
