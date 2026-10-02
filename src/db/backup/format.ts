@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { muscleGroupSchema } from '@data/exercises.schema';
 import { templateBlockSchema } from '@data/templates.schema';
+import type { SessionPlan } from '@/domain/plan/types';
 
 import type {
   bands,
@@ -10,6 +11,7 @@ import type {
   dailyLogs,
   measurements,
   setLogs,
+  trainingBlocks,
   userProfile,
   workouts,
   workoutTemplates,
@@ -28,7 +30,7 @@ import type {
  * Bump BACKUP_SCHEMA_VERSION whenever a row shape changes and add a step
  * to MIGRATIONS in parse.ts that lifts the previous shape to the new one.
  */
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
 export const BACKUP_APP = 'homeworkout';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -72,6 +74,7 @@ export const userProfileRowSchema = z.object({
   saddleHeightCm: nullableNumber,
   kneeProfile: kneeProfileSchema.nullable(),
   reminders: reminderSettingsSchema.nullable(),
+  excludedExerciseIds: z.array(z.string()).nullable(),
   updatedAt: instant,
 }) satisfies z.ZodType<typeof userProfile.$inferSelect>;
 
@@ -94,6 +97,21 @@ export const workoutTemplateRowSchema = z.object({
   isArchived: z.boolean(),
 }) satisfies z.ZodType<typeof workoutTemplates.$inferSelect>;
 
+/**
+ * A plan is the record of what the engine proposed that day (SPEC §10.5),
+ * restored as written. Only its envelope is checked: reason codes grow
+ * with the engine, and an old plan with a code this build does not know
+ * is still history worth keeping.
+ */
+const sessionPlanRecord = z.custom<SessionPlan>(
+  (v) =>
+    typeof v === 'object' &&
+    v !== null &&
+    (v as { version?: unknown }).version === 1 &&
+    Array.isArray((v as { exercises?: unknown }).exercises),
+  'not a session plan',
+);
+
 export const workoutRowSchema = z.object({
   id: z.string(),
   trainingDate: isoDate,
@@ -103,7 +121,19 @@ export const workoutRowSchema = z.object({
   templateId: nullableString,
   sessionRpe: nullableInt,
   notes: nullableString,
+  plan: sessionPlanRecord.nullable(),
 }) satisfies z.ZodType<typeof workouts.$inferSelect>;
+
+export const trainingBlockRowSchema = z.object({
+  id: z.string(),
+  blockIndex: z.number().int().positive(),
+  startedOn: isoDate,
+  deloadFrom: isoDate.nullable(),
+  deloadReason: z.enum(['DELOAD_SCHEDULED', 'DELOAD_REACTIVE']).nullable(),
+  selections: z.record(z.string(), z.string()),
+  closedOn: isoDate.nullable(),
+  updatedAt: instant,
+}) satisfies z.ZodType<typeof trainingBlocks.$inferSelect>;
 
 export const setLogRowSchema = z.object({
   id: z.string(),
@@ -178,6 +208,7 @@ export const backupTablesSchema = z.object({
   body_metrics: z.array(bodyMetricRowSchema),
   measurements: z.array(measurementRowSchema),
   daily_logs: z.array(dailyLogRowSchema),
+  training_blocks: z.array(trainingBlockRowSchema),
 });
 
 export const backupFileSchema = z.object({

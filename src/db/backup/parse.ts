@@ -23,9 +23,28 @@ export type ParseResult =
 /**
  * Lifts a document from `fromVersion` to `fromVersion + 1`. Keyed by the
  * version being migrated *from*; each step only needs to know about the
- * shape immediately before its own. Empty until the format first changes.
+ * shape immediately before its own.
  */
-const MIGRATIONS: Record<number, (json: unknown) => unknown> = {};
+const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
+  // v2 (M7, the rules engine): the person's do-not-suggest list, the plan
+  // a session was started from, and the blocks. A v1 file has none of them.
+  1: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 2,
+      tables: {
+        ...doc.tables,
+        user_profile: (doc.tables.user_profile ?? []).map((r) => ({
+          ...r,
+          excludedExerciseIds: null,
+        })),
+        workouts: (doc.tables.workouts ?? []).map((r) => ({ ...r, plan: null })),
+        training_blocks: [],
+      },
+    };
+  },
+};
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {
   let doc = json;

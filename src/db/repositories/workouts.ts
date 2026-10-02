@@ -2,6 +2,8 @@ import { randomUUID } from 'expo-crypto';
 
 import { and, count, desc, eq, lt, ne } from 'drizzle-orm';
 
+import type { SessionPlan } from '@/domain/plan/types';
+
 import { db } from '../client';
 import { setLogs, workouts } from '../schema';
 
@@ -119,4 +121,21 @@ export async function listWorkouts(): Promise<WorkoutListItem[]> {
 /** Removes the session and, through ON DELETE CASCADE, its set and cardio logs. */
 export async function deleteWorkout(id: string): Promise<void> {
   await db.delete(workouts).where(eq(workouts.id, id));
+}
+
+/** Starts a session from the engine's plan, frozen into the row (SPEC §10.5). */
+export async function startPlannedWorkout(
+  plan: SessionPlan,
+  trainingDate: string,
+): Promise<string> {
+  const id = randomUUID();
+  await db.insert(workouts).values({
+    id,
+    templateId: null,
+    trainingDate,
+    startedAt: new Date().toISOString(),
+    status: 'in_progress',
+    plan,
+  });
+  return id;
 }

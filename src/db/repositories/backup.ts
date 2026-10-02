@@ -11,6 +11,7 @@ import {
   exercises,
   measurements,
   setLogs,
+  trainingBlocks,
   userProfile,
   workouts,
   workoutTemplates,
@@ -47,6 +48,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     bodyRows,
     measurementRows,
     dailyRows,
+    blockRows,
   ] = await Promise.all([
     db.select().from(userProfile),
     db.select().from(bands),
@@ -57,6 +59,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     db.select().from(bodyMetrics),
     db.select().from(measurements),
     db.select().from(dailyLogs),
+    db.select().from(trainingBlocks),
   ]);
 
   return {
@@ -73,6 +76,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
       body_metrics: bodyRows,
       measurements: measurementRows,
       daily_logs: dailyRows,
+      training_blocks: blockRows,
     },
   };
 }
@@ -118,6 +122,7 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     await tx.delete(bodyMetrics);
     await tx.delete(measurements);
     await tx.delete(dailyLogs);
+    await tx.delete(trainingBlocks);
     await tx.delete(userProfile);
 
     await insertChunked(tx, userProfile, data.tables.user_profile);
@@ -129,6 +134,7 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     await insertChunked(tx, bodyMetrics, data.tables.body_metrics);
     await insertChunked(tx, measurements, data.tables.measurements);
     await insertChunked(tx, dailyLogs, data.tables.daily_logs);
+    await insertChunked(tx, trainingBlocks, data.tables.training_blocks);
 
     // A file with an empty profile table would otherwise leave the app
     // without its one row; the seed would fix it on next start, but the
