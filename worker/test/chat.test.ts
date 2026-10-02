@@ -794,3 +794,33 @@ describe('how long the model thinks, and what is logged about it', () => {
     expect(result.lines.at(-1)).not.toHaveProperty('upstreamStatus');
   });
 });
+
+describe('why a reply ended, in the provider’s own words', () => {
+  const ending = (unified: 'stop' | 'length' | 'other', raw: string) => [
+    { type: 'stream-start', warnings: [] },
+    { type: 'text-start', id: 't' },
+    { type: 'text-delta', id: 't', delta: 'Urwane w pół' },
+    { type: 'text-end', id: 't' },
+    {
+      type: 'finish',
+      finishReason: { unified, raw },
+      usage: {
+        inputTokens: { total: 100, noCache: 100, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 4, text: 4, reasoning: 0 },
+      },
+    },
+  ];
+
+  it.each([
+    ['stop', 'STOP', 'stop'],
+    ['length', 'MAX_TOKENS', 'length'],
+    ['other', 'MALFORMED_FUNCTION_CALL', 'other'],
+  ] as const)(
+    'logs %s / %s so an early end can be told from a normal one',
+    async (unified, raw, shown) => {
+      const result = await run(streamingModel(ending(unified, raw)), chatBody([ask()]));
+      expect(result.lines.at(-1)).toMatchObject({ finishReason: shown, rawFinishReason: raw });
+      expect(JSON.stringify(result.lines)).not.toContain('Urwane');
+    },
+  );
+});

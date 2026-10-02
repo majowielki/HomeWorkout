@@ -43,6 +43,8 @@ export interface LogRecord {
   /** Milliseconds until the provider produced its first event: how long a person waits to see anything. */
   firstEventMs?: number;
   finishReason?: string;
+  /** The provider's own reason for stopping (a code such as STOP or MAX_TOKENS), to tell why a reply ended early. */
+  rawFinishReason?: string;
   /** How many rules the reply broke. The phone withdraws such a reply; this only counts. */
   guardViolations?: number;
   /** Why a request was refused, when the status alone does not say. */
