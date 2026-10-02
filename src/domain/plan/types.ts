@@ -8,6 +8,8 @@
  * twelve exercises on repeat.
  */
 
+import type { MuscleGroup } from '../types';
+
 export type SlotKind = 'compound' | 'accessory' | 'core' | 'filler';
 
 export type SlotRegion = 'lower' | 'push' | 'pull' | 'shoulders' | 'arms' | 'core' | 'mobility';
@@ -37,4 +39,32 @@ export interface Slot {
   rir: [number, number];
   restSec: number;
   start: SlotStart;
+}
+
+/** One morning's entry of the daily log, as the engine reads it. */
+export interface DailyReadiness {
+  date: string;
+  sleepHours: number | null;
+  /** 1-5. */
+  energy: number | null;
+  /** DOMS per muscle, 1-5; absent muscles are not sore. */
+  soreness: Partial<Record<MuscleGroup, number>> | null;
+}
+
+/**
+ * A block (mesocycle): one exercise per slot for its whole length, so
+ * double progression has something to compare; the next block rotates
+ * every slot to its next candidate. Only what must survive a restart is
+ * stored — the phase follows from the dates.
+ */
+export interface BlockState {
+  /** 1 for the first block ever. */
+  index: number;
+  /** When the work weeks started counting; a layoff moves it (BLOCK_CLOCK_RESET). */
+  startedOn: string;
+  /** First day of the deload week, once decided. */
+  deloadFrom: string | null;
+  deloadReason: 'DELOAD_SCHEDULED' | 'DELOAD_REACTIVE' | null;
+  /** slotId → exerciseId. A slot with no allowed candidate has no entry. */
+  selections: Record<string, string>;
 }

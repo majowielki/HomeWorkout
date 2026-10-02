@@ -1,4 +1,10 @@
-import { addDays, daysBetween, toIsoDate, trainingDate } from '../time/trainingDate';
+import {
+  addDays,
+  daysBetween,
+  hasStreakEnding,
+  toIsoDate,
+  trainingDate,
+} from '../time/trainingDate';
 
 describe('trainingDate', () => {
   it('assigns a late-night session to the previous day', () => {
@@ -61,5 +67,25 @@ describe('addDays', () => {
 
   it('rejects malformed input', () => {
     expect(() => addDays('yesterday', 1)).toThrow(TypeError);
+  });
+});
+
+describe('hasStreakEnding', () => {
+  const set = (...dates: string[]) => new Set(dates);
+
+  it('accepts a run ending today or yesterday', () => {
+    expect(hasStreakEnding(set('2026-10-08', '2026-10-09', '2026-10-10'), '2026-10-10', 3)).toBe(
+      true,
+    );
+    expect(hasStreakEnding(set('2026-10-07', '2026-10-08', '2026-10-09'), '2026-10-10', 3)).toBe(
+      true,
+    );
+  });
+
+  it('rejects a broken or an older run', () => {
+    expect(hasStreakEnding(set('2026-10-08', '2026-10-10'), '2026-10-10', 2)).toBe(false);
+    expect(hasStreakEnding(set('2026-10-06', '2026-10-07', '2026-10-08'), '2026-10-10', 3)).toBe(
+      false,
+    );
   });
 });

@@ -1,6 +1,6 @@
 import { COACH_CONFIG } from '../config/training';
 import type { DatedValue } from '../metrics/series';
-import { addDays, daysBetween } from '../time/trainingDate';
+import { daysBetween, hasStreakEnding } from '../time/trainingDate';
 import type { SignalCode } from './vocabulary';
 
 export interface SignalInput {
@@ -38,20 +38,12 @@ export function deriveSignals(input: SignalInput, cfg = COACH_CONFIG): SignalCod
   return out;
 }
 
-/**
- * Sleep under the threshold on `lowSleepStreakDays` consecutive days that
- * end today, or yesterday: tonight's sleep is logged tomorrow morning, and
- * an empty "today" must not hide a bad run.
- */
+/** Sleep under the threshold on `lowSleepStreakDays` consecutive days that end today or yesterday. */
 function hasLowSleepStreak(
   sleep: readonly DatedValue[],
   asOf: string,
   cfg: typeof COACH_CONFIG,
 ): boolean {
   const low = new Set(sleep.filter((s) => s.value < cfg.lowSleepHours).map((s) => s.date));
-  return [asOf, addDays(asOf, -1)].some((end) =>
-    Array.from({ length: cfg.lowSleepStreakDays }, (_, i) => addDays(end, -i)).every((d) =>
-      low.has(d),
-    ),
-  );
+  return hasStreakEnding(low, asOf, cfg.lowSleepStreakDays);
 }

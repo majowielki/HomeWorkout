@@ -36,6 +36,17 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((b - a) / (24 * MS_PER_HOUR));
 }
 
+/**
+ * Whether `days` consecutive dates from the set end today or yesterday.
+ * Yesterday too: last night's sleep and this morning's soreness are logged
+ * during the day, and an empty "today" must not hide a run that is there.
+ */
+export function hasStreakEnding(dates: ReadonlySet<string>, asOf: string, days: number): boolean {
+  return [asOf, addDays(asOf, -1)].some((end) =>
+    Array.from({ length: days }, (_, i) => addDays(end, -i)).every((d) => dates.has(d)),
+  );
+}
+
 /** The 'YYYY-MM-DD' that lies `days` calendar days after `date` (negative moves back). */
 export function addDays(date: string, days: number): string {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number];
