@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, ScrollView, View } from 'react-native';
 
 import { CHAT_LIMITS } from '@/ai/contract/chat';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,10 @@ const WARN_FROM = Math.floor(CHAT_LIMITS.userChars * 0.8);
 export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: Props) {
   const [draft, setDraft] = useState('');
   const scroll = useRef<ScrollView>(null);
+  const root = useRef<View>(null);
+  // Where this view starts in the window: the header sits above it, and the keyboard's position is
+  // reported in window coordinates, so without this the composer ends up behind the keyboard.
+  const [top, setTop] = useState(0);
   const c = pl.coach.chat;
   const canSend = !busy && draft.trim() !== '';
 
@@ -39,67 +43,70 @@ export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: 
   }
 
   return (
-    <KeyboardAvoidingView
+    <View
+      ref={root}
       className="flex-1 bg-background"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      onLayout={() => root.current?.measureInWindow((_x, y) => setTop(y))}
     >
-      <ScrollView
-        ref={scroll}
-        className="flex-1"
-        contentContainerClassName="gap-3 px-5 pb-4 pt-4"
-        keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
-      >
-        {entries.length === 0 ? (
-          <>
-            <Text variant="muted">{c.intro}</Text>
-            <Card variant="muted">
-              <Text className="text-sm">{c.empty}</Text>
-            </Card>
-          </>
-        ) : null}
+      <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={top}>
+        <ScrollView
+          ref={scroll}
+          className="flex-1"
+          contentContainerClassName="gap-3 px-5 pb-4 pt-4"
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
+        >
+          {entries.length === 0 ? (
+            <>
+              <Text variant="muted">{c.intro}</Text>
+              <Card variant="muted">
+                <Text className="text-sm">{c.empty}</Text>
+              </Card>
+            </>
+          ) : null}
 
-        {entries.map((entry) => (
-          <Bubble key={entry.id} entry={entry} onRetry={onRetry} />
-        ))}
+          {entries.map((entry) => (
+            <Bubble key={entry.id} entry={entry} onRetry={onRetry} />
+          ))}
 
-        {entries.length > 0 ? (
-          <>
+          {entries.length > 0 ? (
+            <>
+              <Text variant="muted" className="text-xs">
+                {c.disclaimer}
+              </Text>
+              {!busy ? (
+                <Button variant="outline" size="sm" label={c.newChat} onPress={onNewChat} />
+              ) : null}
+            </>
+          ) : null}
+        </ScrollView>
+
+        <View className="gap-2 border-t border-border bg-background px-5 pb-4 pt-3">
+          <Input
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={c.placeholder}
+            accessibilityLabel={c.placeholder}
+            maxLength={CHAT_LIMITS.userChars}
+            multiline
+            className="h-auto max-h-32 min-h-12 py-3"
+            returnKeyType="send"
+            blurOnSubmit
+            onSubmitEditing={submit}
+          />
+          <View className="flex-row items-center justify-between gap-3">
             <Text variant="muted" className="text-xs">
-              {c.disclaimer}
+              {draft.length >= WARN_FROM ? c.counter(draft.length, CHAT_LIMITS.userChars) : ' '}
             </Text>
-            {!busy ? (
-              <Button variant="outline" size="sm" label={c.newChat} onPress={onNewChat} />
-            ) : null}
-          </>
-        ) : null}
-      </ScrollView>
-
-      <View className="gap-2 border-t border-border bg-background px-5 pb-4 pt-3">
-        <Input
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={c.placeholder}
-          accessibilityLabel={c.placeholder}
-          maxLength={CHAT_LIMITS.userChars}
-          multiline
-          className="h-auto max-h-32 min-h-12 py-3"
-          returnKeyType="send"
-          blurOnSubmit
-          onSubmitEditing={submit}
-        />
-        <View className="flex-row items-center justify-between gap-3">
-          <Text variant="muted" className="text-xs">
-            {draft.length >= WARN_FROM ? c.counter(draft.length, CHAT_LIMITS.userChars) : ' '}
-          </Text>
-          {busy ? (
-            <Button variant="outline" label={c.stop} onPress={onStop} />
-          ) : (
-            <Button label={c.send} onPress={submit} disabled={!canSend} />
-          )}
+            {busy ? (
+              <Button variant="outline" label={c.stop} onPress={onStop} />
+            ) : (
+              <Button label={c.send} onPress={submit} disabled={!canSend} />
+            )}
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
