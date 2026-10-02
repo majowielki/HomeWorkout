@@ -26,6 +26,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ],
     "mentionAnyOf": [["wag", "wazeni"]]

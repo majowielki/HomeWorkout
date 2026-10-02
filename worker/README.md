@@ -152,6 +152,23 @@ npx wrangler secret put GOOGLE_GENERATIVE_AI_API_KEY
 npx wrangler deploy
 ```
 
+**Entering a secret.** `wrangler secret put` asks for the value in a hidden field,
+and a pasted value can end up different from the one you meant (this happened on
+the first deploy: a 401 from the Worker, then a provider that refused the key).
+You cannot see the field, so you cannot tell. A value read from a file is exact;
+in PowerShell:
+
+```powershell
+[IO.File]::WriteAllText("$env:TEMP\secret.txt", "<the value>")
+cmd /c "npx wrangler secret put APP_SECRET < %TEMP%\secret.txt"
+Remove-Item "$env:TEMP\secret.txt"
+```
+
+`npx wrangler secret list --name homeworkout-coach` shows which secrets exist, never
+their values. If a call answers `unauthorized`, the app's secret and the Worker's
+differ; if it answers `upstream_error` with `upstreamStatus` 400 or 403 in the log,
+suspect the provider key.
+
 The free Gemini key does not train on data for a user in the EEA; a Worker that
 other people will use must run on the paid plan (Terms of Service, "Paid
 Services" for API clients offered to users in the EEA). See

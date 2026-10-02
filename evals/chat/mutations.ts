@@ -97,6 +97,10 @@ export const CHAT_MUTATIONS: Record<string, ChatMutation> = {
       () => 'You trained nine times and this is a good result for you with the data that you have.',
     ),
   },
+  printsARawCode: {
+    catchedBy: 'noInternalWords',
+    step: appending('Werdykt: improved, status in_range.'),
+  },
   answersWithoutLookingAnythingUp: {
     catchedBy: 'grounded',
     appliesTo: (c) => (c.expect.tools?.length ?? 0) > 0,

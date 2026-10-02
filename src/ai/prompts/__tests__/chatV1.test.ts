@@ -22,7 +22,7 @@ describe('chat/v1', () => {
    * use it is a draft, and re-pinning this hash is how a change is made visible in review.
    */
   it('is pinned, so any change shows in review', () => {
-    expect(sha(chatInstructions())).toBe('d5806439d6764cf8');
+    expect(sha(chatInstructions())).toBe('fa54f556427a79be');
   });
 
   it('carries its version', () => {
@@ -89,6 +89,11 @@ describe('chat/v1', () => {
     it('states the limits the Worker enforces, from the same numbers', () => {
       expect(text).toContain(`at most ${CHAT_LIMITS.toolRounds} times in a row`);
       expect(text).toContain(`${TOOL_LIMITS.historyWeeks.max} weeks back`);
+    });
+
+    it('tells the model to say raw values in Polish, not print them', () => {
+      expect(text).toMatch(/Never print a raw value from the data/);
+      expect(text).toContain('wynik się poprawił');
     });
 
     it('asks for plain Polish without markdown or internal names', () => {

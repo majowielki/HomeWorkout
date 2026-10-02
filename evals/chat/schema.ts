@@ -40,6 +40,7 @@ export const CHAT_SCORERS = [
   'grounded',
   'toolLimits',
   'polishOutput',
+  'noInternalWords',
   'delivered',
 ] as const;
 

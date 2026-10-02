@@ -20,6 +20,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ],
     "forbidWords": ["trend", "progres", "regres"]

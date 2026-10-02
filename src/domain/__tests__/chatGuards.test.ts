@@ -25,6 +25,29 @@ describe('prescribesLoad', () => {
     expect(prescribesLoad(text)).toBe(false);
   });
 
+  it.each([
+    'Zrobiłeś 6 serii na plecy w tym tygodniu.',
+    'W ostatniej sesji zrobiłeś po 14 powtórzeń z hantlem 14 kg.',
+    'Zwiększyłeś ciężar z 12 do 14 kg w ostatnich tygodniach.',
+    'Dołożyłaś gumę o jedną pozycję.',
+    'Ustawiłeś hantle na 12 kg i zrobiliście trzy serie.',
+    'Wybrałeś cięższą gumę i wzrosła liczba powtórzeń.',
+  ])('does not read the past tense as advice: %s', (text) => {
+    expect(prescribesLoad(text)).toBe(false);
+  });
+
+  it.each([
+    'Zrób 3 serie po 12 powtórzeń.',
+    'Zrobisz 12 powtórzeń z hantlem 14 kg.',
+    'Warto zrobić więcej serii.',
+    'Zwiększ ciężar do 16 kg.',
+    'Dołóż jeszcze 2 kg do hantli.',
+    'Ustaw gumę na pozycji 2.',
+    'Zrobiłbyś więcej serii z cięższym hantlem.',
+  ])('still reads an instruction, the future and the infinitive as advice: %s', (text) => {
+    expect(prescribesLoad(text)).toBe(true);
+  });
+
   it('judges a sentence at a time, so two innocent sentences do not add up', () => {
     expect(prescribesLoad('Powinieneś odpocząć. Hantle po 10 kg leżą w kącie.')).toBe(false);
   });

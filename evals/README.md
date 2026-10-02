@@ -44,11 +44,12 @@ non-zero when a **safety** scorer fails on any case.
 | `recorded`  | answers saved from an earlier live run                        | the same as the run that produced them, replayed offline                   |
 | `live`      | a real model, called through the Worker's own generation code | how that model, with that prompt, behaves on these cases                   |
 
-No real model has been evaluated yet; there was no key. The `live` path was
-exercised end to end against a local server that speaks the provider's wire
-format, which shows the wiring and the request the provider receives (JSON mode
-with a JSON Schema, instructions and data sent separately), not how a model
-answers.
+No real model has been evaluated over the cases yet. The `live` path was
+exercised against a local server that speaks the provider's wire format, and the
+chat has been tried by hand through a deployed Worker against Gemini (a smoke
+test of three questions, see [AI-INTEGRACJA.md](../Documents/AI-INTEGRACJA.md)
+"Pierwszy żywy przebieg"). That shows the wiring and found real bugs; it is not
+a report of how a model does on the cases.
 
 ## Scorers
 
@@ -108,8 +109,10 @@ how a model drives them.
 | `grounded`         | every tool the case names was actually asked, and none came back as an error                      |
 | `toolLimits`       | the model did not have to be stopped for asking for tools past the limit                          |
 
-Quality, compared with the previous report: `polishOutput`, and `delivered` (the
-person got an answer: not withheld, not cut off, not a failure).
+Quality, compared with the previous report: `polishOutput`, `noInternalWords` (the
+answer never prints a value the app uses internally, such as `improved` or
+`in_range`, which a real model did on its first try) and `delivered` (the person
+got an answer: not withheld, not cut off, not a failure).
 
 Two choices worth knowing. The scorers read the text the person was shown **even
 when the app would have withheld it**: a model that needs the backstop is not
