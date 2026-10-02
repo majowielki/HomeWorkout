@@ -440,7 +440,7 @@ użytkownik.
 | A1 — Worker i F1 | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-worker` | Worker, klient, `ai_exchanges`, karta w aplikacji, diagnostyka, CI; sprawdzone na emulatorze z atrapą modelu. Brakuje wywołania prawdziwego modelu (potrzebny klucz i konto Cloudflare) |
 | A2 — ewaluacja | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-evals` | scorery, runner, raporty, porównanie, szkielet sędziego, CI w trybie odtwarzania; nie oceniono żadnego prawdziwego modelu (brak klucza), sędzia nieskalibrowany |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7, a M7 na bramkę „dwa tygodnie używania" (IMPLEMENTACJA §8) |
-| A4 — rozmowa F4 | ✅ kod 2026-10-02 · ⏳ żywy model · ⛔ `getPlanExplanation` | `feat/ai-chat` | pętla narzędzi na telefonie, streaming, anulowanie, ekran rozmowy, 18 przypadków ewaluacyjnych; sprawdzone na emulatorze z atrapą modelu. DoD „czemu dziś nie ma przysiadów” czeka na M7, bo narzędzie wyjaśniające plan wymaga silnika |
+| A4 — rozmowa F4 | ✅ kod 2026-10-02 · ✅ próba na żywo 3 pytań · ⏳ ewaluacja na żywo · ⛔ `getPlanExplanation` | `feat/ai-chat` | pętla narzędzi na telefonie, streaming, anulowanie, ekran rozmowy, 18 przypadków ewaluacyjnych; sprawdzone na emulatorze z atrapą modelu. DoD „czemu dziś nie ma przysiadów” czeka na M7, bo narzędzie wyjaśniające plan wymaga silnika |
 | A5 — opcjonalnie | — | | |
 
 ### Wynik A0 (2026-10-01)
@@ -587,7 +587,33 @@ Wniosek (ADR 0004): bramka słownikowa jest pierwszą warstwą o znanej, ogranic
 6. **Na Androidzie pole pytania chowało się za klawiaturą**, a testy komponentu tego nie widzą. `KeyboardAvoidingView` liczy zasłonięcie względem rodzica, a ekran leży pod nagłówkiem, więc brakowało dokładnie jego wysokości. Widok mierzy teraz, gdzie się zaczyna w oknie.
 7. Pierwszy przebieg ewaluacji czatu: 17/18. Jedyna porażka to zbyt ścisła oczekiwana fraza w przypadku („waga”, a odpowiedź mówi „ważenie”), czyli błąd przypadku, nie scorera.
 
-**Czego nie sprawdziłem (nie mam klucza ani konta):** żadnego wywołania prawdziwego modelu. Trzy rzeczy napisane wprost do udokumentowanego zachowania SDK i przetestowane na atrapie, ale nie na żywo: `toolChoice: 'none'` z wcześniejszymi wywołaniami w historii (Gemini może odrzucić taki układ), schematy narzędzi przez podzbiór function calling Gemini, oraz że anulowanie zamyka strumień HTTP u dostawcy (potwierdzone tylko do atrapy dostawcy). Nie sprawdziłem też buildu release ani prawdziwego Pixela, ani TLS przez internet; strumień szedł przez `adb reverse` w buildzie debug.
+**Czego nie sprawdziłem w chwili zapisu tego wyniku (nie miałem klucza ani konta):** żadnego wywołania prawdziwego modelu. Część tego odpada po próbie na żywo opisanej niżej. Nadal nie sprawdzone na żywo: `toolChoice: 'none'` po ostatniej dozwolonej rundzie (żadne pytanie nie potrzebowało czterech rund) oraz że anulowanie zamyka strumień HTTP u prawdziwego dostawcy (potwierdzone tylko do atrapy dostawcy). Strumień w aplikacji szedł przez `adb reverse` w buildzie debug; wersja `release` została uruchomiona tylko jako x86_64 na emulatorze.
+
+### Pierwszy żywy przebieg (2026-10-02)
+
+Wdrożony Worker (Cloudflare, plan Free) i klucz Gemini z darmowego planu. Skrypt jednorazowy: trzy pytania przez **prawdziwy klient i pętlę aplikacji**, narzędzia na danych syntetycznych, logi Workera odczytane przez `wrangler tail`. To próba ręczna, **nie ewaluacja**: trzy pytania, jeden przebieg na model, zero powtórzeń.
+
+| | `gemini-3.8-flash` (poziom myślenia domyślny, `medium`) | `gemini-3.5-flash-lite` (`low`) |
+|---|---|---|
+| czas do pierwszego zdarzenia kroku | 1,9–15,9 s | 0,64–1,05 s |
+| odpowiedź Google 503 | 4 z 10 wywołań, po 6–23 s | 0 z 6 |
+| cała tura (2–3 kroki) | 20–75 s | 0,8–2,9 s |
+| odpowiedź urwana w pół zdania | 2 z 10 (`finishReason: other`) | 0 z 6 (`STOP`) |
+| CPU Workera na wywołanie | 4–28 ms | 9–36 ms |
+
+Wniosek ograniczony do tego, co zmierzone: w tej próbie 3.8 Flash był wolny i niestabilny po stronie API (tokeny myślenia 0, odpowiedzi kilkunastotokenowe), a 3.5 Flash-Lite nie. Czy to chwilowe obciążenie, czy cecha darmowego planu, czy modelu, nie wiem. Zmienność tego rzędu wymaga powtórzeń; rozstrzygnie ewaluacja (D3), nie ta próba. `MODEL_ID` jest ustawiony na `gemini-3.5-flash-lite` jako punkt wyjścia.
+
+**Co potwierdziła próba na żywo:** Gemini przyjmuje nasze deklaracje narzędzi, sam wybiera właściwe (jedno, a przy ćwiczeniu dwa po kolei), czyta wyniki i odpowiada po polsku zgodnie z danymi; odmowa zalecenia obciążenia („Aplikacja decyduje o planie…”) działa; limit CPU darmowego planu nie zatrzymał żadnego wywołania (do 36 ms; limit to 10 ms, a mimo to bez błędu: nie wiem, jak Cloudflare to egzekwuje).
+
+**Co wyszło, a nie wyszłoby bez prawdziwego modelu:**
+
+1. **Strażnik „zalecenie obciążenia” wycofał dwie poprawne odpowiedzi.** „Zrobiłeś 6 serii na plecy” to opis przeszłości, a rdzeń „zrob” z listy czasowników zalecających plus słowo „serii” dawały alarm. Dokładnie ten fałszywy alarm przewidziałem w opisie granic, ale nie to, że uderzy w najbardziej naturalne zdania. Poprawione: końcówki czasu przeszłego nie są poradą, a rozkaz („zrób”), czas przyszły („zrobisz”) i bezokolicznik nadal są. Test wyszczególnia oba kierunki. Wąskie gardło zostaje: heurystyka dalej nie rozumie zdania, tylko jego kształt.
+2. **Model wypisał surowe słowo z danych** („werdykt improved”) mimo zakazu w prompcie. Prompt dostał wprost listę zamienników po polsku, a ewaluacja nowy scorer `noInternalWords` z mutacją. `chat/v1` zmieniony po tej próbie; nadal uznaję go za nieopublikowany (nikt go jeszcze nie używał w aplikacji), więc hash przypięty na nowo, bez `v2`.
+3. **Scorer wierności liczb uznałby „ostatnich 7 dni” za wymyśloną liczbę**, bo 7 nie ma w wynikach narzędzia. Tydzień ma siedem dni i opis narzędzia tak mówi: 7 dopuszczone.
+4. **Gemini 3 domyślnie myśli na poziomie `medium`, a tokeny myślenia liczą się do limitu wyjścia.** Dodana zmienna `THINKING_LEVEL` (ustawiona na `low`) i podniesiony `MAX_OUTPUT_TOKENS` do 2048. 3.5 Flash-Lite przy `low` zużył 0 tokenów myślenia w pięciu z sześciu wywołań i 91 w jednym.
+5. **Błąd dostawcy był nieprzejrzysty.** Log dostał `upstreamStatus` (sam numer, nigdy treść), `rawFinishReason`, `reasoningTokens` i `firstEventMs`; bez nich nie dałoby się odróżnić 503 od złego klucza.
+6. **Limit ciszy klienta (30 s) był krótszy niż limit kroku Workera (45 s)**, więc typowany błąd `timeout` z Workera nie mógł dojść pierwszy. Klient czeka teraz 50 s.
+7. **Przy wprowadzaniu sekretów wartości się rozjechały** (hasło aplikacji niezgodne z zapisanym u Workera, potem klucz Gemini odrzucony). Nie wiem, czy to schowek, czy dwukrotne uruchomienie polecenia. Działało dopiero wprowadzanie z pliku, bez wklejania do pola; opisane w `worker/README.md`.
 
 **Granice (ważne, żeby nie sprzedać tego jako więcej):**
 

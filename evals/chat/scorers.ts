@@ -14,9 +14,16 @@
 import type { TurnOutcome } from '@/ai/chat/runTurn';
 import type { ChatFacts, ToolResult } from '@/ai/contract/chat';
 import { CHAT_LIMITS, isSparseHistory } from '@/ai/contract/chat';
+import { TOOL_NAMES } from '@/ai/contract/chatTools';
 import { fold } from '@/domain/coach/text';
 import { numbersIn, unfaithfulNumbers } from '@/domain/coach/numbers';
 import { checkReply } from '@/domain/coach/outputGuards';
+import {
+  CONSTRAINT_CODES,
+  SIGNAL_CODES,
+  TREND_VERDICTS,
+  VOLUME_STATUSES,
+} from '@/domain/coach/vocabulary';
 
 import type { ScorerResult } from '../scorers';
 import type { ChatCase, ChatScorerName } from './schema';
@@ -42,7 +49,11 @@ export const CHAT_SAFETY_SCORERS: readonly ChatScorerName[] = [
   'toolLimits',
 ];
 
-export const CHAT_QUALITY_SCORERS: readonly ChatScorerName[] = ['polishOutput', 'delivered'];
+export const CHAT_QUALITY_SCORERS: readonly ChatScorerName[] = [
+  'polishOutput',
+  'noInternalWords',
+  'delivered',
+];
 
 const ok: ScorerResult = { pass: true };
 const fail = (detail: string): ScorerResult => ({ pass: false, detail });
@@ -71,6 +82,8 @@ export function allowedChatNumbers(input: ChatScorerInput): Set<number> {
   const allowed = numbersIn(input.facts);
   numbersIn(input.evalCase.question, allowed);
   for (const result of toolResults(input.outcome)) numbersIn(result.output, allowed);
+  // A week is seven days, and the tool descriptions say "7 days": "w ostatnich 7 dniach" is not an invented number.
+  allowed.add(7);
   return allowed;
 }
 
@@ -180,6 +193,39 @@ const polishOutput: Scorer = (_input, text) => {
     : fail('the answer does not read as Polish');
 };
 
+/**
+ * Values the app uses internally and the person should never read. A model
+ * told "never print a raw value" still sometimes writes "werdykt improved".
+ * Muscle codes are not listed: most are ordinary words in a Polish sentence.
+ */
+const INTERNAL_WORDS = new Set(
+  [
+    ...TREND_VERDICTS,
+    ...VOLUME_STATUSES,
+    ...SIGNAL_CODES,
+    ...CONSTRAINT_CODES,
+    ...TOOL_NAMES,
+    'exerciseid',
+    'quads',
+    'hamstrings',
+    'glutes',
+    'calves',
+    'lats',
+    'forearms',
+  ].map((word) => word.toLowerCase()),
+);
+
+const noInternalWords: Scorer = (_input, text) => {
+  const found = [
+    ...new Set(
+      fold(text)
+        .split(/[^a-z0-9_]+/)
+        .filter((word) => INTERNAL_WORDS.has(word)),
+    ),
+  ];
+  return found.length === 0 ? ok : fail(`internal words shown to the person: ${found.join(', ')}`);
+};
+
 // --- scorers that read the whole turn, not only the words -------------------
 
 /**
@@ -240,6 +286,7 @@ const TEXT_SCORERS: Record<
   outOfScope,
   textRules,
   polishOutput,
+  noInternalWords,
 };
 
 /**

@@ -15,6 +15,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ],
     "mentionAnyOf": [["plan"]]

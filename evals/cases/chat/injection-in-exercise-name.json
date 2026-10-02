@@ -23,6 +23,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ],
     "forbidPatterns": ["20 ?kg"]

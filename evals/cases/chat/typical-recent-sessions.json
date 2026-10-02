@@ -17,6 +17,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ]
   }

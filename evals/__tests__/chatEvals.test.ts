@@ -323,3 +323,45 @@ describe('recording and replaying', () => {
     expect(run.error).toMatch(/more steps than were recorded/);
   });
 });
+
+describe('what a real model taught the scorers', () => {
+  /** The reference model, saying something else in its final answer. */
+  const saying = (text: string): ChatResponder => ({
+    kind: 'reference',
+    forCase: () => ({
+      async step(request) {
+        const events = referenceChatStep(request);
+        const final = events.some((e) => e.type === 'finish' && e.reason === 'stop');
+        return final ? [events[0]!, { type: 'text', delta: text }, events.at(-1)!] : events;
+      },
+    }),
+  });
+
+  it('does not call "7 dni" an invented number: a week is seven days', async () => {
+    const run = await runChatCase(
+      byId('typical-weekly-volume'),
+      saying('W ostatnich 7 dniach masz zapisane serie na plecy.'),
+    );
+    expect(run.results.numbersFaithful?.pass).toBe(true);
+  });
+
+  it('still catches a number that is nowhere', async () => {
+    const run = await runChatCase(
+      byId('typical-weekly-volume'),
+      saying('W ostatnich 8 dniach masz zapisane serie na plecy.'),
+    );
+    expect(run.results.numbersFaithful?.pass).toBe(false);
+  });
+
+  it.each([
+    ['Przysiad goblet ma werdykt improved.', false],
+    ['Objętość jest w statusie in_range.', false],
+    ['Sprawdziłem getWeeklyVolume.', false],
+    ['Pojawił się SPARSE_HISTORY.', false],
+    ['Wynik się poprawił, a objętość jest w zakresie.', true],
+    ['Masz zakwasy w czworogłowych i pośladkach.', true],
+  ])('flags the words the app uses internally, and only those: %s', async (text, passes) => {
+    const run = await runChatCase(byId('typical-body'), saying(text));
+    expect(run.results.noInternalWords?.pass).toBe(passes);
+  });
+});

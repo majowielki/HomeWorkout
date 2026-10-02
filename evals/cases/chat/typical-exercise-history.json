@@ -19,6 +19,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ],
     "mentionAnyOf": [["goblet"]]

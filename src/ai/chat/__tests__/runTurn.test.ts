@@ -368,6 +368,14 @@ describe('an answer that breaks a rule', () => {
     expect(await ask(deps)).toMatchObject({ kind: 'withheld' });
   });
 
+  it.each([
+    'W tym tygodniu zrobiłeś 6 serii na plecy.',
+    'W ostatniej sesji zrobiłeś po 14 powtórzeń z hantlem 14 kg.',
+  ])('lets through a report of what was done, which a real model gave: %s', async (reply) => {
+    const { deps } = harness([answerStep(reply)]);
+    expect(await ask(deps)).toMatchObject({ kind: 'answered', text: reply });
+  });
+
   it('lets an answer that quotes what was logged go through', async () => {
     const { deps } = harness([answerStep('Wiosłowanie: hantle po 10 kg, wynik utrzymany.')]);
     expect(await ask(deps)).toMatchObject({ kind: 'answered' });

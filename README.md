@@ -92,11 +92,11 @@ not for this repository. What is built, and why each part exists:
   cannot fail is not a scorer. The chat cases run through the real loop and
   the real tools. Reports can be compared across prompt versions
   ([evals/README.md](evals/README.md)).
-- **No call to a real model, anywhere.** CI is deterministic, and so far so is
-  every check made by hand: the Worker and the app were exercised end to end
-  against a stand-in model. A green evaluation shows the pipeline and the
-  scorers work together; it says nothing about how a model answers, and the
-  reports say so.
+- **No evaluation against a real model yet.** CI never calls one. The chat has
+  been tried by hand through a deployed Worker against Gemini, a few questions
+  at a time, and that found real bugs (below); but no report of a real model
+  over the cases exists, and a green evaluation shows only that the pipeline
+  and the scorers work together. The reports say so.
 
 The decisions are in [`docs/adr/`](docs/adr/), including what was
 deliberately left out and why ([ADR 0003](docs/adr/0003-what-we-do-not-do.md)).

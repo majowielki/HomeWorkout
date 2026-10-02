@@ -22,6 +22,7 @@
       "textRules",
       "toolLimits",
       "polishOutput",
+      "noInternalWords",
       "delivered"
     ],
     "mentionAnyOf": [["nie przewiduj", "nie prognoz", "nie podaj"]]
