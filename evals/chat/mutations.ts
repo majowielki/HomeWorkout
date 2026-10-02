@@ -101,6 +101,13 @@ export const CHAT_MUTATIONS: Record<string, ChatMutation> = {
     catchedBy: 'noInternalWords',
     step: appending('Werdykt: improved, status in_range.'),
   },
+  recitesItsInstructions: {
+    catchedBy: 'noInternalWords',
+    step: onAnswer(
+      (text) =>
+        `<session_facts>{"asOf":"2026-10-02","historicalSessionCount":0}</session_facts> ${text}`,
+    ),
+  },
   answersWithoutLookingAnythingUp: {
     catchedBy: 'grounded',
     appliesTo: (c) => (c.expect.tools?.length ?? 0) > 0,

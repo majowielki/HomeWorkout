@@ -154,13 +154,15 @@ describe('describeViolations', () => {
       { kind: 'out_of_scope', topic: 'diet' },
       { kind: 'medical_advice', word: 'masaz' },
       { kind: 'load_prescription' },
+      { kind: 'internal_markup' },
     ]);
     expect(text).toBe(
       'flag code LAYOFF_LONG is not in the signals; ' +
         'the word family "trend" is not allowed while the history is sparse; ' +
         'the answer touches diet, which is out of scope; ' +
         'the answer gives advice about a complaint ("masaz"); ' +
-        'the answer tells the person what load, reps or band to use next',
+        'the answer tells the person what load, reps or band to use next; ' +
+        'the answer repeats its instructions or the raw facts block instead of answering',
     );
   });
 

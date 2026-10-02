@@ -368,6 +368,16 @@ describe('an answer that breaks a rule', () => {
     expect(await ask(deps)).toMatchObject({ kind: 'withheld' });
   });
 
+  it('withholds a reply that begins by reciting its own facts block, as a real model did', async () => {
+    const reply =
+      '<session_facts>{"asOf":"2026-10-02","historicalSessionCount":0}</session_facts> Nie ma jeszcze treningów.';
+    const { deps } = harness([answerStep(reply)]);
+    expect(await ask(deps)).toMatchObject({
+      kind: 'withheld',
+      violations: ['internal_markup'],
+    });
+  });
+
   it.each([
     'W tym tygodniu zrobiłeś 6 serii na plecy.',
     'W ostatniej sesji zrobiłeś po 14 powtórzeń z hantlem 14 kg.',
