@@ -798,5 +798,7 @@ Silnik powstał przed realnym używaniem, więc pierwszym „użytkownikiem" by�
 | 3 | dwójki uda i przedramiona pod normą — ich jedyny slot przegrywał o limit pośladków / pleców | niedobór dzielony przez liczbę slotów partii; lekka praca przy RIR 5 nie jest blokowana przez `validatePlan` |
 | 4 | przy max 6 czwórki i dwójki uda (oraz najszersze i przedramiona) nie mieszczą się razem w normie — 3 + 3 serie to już 6 na pośladki | max 8 serii bezpośrednich dla pośladków i pleców — partii głównych w wielu slotach. Górna granica jest tą do strojenia (§4.1) |
 
+Limit 8 dla pośladków i pleców **zatwierdzony przez użytkownika 2026-10-02**.
+
 Wynik dla 12 tygodni: dzień 18–25 min ćwiczeń (śr. 22) + rower; każda partia w normie przez
 większość dni — pod normą głównie w tygodniach deloadu, czyli zgodnie z planem.

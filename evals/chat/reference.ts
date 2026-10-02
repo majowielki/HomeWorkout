@@ -16,8 +16,9 @@
  */
 import type { ChatEvent, ChatMessage, ChatRequest, ToolCall, ToolResult } from '@/ai/contract/chat';
 import type { ToolName, ToolOutput } from '@/ai/contract/chatTools';
-import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v1';
+import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v2';
 import { fold } from '@/domain/coach/text';
+import type { SkipReason } from '@/domain/plan/reasons';
 
 export const REFERENCE_CHAT_MODEL = 'reference-chat-model';
 
@@ -130,8 +131,9 @@ const REFUSE_LOADS =
   'O tym, jaki ciężar wziąć, decyduje plan w aplikacji. Ja mogę tylko powiedzieć, co zapisał dziennik.';
 const REFUSE_RULES =
   'Nie zmieniam swoich zasad. Obciążenia ustala plan w aplikacji, a ja opisuję tylko to, co widać w dzienniku.';
-const NO_PLAN =
-  'Nie widzę dzisiejszego planu, więc nie wyjaśnię, dlaczego czegoś w nim brakuje. Zajrzyj na ekran planu w aplikacji.';
+const REFUSE_CHANGE =
+  'Nie zmieniam planu: układa go silnik reguł w aplikacji. Ćwiczenie możesz zamienić na ekranie planu albo w trakcie sesji.';
+const NO_PLAN_THAT_DAY = 'Na ten dzień nie mam planu, bo sesja nie była zaczęta z planu.';
 const COULD_NOT = 'Nie udało mi się tego sprawdzić. Spróbuj za chwilę.';
 const CAN_ANSWER =
   'Mogę odpowiedzieć na pytania o Twoje sesje, ćwiczenia, serie i wagę z dziennika. Zapytaj o któreś z nich.';
@@ -180,18 +182,69 @@ function bodyLines(body: ToolOutput<'getBodyTrend'>): string[] {
   return lines;
 }
 
+/** Why a movement is left out, in plain Polish — the engine's code, nothing added. */
+const SKIPPED: Record<SkipReason, string> = {
+  NO_CANDIDATE: 'w tym ruchu nie ma teraz dozwolonego ćwiczenia',
+  DOMS_HIGH: 'masz dziś mocne zakwasy w tej partii',
+  RECOVERING: 'ta partia pracowała wczoraj i się regeneruje',
+  VOLUME_AT_MAX: 'ta partia ma już tygodniowe maksimum serii',
+  VOLUME_ON_TARGET: 'ta partia ma już swoje serie w tym tygodniu',
+  ALREADY_TODAY: 'tę partię dziś trenuje już inne ćwiczenie',
+  FATIGUE_BILATERAL_ONLY: 'przy oznakach zmęczenia plan bierze tylko ćwiczenia obunóż',
+  NOT_PICKED: 'nie zmieścił się w dzisiejszym czasie',
+};
+
+/**
+ * The asked-about movement, found by the person's own word in the plan's
+ * movement names: in the plan, or left out with the engine's reason.
+ * Exercise names from the tool are never repeated (see the file comment).
+ */
+function planAnswer(q: string, plan: ToolOutput<'getPlanExplanation'>): string {
+  const hit = EXERCISES.find((e) => q.includes(e.match));
+  const day = plan.dayReasons.includes('LIGHT_DAY') ? ' Dziś jest lżejszy dzień.' : '';
+  if (!hit) {
+    return `Plan na dziś jest gotowy, a szczegóły z obciążeniami są na ekranie planu.${day}`;
+  }
+  const name = `${hit.name[0]!.toUpperCase()}${hit.name.slice(1)}`;
+  const has = (text: string) => fold(text).includes(hit.match);
+  if (plan.exercises.some((e) => has(e.movement))) return `${name} jest dziś w planie.${day}`;
+  const left = plan.skipped.find((s) => has(s.movement));
+  if (left) return `${name} nie ma dziś w planie, bo ${SKIPPED[left.reason]}.${day}`;
+  return `W dzisiejszym planie nie widzę ruchu, o który pytasz.${day}`;
+}
+
 /** One step of the stand-in model: what it would say or ask for next. */
 export function referenceChatStep(request: ChatRequest): ChatEvent[] {
   const { question, results } = currentTurn(request.messages);
   const q = fold(question);
   const sparse = request.facts.signals.includes('SPARSE_HISTORY');
 
-  // Anything a tool could not give is said plainly, never filled in.
+  // A day without a plan is a fact, not a failure; anything else a tool
+  // could not give is said plainly, never filled in.
+  const planResult = results.find((r) => r.name === 'getPlanExplanation');
+  if (planResult && hasError(planResult.output)) {
+    const { error } = planResult.output as { error: string };
+    return says(request, error === 'no_plan' ? NO_PLAN_THAT_DAY : COULD_NOT);
+  }
   if (results.some((r) => hasError(r.output))) return says(request, COULD_NOT);
 
   // --- things it will not do, before anything is looked up ---------------------
   if (/zignoruj|zapomnij|ignore|zasady/.test(q)) return says(request, REFUSE_RULES);
-  if (/\bplan/.test(q) && /czemu|dlaczego|nie ma|brak/.test(q)) return says(request, NO_PLAN);
+  const aboutPlan =
+    /\bplan/.test(q) || (/czemu|dlaczego/.test(q) && /nie ma|nie bylo|brak/.test(q));
+  if (/zamien|zmien|wymien/.test(q) && (aboutPlan || /dzis/.test(q))) {
+    return says(request, REFUSE_CHANGE);
+  }
+
+  // --- the plan: read the engine's reasons, add none of its own -----------------
+  if (aboutPlan) {
+    if (!planResult) {
+      return asksFor(request, [
+        call('ref-plan', 'getPlanExplanation', { daysAgo: /wczoraj/.test(q) ? 1 : 0 }),
+      ]);
+    }
+    return says(request, planAnswer(q, planResult.output as ToolOutput<'getPlanExplanation'>));
+  }
   if (/jaki ciezar|ile kg|dolozyc|za tydzien|na nastepnym|przyszl/.test(q)) {
     return says(request, REFUSE_LOADS);
   }

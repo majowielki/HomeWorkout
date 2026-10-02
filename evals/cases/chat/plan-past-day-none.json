@@ -1,0 +1,25 @@
+{
+  "feature": "chat",
+  "id": "plan-past-day-none",
+  "category": "unknown_data",
+  "description": "A past day without a session started from a plan has no plan: the tool says no_plan, and the answer says so instead of inventing what the plan would have been.",
+  "scenario": {},
+  "question": "Czemu wczoraj nie było przysiadów w planie?",
+  "expect": {
+    "tools": ["getPlanExplanation"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "mentionAnyOf": [["nie mam planu", "nie bylo planu", "brak planu"]]
+  }
+}

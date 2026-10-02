@@ -3,7 +3,7 @@ import { APICallError } from 'ai';
 import { type ChatEvent, chatRequestSchema, toolRoundsUsed } from '../../src/ai/contract/chat';
 import type { ApiError } from '../../src/ai/contract/api';
 import { CONTRACT_VERSION } from '../../src/ai/contract/versions';
-import { CHAT_PROMPT_VERSION } from '../../src/ai/prompts/chat/v1';
+import { CHAT_PROMPT_VERSION } from '../../src/ai/prompts/chat/v2';
 import { detectTextSignal } from '../../src/domain/coach/medicalSignal';
 import { detectOutOfScope } from '../../src/domain/coach/topicGuard';
 import { InvalidToolCallError, newStats, streamChatStep } from './chat';

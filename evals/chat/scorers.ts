@@ -254,8 +254,14 @@ function grounded(input: ChatScorerInput): ScorerResult {
   );
   const missing = (input.evalCase.expect.tools ?? []).filter((tool) => !asked.has(tool));
   if (missing.length > 0) return fail(`never looked up: ${missing.join(', ')}`);
+  // "That day has no plan" is a fact about the data, not a failed lookup:
+  // an answer that says so is grounded in it.
   const errors = toolResults(input.outcome).filter(
-    (r) => typeof r.output === 'object' && r.output !== null && 'error' in r.output,
+    (r) =>
+      typeof r.output === 'object' &&
+      r.output !== null &&
+      'error' in r.output &&
+      (r.output as { error: unknown }).error !== 'no_plan',
   );
   return errors.length === 0 ? ok : fail(`${errors.length} lookup(s) came back as an error`);
 }

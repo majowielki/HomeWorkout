@@ -440,7 +440,7 @@ użytkownik.
 | A1 — Worker i F1 | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-worker` | Worker, klient, `ai_exchanges`, karta w aplikacji, diagnostyka, CI; sprawdzone na emulatorze z atrapą modelu. Brakuje wywołania prawdziwego modelu (potrzebny klucz i konto Cloudflare) |
 | A2 — ewaluacja | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-evals` | scorery, runner, raporty, porównanie, szkielet sędziego, CI w trybie odtwarzania; nie oceniono żadnego prawdziwego modelu (brak klucza), sędzia nieskalibrowany |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7 (w toku od 2026-10-02; bramka „dwa tygodnie używania" świadomie pominięta, IMPLEMENTACJA §0.1) |
-| A4 — rozmowa F4 | ✅ kod 2026-10-02 · ✅ próba na żywo 3 pytań · ⏳ ewaluacja na żywo · ⛔ `getPlanExplanation` | `feat/ai-chat` | pętla narzędzi na telefonie, streaming, anulowanie, ekran rozmowy, 18 przypadków ewaluacyjnych; sprawdzone na emulatorze z atrapą modelu. DoD „czemu dziś nie ma przysiadów” czeka na M7, bo narzędzie wyjaśniające plan wymaga silnika |
+| A4 — rozmowa F4 | ✅ kod 2026-10-02 · ✅ próba na żywo 3 pytań · ⏳ ewaluacja na żywo · ✅ `getPlanExplanation` (2026-10-02, `feat/ai-plan-explanation`) | `feat/ai-chat` | pętla narzędzi na telefonie, streaming, anulowanie, ekran rozmowy, 18 przypadków ewaluacyjnych; sprawdzone na emulatorze z atrapą modelu. DoD „czemu dziś nie ma przysiadów” czeka na M7, bo narzędzie wyjaśniające plan wymaga silnika |
 | A5 — opcjonalnie | — | | |
 
 ### Wynik A0 (2026-10-01)
@@ -650,6 +650,18 @@ Wniosek ograniczony do tego, co zmierzone: w tej próbie 3.8 Flash był wolny i 
 | `CONTRACT_VERSION` podnoszony przy zmianie kontraktu | nadal 1 | nowy endpoint i wspólna unia błędów; nic z A1 nie trafiło jeszcze do wydania, więc nie ma partnera w starej wersji |
 
 **Co zostaje po Twojej stronie:** to samo co po A1 i A2 (klucz Gemini, konto Cloudflare, `MODEL_ID`, dev client, dwa tygodnie ręcznego używania). Dla czatu dodatkowo: `npm run eval:live` ocenia teraz i podsumowanie, i czat (kroki czatu zapisuje w `evals/recorded/live/chat/`); pierwsze wywołanie na żywo sprawdzi trzy rzeczy z listy „czego nie sprawdziłem”.
+
+### Wynik etapu 6 M7 — `getPlanExplanation` (2026-10-02)
+
+**Zrobione:** szóste narzędzie czatu. Czyta plan silnika na dziś (zamrożony w sesji albo liczony teraz, bez zapisu) albo na dzień sprzed maks. 13 dni, jeśli sesję zaczęto z planu. Zwraca **wyłącznie kody powodów** (dzień, rower, każde ćwiczenie, każdy pominięty ruch), nazwy ćwiczeń z katalogu i nazwy ruchów z `data/slots.json`. **Bez obciążeń i powtórzeń**, więc model nie ma z czego przepisać ciężaru (I1). Dzień bez planu to błąd narzędzia `no_plan`: fakt o danych, nie awaria, więc `grounded` go nie karze.
+
+| Zmiana | Dlaczego |
+|---|---|
+| `CONTRACT_VERSION` 1 → 2 | nowa nazwa narzędzia i nowy kod błędu: stara aplikacja z nowym Workerem dostaje błąd „zaktualizuj aplikację”, nie listę błędów Zoda |
+| prompt `chat/v2` (v1 bez zmian) | v1 mówił modelowi, że nie widzi planu. v2: wyjaśniaj plan tylko z kodów, nie dodawaj własnych powodów, nie oceniaj i nie zmieniaj planu, nie podawaj ciężarów z planu; przewodnik po każdym kodzie (test pilnuje, że wszystkie są w promptcie) |
+| przypadki ewaluacyjne | `plan-why-no-squats` (DoD A4: zakwasy czworogłowych → `DOMS_HIGH` z prawdziwego silnika na syntetycznej historii), `plan-past-day-none` (`no_plan`), `plan-boundary` przepisany na prośbę o zmianę planu |
+
+**Sprawdzone:** `npm run verify`; `npm run eval` (wzorzec, 21 przypadków czatu, bezpieczeństwo czyste); testy Workera w workerd (120); bundle Workera na sucho. **Niesprawdzone:** prawdziwy model na nowych przypadkach (`npm run eval:live`) i rozmowa przez wdrożony Worker — wymaga ponownego wdrożenia Workera (`cd worker && npx wrangler deploy`) i nowego APK.
 
 ### A0 — Fundament bez sieci (2–3 wieczory)
 

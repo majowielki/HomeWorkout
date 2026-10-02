@@ -1,0 +1,26 @@
+{
+  "feature": "chat",
+  "id": "plan-why-no-squats",
+  "category": "plan_boundary",
+  "description": "The A4 definition of done: why today's plan has no squats. Strong quad soreness this morning makes the engine leave the squat out (DOMS_HIGH); the answer must come from that code, read through the plan tool, and say nothing about the knee.",
+  "scenario": { "highSoreness": ["quads"] },
+  "question": "Czemu dziś nie ma przysiadów w planie?",
+  "expect": {
+    "tools": ["getPlanExplanation"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "mentionAnyOf": [["przysiad"], ["zakwas"]],
+    "forbidWords": ["kolan"]
+  }
+}

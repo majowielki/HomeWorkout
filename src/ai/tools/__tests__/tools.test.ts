@@ -4,9 +4,13 @@ import { CHAT_TOOLS, TOOL_LIMITS, TOOL_NAMES, type ToolName } from '../../contra
 import type { ToolCall } from '../../contract/chat';
 import { scenario, SYNTHETIC_EXERCISES, type ScenarioSpec } from '../../testing/synthetic';
 import { executeTool, type ExecuteEnvironment } from '../execute';
-import { TOOL_IMPLEMENTATIONS, type ToolEnvironment } from '../implementations';
+import { syntheticPlan } from '../../testing/plan';
+import { type PlanLookup, TOOL_IMPLEMENTATIONS, type ToolEnvironment } from '../implementations';
 
-const envFor = (source: CoachSource): ToolEnvironment => ({ load: async () => source });
+const envFor = (
+  source: CoachSource,
+  plan: (daysAgo: number) => PlanLookup | null = (daysAgo) => syntheticPlan(source, daysAgo),
+): ToolEnvironment => ({ load: async () => source, plan: async (daysAgo) => plan(daysAgo) });
 
 async function run<N extends ToolName>(
   name: N,
@@ -302,6 +306,115 @@ describe('getBodyTrend', () => {
   });
 });
 
+describe('getPlanExplanation', () => {
+  const plan = (patch: Partial<PlanLookup['plan']> = {}): PlanLookup => ({
+    source: 'session',
+    slotNames: { squat: 'Przysiad', pull: 'Przyciąganie poziome' },
+    plan: {
+      version: 1,
+      date: '2026-09-30',
+      blockIndex: 2,
+      phase: 'deload',
+      regions: ['pull'],
+      bike: { minutes: 14, resistance: 3, reasons: ['BIKE_TIME_UP'] },
+      exercises: [
+        {
+          label: 'A1',
+          exerciseId: SYNTHETIC_EXERCISES[0]!.id,
+          sets: 1,
+          repMin: 8,
+          repMax: 15,
+          targetRirMin: 4,
+          targetRirMax: 5,
+          restSec: 90,
+          slotId: 'pull',
+          load: { kind: 'dumbbell', mode: 'paired', kg: 6 },
+          unit: 'reps',
+          target: 12,
+          warmupSet: false,
+          reasons: ['DELOAD'],
+          confidence: 'high',
+        },
+      ],
+      skipped: [
+        { slotId: 'squat', exerciseId: 'ghost-exercise', reason: 'RECOVERING' },
+        { slotId: 'unknown-slot', exerciseId: null, reason: 'NO_CANDIDATE' },
+      ],
+      dayReasons: ['DELOAD_WEEK'],
+      signals: ['RECOVERY_LOW'],
+      estimatedMinutes: 9,
+      adjustments: [],
+      ...patch,
+    },
+  });
+  const ask = (lookup: PlanLookup | null, daysAgo = 0) => {
+    const source = scenario();
+    const implementation = TOOL_IMPLEMENTATIONS.getPlanExplanation;
+    return implementation(
+      { daysAgo },
+      envFor(source, () => lookup),
+    );
+  };
+
+  it('says when the day has no plan', async () => {
+    expect(await ask(null, 3)).toEqual({ error: 'no_plan' });
+  });
+
+  it('gives the engine codes with names, and no load or target', async () => {
+    const out = await ask(plan());
+    expect(out).toEqual({
+      date: '2026-09-30',
+      source: 'session',
+      blockIndex: 2,
+      phase: 'deload',
+      dayReasons: ['DELOAD_WEEK'],
+      signals: ['RECOVERY_LOW'],
+      bike: { minutes: 14, reasons: ['BIKE_TIME_UP'] },
+      exercises: [
+        {
+          exercise: { id: SYNTHETIC_EXERCISES[0]!.id, name: SYNTHETIC_EXERCISES[0]!.name },
+          movement: 'Przyciąganie poziome',
+          sets: 1,
+          reasons: ['DELOAD'],
+        },
+      ],
+      skipped: [
+        {
+          movement: 'Przysiad',
+          exercise: { id: 'ghost-exercise', name: 'ghost-exercise' },
+          reason: 'RECOVERING',
+        },
+        { movement: 'unknown-slot', exercise: null, reason: 'NO_CANDIDATE' },
+      ],
+    });
+    expect(JSON.stringify(out)).not.toMatch(/"kg"|"target"|"load"/);
+    expect(() => CHAT_TOOLS.getPlanExplanation.output.parse(out)).not.toThrow();
+  });
+
+  it('caps what it lists at the contract limits', async () => {
+    const many = plan();
+    const out = (await ask(
+      plan({
+        exercises: Array.from({ length: 20 }, () => many.plan.exercises[0]!),
+        skipped: Array.from({ length: 30 }, () => many.plan.skipped[0]!),
+      }),
+    )) as { exercises: unknown[]; skipped: unknown[] };
+    expect(out.exercises).toHaveLength(TOOL_LIMITS.planExercisesShown);
+    expect(out.skipped).toHaveLength(TOOL_LIMITS.planSkippedShown);
+  });
+
+  it("reads today's plan from the engine for a synthetic history", async () => {
+    const source = scenario({ highSoreness: ['quads'] });
+    const out = await run('getPlanExplanation', { daysAgo: 0 }, source);
+    expect(() => CHAT_TOOLS.getPlanExplanation.output.parse(out)).not.toThrow();
+    expect(out).toMatchObject({ source: 'today', date: source.asOf });
+    expect((out as { skipped: { movement: string; reason: string }[] }).skipped).toContainEqual(
+      expect.objectContaining({ movement: 'Przysiad', reason: 'DOMS_HIGH' }),
+    );
+    expect(await run('getPlanExplanation', { daysAgo: 1 }, source)).toEqual({ error: 'no_plan' });
+  });
+});
+
 describe('findExercises', () => {
   const find = (input: Record<string, unknown>) =>
     run('findExercises', input) as Promise<{
@@ -375,7 +488,10 @@ describe('executeTool', () => {
 
   it('answers a request that does not fit the tool with an error, running nothing', async () => {
     const load = jest.fn();
-    const result = await executeTool(call('getWeeklyVolume', { weeksAgo: 99 }), { load });
+    const result = await executeTool(call('getWeeklyVolume', { weeksAgo: 99 }), {
+      load,
+      plan: jest.fn(),
+    });
     expect(result.output).toEqual({ error: 'invalid_input' });
     expect(load).not.toHaveBeenCalled();
   });
@@ -386,6 +502,7 @@ describe('executeTool', () => {
       load: async () => {
         throw new Error('database is locked');
       },
+      plan: async () => null,
       report,
     };
     const result = await executeTool(call('getBodyTrend', { days: 30 }), broken);
@@ -401,6 +518,7 @@ describe('executeTool', () => {
       load: async () => {
         throw new Error('x');
       },
+      plan: async () => null,
     };
     expect((await executeTool(call('getBodyTrend', { days: 30 }), broken)).output).toEqual({
       error: 'failed',

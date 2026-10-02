@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
-import { and, count, desc, eq, lt, ne } from 'drizzle-orm';
+import { and, count, desc, eq, isNotNull, lt, ne } from 'drizzle-orm';
 
 import type { SessionPlan } from '@/domain/plan/types';
 
@@ -138,4 +138,15 @@ export async function startPlannedWorkout(
     plan,
   });
   return id;
+}
+
+/** The latest session of that training date that was started from a plan, if any. */
+export async function findPlannedWorkoutOn(trainingDate: string) {
+  const [row] = await db
+    .select()
+    .from(workouts)
+    .where(and(eq(workouts.trainingDate, trainingDate), isNotNull(workouts.plan)))
+    .orderBy(desc(workouts.startedAt))
+    .limit(1);
+  return row ?? null;
 }

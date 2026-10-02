@@ -1,6 +1,7 @@
 import { exerciseTrend } from '@/domain/coach/exerciseTrend';
 import { fold } from '@/domain/coach/text';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
+import type { SessionPlan } from '@/domain/plan/types';
 import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
 
@@ -19,6 +20,15 @@ import type { CoachSource, SourceSet } from '../context/source';
  * reads them from SQLite; a test hands over a synthetic history. Nothing
  * here is a Drizzle type, so every tool runs in a test with no database.
  */
+/** A day's plan from the rules engine, as the phone has it (SPEC §10.5). */
+export interface PlanLookup {
+  plan: SessionPlan;
+  /** `session`: frozen when that day's session started; `today`: computed now. */
+  source: 'session' | 'today';
+  /** Slot id to its Polish name, from the shipped data. */
+  slotNames: Readonly<Record<string, string>>;
+}
+
 export interface ToolEnvironment {
   /**
    * Rows for the `days` days ending today. Completed sessions are always
@@ -26,6 +36,8 @@ export interface ToolEnvironment {
    * the window.
    */
   load(days: number): Promise<CoachSource>;
+  /** The plan for the day `daysAgo` days before today, or null when that day has none. */
+  plan(daysAgo: number): Promise<PlanLookup | null>;
 }
 
 type Result<N extends ToolName> = ToolOutput<N> | ToolError;
@@ -153,6 +165,35 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
         id: e.id,
         name: e.name,
         primaryMuscles: [...e.primaryMuscles],
+      })),
+    };
+  },
+
+  async getPlanExplanation({ daysAgo }, env) {
+    const found = await env.plan(daysAgo);
+    if (!found) return { error: 'no_plan' };
+    const source = await env.load(1);
+    const ref = (id: string) => ({ id, name: nameOf(source, id) });
+    const movement = (slotId: string) => found.slotNames[slotId] ?? slotId;
+    const { plan } = found;
+    return {
+      date: plan.date,
+      source: found.source,
+      blockIndex: plan.blockIndex,
+      phase: plan.phase,
+      dayReasons: plan.dayReasons,
+      signals: plan.signals,
+      bike: { minutes: plan.bike.minutes, reasons: plan.bike.reasons },
+      exercises: plan.exercises.slice(0, TOOL_LIMITS.planExercisesShown).map((e) => ({
+        exercise: ref(e.exerciseId),
+        movement: movement(e.slotId),
+        sets: e.sets,
+        reasons: e.reasons,
+      })),
+      skipped: plan.skipped.slice(0, TOOL_LIMITS.planSkippedShown).map((s) => ({
+        movement: movement(s.slotId),
+        exercise: s.exerciseId === null ? null : ref(s.exerciseId),
+        reason: s.reason,
       })),
     };
   },
