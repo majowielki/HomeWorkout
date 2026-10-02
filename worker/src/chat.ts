@@ -33,6 +33,8 @@ export class InvalidToolCallError extends Error {}
  */
 export interface StepStats {
   finishReason: FinishReason;
+  /** What the provider itself reported (for Gemini: STOP, MAX_TOKENS, SAFETY, ...). A code, never text. */
+  rawFinishReason: string | undefined;
   toolCalls: number;
   /** Calls beyond the per-round cap, asked for by the model and ignored. */
   droppedCalls: number;
@@ -44,6 +46,7 @@ export interface StepStats {
 
 export const newStats = (): StepStats => ({
   finishReason: 'other',
+  rawFinishReason: undefined,
   toolCalls: 0,
   droppedCalls: 0,
   replyChars: 0,
@@ -204,6 +207,7 @@ export async function* streamChatStep(
         options.stats.guardViolations = checkReply(reply, {
           sparse: isSparseHistory(request.facts),
         }).length;
+        options.stats.rawFinishReason = part.rawFinishReason;
         yield { type: 'finish', reason: options.stats.finishReason, usage };
         break;
       }

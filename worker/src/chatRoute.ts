@@ -81,6 +81,7 @@ export async function handleChat(
       droppedCalls: stats.droppedCalls,
       replyChars: stats.replyChars,
       finishReason: stats.finishReason,
+      rawFinishReason: stats.rawFinishReason,
       guardViolations: stats.guardViolations,
       reasoningTokens: stats.reasoningTokens,
       firstEventMs,
