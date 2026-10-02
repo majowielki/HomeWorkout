@@ -98,6 +98,16 @@ describe('slotCatalogProblems', () => {
     ]);
   });
 
+  it('keeps light fill to core and accessory slots', () => {
+    const slots = [
+      slot({ id: 'a', exerciseIds: ['squat'], lightFill: true }),
+      slot({ id: 'c', kind: 'core', exerciseIds: ['plank'], timeRange: [20, 60], lightFill: true }),
+    ];
+    expect(slotCatalogProblems(slots, [squat, plank], ctx)).toEqual([
+      'a: light fill is for core and accessory slots',
+    ]);
+  });
+
   it('needs a known start band', () => {
     const row = exercise({ id: 'row', equipment: ['band'] });
     const slots = [

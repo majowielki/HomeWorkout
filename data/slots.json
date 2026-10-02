@@ -20,7 +20,11 @@
       "timeRange": [20, 60],
       "rir": [2, 3],
       "restSec": 120,
-      "start": { "single": 6, "paired": 4, "band": "black" }
+      "start": {
+        "single": 6,
+        "paired": 4,
+        "band": "black"
+      }
     },
     {
       "id": "lunge",
@@ -31,7 +35,10 @@
       "repRange": [10, 20],
       "rir": [2, 3],
       "restSec": 90,
-      "start": { "paired": 2, "single": 4 }
+      "start": {
+        "paired": 2,
+        "single": 4
+      }
     },
     {
       "id": "hinge",
@@ -39,18 +46,33 @@
       "kind": "compound",
       "region": "lower",
       "exerciseIds": [
-        "glute-bridge",
         "band-pull-through",
         "db-romanian-deadlift",
-        "hip-thrust",
         "band-good-morning",
-        "band-hip-extension",
         "single-leg-rdl"
       ],
       "repRange": [10, 20],
       "rir": [2, 3],
       "restSec": 120,
-      "start": { "paired": 6, "single": 8, "band": "black" }
+      "start": {
+        "paired": 6,
+        "single": 8,
+        "band": "black"
+      }
+    },
+    {
+      "id": "glutes",
+      "name": "Pośladki",
+      "kind": "accessory",
+      "region": "lower",
+      "exerciseIds": ["glute-bridge", "hip-thrust", "band-hip-extension"],
+      "repRange": [12, 20],
+      "rir": [1, 2],
+      "restSec": 60,
+      "start": {
+        "single": 8,
+        "band": "red"
+      }
     },
     {
       "id": "calves",
@@ -61,7 +83,9 @@
       "repRange": [12, 20],
       "rir": [0, 1],
       "restSec": 60,
-      "start": { "paired": 4 }
+      "start": {
+        "paired": 4
+      }
     },
     {
       "id": "push-horizontal",
@@ -78,7 +102,10 @@
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
-      "start": { "paired": 4, "band": "red" }
+      "start": {
+        "paired": 4,
+        "band": "red"
+      }
     },
     {
       "id": "chest-iso",
@@ -89,7 +116,9 @@
       "repRange": [10, 15],
       "rir": [1, 2],
       "restSec": 60,
-      "start": { "paired": 2 }
+      "start": {
+        "paired": 2
+      }
     },
     {
       "id": "push-vertical",
@@ -100,7 +129,10 @@
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
-      "start": { "paired": 4, "band": "yellow" }
+      "start": {
+        "paired": 4,
+        "band": "yellow"
+      }
     },
     {
       "id": "pull-horizontal",
@@ -111,7 +143,11 @@
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
-      "start": { "single": 8, "paired": 4, "band": "red" }
+      "start": {
+        "single": 8,
+        "paired": 4,
+        "band": "red"
+      }
     },
     {
       "id": "pull-vertical",
@@ -122,7 +158,10 @@
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
-      "start": { "single": 4, "band": "red" }
+      "start": {
+        "single": 4,
+        "band": "red"
+      }
     },
     {
       "id": "rear-delts",
@@ -138,7 +177,11 @@
       "repRange": [12, 20],
       "rir": [1, 2],
       "restSec": 60,
-      "start": { "paired": 2, "band": "yellow" }
+      "start": {
+        "paired": 2,
+        "band": "yellow"
+      },
+      "lightFill": true
     },
     {
       "id": "lateral-delts",
@@ -149,7 +192,9 @@
       "repRange": [10, 20],
       "rir": [0, 1],
       "restSec": 60,
-      "start": { "paired": 2 }
+      "start": {
+        "paired": 2
+      }
     },
     {
       "id": "biceps",
@@ -160,7 +205,9 @@
       "repRange": [10, 15],
       "rir": [0, 1],
       "restSec": 60,
-      "start": { "paired": 4 }
+      "start": {
+        "paired": 4
+      }
     },
     {
       "id": "triceps",
@@ -176,7 +223,11 @@
       "repRange": [10, 15],
       "rir": [0, 1],
       "restSec": 60,
-      "start": { "single": 4, "paired": 2, "band": "yellow" }
+      "start": {
+        "single": 4,
+        "paired": 2,
+        "band": "yellow"
+      }
     },
     {
       "id": "core-front",
@@ -188,7 +239,8 @@
       "timeRange": [20, 60],
       "rir": [1, 2],
       "restSec": 45,
-      "start": {}
+      "start": {},
+      "lightFill": true
     },
     {
       "id": "core-side",
@@ -199,7 +251,11 @@
       "timeRange": [15, 45],
       "rir": [1, 2],
       "restSec": 45,
-      "start": { "single": 4, "band": "yellow" }
+      "start": {
+        "single": 4,
+        "band": "yellow"
+      },
+      "lightFill": true
     },
     {
       "id": "core-back",
@@ -210,7 +266,8 @@
       "repRange": [8, 12],
       "rir": [1, 2],
       "restSec": 45,
-      "start": {}
+      "start": {},
+      "lightFill": true
     },
     {
       "id": "carry",
@@ -222,7 +279,9 @@
       "timeRange": [20, 45],
       "rir": [1, 2],
       "restSec": 60,
-      "start": { "paired": 6 }
+      "start": {
+        "paired": 6
+      }
     },
     {
       "id": "mobility",

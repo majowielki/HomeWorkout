@@ -48,6 +48,10 @@ export function slotCatalogProblems(
       problems.push(...candidateProblems(slot, exercise, ctx));
     }
 
+    if (slot.lightFill && (slot.kind === 'compound' || slot.kind === 'filler')) {
+      problems.push(`${slot.id}: light fill is for core and accessory slots`);
+    }
+
     const eligibility = { profile: { knee: ctx.knee }, excludedIds: new Set<string>() };
     const allowed = slot.exerciseIds
       .map((id) => byId[id])

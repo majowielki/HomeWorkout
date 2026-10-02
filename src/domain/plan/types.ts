@@ -8,7 +8,17 @@
  * twelve exercises on repeat.
  */
 
-import type { MuscleGroup } from '../types';
+import type { BikePrescription } from '../progression/bike';
+import type { Unit } from '../progression/history';
+import type { MuscleGroup, PlannedLoad, TemplateBlock } from '../types';
+import type {
+  Confidence,
+  DayReason,
+  FatigueSignal,
+  ProgressionReason,
+  SkipReason,
+  ValidationCode,
+} from './reasons';
 
 export type SlotKind = 'compound' | 'accessory' | 'core' | 'filler';
 
@@ -39,6 +49,12 @@ export interface Slot {
   rir: [number, number];
   restSec: number;
   start: SlotStart;
+  /**
+   * On a short day, the block's exercise of this slot may top the session
+   * up as light work at RIR 5 — practice that does not count as a working
+   * set (SPEC §4.2). Core and rotator-cuff slots.
+   */
+  lightFill?: boolean;
 }
 
 /** One morning's entry of the daily log, as the engine reads it. */
@@ -67,4 +83,53 @@ export interface BlockState {
   deloadReason: 'DELOAD_SCHEDULED' | 'DELOAD_REACTIVE' | null;
   /** slotId → exerciseId. A slot with no allowed candidate has no entry. */
   selections: Record<string, string>;
+}
+
+/**
+ * One exercise of a day's plan. It is a `TemplateBlock`, so the active
+ * session runs it exactly like a template; the rest says what to load and
+ * why. For a hold, `timeSec` is the target; for reps, `repMin`/`repMax` is
+ * the range and `target` the reps to aim for in the first set.
+ */
+export interface PlannedExercise extends TemplateBlock {
+  slotId: string;
+  load: PlannedLoad;
+  unit: Unit;
+  target: number;
+  /** Start with a warm-up set (bands, SPEC §5.6). */
+  warmupSet: boolean;
+  reasons: ProgressionReason[];
+  confidence: Confidence;
+}
+
+/** A slot that is not in the plan today, and why — "why no squats today?". */
+export interface SkippedSlot {
+  slotId: string;
+  /** The block's exercise for the slot; null when it has none. */
+  exerciseId: string | null;
+  reason: SkipReason;
+}
+
+/** Something validatePlan changed. */
+export interface PlanAdjustment {
+  exerciseId: string;
+  code: ValidationCode;
+}
+
+/** The plan for one day, SPEC §10.5. Frozen into `workouts.plan` when the session starts. */
+export interface SessionPlan {
+  version: 1;
+  date: string;
+  blockIndex: number;
+  phase: 'work' | 'deload';
+  /** Regions of the hard work, most sets first — the day's title. */
+  regions: SlotRegion[];
+  bike: BikePrescription;
+  exercises: PlannedExercise[];
+  skipped: SkippedSlot[];
+  dayReasons: DayReason[];
+  signals: FatigueSignal[];
+  /** Exercises only; the ride comes on top. */
+  estimatedMinutes: number;
+  adjustments: PlanAdjustment[];
 }

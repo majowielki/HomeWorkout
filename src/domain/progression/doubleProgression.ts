@@ -20,6 +20,21 @@ export interface DoubleProgressionParams {
 }
 
 /**
+ * Every set at the top of the range, none of them a grind (RIR at or above
+ * the lower target). A missing RIR does not block: the logger always
+ * records one, so an empty field is old data. The condition for a step up.
+ */
+export function targetMet(
+  exposure: Exposure,
+  params: Pick<DoubleProgressionParams, 'range' | 'minRir' | 'unit'>,
+): boolean {
+  return exposure.sets.every(
+    (s) =>
+      amountOf(s, params.unit)! >= params.range[1] && (s.rir === null || s.rir >= params.minRir),
+  );
+}
+
+/**
  * SPEC §5.1 over any ladder (§5.8). Reads the last exposure, and the one
  * before it for the regression rule:
  *
@@ -29,9 +44,6 @@ export interface DoubleProgressionParams {
  *   one step down, bottom of the range
  * - otherwise the same load and one more rep (or 5 s) in the first set that
  *   did not reach the top
- *
- * A missing RIR does not block progress: the logger always records one, so
- * an empty field is old data, not a grind.
  */
 export function doubleProgression(
   exposures: readonly Exposure[],
@@ -43,9 +55,8 @@ export function doubleProgression(
   const amounts = last.sets.map((s) => amountOf(s, params.unit)!);
 
   const allAtTop = amounts.every((a) => a >= hi);
-  const rirInTarget = last.sets.every((s) => s.rir === null || s.rir >= params.minRir);
 
-  if (allAtTop && rirInTarget) {
+  if (targetMet(last, params)) {
     const up = ladder.up(last.load);
     if (up) return { load: up.load, target: lo, reasons: [up.reason], confidence: up.confidence };
     return { load: last.load, target: hi, reasons: [ladder.ceilingReason], confidence: 'high' };

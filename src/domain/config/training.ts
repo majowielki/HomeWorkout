@@ -5,7 +5,7 @@
  * PLAN.md §10.1 for why these values are expected to drift.
  */
 
-import type { MovementPattern } from '../types';
+import type { MovementPattern, MuscleGroup } from '../types';
 
 export interface BandConfig {
   anchorStepCm: number;
@@ -75,6 +75,16 @@ export const TRAINING_CONFIG = {
   workingSetMaxRir: 4,
   /** A secondary muscle receives this fraction of a set. SPEC §4.2. */
   secondaryMuscleWeight: 0.5,
+  /**
+   * Muscles that are primary in many slots get a higher weekly maximum of
+   * direct sets. Glutes are primary in the squat, the lunge, the hinge and
+   * the bridge; the back in rows, pulldowns, carries and back extensions.
+   * With 6, the 3-set minimum of quads and hamstrings (or of lats and
+   * forearms) cannot both be met: the simulation of 2026-10-02 showed one
+   * of each pair below its minimum on most days. The upper bound is the
+   * tunable one (SPEC §4.1).
+   */
+  maxDirectSetsOverride: { glutes: 8, back: 8 } as Partial<Record<MuscleGroup, number>>,
   /** Never hard sets for a muscle, whatever the catalogue lists as primary. SPEC §4.2 v1.2. */
   volumeExcludedPatterns: ['Mobility', 'Cardio'] as readonly MovementPattern[],
 } as const;
@@ -150,6 +160,62 @@ export const BLOCK_CONFIG = {
   deloadSetFactor: 0.5,
   deloadRir: [4, 5] as [number, number],
 } as const;
+
+/** A config's shape with its literal numbers widened, so a test can pass its own values. */
+export type Tunable<T> = T extends number
+  ? number
+  : T extends readonly [infer A, infer B]
+    ? readonly [Tunable<A>, Tunable<B>]
+    : T extends object
+      ? { readonly [K in keyof T]: Tunable<T[K]> }
+      : T;
+
+/**
+ * The day planner, SPEC §10.4 and §10.7. Daily training: 10-20 min on the
+ * bike plus 20-30 min of exercises (the user's choice, 2026-10-02). Apart
+ * from the volume targets in TRAINING_CONFIG these are tuning parameters.
+ */
+export const PLANNER_CONFIG = {
+  /** Exercises only; the ride comes on top. */
+  sessionMinutes: { min: 20, target: 20, max: 30 },
+  maxExercisesPerSession: 6,
+  setsPerExercise: 2,
+  /** Sets of each light-fill and mobility exercise when the day needs filling. */
+  fillerSets: 2,
+  /** Light fill is practice: far from failure, so it is not a working set. */
+  lightFillRir: 5,
+  /**
+   * Direct sets one muscle may get in a single session. Spreads the week's
+   * volume over the days instead of loading it into the first one.
+   */
+  maxDirectSetsPerMuscleDay: 2,
+  /**
+   * A slot whose muscles are already on target still gets in after this
+   * many days away, so no movement disappears for good (SPEC §10.4).
+   */
+  forceStaleDays: 10,
+  /** A muscle with working sets as a primary this many days back (1 = yesterday) is recovering. */
+  recoveryDays: 1,
+  scoring: {
+    /** Weight of the volume deficit, summed over primary muscles. */
+    deficitWeight: 2,
+    /** "Days since this slot was trained" counts up to this many days ... */
+    stalenessCapDays: 14,
+    /** ... in units of this many days. */
+    stalenessUnitDays: 7,
+    compoundBonus: 1,
+  },
+  /** Rough time per rep — a 2 s eccentric, a pause, a 1 s concentric. */
+  secondsPerRep: 4,
+  exerciseChangeoverSec: 30,
+  bandWarmupSec: 60,
+  /** Sleep under this or energy at or under that: one more rep in reserve today. */
+  lowReadiness: { sleepHours: 6, energy: 2 },
+  /** SPEC §8, clamp 6. */
+  limits: { sets: [1, 6], reps: [1, 30], timeSec: [5, 300], rir: [0, 5] },
+} as const;
+
+export type PlannerConfig = Tunable<typeof PLANNER_CONFIG>;
 
 /** The daily ride, SPEC §7 v1.2. */
 export const BIKE_CONFIG = {
