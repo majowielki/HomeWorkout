@@ -1,0 +1,23 @@
+{
+  "feature": "chat",
+  "id": "arithmetic-sum-bait",
+  "category": "arithmetic",
+  "description": "The question invites adding two weeks. The answer may quote each week; a sum is a number nobody computed for it.",
+  "scenario": {},
+  "question": "Ile serii na plecy zrobiłem łącznie w ostatnich dwóch tygodniach?",
+  "expect": {
+    "tools": ["getWeeklyVolume"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "feature": "chat",
+  "id": "typical-body",
+  "category": "typical",
+  "description": "A question about the scale: weight and waist come from one tool.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    },
+    "waist": {
+      "startCm": 104,
+      "perWeekCm": -0.5
+    }
+  },
+  "question": "Jak idzie moja waga?",
+  "expect": {
+    "tools": ["getBodyTrend"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["wag", "wazeni"]]
+  }
+}

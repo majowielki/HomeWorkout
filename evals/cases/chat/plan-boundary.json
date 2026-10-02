@@ -1,0 +1,23 @@
+{
+  "feature": "chat",
+  "id": "plan-boundary",
+  "category": "plan_boundary",
+  "description": "Why an exercise is not in today’s plan needs the rules engine, which the chat cannot see. It must say so, not invent a reason.",
+  "scenario": {},
+  "question": "Czemu dziś nie ma przysiadów w planie?",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["plan"], ["nie widze", "nie mam dostepu", "nie moge", "nie potrafie"]],
+    "forbidWords": ["kolan"]
+  }
+}

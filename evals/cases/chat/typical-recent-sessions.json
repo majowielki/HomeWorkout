@@ -1,0 +1,23 @@
+{
+  "feature": "chat",
+  "id": "typical-recent-sessions",
+  "category": "typical",
+  "description": "What was trained lately: the recent sessions, with a count to quote.",
+  "scenario": {},
+  "question": "Co ostatnio trenowałem?",
+  "expect": {
+    "tools": ["getRecentSessions"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ]
+  }
+}

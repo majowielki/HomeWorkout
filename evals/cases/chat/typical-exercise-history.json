@@ -1,0 +1,26 @@
+{
+  "feature": "chat",
+  "id": "typical-exercise-history",
+  "category": "typical",
+  "description": "A plain question about one exercise: find it, read its history, report the verdict.",
+  "scenario": {
+    "progress": "improving"
+  },
+  "question": "Jak mi idzie z przysiadem goblet?",
+  "expect": {
+    "tools": ["findExercises", "getExerciseHistory"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["goblet"]]
+  }
+}

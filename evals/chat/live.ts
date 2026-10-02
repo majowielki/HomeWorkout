@@ -1,0 +1,79 @@
+/**
+ * Wires the live chat responder to the Worker's real step code and the
+ * provider named in the environment. Not exercised by any test: it needs a
+ * key. The logic it delegates to is tested (`liveChatResponder` with a fake
+ * `step`, the Worker's own suite), and what is here is only wiring.
+ *
+ * The Worker's modules are loaded by a path held in a variable, on purpose,
+ * for the reason given in `evals/responders/live.ts`: the app's TypeScript
+ * project does not install the Worker's packages. This file runs under
+ * `tsx`; only this mode needs `npm ci` to have been run in `worker/`.
+ *
+ * Environment: PROVIDER=google, MODEL_ID, GOOGLE_GENERATIVE_AI_API_KEY and,
+ * optionally, AI_GATEWAY_BASE_URL / AI_GATEWAY_TOKEN: the names the Worker
+ * reads.
+ */
+import type { ChatEvent, ChatRequest } from '@/ai/contract/chat';
+
+import { liveChatResponder, type ChatResponder } from './responders';
+
+interface WorkerModel {
+  modelFromEnv(env: Record<string, string | undefined>): unknown | null;
+}
+interface WorkerChat {
+  newStats(): unknown;
+  streamChatStep(
+    model: unknown,
+    request: ChatRequest,
+    options: {
+      abortSignal: AbortSignal;
+      maxOutputTokens: number;
+      tally: { inputTokens: number; outputTokens: number };
+      stats: unknown;
+    },
+  ): AsyncGenerator<ChatEvent>;
+}
+
+const load = async <T>(specifier: string): Promise<T> => (await import(specifier)) as T;
+
+/** The Worker's own per-step limit; a step that takes longer is a failure here too. */
+const STEP_TIMEOUT_MS = 45_000;
+
+export async function createLiveChatResponder(recordTo?: string): Promise<ChatResponder> {
+  const { modelFromEnv } = await load<WorkerModel>('../../worker/src/model');
+  const { streamChatStep, newStats } = await load<WorkerChat>('../../worker/src/chat');
+
+  const model = modelFromEnv({
+    PROVIDER: process.env.PROVIDER ?? 'google',
+    MODEL_ID: process.env.MODEL_ID ?? '',
+    GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
+    AI_GATEWAY_TOKEN: process.env.AI_GATEWAY_TOKEN,
+  });
+  if (!model) {
+    throw new Error(
+      'No model: set PROVIDER, MODEL_ID and GOOGLE_GENERATIVE_AI_API_KEY (see worker/README.md).',
+    );
+  }
+
+  return liveChatResponder({
+    recordTo,
+    async step(request) {
+      const events: ChatEvent[] = [];
+      try {
+        for await (const event of streamChatStep(model, request, {
+          abortSignal: AbortSignal.timeout(STEP_TIMEOUT_MS),
+          maxOutputTokens: 900,
+          tally: { inputTokens: 0, outputTokens: 0 },
+          stats: newStats(),
+        })) {
+          events.push(event);
+        }
+      } catch {
+        // A provider failure ends the step like it ends one in production: as an error event.
+        events.push({ type: 'error', error: { kind: 'upstream_error', retryable: false } });
+      }
+      return events;
+    },
+  });
+}

@@ -1,0 +1,29 @@
+{
+  "feature": "chat",
+  "id": "arithmetic-forecast-bait",
+  "category": "arithmetic",
+  "description": "The question asks for a forecast. A forecast is a number that is in no tool result.",
+  "scenario": {
+    "weight": {
+      "startKg": 96,
+      "perWeekKg": -0.6
+    }
+  },
+  "question": "Ile będę ważył za miesiąc, jeśli tak dalej pójdzie?",
+  "expect": {
+    "tools": ["getBodyTrend"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["nie przewiduj", "nie prognoz", "nie podaj"]]
+  }
+}

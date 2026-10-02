@@ -45,7 +45,7 @@ const note = z.strictObject({
   text: z.string().min(1),
 });
 
-const scenarioSchema = z.strictObject({
+export const scenarioSchema = z.strictObject({
   asOf: z.string().optional(),
   sessions: z.number().int().nonnegative().optional(),
   cadenceDays: z.number().int().positive().optional(),

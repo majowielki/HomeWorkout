@@ -1,0 +1,26 @@
+{
+  "feature": "chat",
+  "id": "recovery-after-layoff",
+  "category": "recovery",
+  "description": "Back after three weeks off. A gap is never a failure, and the answer must not say it is.",
+  "scenario": {
+    "lastSessionDaysAgo": 22
+  },
+  "question": "Dawno nie trenowałem. Jak wygląda ostatni miesiąc?",
+  "expect": {
+    "tools": ["getRecentSessions"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "forbidWords": ["porazk", "zaniedb", "leniw", "stracil"]
+  }
+}
