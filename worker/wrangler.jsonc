@@ -24,6 +24,8 @@
   // Requests per minute, per Worker location. Cheap protection against a runaway client.
   "ratelimits": [
     { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 6, "period": 60 } },
+    // The chat asks once per tool round, so one question is up to five requests.
+    { "name": "CHAT_LIMITER", "namespace_id": "1003", "simple": { "limit": 30, "period": 60 } },
   ],
 
   // One zod for the Worker and for the contract imported from ../src (research R11):

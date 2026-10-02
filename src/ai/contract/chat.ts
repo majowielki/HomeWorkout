@@ -99,6 +99,10 @@ export const chatFactsSchema = z.strictObject({
 
 export type ChatFacts = z.infer<typeof chatFactsSchema>;
 
+/** Thin history: trend vocabulary is off limits (I5). The same test for the prompt, the guard and the phone. */
+export const isSparseHistory = (facts: Pick<ChatFacts, 'signals'>) =>
+  facts.signals.includes('SPARSE_HISTORY');
+
 export type ConversationProblem =
   | 'empty'
   | 'order'
@@ -190,6 +194,7 @@ export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
 /** Why the model stopped. `tool_calls` means "run these and ask again". */
 export const FINISH_REASONS = ['stop', 'tool_calls', 'length', 'other'] as const;
+export type FinishReason = (typeof FINISH_REASONS)[number];
 
 export const chatEventSchema = z.discriminatedUnion('type', [
   z.strictObject({

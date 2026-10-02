@@ -24,4 +24,6 @@ export interface Env {
   // --- bindings --------------------------------------------------------------
   BUDGET: KVNamespace;
   LIMITER: RateLimit;
+  /** The chat makes several requests per question (one per tool round), so it has its own, wider limit. */
+  CHAT_LIMITER: RateLimit;
 }

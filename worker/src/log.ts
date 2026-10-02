@@ -15,7 +15,7 @@ export type Outcome =
  * that eventually does (AI-INTEGRACJA §4.9).
  */
 export interface LogRecord {
-  event: 'weekly_summary';
+  event: 'weekly_summary' | 'chat';
   requestId: string | null;
   contractVersion: number;
   promptVersion: string | null;
@@ -28,6 +28,19 @@ export interface LogRecord {
   outcome: Outcome;
   status: number;
   estimatedCostUsd: number | null;
+
+  // --- chat only: counts and enums, still no content ---------------------
+  /** Tool rounds the question had already used when this step was asked. */
+  toolRound?: number;
+  toolCalls?: number;
+  /** Calls beyond the per-round cap that the model asked for and the Worker ignored. */
+  droppedCalls?: number;
+  replyChars?: number;
+  finishReason?: string;
+  /** How many rules the reply broke. The phone withdraws such a reply; this only counts. */
+  guardViolations?: number;
+  /** Why a request was refused, when the status alone does not say. */
+  reason?: 'text_gate';
 }
 
 /** Prices come from configuration, not from this code: they change, and a stale table is a lie. */
