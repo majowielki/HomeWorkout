@@ -8,14 +8,19 @@
   "vars": {
     // "google" calls the provider; local development uses src/dev.ts, which swaps in a fake.
     "PROVIDER": "google",
-    // No default on purpose: pick it from the provider's published model list (decision D3).
-    "MODEL_ID": "",
+    // Chosen from the provider's published model list (ai.google.dev/gemini-api/docs/models, 2026-10-02).
+    // A starting point for the first live run, not the verdict: the evaluation decides (decision D3).
+    "MODEL_ID": "gemini-3.8-flash",
     // Hard stop for the day, counted in input + output tokens. A fence, not an accounting system.
     "DAILY_TOKEN_BUDGET": "150000",
-    "MAX_OUTPUT_TOKENS": "900",
-    // Optional, for the estimated cost in logs. Left empty, the cost is logged as null.
-    "PRICE_INPUT_USD_PER_MTOK": "",
-    "PRICE_OUTPUT_USD_PER_MTOK": "",
+    // Thinking tokens count against this, so it is generous; it caps one call, not the day.
+    "MAX_OUTPUT_TOKENS": "2048",
+    // minimal | low | medium | high. Gemini 3 thinks at medium by default, which is many seconds a step.
+    "THINKING_LEVEL": "low",
+    // For the estimated cost in logs: gemini-3.8-flash, ai.google.dev/gemini-api/docs/pricing, 2026-10-02.
+    // Promotional until 2026-12-31 and shown even on the free tier (it is what the call would cost).
+    "PRICE_INPUT_USD_PER_MTOK": "0.75",
+    "PRICE_OUTPUT_USD_PER_MTOK": "3.75",
   },
 
   // Daily token counter. `wrangler kv namespace create BUDGET`, then paste the id.

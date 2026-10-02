@@ -22,28 +22,36 @@ import { liveResponder, type Generation } from './index';
 
 interface WorkerModel {
   modelFromEnv(env: Record<string, string | undefined>): unknown | null;
+  providerOptionsFromEnv(env: Record<string, string | undefined>): unknown;
 }
 interface WorkerGeneration {
   generateWeeklySummary(
     model: unknown,
     context: CoachContext,
-    options: { maxOutputTokens: number; tally: { inputTokens: number; outputTokens: number } },
+    options: {
+      maxOutputTokens: number;
+      tally: { inputTokens: number; outputTokens: number };
+      providerOptions?: unknown;
+    },
   ): Promise<Generation>;
 }
 
 const load = async <T>(specifier: string): Promise<T> => (await import(specifier)) as T;
 
 export async function createLiveResponder(recordTo?: string): Promise<Responder> {
-  const { modelFromEnv } = await load<WorkerModel>('../../worker/src/model');
+  const { modelFromEnv, providerOptionsFromEnv } =
+    await load<WorkerModel>('../../worker/src/model');
   const { generateWeeklySummary } = await load<WorkerGeneration>('../../worker/src/weeklySummary');
 
-  const model = modelFromEnv({
+  const env = {
     PROVIDER: process.env.PROVIDER ?? 'google',
     MODEL_ID: process.env.MODEL_ID ?? '',
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
     AI_GATEWAY_TOKEN: process.env.AI_GATEWAY_TOKEN,
-  });
+    THINKING_LEVEL: process.env.THINKING_LEVEL,
+  };
+  const model = modelFromEnv(env);
   if (!model) {
     throw new Error(
       'No model: set PROVIDER, MODEL_ID and GOOGLE_GENERATIVE_AI_API_KEY (see worker/README.md).',
@@ -54,6 +62,10 @@ export async function createLiveResponder(recordTo?: string): Promise<Responder>
     now: Date.now,
     recordTo,
     generate: (context, tally) =>
-      generateWeeklySummary(model, context, { maxOutputTokens: 900, tally }),
+      generateWeeklySummary(model, context, {
+        maxOutputTokens: Number(process.env.MAX_OUTPUT_TOKENS ?? 2048),
+        tally,
+        providerOptions: providerOptionsFromEnv(env),
+      }),
   });
 }

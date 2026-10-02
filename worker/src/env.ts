@@ -18,6 +18,12 @@ export interface Env {
   AI_GATEWAY_BASE_URL?: string;
   DAILY_TOKEN_BUDGET: string;
   MAX_OUTPUT_TOKENS: string;
+  /**
+   * How hard the model thinks before it answers: minimal, low, medium or high.
+   * Left out, the provider's default applies, which for Gemini 3 is medium: many
+   * seconds per step, and thinking tokens count against MAX_OUTPUT_TOKENS.
+   */
+  THINKING_LEVEL?: string;
   PRICE_INPUT_USD_PER_MTOK?: string;
   PRICE_OUTPUT_USD_PER_MTOK?: string;
 

@@ -7,6 +7,7 @@ import { CHAT_PROMPT_VERSION } from '../../src/ai/prompts/chat/v1';
 import { detectTextSignal } from '../../src/domain/coach/medicalSignal';
 import { detectOutOfScope } from '../../src/domain/coach/topicGuard';
 import { InvalidToolCallError, newStats, streamChatStep } from './chat';
+import { providerOptionsFromEnv } from './model';
 import type { Env } from './env';
 import { admit, type Deps, json, STATUS, type Tracked } from './http';
 import { estimateCostUsd, logRecord, type Outcome } from './log';
@@ -57,6 +58,8 @@ export async function handleChat(
   let toolRound = 0;
   let reason: 'text_gate' | undefined;
   let concluded = false;
+  let upstreamStatus: number | undefined;
+  let firstEventMs: number | undefined;
 
   const log = (outcome: Outcome, status: number) =>
     logRecord({
@@ -79,6 +82,9 @@ export async function handleChat(
       replyChars: stats.replyChars,
       finishReason: stats.finishReason,
       guardViolations: stats.guardViolations,
+      reasoningTokens: stats.reasoningTokens,
+      firstEventMs,
+      upstreamStatus,
       reason,
     });
 
@@ -123,6 +129,7 @@ export async function handleChat(
     maxOutputTokens,
     tally,
     stats,
+    providerOptions: providerOptionsFromEnv(env),
   })[Symbol.asyncIterator]();
 
   /** Logs and charges exactly once, however the stream ends. */
@@ -141,6 +148,7 @@ export async function handleChat(
 
   function failureOf(error: unknown): ApiError | 'aborted' {
     if (wasCancelled()) return 'aborted';
+    if (APICallError.isInstance(error)) upstreamStatus = error.statusCode;
     if (error instanceof InvalidToolCallError) {
       return {
         kind: 'invalid_output',
@@ -186,6 +194,7 @@ export async function handleChat(
     return refuseEarly(failureOf(new Error('the stream ended before it began')));
   }
   promptVersion = CHAT_PROMPT_VERSION;
+  firstEventMs = Date.now() - started;
 
   let sawFinish = false;
   const emit = (controller: ReadableStreamDefaultController<Uint8Array>, event: ChatEvent) => {

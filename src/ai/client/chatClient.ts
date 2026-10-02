@@ -20,8 +20,12 @@ export interface ChatStreamOptions {
   idleTimeoutMs?: number;
 }
 
-/** The Worker's own limit per step is 45 s; the client waits for a sign of life, not for the whole answer. */
-export const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
+/**
+ * Longer than the Worker's own limit per step (45 s), so its typed `timeout` normally arrives
+ * first, as the summary's 30 s client limit follows the Worker's 25 s. The client waits for a
+ * sign of life, not for the whole answer.
+ */
+export const DEFAULT_IDLE_TIMEOUT_MS = 50_000;
 /** A line is one event; nothing legitimate comes near this. */
 export const MAX_LINE_BYTES = 64 * 1024;
 

@@ -1,7 +1,23 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import type { LanguageModel } from 'ai';
+import type { LanguageModel, streamText } from 'ai';
 
 import type { Env } from './env';
+
+/** What a call to `streamText` or `generateText` accepts as provider options. */
+export type CallProviderOptions = NonNullable<Parameters<typeof streamText>[0]['providerOptions']>;
+
+const THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
+
+/**
+ * Provider settings that belong to a call rather than to the model: for Gemini,
+ * how much it thinks. Anything but a known level is ignored, so a typo in the
+ * configuration costs speed, not an outage.
+ */
+export function providerOptionsFromEnv(env: Pick<Env, 'PROVIDER' | 'THINKING_LEVEL'>) {
+  const level = THINKING_LEVELS.find((l) => l === env.THINKING_LEVEL);
+  if (env.PROVIDER !== 'google' || level === undefined) return undefined;
+  return { google: { thinkingConfig: { thinkingLevel: level } } } satisfies CallProviderOptions;
+}
 
 /**
  * The one place that knows which provider is behind the Worker. Everything

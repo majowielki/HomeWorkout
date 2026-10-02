@@ -28,6 +28,8 @@ export interface LogRecord {
   outcome: Outcome;
   status: number;
   estimatedCostUsd: number | null;
+  /** HTTP status the provider answered with, when it answered with an error. A number, never its message. */
+  upstreamStatus?: number;
 
   // --- chat only: counts and enums, still no content ---------------------
   /** Tool rounds the question had already used when this step was asked. */
@@ -36,6 +38,10 @@ export interface LogRecord {
   /** Calls beyond the per-round cap that the model asked for and the Worker ignored. */
   droppedCalls?: number;
   replyChars?: number;
+  /** Of the output tokens, how many were thinking. */
+  reasoningTokens?: number;
+  /** Milliseconds until the provider produced its first event: how long a person waits to see anything. */
+  firstEventMs?: number;
   finishReason?: string;
   /** How many rules the reply broke. The phone withdraws such a reply; this only counts. */
   guardViolations?: number;

@@ -88,6 +88,11 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     ...(workerEnv as unknown as Env),
     APP_SECRET: SECRET,
     MODEL_ID: 'mock-coach',
+    // What a deployment tunes (wrangler.jsonc) is pinned here, so that tuning never changes a test.
+    MAX_OUTPUT_TOKENS: '900',
+    THINKING_LEVEL: '',
+    PRICE_INPUT_USD_PER_MTOK: '',
+    PRICE_OUTPUT_USD_PER_MTOK: '',
     LIMITER: openLimiter,
     CHAT_LIMITER: openLimiter,
     ...overrides,

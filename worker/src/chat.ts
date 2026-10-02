@@ -13,6 +13,7 @@ import {
 import { CHAT_TOOLS, TOOL_NAMES, type ToolName } from '../../src/ai/contract/chatTools';
 import { buildChatPrompt } from '../../src/ai/prompts/chat/v1';
 import { checkReply } from '../../src/domain/coach/outputGuards';
+import type { CallProviderOptions } from './model';
 import { modelIdOf, type Tally } from './weeklySummary';
 
 export const CHAT_TEMPERATURE = 0.3;
@@ -37,6 +38,8 @@ export interface StepStats {
   droppedCalls: number;
   replyChars: number;
   guardViolations: number;
+  /** Tokens the model spent thinking; they are part of the output tokens and are billed as such. */
+  reasoningTokens: number;
 }
 
 export const newStats = (): StepStats => ({
@@ -45,6 +48,7 @@ export const newStats = (): StepStats => ({
   droppedCalls: 0,
   replyChars: 0,
   guardViolations: 0,
+  reasoningTokens: 0,
 });
 
 /**
@@ -111,6 +115,7 @@ interface StepOptions {
   maxOutputTokens: number;
   tally: Tally;
   stats: StepStats;
+  providerOptions?: CallProviderOptions;
 }
 
 /**
@@ -145,6 +150,7 @@ export async function* streamChatStep(
     maxRetries: 0,
     maxOutputTokens: options.maxOutputTokens,
     abortSignal: options.abortSignal,
+    providerOptions: options.providerOptions,
     // The SDK would log a provider error, which can quote what was sent. Errors are handled below.
     onError: () => {},
   });
@@ -189,6 +195,7 @@ export async function* streamChatStep(
         };
         options.tally.inputTokens += usage.inputTokens;
         options.tally.outputTokens += usage.outputTokens;
+        options.stats.reasoningTokens += part.totalUsage.outputTokenDetails?.reasoningTokens ?? 0;
         options.stats.finishReason =
           FROM_SDK[part.finishReason as keyof typeof FROM_SDK] ?? 'other';
         options.stats.replyChars = reply.length;

@@ -10,6 +10,7 @@ import { WEEKLY_SUMMARY_PROMPT_VERSION } from '../../src/ai/prompts/weeklySummar
 import type { Env } from './env';
 import { admit, type Deps, json, STATUS, type Tracked } from './http';
 import { estimateCostUsd, logRecord, type Outcome } from './log';
+import { providerOptionsFromEnv } from './model';
 import { generateWeeklySummary, modelIdOf, type Tally } from './weeklySummary';
 
 const respond = (body: WeeklySummaryResponse, status: number, headers?: Record<string, string>) =>
@@ -28,6 +29,7 @@ export async function handleWeeklySummary(
   const track: Tracked = { requestId: null, modelId: null };
   let promptVersion: string | null = null;
   let attempts = 0;
+  let upstreamStatus: number | undefined;
   const tally: Tally = { inputTokens: 0, outputTokens: 0 };
 
   /** Every answer after authentication is logged here, once, as metadata. */
@@ -46,6 +48,7 @@ export async function handleWeeklySummary(
       outcome,
       status: response.status,
       estimatedCostUsd: estimateCostUsd(tally.inputTokens, tally.outputTokens, env),
+      upstreamStatus,
     });
     return response;
   }
@@ -72,6 +75,7 @@ export async function handleWeeklySummary(
       abortSignal: AbortSignal.any([request.signal, timeout]),
       maxOutputTokens,
       tally,
+      providerOptions: providerOptionsFromEnv(env),
     });
     attempts = generation.attempts;
     promptVersion = WEEKLY_SUMMARY_PROMPT_VERSION;
@@ -116,6 +120,7 @@ export async function handleWeeklySummary(
     }
     if (timeout.aborted) return finish(respond({ kind: 'timeout' }, STATUS.timeout), 'timeout');
     const retryable = APICallError.isInstance(error) && error.isRetryable;
+    if (APICallError.isInstance(error)) upstreamStatus = error.statusCode;
     return finish(
       respond({ kind: 'upstream_error', retryable }, STATUS.upstream_error),
       'upstream_error',
