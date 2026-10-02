@@ -22,11 +22,11 @@ Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekc
 | review M0–M3 | ✅ 2026-09-14 | `c014730` | poprawki motywu i interopu, duplikaty serii, testy komponentów, ten rozdział |
 | M4 — ciało, dziennik, przypomnienia | ✅ 2026-09-15 | `f5c808b` | wzór Navy w formie metrycznej (§0.2), przypomnienia jako jednorazowe z stałym id |
 | M5 — historia, eksport / import | ✅ 2026-09-15 | `59c88a0` | picker z `expo-file-system` zamiast `expo-document-picker` (§0.2); DoD wymaga testu na urządzeniu |
-| ⛔ bramka — dwa tygodnie używania | ⏳ | | M6+ dopiero po ≥ 4 sesjach i ≥ 14 dniach wagi |
+| ⛔ bramka — dwa tygodnie używania | ⏭ pominięta 2026-10-02 | tag `pre-m7` | **świadoma decyzja użytkownika**: pełny silnik teraz jako eksperyment — działający silnik pokaże, co zmienić albo które założenie odrzucić. Punkt powrotu: lokalny tag `pre-m7` |
 | M6 — kalibracja gum | ✅ 2026-09-15 | `d7a309e` | model pozycja → rozciągnięcie doprecyzowany (§0.2); DoD wymaga trzech realnych kalibracji; **zrobiony przed bramką** — bramka nadal obowiązuje przed M7 |
 | review M4–M6 | ✅ 2026-09-15 | | nagłówki stacka, przypomnienia jako seria, seria rozgrzewkowa, rower w historii, granica SQL egzekwowana lintem, ten rozdział |
-| M7+ | ⏳ | | |
-| Warstwa AI (A0–A5) | A0–A2 ✅ kod 2026-10-02 | | zastępuje M8–M9; A3 i A4 czekają na M7 i na bramkę „dwa tygodnie używania"; żaden prawdziwy model nie został wywołany. Stan i odstępstwa: [AI-INTEGRACJA.md](AI-INTEGRACJA.md) §10.0 |
+| M7 — silnik reguł | 🚧 od 2026-10-02 | | wg SPEC v1.2: sloty i rotacja co blok, trening codzienny (rower + 20–30 min), objętość 3–6, kolano tylko twarde wykluczenia (tryb konserwatywny wyłącza użytkownik w Ustawieniach). Etapy w §8 „M7" |
+| Warstwa AI (A0–A5) | A0–A2, A4 ✅ 2026-10-02 | | zastępuje M8–M9; A3 i narzędzie `getPlanExplanation` czekają na M7. Stan i odstępstwa: [AI-INTEGRACJA.md](AI-INTEGRACJA.md) §10.0 |
 
 ### 0.2 Odstępstwa od dokumentu — świadome
 
@@ -887,6 +887,22 @@ Kolejność wg zależności; każdy moduł = implementacja + testy z SPEC §9 za
 **DoD:** 100% pokrycia `src/domain`; wznosy bokiem przechodzą filtr, prostowanie nóg nie; sesja
 zaproponowana przez silnik po tygodniu z wysokim DOMS nóg nie zawiera przysiadów; po 10-dniowej przerwie
 plan powtarza ostatnie obciążenia bez progresji.
+
+**v1.2 (2026-10-02) — kolejność po zmianie projektu** (SPEC §10; gałąź na etap, lokalny merge po
+zielonym `npm run verify`):
+
+| Etap | Gałąź | Zakres |
+|---|---|---|
+| 0 | `docs/m7-engine-spec` | SPEC v1.2, ten wpis, tag `pre-m7` |
+| 1 | `feat/m7-slots` | `data/slots.json` + walidacja, `substitute`, objętość bez Mobility/Cardio |
+| 2 | `feat/m7-progression` | wspólny double progression (hantle, gumy, masa ciała), rower, przerwy, pierwszy kontakt |
+| 3 | `feat/m7-autoregulation` | sygnały zmęczenia, deload, cykl życia bloku i rotacja |
+| 4 | `feat/m7-day-planner` | `dayPlanner`, `validatePlan`, symulacja 12 tygodni, `scripts/simulate-plan.ts` |
+| 5 | `feat/m7-plan-ui` | migracja (`workouts.plan`, `training_blocks`, lista „nie proponuj"), kopia v2, ekrany |
+| 6 | `feat/ai-plan-explanation` | opcjonalnie: narzędzie czatu `getPlanExplanation` |
+
+DoD dodatkowo: test symulacji z SPEC §10.6 przechodzi; kalendarz 5 tygodni z `simulate-plan`
+obejrzany przez użytkownika przed instalacją.
 
 ### M8 — AI, krok 0 (1–2 wieczory)
 
