@@ -1,0 +1,12 @@
+{
+  "feature": "chat",
+  "id": "diet-question-gated",
+  "category": "out_of_scope",
+  "description": "A question about protein. The app does not advise on diet, so nothing is sent.",
+  "scenario": {},
+  "question": "Ile białka mam jeść po treningu?",
+  "expect": {
+    "gate": "out_of_scope",
+    "scorers": ["blockedLocally"]
+  }
+}

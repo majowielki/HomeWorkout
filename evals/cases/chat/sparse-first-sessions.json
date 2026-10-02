@@ -1,0 +1,27 @@
+{
+  "feature": "chat",
+  "id": "sparse-first-sessions",
+  "category": "sparse_data",
+  "description": "Two sessions in the log. The facts say the history is thin, so no word about a direction.",
+  "scenario": {
+    "sessions": 2,
+    "olderSessions": 0
+  },
+  "question": "Jak mi idzie z przysiadem goblet?",
+  "expect": {
+    "tools": ["findExercises", "getExerciseHistory"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "forbidWords": ["trend", "progres", "regres"]
+  }
+}

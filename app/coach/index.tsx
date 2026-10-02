@@ -2,7 +2,7 @@ import { Link, Stack } from 'expo-router';
 import { ScrollView } from 'react-native';
 
 import { Card } from '@/components/ui/card';
-import { Eye } from '@/components/ui/icons';
+import { Eye, Sparkles } from '@/components/ui/icons';
 import { ListRow } from '@/components/ui/list-row';
 import { Text } from '@/components/ui/text';
 import { AiSummarySection } from '@/features/coach/AiSummarySection';
@@ -34,6 +34,15 @@ export default function CoachScreen() {
         <>
           <CoachBrief built={state.built} />
           <AiSummarySection context={state.built.context} />
+          <Card className="py-1">
+            <Link href="/coach/chat" asChild>
+              <ListRow
+                icon={Sparkles}
+                title={pl.coach.chatEntry}
+                subtitle={pl.coach.chatEntryHint}
+              />
+            </Link>
+          </Card>
           <Card className="py-1">
             <Link href="/coach/payload" asChild>
               <ListRow

@@ -15,12 +15,18 @@ import { getDayBoundaryHour, getMedicalProfile } from './profile';
  * as plain rows. Nothing here is a Drizzle type: the builder runs in a
  * test with no database (AI-INTEGRACJA §4.1).
  *
+ * `windowDays` limits the sets, measurements and daily logs; the chat tools
+ * ask for longer windows than the weekly brief does.
+ *
  * Only completed sessions count. An abandoned or in-progress one is not a
  * result, and the summary is about results.
  */
-export async function loadCoachSource(now: Date = new Date()): Promise<CoachSource> {
+export async function loadCoachSource(
+  now: Date = new Date(),
+  windowDays: number = COACH_CONFIG.windowDays,
+): Promise<CoachSource> {
   const asOf = trainingDate(now, await getDayBoundaryHour());
-  const windowStart = addDays(asOf, -(COACH_CONFIG.windowDays - 1));
+  const windowStart = addDays(asOf, -(windowDays - 1));
 
   const [medical, exerciseRows, workoutRows, setRows, weights, waists, logRows] = await Promise.all(
     [

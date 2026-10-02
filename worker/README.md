@@ -7,7 +7,8 @@ error. It has no database and knows nothing about the person beyond the
 request in front of it.
 
 Why it looks like this: [ADR 0001](../docs/adr/0001-llm-does-not-compute-loads.md),
-[ADR 0002](../docs/adr/0002-data-and-domain-stay-on-the-phone.md). The plan is
+[ADR 0002](../docs/adr/0002-data-and-domain-stay-on-the-phone.md),
+[ADR 0005](../docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md) (the chat). The plan is
 in [`Documents/AI-INTEGRACJA.md`](../Documents/AI-INTEGRACJA.md) (Polish).
 
 ## What it does for one call
@@ -50,6 +51,59 @@ with an exhaustive `switch`.
 A client that closes the connection gets no answer (the Worker logs status 499
 and the provider call is aborted).
 
+## The chat: `POST /v1/chat`
+
+One model step of a conversation, streamed. The Worker holds no conversation:
+the phone sends all of it with every request, runs the tools the model asks
+for, and asks again ([ADR 0005](../docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md)).
+
+```
+  1. route, authenticate   as above
+  2. rate limit            its own binding, CHAT_LIMITER (30/min): one question is up to five requests
+  3. read, validate        size, JSON, contractVersion, then the strict schema, which includes
+                           the conversation grammar (a question, rounds of calls answered by results,
+                           an optional reply) and each tool result against that tool's output schema
+  4. text gate             every user message, with the same detectors the phone runs: a complaint,
+                           or a question about diet or medication, is refused with 400 and the
+                           provider is never called
+  5. budget                as above
+  6. stream                AI SDK streamText, tools declared WITHOUT execute (a call ends the step
+                           and is handed back); toolChoice 'none' after the last allowed round
+  7. respond               newline-delimited JSON, one event per line
+```
+
+| Event       | Carries                                                           |
+| ----------- | ----------------------------------------------------------------- |
+| `start`     | request id, prompt version, model                                 |
+| `text`      | a piece of the answer                                             |
+| `tool_call` | id, tool name, arguments: run it on the phone and ask again       |
+| `finish`    | `stop`, `tool_calls`, `length` or `other`, and the tokens used    |
+| `error`     | the same typed union as above, for a failure after the first byte |
+
+A failure **before** the first provider event is an ordinary JSON error with a
+status (502 `upstream_error`, 504 `timeout`, 422 `invalid_output` for a tool
+that does not exist or arguments that do not parse). After that the status is
+already 200 and the failure is an `error` event. A step may take 45 s.
+
+**Cancelling.** When the client closes the connection the response stream is
+cancelled, which aborts the provider call; the call is logged as `aborted`. A
+call that ends before the provider reports usage is charged by estimate (a third
+of the request's bytes in tokens), so a cancelled call is not free.
+
+**What the log holds.** One line per call, as for the summary, with these added:
+`toolRound` (rounds the question had used), `toolCalls`, `droppedCalls` (calls
+beyond three in a round, ignored), `replyChars`, `finishReason`,
+`guardViolations` (how many rules the reply broke, measured on the Worker and
+enforced on the phone, which withdraws such a reply) and `reason: "text_gate"`
+for a refused message. Never the text of a question, a reply or a tool result.
+The SDK's own error logging is switched off: a provider error can quote the
+request.
+
+Not run against a real provider: `toolChoice: 'none'` with earlier calls in the
+history, the tool schemas through Gemini's function-calling subset, and that a
+cancel closes the provider's HTTP stream. Written to the SDK's documented
+behaviour, tested against a mock model in workerd.
+
 ## Configuration
 
 Plain variables are in [`wrangler.jsonc`](wrangler.jsonc); secrets are set with
@@ -67,7 +121,8 @@ Plain variables are in [`wrangler.jsonc`](wrangler.jsonc); secrets are set with
 | `MAX_OUTPUT_TOKENS`            | variable   | per call                                                          |
 | `PRICE_*_USD_PER_MTOK`         | variable   | optional, for the estimated cost in the log; otherwise `null`     |
 | `BUDGET`                       | KV         | the day's token counter                                           |
-| `LIMITER`                      | rate limit | requests per minute                                               |
+| `LIMITER`                      | rate limit | summary requests per minute                                       |
+| `CHAT_LIMITER`                 | rate limit | chat requests per minute (one question is several)                |
 
 Through AI Gateway the Worker sends `cf-aig-collect-log-payload: false`, so the
 gateway keeps token counts and latency but not what was said.
@@ -102,7 +157,9 @@ echo "APP_SECRET=dev-secret" > .dev.vars     # git-ignored
 npm run dev                                   # fake model, http://localhost:8787
 ```
 
-`src/dev.ts` swaps in a fake model that returns a valid, obviously fake summary.
+`src/dev.ts` swaps in a fake model that returns a valid, obviously fake summary. For the chat it asks for one
+tool on the first step, then streams a short answer a word at a time and logs `stream aborted by the Worker`
+when a cancel reaches it, so the whole loop can be watched from the app.
 The deployed entry point (`src/index.ts`) does not import it.
 
 ## Tests

@@ -26,7 +26,7 @@ const caseReport = z.strictObject({
 export const reportSchema = z.strictObject({
   version: z.literal(1),
   createdAt: z.string(),
-  feature: z.literal('weekly-summary'),
+  feature: z.enum(['weekly-summary', 'chat']),
   /** `reference` is the rule-based stand-in; `recorded` and `live` are real model answers. */
   responder: z.enum(['reference', 'recorded', 'live']),
   promptVersion: z.string().nullable(),
@@ -52,16 +52,22 @@ export const NOTES: Record<Report['responder'], string> = {
 };
 
 export function buildReport(
-  meta: Pick<Report, 'responder' | 'promptVersion' | 'model' | 'createdAt'>,
+  meta: Pick<Report, 'responder' | 'promptVersion' | 'model' | 'createdAt'> & {
+    /** Default 'weekly-summary'. */
+    feature?: Report['feature'];
+    /** Which scorer names gate the build for this feature. Default: the weekly summary's. */
+    safetyScorers?: readonly string[];
+  },
   cases: CaseReport[],
 ): Report {
+  const { feature = 'weekly-summary', safetyScorers = SAFETY_SCORERS, ...rest } = meta;
   const scorers: Report['scorers'] = {};
   for (const c of cases) {
     for (const [name, result] of Object.entries(c.results)) {
       const entry = (scorers[name] ??= {
         passed: 0,
         total: 0,
-        safety: SAFETY_SCORERS.includes(name as never),
+        safety: safetyScorers.includes(name),
       });
       entry.total += 1;
       if (result.pass) entry.passed += 1;
@@ -72,8 +78,8 @@ export function buildReport(
     Object.values(scorers).every((s) => !s.safety || s.passed === s.total);
   return {
     version: 1,
-    feature: 'weekly-summary',
-    ...meta,
+    feature,
+    ...rest,
     note: NOTES[meta.responder],
     scorers,
     safetyOk,

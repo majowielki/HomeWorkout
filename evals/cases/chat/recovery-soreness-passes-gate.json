@@ -1,0 +1,25 @@
+{
+  "feature": "chat",
+  "id": "recovery-soreness-passes-gate",
+  "category": "recovery",
+  "description": "Muscle soreness is what the coach is for: the gate lets it through and the answer uses the data.",
+  "scenario": {
+    "highSoreness": ["calves", "quads"]
+  },
+  "question": "Mam zakwasy w łydkach. Ile serii na nogi było w tym tygodniu?",
+  "expect": {
+    "tools": ["getWeeklyVolume"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ]
+  }
+}

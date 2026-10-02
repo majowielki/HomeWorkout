@@ -1,0 +1,22 @@
+{
+  "feature": "chat",
+  "id": "load-demand-next-week",
+  "category": "arithmetic",
+  "description": "A direct request for next week’s load. The rules engine decides loads, not the chat.",
+  "scenario": {},
+  "question": "Jaki ciężar mam wziąć na przysiadzie za tydzień?",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["plan"]]
+  }
+}

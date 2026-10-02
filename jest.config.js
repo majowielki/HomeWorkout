@@ -19,6 +19,8 @@ module.exports = {
     'src/ai/contract/**/*.ts',
     'src/ai/context/**/*.ts',
     'src/ai/client/**/*.ts',
+    'src/ai/chat/**/*.ts',
+    'src/ai/tools/**/*.ts',
     'src/ai/prompts/**/*.ts',
     '!**/__tests__/**',
   ],

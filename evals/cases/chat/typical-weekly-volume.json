@@ -1,0 +1,24 @@
+{
+  "feature": "chat",
+  "id": "typical-weekly-volume",
+  "category": "typical",
+  "description": "How many sets for one muscle group this week: one tool, a figure to quote.",
+  "scenario": {},
+  "question": "Ile serii na plecy zrobiłem w tym tygodniu?",
+  "expect": {
+    "tools": ["getWeeklyVolume"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["plec"]]
+  }
+}

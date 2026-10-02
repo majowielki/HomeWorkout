@@ -1,6 +1,5 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import type { CoachContext } from '@/ai/contract/coachContext';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import type {
   AnchorPosition,
@@ -195,7 +194,7 @@ export const aiExchanges = sqliteTable(
     outcome: text('outcome').notNull(),
     /** Exercises a proposal lost to validatePlan. Unused until plans exist. */
     trimmedCount: integer('trimmed_count'),
-    request: text('request', { mode: 'json' }).$type<CoachContext>(),
+    request: text('request', { mode: 'json' }).$type<unknown>(),
     response: text('response', { mode: 'json' }).$type<unknown>(),
     /** Null until the person acts on a proposal. A summary is never "accepted". */
     accepted: integer('accepted', { mode: 'boolean' }),

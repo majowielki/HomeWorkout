@@ -1,5 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
+import { createChatStreamer, type ChatStreamer } from '@/ai/client/chatClient';
 import { createCoachClient, type CoachClient } from '@/ai/client/coachClient';
 import { normalizeCoachConfig } from '@/ai/client/config';
 
@@ -18,6 +19,16 @@ export const coachConfig = normalizeCoachConfig({
   secret: process.env.EXPO_PUBLIC_COACH_SECRET,
 });
 
+export const newRequestId = randomUUID;
+
 export function createAppCoachClient(): CoachClient | null {
-  return coachConfig ? createCoachClient(coachConfig, { newRequestId: randomUUID }) : null;
+  return coachConfig ? createCoachClient(coachConfig, { newRequestId }) : null;
+}
+
+/**
+ * The same server, for the chat. The global `fetch` is Expo's, which hands
+ * over a response as it arrives (SDK 57); that is what lets the answer stream.
+ */
+export function createAppChatStreamer(): ChatStreamer | null {
+  return coachConfig ? createChatStreamer(coachConfig) : null;
 }

@@ -1,0 +1,26 @@
+{
+  "feature": "chat",
+  "id": "multi-tool-two-exercises",
+  "category": "multi_tool",
+  "description": "Two exercises in one question: both are looked up before the history of either, across two tool rounds.",
+  "scenario": {
+    "progress": "flat"
+  },
+  "question": "Jak idzie wiosłowanie gumą i przysiad goblet?",
+  "expect": {
+    "tools": ["findExercises", "getExerciseHistory"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["wios"], ["goblet"]]
+  }
+}

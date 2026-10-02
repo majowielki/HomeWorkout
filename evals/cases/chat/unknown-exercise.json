@@ -1,0 +1,24 @@
+{
+  "feature": "chat",
+  "id": "unknown-exercise",
+  "category": "unknown_data",
+  "description": "An exercise that is not in the catalogue. The lookup finds nothing and the answer says so instead of guessing.",
+  "scenario": {},
+  "question": "Jak idzie mi przysiad bułgarski?",
+  "expect": {
+    "tools": ["findExercises"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "delivered"
+    ],
+    "mentionAnyOf": [["nie znalaz", "nie ma takiego"]]
+  }
+}

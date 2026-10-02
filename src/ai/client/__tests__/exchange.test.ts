@@ -1,7 +1,8 @@
+import type { ChatFacts } from '../../contract/chat';
 import { buildCoachContext } from '../../context/buildCoachContext';
 import { scenario } from '../../testing/synthetic';
 import type { CallOutcome } from '../coachClient';
-import { toExchangeRecord } from '../exchange';
+import { toChatExchangeRecord, toExchangeRecord } from '../exchange';
 
 const context = buildCoachContext(scenario()).context;
 const usage = { inputTokens: 1200, outputTokens: 150 };
@@ -77,5 +78,116 @@ describe('toExchangeRecord', () => {
 
   it('records nothing for a call the person cancelled', () => {
     expect(toExchangeRecord(context, call({ kind: 'aborted' }))).toBeNull();
+  });
+});
+
+describe('toChatExchangeRecord', () => {
+  const facts: ChatFacts = {
+    asOf: '2026-10-01',
+    historicalSessionCount: 12,
+    signals: [],
+    constraints: [],
+  };
+
+  const meta = {
+    requestIds: ['req-1-aaaaaaa', 'req-2-bbbbbbb'],
+    promptVersion: 'chat/v1',
+    model: 'some-model',
+    rounds: 1,
+    tools: ['getWeeklyVolume' as const],
+    usage: { inputTokens: 2000, outputTokens: 90 },
+    latencyMs: 5200,
+    messages: [{ role: 'user' as const, text: 'Ile serii na plecy?' }],
+  };
+
+  it('keeps the conversation, the answer and what it cost', () => {
+    const record = toChatExchangeRecord(facts, {
+      ...meta,
+      kind: 'answered',
+      text: 'Sześć serii.',
+      truncated: false,
+      history: [],
+    });
+    expect(record).toEqual({
+      kind: 'chat',
+      requestId: 'req-1-aaaaaaa',
+      promptVersion: 'chat/v1',
+      model: 'some-model',
+      latencyMs: 5200,
+      tokensIn: 2000,
+      tokensOut: 90,
+      attempts: 2,
+      outcome: 'ok',
+      request: { facts, messages: meta.messages },
+      response: {
+        text: 'Sześć serii.',
+        tools: ['getWeeklyVolume'],
+        rounds: 1,
+        requestIds: meta.requestIds,
+      },
+    });
+  });
+
+  it('says so when the answer was cut off', () => {
+    const record = toChatExchangeRecord(facts, {
+      ...meta,
+      kind: 'answered',
+      text: 'Urwane',
+      truncated: true,
+      history: [],
+    });
+    expect(record?.outcome).toBe('truncated');
+  });
+
+  it('keeps a withheld reply, with the rules it broke, so "why did it say that?" has an answer', () => {
+    const record = toChatExchangeRecord(facts, {
+      ...meta,
+      kind: 'withheld',
+      text: 'Zjedz więcej białka.',
+      violations: ['out_of_scope'],
+    });
+    expect(record).toMatchObject({
+      outcome: 'withheld',
+      response: { withheld: 'Zjedz więcej białka.', violations: ['out_of_scope'] },
+    });
+  });
+
+  it('records a failure by its kind, with the text that had been shown', () => {
+    const record = toChatExchangeRecord(facts, {
+      ...meta,
+      kind: 'failed',
+      failure: { kind: 'tool_limit' },
+      partialText: 'Sprawdzam.',
+    });
+    expect(record).toMatchObject({
+      outcome: 'tool_limit',
+      response: { failure: { kind: 'tool_limit' }, partialText: 'Sprawdzam.' },
+    });
+  });
+
+  it('keeps nothing of a cancelled turn', () => {
+    expect(toChatExchangeRecord(facts, { ...meta, kind: 'aborted' })).toBeNull();
+  });
+
+  it('keeps nothing of a message the gate stopped, whose text is the very thing it refuses to pass on', () => {
+    expect(
+      toChatExchangeRecord(facts, {
+        ...meta,
+        requestIds: [],
+        kind: 'blocked',
+        gate: { kind: 'medical' },
+      }),
+    ).toBeNull();
+  });
+
+  it('has an empty request id for a turn that never got as far as one', () => {
+    const record = toChatExchangeRecord(facts, {
+      ...meta,
+      requestIds: [],
+      kind: 'failed',
+      failure: { kind: 'offline' },
+      partialText: '',
+    });
+    expect(record?.requestId).toBe('');
   });
 });
