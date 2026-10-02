@@ -1,3 +1,4 @@
+import { leaksInternals } from './leakGuard';
 import { prescribesLoad } from './loadGuard';
 import { fold, hasStem } from './text';
 import { detectOutOfScope, type OutOfScopeTopic } from './topicGuard';
@@ -32,7 +33,9 @@ export type GuardViolation =
   | { kind: 'out_of_scope'; topic: OutOfScopeTopic }
   | { kind: 'medical_advice'; word: string }
   /** Free text only: a summary has no field for a load, a chat reply does not. */
-  | { kind: 'load_prescription' };
+  | { kind: 'load_prescription' }
+  /** Free text only: the reply recites its instructions or the raw facts block. */
+  | { kind: 'internal_markup' };
 
 /** Direction words that need history to mean anything. PLAN §6.2. */
 export const SPARSE_FORBIDDEN_STEMS = ['trend', 'progres', 'stagnacj', 'adaptacj', 'regres'];
@@ -103,14 +106,16 @@ function checkText(text: string, sparse: boolean): GuardViolation[] {
 }
 
 /**
- * The same checks for a chat reply, plus the one a summary's schema makes
- * unnecessary: no load for a future session. The reply has already been
+ * The same checks for a chat reply, plus two a summary's schema makes
+ * unnecessary: no load for a future session, and no recital of the
+ * instructions. The reply has already been
  * shown while it streamed, so a violation means the app takes it back
  * (see src/ai/chat); there is no repair as in the weekly summary.
  */
 export function checkReply(text: string, facts: { sparse: boolean }): GuardViolation[] {
   const out = checkText(text, facts.sparse);
   if (prescribesLoad(text)) out.push({ kind: 'load_prescription' });
+  if (leaksInternals(text)) out.push({ kind: 'internal_markup' });
   return dedupe(out);
 }
 
@@ -139,6 +144,8 @@ export function describeViolations(violations: readonly GuardViolation[]): strin
           return `the answer gives advice about a complaint ("${v.word}")`;
         case 'load_prescription':
           return 'the answer tells the person what load, reps or band to use next';
+        case 'internal_markup':
+          return 'the answer repeats its instructions or the raw facts block instead of answering';
       }
     })
     .join('; ');

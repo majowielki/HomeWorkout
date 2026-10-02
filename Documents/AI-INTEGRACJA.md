@@ -603,6 +603,8 @@ Wdrożony Worker (Cloudflare, plan Free) i klucz Gemini z darmowego planu. Skryp
 
 Wniosek ograniczony do tego, co zmierzone: w tej próbie 3.8 Flash był wolny i niestabilny po stronie API (tokeny myślenia 0, odpowiedzi kilkunastotokenowe), a 3.5 Flash-Lite nie. Czy to chwilowe obciążenie, czy cecha darmowego planu, czy modelu, nie wiem. Zmienność tego rzędu wymaga powtórzeń; rozstrzygnie ewaluacja (D3), nie ta próba. `MODEL_ID` jest ustawiony na `gemini-3.5-flash-lite` jako punkt wyjścia.
 
+**Co potwierdziła próba przez internet na emulatorze:** aplikacja `release` (x86_64) z wbudowanym adresem i hasłem Workera dochodzi przez HTTPS do Cloudflare i Gemini, a odpowiedź wraca do ekranu. Ten sam kod w wariancie arm64 nie był uruchamiany na prawdziwym telefonie.
+
 **Co potwierdziła próba na żywo:** Gemini przyjmuje nasze deklaracje narzędzi, sam wybiera właściwe (jedno, a przy ćwiczeniu dwa po kolei), czyta wyniki i odpowiada po polsku zgodnie z danymi; odmowa zalecenia obciążenia („Aplikacja decyduje o planie…”) działa; limit CPU darmowego planu nie zatrzymał żadnego wywołania (do 36 ms; limit to 10 ms, a mimo to bez błędu: nie wiem, jak Cloudflare to egzekwuje).
 
 **Co wyszło, a nie wyszłoby bez prawdziwego modelu:**
@@ -613,7 +615,8 @@ Wniosek ograniczony do tego, co zmierzone: w tej próbie 3.8 Flash był wolny i 
 4. **Gemini 3 domyślnie myśli na poziomie `medium`, a tokeny myślenia liczą się do limitu wyjścia.** Dodana zmienna `THINKING_LEVEL` (ustawiona na `low`) i podniesiony `MAX_OUTPUT_TOKENS` do 2048. 3.5 Flash-Lite przy `low` zużył 0 tokenów myślenia w pięciu z sześciu wywołań i 91 w jednym.
 5. **Błąd dostawcy był nieprzejrzysty.** Log dostał `upstreamStatus` (sam numer, nigdy treść), `rawFinishReason`, `reasoningTokens` i `firstEventMs`; bez nich nie dałoby się odróżnić 503 od złego klucza.
 6. **Limit ciszy klienta (30 s) był krótszy niż limit kroku Workera (45 s)**, więc typowany błąd `timeout` z Workera nie mógł dojść pierwszy. Klient czeka teraz 50 s.
-7. **Przy wprowadzaniu sekretów wartości się rozjechały** (hasło aplikacji niezgodne z zapisanym u Workera, potem klucz Gemini odrzucony). Nie wiem, czy to schowek, czy dwukrotne uruchomienie polecenia. Działało dopiero wprowadzanie z pliku, bez wklejania do pola; opisane w `worker/README.md`.
+7. **Model zaczął odpowiedź od przepisania własnego bloku `<session_facts>`** (surowy JSON z faktami z instrukcji, z kodami ograniczeń kolana), a dopiero potem odpowiedział po polsku. Zaobserwowane w aplikacji `release` na emulatorze, przez internet (HTTPS przez Cloudflare, nie `adb reverse`), na pytaniu „Co ostatnio trenowałem?” przy pustym dzienniku. Żadna reguła tego nie łapała, bo to nie jest słowo zakazane. Teraz: reguła w prompcie, strażnik w czasie działania (`internal_markup`: tag w nawiasach ostrych albo pole bloku faktów w odpowiedzi → odpowiedź wycofana, ten sam kod używa scorer `noInternalWords`), przypadek ewaluacyjny z pustym dziennikiem i mutacja. To dane samego użytkownika i niczego poza telefon nie wyniosło, ale odpowiedzią to nie jest. Nie wiem, czy poprawiony prompt wystarczy, bo odtworzyłem to raz; strażnik zadziała niezależnie od modelu.
+8. **Przy wprowadzaniu sekretów wartości się rozjechały** (hasło aplikacji niezgodne z zapisanym u Workera, potem klucz Gemini odrzucony). Nie wiem, czy to schowek, czy dwukrotne uruchomienie polecenia. Działało dopiero wprowadzanie z pliku, bez wklejania do pola; opisane w `worker/README.md`.
 
 **Granice (ważne, żeby nie sprzedać tego jako więcej):**
 

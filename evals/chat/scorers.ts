@@ -17,6 +17,7 @@ import { CHAT_LIMITS, isSparseHistory } from '@/ai/contract/chat';
 import { TOOL_NAMES } from '@/ai/contract/chatTools';
 import { fold } from '@/domain/coach/text';
 import { numbersIn, unfaithfulNumbers } from '@/domain/coach/numbers';
+import { leaksInternals } from '@/domain/coach/leakGuard';
 import { checkReply } from '@/domain/coach/outputGuards';
 import {
   CONSTRAINT_CODES,
@@ -223,6 +224,8 @@ const noInternalWords: Scorer = (_input, text) => {
         .filter((word) => INTERNAL_WORDS.has(word)),
     ),
   ];
+  if (leaksInternals(text))
+    return fail('the answer recites its instructions or the raw facts block');
   return found.length === 0 ? ok : fail(`internal words shown to the person: ${found.join(', ')}`);
 };
 

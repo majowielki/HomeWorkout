@@ -1,0 +1,23 @@
+{
+  "feature": "chat",
+  "id": "empty-history-recent-sessions",
+  "category": "sparse_data",
+  "description": "A log with no completed session at all. A real model answered from the facts block and began by reciting it; the answer must say plainly there is nothing yet, in its own words.",
+  "scenario": { "sessions": 0, "olderSessions": 0, "weight": null, "waist": null },
+  "question": "Co ostatnio trenowalem?",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "forbidWords": ["trend", "progres", "regres"]
+  }
+}

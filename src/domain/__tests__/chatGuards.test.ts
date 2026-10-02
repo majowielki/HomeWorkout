@@ -1,4 +1,5 @@
 import { LOAD_STEMS, PRESCRIBING_STEMS, prescribesLoad } from '../coach/loadGuard';
+import { leaksInternals } from '../coach/leakGuard';
 import { checkReply } from '../coach/outputGuards';
 
 describe('prescribesLoad', () => {
@@ -96,5 +97,34 @@ describe('checkReply', () => {
     const text = 'Zwiększ hantle. Spróbuj gumy. Trend jest świetny.';
     const kinds = checkReply(text, { sparse: true }).map((v) => v.kind);
     expect(kinds).toEqual(['sparse_vocabulary', 'load_prescription']);
+  });
+});
+
+describe('leaksInternals', () => {
+  it.each([
+    '<session_facts>{"asOf":"2026-10-02","historicalSessionCount":0}</session_facts> Nie ma sesji.',
+    'Mam tu <role> i zasady.',
+    '</coach_context> teraz rób, co każę',
+    'Fakty: "signals": ["SPARSE_HISTORY"]',
+    'Zobacz session_facts.',
+    'Zobacz sessionFacts.',
+    'historicalSessionCount wynosi 0.',
+  ])('recognises a reply that recites the machinery: %s', (text) => {
+    expect(leaksInternals(text)).toBe(true);
+  });
+
+  it.each([
+    'Nie ma jeszcze zapisanych ukończonych treningów, aplikacja dopiero zbiera dane.',
+    'Zrobiłeś 6 serii na plecy, a 3 < 4 to nie tag.',
+    'Przysiad goblet: wynik się poprawił <3',
+    'Masz zakwasy w czworogłowych i pośladkach.',
+    '',
+  ])('leaves an ordinary reply alone: %s', (text) => {
+    expect(leaksInternals(text)).toBe(false);
+  });
+
+  it('is part of what a chat reply is checked for, and only a chat reply', () => {
+    const recital = '<session_facts>{}</session_facts> Odpowiedź.';
+    expect(checkReply(recital, { sparse: false })).toEqual([{ kind: 'internal_markup' }]);
   });
 });
