@@ -10,6 +10,21 @@ jest.mock('react-native-safe-area-context', () => {
   return mock.default ?? mock;
 });
 
+// The YMove clips are licensed and gitignored: a fresh clone and CI have none,
+// a dev machine has them. Tests must not depend on which, so they see an empty
+// catalogue unless a suite supplies its own with jest.mock.
+jest.mock('@/assets/ymove-media', () => ({ ymoveMedia: {} }));
+
+// expo-video is a native view; the suites only care what the app asks of the player.
+jest.mock('expo-video', () => ({
+  useVideoPlayer: jest.fn((_source: unknown, setup?: (player: unknown) => void) => {
+    const player = { loop: false, muted: false, play: jest.fn(), pause: jest.fn() };
+    setup?.(player);
+    return player;
+  }),
+  VideoView: 'VideoView',
+}));
+
 // The first render in a suite pays for transforming every imported module;
 // on a cold cache (CI) that alone can exceed RNTL's 1 s default and make
 // `findBy*` fail spuriously. 5 s is generous but only ever waited when

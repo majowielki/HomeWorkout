@@ -53,6 +53,11 @@ worker/worker-configuration.d.ts
 worker/.dev.vars
 worker/.dev.vars.*
 
+# YMove exercise videos are licensed only while the subscription is active
+# and must not be redistributed (API terms, sections 2 and 5): never committed.
+assets/ymove-trial/
+src/assets/ymove-media.generated.ts
+
 # Evaluation reports are build output. A run worth keeping is added on purpose (git add -f).
 evals/reports/*
 !evals/reports/.gitkeep

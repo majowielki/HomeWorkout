@@ -144,6 +144,14 @@ public domain (The Unlicense); the mapping is in
 [`data/media-sources.json`](data/media-sources.json). The exercise
 taxonomy itself is authored in this repository.
 
+On the author's own build the exercise screens also play looping clips, muscle
+maps and step-by-step descriptions licensed from YMove. That licence lasts only
+while a subscription is active and forbids redistribution, so none of it is in
+this repository: the files live in the gitignored `assets/ymove-trial/` and
+`npm run media:ymove` turns them into the gitignored
+`src/assets/ymove-media.generated.ts`. Without that module (a fresh clone, CI)
+the app falls back to the free photos above.
+
 ## Not medical advice
 
 The safety filter encodes constraints from a research summary, not a
