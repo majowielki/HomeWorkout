@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { liveExercisesQuery } from '@/db/repositories/exercises';
 import type { Exercise } from '@/domain/types';
 
-/** All exercises keyed by id — cheap at ~60 rows, avoids one query per step. */
+/** All exercises keyed by id — cheap at ~90 rows, avoids one query per step. */
 export function useExerciseMap(): Record<string, Exercise> {
   const { data } = useLiveQuery(liveExercisesQuery());
   return useMemo(() => {

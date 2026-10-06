@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "_comment": "Movement slots for the daily planner (SPEC-silnik-regul.md §10). exerciseIds are in rotation order, easier first. start.* are guesses for a never-done exercise, not research; the first two sessions of every exercise run at RIR 4 so a wrong guess is harmless.",
   "slots": [
     {
@@ -11,7 +11,9 @@
         "box-squat",
         "goblet-squat",
         "band-squat",
+        "band-leg-press",
         "dumbbell-squat",
+        "db-front-squat",
         "bodyweight-squat",
         "wall-sit",
         "band-leg-extension"
@@ -46,9 +48,13 @@
       "kind": "compound",
       "region": "lower",
       "exerciseIds": [
+        "hip-hinge-drill",
         "band-pull-through",
         "db-romanian-deadlift",
+        "db-good-morning",
         "band-good-morning",
+        "db-deadlift",
+        "db-stiff-leg-deadlift",
         "single-leg-rdl"
       ],
       "repRange": [10, 20],
@@ -65,7 +71,17 @@
       "name": "Pośladki",
       "kind": "accessory",
       "region": "lower",
-      "exerciseIds": ["glute-bridge", "hip-thrust", "band-hip-extension"],
+      "exerciseIds": [
+        "pelvic-curl",
+        "glute-bridge",
+        "glute-bridge-march",
+        "db-glute-bridge",
+        "hip-thrust",
+        "shoulder-bridge",
+        "donkey-kick",
+        "band-hip-extension",
+        "band-heel-slide"
+      ],
       "repRange": [12, 20],
       "rir": [1, 2],
       "restSec": 60,
@@ -79,12 +95,13 @@
       "name": "Łydki",
       "kind": "accessory",
       "region": "lower",
-      "exerciseIds": ["standing-calf-raise"],
+      "exerciseIds": ["standing-calf-raise", "seated-db-calf-raise", "band-ankle-plantarflexion"],
       "repRange": [12, 20],
       "rir": [0, 1],
       "restSec": 60,
       "start": {
-        "paired": 4
+        "paired": 4,
+        "band": "yellow"
       }
     },
     {
@@ -234,12 +251,31 @@
       "name": "Brzuch",
       "kind": "core",
       "region": "core",
-      "exerciseIds": ["dead-bug", "plank", "reverse-crunch", "hollow-hold"],
+      "exerciseIds": [
+        "mcgill-curl-up",
+        "dead-bug",
+        "crunch",
+        "plank",
+        "reverse-crunch",
+        "bicycle-crunch",
+        "flutter-kicks",
+        "scissor-kicks",
+        "leg-raise",
+        "toes-to-sky",
+        "reverse-crunch-pulse",
+        "hollow-hold",
+        "db-dead-bug",
+        "boat-hold",
+        "the-hundred",
+        "reverse-plank"
+      ],
       "repRange": [8, 12],
       "timeRange": [20, 60],
       "rir": [1, 2],
       "restSec": 45,
-      "start": {},
+      "start": {
+        "paired": 2
+      },
       "lightFill": true
     },
     {
@@ -247,7 +283,15 @@
       "name": "Boki tułowia",
       "kind": "core",
       "region": "core",
-      "exerciseIds": ["side-plank", "band-pallof-press", "suitcase-carry"],
+      "exerciseIds": [
+        "side-plank",
+        "band-pallof-press",
+        "plank-shoulder-taps",
+        "oblique-crunch-tabletop",
+        "db-russian-twist",
+        "db-plank-pull-through",
+        "suitcase-carry"
+      ],
       "timeRange": [15, 45],
       "rir": [1, 2],
       "restSec": 45,
@@ -255,7 +299,8 @@
         "single": 4,
         "band": "yellow"
       },
-      "lightFill": true
+      "lightFill": true,
+      "repRange": [8, 12]
     },
     {
       "id": "core-back",
