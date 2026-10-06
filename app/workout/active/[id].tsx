@@ -2,7 +2,7 @@ import type BottomSheetType from '@gorhom/bottom-sheet';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { List } from '@/components/ui/icons';
@@ -136,12 +136,22 @@ export default function ActiveSessionScreen() {
     ? (exerciseMap[substitutes[currentStep.blockIndex] ?? ''] ?? templateExercise)
     : undefined;
 
-  const nextLabel = useMemo(() => {
-    const next = currentStep?.next;
-    if (!next) return null;
-    const nextExercise = exerciseMap[next.block.exerciseId];
-    return `${next.block.label} · ${nextExercise?.name ?? next.block.exerciseId}`;
-  }, [currentStep, exerciseMap]);
+  // What the rest is for. Mirrors handleRestDone — the first unlogged step from
+  // here, wrapping round — so after a warm-up (the same step comes back) and
+  // after a jump through the progress sheet it still names the right exercise.
+  const upcoming = useMemo(() => {
+    if (phase !== 'resting') return null;
+    const index =
+      nextUnloggedIndex(steps, loggedKeys, currentIndex) ?? nextUnloggedIndex(steps, loggedKeys, 0);
+    const step = index === null ? undefined : steps[index];
+    if (!step) return null;
+    const exercise =
+      exerciseMap[substitutes[step.blockIndex] ?? ''] ?? exerciseMap[step.block.exerciseId];
+    return {
+      exercise: exercise ?? null,
+      label: `${step.block.label} · ${exercise?.name ?? step.block.exerciseId}`,
+    };
+  }, [phase, steps, loggedKeys, currentIndex, substitutes, exerciseMap]);
 
   function goToSummary() {
     if (!loaded) return;
@@ -287,9 +297,14 @@ export default function ActiveSessionScreen() {
       ) : null}
 
       {phase === 'resting' && currentStep ? (
-        <View className="flex-1 justify-center p-4">
-          <RestTimer nextLabel={nextLabel} onDone={handleRestDone} />
-        </View>
+        // Scrolls when the clip makes the screen taller than a small phone.
+        <ScrollView contentContainerClassName="flex-grow justify-center p-4">
+          <RestTimer
+            nextLabel={upcoming?.label ?? null}
+            nextExercise={upcoming?.exercise}
+            onDone={handleRestDone}
+          />
+        </ScrollView>
       ) : null}
 
       {phase === 'logging' && currentStep && effectiveExercise ? (
@@ -310,6 +325,9 @@ export default function ActiveSessionScreen() {
           onSave={handleSaveSet}
           saving={saving}
           calibrations={calibrations}
+          onShowDetails={() =>
+            router.push({ pathname: '/exercises/[id]', params: { id: effectiveExercise.id } })
+          }
         />
       ) : null}
 

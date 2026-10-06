@@ -7,6 +7,8 @@ src/db/migrations
 package-lock.json
 Documents
 src/assets/exercise-media.ts
+src/assets/ymove-media.generated.ts
+assets/ymove-trial
 worker/worker-configuration.d.ts
 worker/dist
 worker/.wrangler

@@ -3,11 +3,16 @@ import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, View } from 'react-native';
 
+import { ymoveMedia } from '@/assets/ymove-media';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { liveExerciseByIdQuery, liveExerciseNamesQuery } from '@/db/repositories/exercises';
 import { screenExercise } from '@/domain/exercises/screen';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
+import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
+import { muscleLabels } from '@/features/exercises/muscleLabel';
+import { MuscleMap } from '@/features/exercises/MuscleMap';
 import { useMedicalProfile } from '@/features/exercises/useMedicalProfile';
 import { pl } from '@/strings/pl';
 
@@ -48,12 +53,26 @@ export default function ExerciseDetailScreen() {
 
   const s = pl.exercises.sections;
   const b = pl.exercises.biomechanics;
+  const clip = ymoveMedia[exercise.id];
+  const info = clip?.info;
+  const steps = info?.pl?.instructions ?? info?.instructions ?? [];
+  const tips = info?.pl?.importantPoints ?? info?.importantPoints ?? [];
+  const typeBadges = (info?.exerciseType ?? [])
+    .map((t) => pl.labels.exerciseType[t])
+    .filter((label): label is string => label !== undefined);
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-4 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: exercise.name }} />
 
-      {exercise.media ? (
+      {clip ? (
+        <ExerciseVideo
+          exerciseId={exercise.id}
+          mediaKey={exercise.media}
+          name={exercise.name}
+          className="aspect-[9/16] w-2/3 self-center"
+        />
+      ) : exercise.media ? (
         <View className="flex-row gap-2">
           <ExerciseThumb mediaKey={exercise.media} frame={0} className="aspect-[4/3] flex-1" />
           <ExerciseThumb mediaKey={exercise.media} frame={1} className="aspect-[4/3] flex-1" />
@@ -62,6 +81,20 @@ export default function ExerciseDetailScreen() {
         <Text variant="muted">{s.noMedia}</Text>
       )}
 
+      {info ? (
+        <View className="flex-row flex-wrap gap-2">
+          {info.difficulty ? (
+            <Badge variant="accent" label={pl.labels.difficulty[info.difficulty]} />
+          ) : null}
+          {exercise.equipment.map((e) => (
+            <Badge key={e} variant="outline" label={pl.labels.equipment[e]} />
+          ))}
+          {typeBadges.map((label) => (
+            <Badge key={label} variant="outline" label={label} />
+          ))}
+        </View>
+      ) : null}
+
       {exclusions.length > 0 ? (
         <Card className="border-destructive/40 bg-destructive/10">
           <CardTitle className="text-destructive">{s.whyExcluded}</CardTitle>
@@ -69,6 +102,53 @@ export default function ExerciseDetailScreen() {
             {exclusions.map((code) => (
               <Text key={code} className="text-sm">
                 • {pl.exclusion[code]}
+              </Text>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardTitle>{s.muscles}</CardTitle>
+        <CardContent className="gap-3">
+          <MuscleMap exerciseId={exercise.id} name={exercise.name} />
+          <Row
+            label={s.primary}
+            value={exercise.primaryMuscles.map((m) => pl.labels.muscle[m]).join(', ')}
+          />
+          {exercise.secondaryMuscles.length > 0 ? (
+            <Row
+              label={s.secondary}
+              value={exercise.secondaryMuscles.map((m) => pl.labels.muscle[m]).join(', ')}
+            />
+          ) : null}
+          {info && info.muscleGroups.length > 0 ? (
+            <Row label={s.detailedMuscles} value={muscleLabels(info.muscleGroups).join(', ')} />
+          ) : null}
+        </CardContent>
+      </Card>
+
+      {steps.length > 0 ? (
+        <Card>
+          <CardTitle>{s.steps}</CardTitle>
+          <CardContent>
+            {steps.map((step, i) => (
+              <Text key={i} className="leading-6">
+                {i + 1}. {step}
+              </Text>
+            ))}
+            {info?.pl ? null : <Text variant="muted">{s.englishOnly}</Text>}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {tips.length > 0 ? (
+        <Card>
+          <CardTitle>{s.tips}</CardTitle>
+          <CardContent>
+            {tips.map((tip, i) => (
+              <Text key={i} className="leading-6">
+                • {tip}
               </Text>
             ))}
           </CardContent>
@@ -94,22 +174,6 @@ export default function ExerciseDetailScreen() {
           </CardContent>
         </Card>
       ) : null}
-
-      <Card>
-        <CardTitle>{s.muscles}</CardTitle>
-        <CardContent>
-          <Row
-            label={s.primary}
-            value={exercise.primaryMuscles.map((m) => pl.labels.muscle[m]).join(', ')}
-          />
-          {exercise.secondaryMuscles.length > 0 ? (
-            <Row
-              label={s.secondary}
-              value={exercise.secondaryMuscles.map((m) => pl.labels.muscle[m]).join(', ')}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardTitle>{s.equipment}</CardTitle>

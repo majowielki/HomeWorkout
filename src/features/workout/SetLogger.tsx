@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
+import { ymoveMedia } from '@/assets/ymove-media';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -12,6 +13,7 @@ import { BANDS } from '@/domain/inventory';
 import type { PlannedExercise } from '@/domain/plan/types';
 import type { AnchorPosition, BandCalibrationMap, Exercise, TemplateBlock } from '@/domain/types';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
+import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
@@ -54,6 +56,8 @@ type Props = {
   onSave: (data: LoggedSetData) => void;
   saving?: boolean;
   calibrations?: BandCalibrationMap;
+  /** Opens the exercise's full description; the link only shows next to a clip. */
+  onShowDetails?: () => void;
 };
 
 /**
@@ -127,6 +131,7 @@ function SetLoggerFields({
   saving,
   calibrations,
   defaultWarmup,
+  onShowDetails,
 }: Props & { prefill: PrefillData | null }) {
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: prefill?.reps ?? block.repMin ?? 10,
@@ -147,32 +152,68 @@ function SetLoggerFields({
     onSave({ ...toSavedSet(exercise, values, calibrations), isWarmup });
   };
 
+  const hasClip = ymoveMedia[exercise.id] !== undefined;
+
+  const heading = (
+    <View className="flex-1 gap-1">
+      <Text variant="eyebrow" className="text-highlight">
+        {block.label} · {pl.workout.session.setOf(setNumber, totalSets)}
+      </Text>
+      <Text variant="title" className="leading-8">
+        {exercise.name}
+      </Text>
+    </View>
+  );
+
+  const targets = (
+    <View className="flex-row flex-wrap gap-2">
+      <Badge variant="outline" label={targetLabel(block)} />
+      <Badge
+        variant="outline"
+        label={`RIR ${block.targetRirMin}${block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}`}
+      />
+    </View>
+  );
+
   return (
     <ScrollView className="flex-1" contentContainerClassName="gap-5 px-5 pb-6 pt-4">
-      <View className="flex-row items-start gap-4">
-        <ExerciseThumb mediaKey={exercise.media} className="h-20 w-20 rounded-2xl" />
-        <View className="flex-1 gap-1">
-          <Text variant="eyebrow" className="text-highlight">
-            {block.label} · {pl.workout.session.setOf(setNumber, totalSets)}
-          </Text>
-          <Text variant="title" className="leading-8">
-            {exercise.name}
-          </Text>
+      {hasClip ? (
+        // The clip is the point of this screen: big enough to read the movement from a metre away.
+        <View className="flex-row items-start gap-4">
+          <ExerciseVideo
+            exerciseId={exercise.id}
+            mediaKey={exercise.media}
+            name={exercise.name}
+            className="aspect-[9/16] w-36"
+          />
+          <View className="flex-1 gap-3">
+            <View className="flex-row items-start">
+              {heading}
+              <GlossaryButton className="-mr-3 -mt-2" />
+            </View>
+            {targets}
+            {onShowDetails ? (
+              <Pressable onPress={onShowDetails} hitSlop={8} accessibilityRole="link">
+                <Text className="font-display-semibold text-highlight">
+                  {pl.workout.session.exerciseDetails}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
-        <GlossaryButton className="-mr-3 -mt-2" />
-      </View>
+      ) : (
+        <View className="flex-row items-start gap-4">
+          <ExerciseThumb mediaKey={exercise.media} className="h-20 w-20 rounded-2xl" />
+          {heading}
+          <GlossaryButton className="-mr-3 -mt-2" />
+        </View>
+      )}
 
       <View className="flex-row gap-2">
         <SetProgress done={setNumber - 1} total={totalSets} />
       </View>
 
-      <View className="flex-row flex-wrap gap-2">
-        <Badge variant="outline" label={targetLabel(block)} />
-        <Badge
-          variant="outline"
-          label={`RIR ${block.targetRirMin}${block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}`}
-        />
-      </View>
+      {hasClip ? null : targets}
 
       {exercise.kneeCue ? (
         <View className="flex-row gap-3 rounded-2xl bg-secondary p-4">
