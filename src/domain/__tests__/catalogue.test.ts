@@ -39,6 +39,7 @@ describe('catalogue under the conservative knee profile', () => {
     expect(excludedIds(conservative)).toEqual(
       [
         // permanently excluded
+        'band-heel-slide', // open chain, pushing against a band: tibial shear on the graft
         'band-leg-extension',
         'lateral-lunge',
         'single-leg-rdl',
@@ -54,7 +55,13 @@ describe('catalogue under the conservative knee profile', () => {
 
   it('releases only the supported-unilateral work after physio sign-off', () => {
     expect(excludedIds(physioApproved)).toEqual(
-      ['band-leg-extension', 'lateral-lunge', 'single-leg-rdl', 'suitcase-carry'].sort(),
+      [
+        'band-heel-slide',
+        'band-leg-extension',
+        'lateral-lunge',
+        'single-leg-rdl',
+        'suitcase-carry',
+      ].sort(),
     );
   });
 
