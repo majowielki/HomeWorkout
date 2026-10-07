@@ -14,7 +14,15 @@ export function GlossaryModal({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      // Draw under the system bars so the sheet pads itself by the inset, like every screen.
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onClose}
+    >
       <Pressable className="flex-1 bg-black/40" onPress={onClose}>
         <Pressable
           className="mt-auto max-h-[80%] rounded-t-[32px] bg-background px-5 pb-6 pt-3"
