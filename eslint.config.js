@@ -9,6 +9,7 @@ module.exports = defineConfig([
     ignores: [
       'node_modules/**',
       '.expo/**',
+      '.expo-export-test/**',
       'android/**',
       'ios/**',
       'dist/**',

@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
@@ -23,6 +23,7 @@ import { pl } from '@/strings/pl';
  * here (SPEC §1.2); the engine never writes prose.
  */
 export default function PlanScreen() {
+  const { date } = useLocalSearchParams<{ date?: string }>();
   const today = usePlanToday();
   const exerciseMap = useExerciseMap();
   const { state } = today;
@@ -45,7 +46,13 @@ export default function PlanScreen() {
 
   // Once today is done, "why" is about tomorrow's plan; today's block events are old news.
   const upcoming = state.week.find((d) => d.date > state.asOf && d.forecast)?.forecast ?? null;
-  const plan = state.done ? (state.tomorrow ?? upcoming) : (state.plan ?? upcoming);
+  const plan = date
+    ? date === state.asOf
+      ? state.plan
+      : (state.week.find((d) => d.date === date)?.forecast ?? null)
+    : state.done
+      ? (state.tomorrow ?? upcoming)
+      : (state.plan ?? upcoming);
   const isToday = plan?.date === state.asOf;
   if (!plan) {
     return (

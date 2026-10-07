@@ -12,13 +12,14 @@ import { planTitle } from './format';
 type Props = {
   banner: PlanBanner;
   onClose: (id: string) => void;
+  expanded?: boolean;
 };
 
 /**
  * What the last replanning of the week changed and why — shown until it is
  * closed, so an automatic correction never happens silently.
  */
-export function PlanChangeBanner({ banner, onClose }: Props) {
+export function PlanChangeBanner({ banner, onClose, expanded = false }: Props) {
   const t = pl.plan.banner;
   const title = (regions: Parameters<typeof planTitle>[0]['regions'] | null) =>
     regions === null ? t.rest : planTitle({ regions });
@@ -41,7 +42,7 @@ export function PlanChangeBanner({ banner, onClose }: Props) {
           <X size={20} className="text-muted-foreground" />
         </Pressable>
       </View>
-      {banner.changes.slice(0, 4).map((c) => (
+      {(expanded ? banner.changes : banner.changes.slice(0, 4)).map((c) => (
         <Text key={c.date} className="text-sm">
           {t.change(formatDate(c.date), title(c.before), title(c.after))}
         </Text>

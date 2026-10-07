@@ -30,13 +30,15 @@ const CHUNK = 50;
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-async function insertChunked<T extends SQLiteTable>(
+function insertChunked<T extends SQLiteTable>(
   tx: Tx,
   table: T,
   rows: readonly T['$inferInsert'][],
-): Promise<void> {
+): void {
   for (let i = 0; i < rows.length; i += CHUNK) {
-    await tx.insert(table).values(rows.slice(i, i + CHUNK));
+    tx.insert(table)
+      .values(rows.slice(i, i + CHUNK))
+      .run();
   }
 }
 
@@ -118,38 +120,38 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     if (missing.length > 0) throw new UnknownExerciseError(missing);
   }
 
-  await db.transaction(async (tx) => {
+  db.transaction((tx) => {
     // Children before parents, so the foreign keys never complain.
-    await tx.delete(setLogs);
-    await tx.delete(cardioLogs);
-    await tx.delete(workouts);
-    await tx.delete(workoutTemplates);
-    await tx.delete(bands);
-    await tx.delete(bodyMetrics);
-    await tx.delete(measurements);
-    await tx.delete(dailyLogs);
-    await tx.delete(trainingBlocks);
-    await tx.delete(planConstraints);
+    tx.delete(setLogs).run();
+    tx.delete(cardioLogs).run();
+    tx.delete(workouts).run();
+    tx.delete(workoutTemplates).run();
+    tx.delete(bands).run();
+    tx.delete(bodyMetrics).run();
+    tx.delete(measurements).run();
+    tx.delete(dailyLogs).run();
+    tx.delete(trainingBlocks).run();
+    tx.delete(planConstraints).run();
     // The planned week follows from the logs being replaced: it is planned again.
-    await tx.delete(plannedDays);
-    await tx.delete(planGenerations);
-    await tx.delete(userProfile);
+    tx.delete(plannedDays).run();
+    tx.delete(planGenerations).run();
+    tx.delete(userProfile).run();
 
-    await insertChunked(tx, userProfile, data.tables.user_profile);
-    await insertChunked(tx, bands, data.tables.bands);
-    await insertChunked(tx, workoutTemplates, data.tables.workout_templates);
-    await insertChunked(tx, workouts, data.tables.workouts);
-    await insertChunked(tx, setLogs, data.tables.set_logs);
-    await insertChunked(tx, cardioLogs, data.tables.cardio_logs);
-    await insertChunked(tx, bodyMetrics, data.tables.body_metrics);
-    await insertChunked(tx, measurements, data.tables.measurements);
-    await insertChunked(tx, dailyLogs, data.tables.daily_logs);
-    await insertChunked(tx, trainingBlocks, data.tables.training_blocks);
-    await insertChunked(tx, planConstraints, data.tables.plan_constraints);
+    insertChunked(tx, userProfile, data.tables.user_profile);
+    insertChunked(tx, bands, data.tables.bands);
+    insertChunked(tx, workoutTemplates, data.tables.workout_templates);
+    insertChunked(tx, workouts, data.tables.workouts);
+    insertChunked(tx, setLogs, data.tables.set_logs);
+    insertChunked(tx, cardioLogs, data.tables.cardio_logs);
+    insertChunked(tx, bodyMetrics, data.tables.body_metrics);
+    insertChunked(tx, measurements, data.tables.measurements);
+    insertChunked(tx, dailyLogs, data.tables.daily_logs);
+    insertChunked(tx, trainingBlocks, data.tables.training_blocks);
+    insertChunked(tx, planConstraints, data.tables.plan_constraints);
 
     // A file with an empty profile table would otherwise leave the app
     // without its one row; the seed would fix it on next start, but the
     // screens read it immediately.
-    await ensureProfile(new Date().toISOString(), tx);
+    ensureProfile(new Date().toISOString(), tx);
   });
 }

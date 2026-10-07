@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   CalendarCheck,
-  Dumbbell,
+  CalendarDays,
   Ellipsis,
   History,
   type LucideIcon,
@@ -59,7 +59,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: pl.tabs.today, ...tab(CalendarCheck) }} />
-      <Tabs.Screen name="workout" options={{ title: pl.tabs.workout, ...tab(Dumbbell) }} />
+      <Tabs.Screen name="workout" options={{ title: pl.tabs.calendar, ...tab(CalendarDays) }} />
       <Tabs.Screen name="body" options={{ title: pl.tabs.body, ...tab(PersonStanding) }} />
       <Tabs.Screen name="history" options={{ title: pl.tabs.history, ...tab(History) }} />
       <Tabs.Screen name="more" options={{ title: pl.tabs.more, ...tab(Ellipsis) }} />

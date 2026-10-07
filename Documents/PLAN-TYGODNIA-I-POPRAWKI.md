@@ -532,12 +532,32 @@ raport mówi „neutralne", więc to kwestia strojenia, nie bezpieczeństwa.
 | Q2 | strony L/P (seria = jedna strona, słabsze kolano pierwsze; `set_logs.side`, migracja 0005, backup v3, katalog v5), brak serii tego samego ćwiczenia pod rząd, audyt 130 klipów (dodatek B) |
 | E2 | silnik tygodnia: `selectDay` / `buildDay` / `checkSelection`, `planWeek`, prośby (`constraints.ts`), SPEC §11 |
 | E3 | zapis tygodnia: tabele `planned_days`, `plan_generations`, `plan_constraints`, `user_profile.rest_weekdays` (migracja 0006, backup v4); `weekSync` (pominięty dzień → przeliczenie, niebezpieczny dzień → zmiana tylko jego, horyzont 7 dni); „Dziś” czyta zapisany plan; baner „Plan tygodnia się zmienił”; dzień wolny; „Przelicz tydzień” na ekranie „Dlaczego taki plan?”; dni treningowe w Ustawieniach |
+| E4 | Kalendarz zamiast Treningu: siatka 7 × 6, strzałki i przesuwanie miesięcy, horyzont 7 dni, ikony sesji/jazd/planu, pominięcie i deload; arkusz dnia z historią, dziennikiem, prognozą i wyjaśnieniem konkretnej daty; wyjątek „Dzień wolny / Jednak trenuję”; start/wznowienie, FBW A/B i szybki wpis roweru przeniesione do arkusza dziś. Trasa `/(tabs)/workout` zachowana. |
+
+**Weryfikacja E4 (2026-10-07):** `npm run verify` — 1813 testów, 89 zestawów, wymagane pokrycie domeny
+i AI 100%. Build `release` x86_64 na Pixel_API36 z nawigacją trzyprzyciskową: sprawdzone siatka,
+swipe, przyszły plan → wyjaśnienie daty, dzień wolny i przywrócenie treningu z banerem, dzisiejszy
+zapis roweru → odczyt w arkuszu, miniona sesja → istniejące szczegóły historii, zamykanie „wstecz”.
+
+**Poprawka wykryta przy E4:** callbacki transakcji Drizzle/Expo SQLite były `async`, choć sterownik
+jest synchroniczny. Zapis tygodnia, rotacja bloku, seed i import backupu używają teraz synchronicznych
+callbacków z `.run()` / `.all()` / `.get()`. Test integracyjny na prawdziwym SQLite wymusza błędy
+w połowie operacji i potwierdza rollback; błąd importu nie usuwa dotychczasowych danych. To nie
+wymaga migracji ani zmiany formatu backupu.
 
 **Dalej (kolejność bez zmian):**
 
-1. **E4 — Kalendarz** zamiast zakładki Trening: siatka miesiąca (ikony: rower, hantel / dwa hantle, zaplanowane przygaszone, pominięte z kropką, deload), arkusz dnia (przeszłość: sesje, jazdy; przyszłość: prognoza i „dlaczego”), „Dzień wolny / jednak trenuję” na pojedynczy dzień (`addConstraint` + `computeToday({ request: { trigger: 'constraint', from } })`), szybki wpis roweru i FBW A/B przenoszone stąd. Repozytorium (`src/db/repositories/weekPlan.ts`) ma już wszystko poza zapytaniem o przeszłe sesje miesiąca.
-2. **E5 — Zgłoś zakwasy / ból**: formularz wg dodatku D (nasilenie, 3 pytania o naciągnięcie, czerwone flagi → fizjoterapeuta), `addConstraint` (`avoid_muscle`, doms 2 dni / pain 3 dni), lista aktywnych z odwołaniem (`revokeConstraints`).
-3. **E6 — Dodatkowy trening**: `extraSessionOptions` (sloty, które dziś jeszcze mogą wejść) + wybór → `selectDay` z ograniczeniem do wybranych slotów → `buildDay`; FBW A/B znika z UI.
-4. **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach, prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą „Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
+1. **E5 — Zgłoś zakwasy / ból**: formularz wg dodatku D (nasilenie, 3 pytania o naciągnięcie, czerwone flagi → fizjoterapeuta), `addConstraint` (`avoid_muscle`, doms 2 dni / pain 3 dni), lista aktywnych z odwołaniem (`revokeConstraints`). Link na górze kalendarza dodać wraz z działającym formularzem.
+2. **E6 — Dodatkowy trening**: `extraSessionOptions` (sloty, które dziś jeszcze mogą wejść) + wybór → `selectDay` z ograniczeniem do wybranych slotów → `buildDay`; FBW A/B znika z UI.
+3. **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach, prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą „Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
 
-**Uwagi na następną sesję:** emulator ma testowe dane (czwartek odznaczony w dniach treningowych, sesje testowe 7.10). Na telefon nic jeszcze nie poszło — przed instalacją: eksport backupu, nowe APK (migracje 0005 i 0006 wykonają się same).
+**Uwagi na następną sesję:** emulator ma testowe dane (czwartek odznaczony w dniach treningowych,
+sesje testowe 7.10, testowy rower 20 min 7.10 i wyjątek „trenuję” 9.10 po sprawdzeniu przełączania).
+Na telefon nic jeszcze nie poszło — przed instalacją: eksport backupu, nowe APK (migracje 0005
+i 0006 wykonają się same).
+
+**Środowisko Codex:** SDK ze wskazanej przez użytkownika ścieżki jest widoczne tutaj jako
+`C:/Users/mmaje/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Local/Android/Sdk` (wirtualizacja
+aplikacji Claude). AVD: `Pixel_API36`. Istniejący projekt natywny/APK ma identyfikator `com.homeworkout`,
+chociaż `app.json` zawiera `pl.majewski.homeworkout` — przed nowym prebuildem i instalacją na telefonie
+sprawdzić identyfikator zainstalowanej aplikacji i zachować go, żeby aktualizacja trafiła do jej bazy.

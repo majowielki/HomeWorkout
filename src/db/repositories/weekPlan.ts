@@ -48,21 +48,23 @@ export interface WeekWrite {
 export async function saveWeek(write: WeekWrite, now: Date = new Date()): Promise<void> {
   const at = now.toISOString();
   const generationId = randomUUID();
-  await db.transaction(async (tx) => {
+  db.transaction((tx) => {
     for (const u of write.statusUpdates) {
-      await tx
-        .update(plannedDays)
+      tx.update(plannedDays)
         .set({ status: u.status, updatedAt: at })
-        .where(eq(plannedDays.date, u.date));
+        .where(eq(plannedDays.date, u.date))
+        .run();
     }
-    await tx.insert(planGenerations).values({
-      id: generationId,
-      createdAt: at,
-      trigger: write.trigger,
-      fromDate: write.fromDate,
-      changes: write.changes,
-      seenAt: write.changes.length === 0 ? at : null,
-    });
+    tx.insert(planGenerations)
+      .values({
+        id: generationId,
+        createdAt: at,
+        trigger: write.trigger,
+        fromDate: write.fromDate,
+        changes: write.changes,
+        seenAt: write.changes.length === 0 ? at : null,
+      })
+      .run();
     for (const row of write.rows) {
       const values = {
         selection: row.selection,
@@ -71,10 +73,10 @@ export async function saveWeek(write: WeekWrite, now: Date = new Date()): Promis
         generationId,
         updatedAt: at,
       };
-      await tx
-        .insert(plannedDays)
+      tx.insert(plannedDays)
         .values({ date: row.date, ...values })
-        .onConflictDoUpdate({ target: plannedDays.date, set: values });
+        .onConflictDoUpdate({ target: plannedDays.date, set: values })
+        .run();
     }
   });
 }
@@ -86,12 +88,12 @@ export async function markDays(
 ): Promise<void> {
   if (updates.length === 0) return;
   const at = now.toISOString();
-  await db.transaction(async (tx) => {
+  db.transaction((tx) => {
     for (const u of updates) {
-      await tx
-        .update(plannedDays)
+      tx.update(plannedDays)
         .set({ status: u.status, updatedAt: at })
-        .where(eq(plannedDays.date, u.date));
+        .where(eq(plannedDays.date, u.date))
+        .run();
     }
   });
 }
@@ -176,18 +178,55 @@ export async function revokeConstraints(ids: string[], now: Date = new Date()): 
     .where(inArray(planConstraints.id, ids));
 }
 
+/** Replaces a calendar day's override atomically; leaves muscle restrictions intact. */
+export async function setDayTraining(
+  date: string,
+  train: boolean,
+  now: Date = new Date(),
+): Promise<void> {
+  const at = now.toISOString();
+  db.transaction((tx) => {
+    tx.update(planConstraints)
+      .set({ revokedAt: at })
+      .where(
+        and(
+          eq(planConstraints.fromDate, date),
+          eq(planConstraints.untilDate, date),
+          eq(planConstraints.source, 'user'),
+          inArray(planConstraints.kind, ['rest_day', 'train_day']),
+          isNull(planConstraints.revokedAt),
+        ),
+      )
+      .run();
+    tx.insert(planConstraints)
+      .values({
+        id: randomUUID(),
+        kind: train ? 'train_day' : 'rest_day',
+        muscles: [],
+        fromDate: date,
+        untilDate: date,
+        reason: train ? 'other' : 'busy',
+        source: 'user',
+        note: null,
+        createdAt: at,
+        revokedAt: null,
+      })
+      .run();
+  });
+}
+
 /**
  * The forecast of days that stay as chosen: their loads follow the logs,
  * which change every day, while the choice does not.
  */
 export async function refreshForecasts(rows: StoredDay[], now: Date = new Date()): Promise<void> {
   const at = now.toISOString();
-  await db.transaction(async (tx) => {
+  db.transaction((tx) => {
     for (const row of rows) {
-      await tx
-        .update(plannedDays)
+      tx.update(plannedDays)
         .set({ forecast: row.forecast, updatedAt: at })
-        .where(eq(plannedDays.date, row.date));
+        .where(eq(plannedDays.date, row.date))
+        .run();
     }
   });
 }
