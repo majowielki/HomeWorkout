@@ -11,6 +11,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DatabaseProvider } from '@/db/provider';
 import { fonts, useIsDark, useThemeColors } from '@/lib/theme';
@@ -18,6 +19,7 @@ import { fonts, useIsDark, useThemeColors } from '@/lib/theme';
 export default function RootLayout() {
   const isDark = useIsDark();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   // Bundled with the app, so this resolves in a frame or two; a font that
   // fails to load must not brick the app, hence `|| fontError`.
   const [fontsLoaded, fontError] = useFonts({
@@ -57,13 +59,22 @@ export default function RootLayout() {
            * title, back arrow and header buttons. A blanket
            * `headerShown: false` here would silently hide all of that.
            */}
+          {/*
+           * The app draws edge to edge, so the phone's own navigation (the
+           * gesture pill or the back/home/recent buttons) sits over the
+           * bottom of every screen. Stack screens end above it; the tab
+           * group pads its own tab bar instead.
+           */}
           <Stack
-            screenOptions={{
+            screenOptions={({ route }) => ({
               headerBackButtonDisplayMode: 'minimal',
               headerShadowVisible: false,
               headerTitleStyle: { fontFamily: fonts.displaySemibold, fontSize: 19 },
-              contentStyle: { backgroundColor: colors.background },
-            }}
+              contentStyle: {
+                backgroundColor: colors.background,
+                paddingBottom: route.name === '(tabs)' ? 0 : insets.bottom,
+              },
+            })}
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack>
