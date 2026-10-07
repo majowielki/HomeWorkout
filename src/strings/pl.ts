@@ -123,6 +123,8 @@ export const pl = {
       dumbbellPaired: 'Hantle (para)',
       band: 'Guma',
       anchorPosition: 'Pozycja',
+      anchorPositionHint: (stepCm: number) =>
+        `P0: stoisz tam, gdzie guma jest ledwo napięta. P1, P2, P3: każda o ${stepCm} cm dalej od zaczepu — guma bardziej rozciągnięta, większy opór.`,
       reps: 'Powtórzenia',
       time: 'Czas',
       saveSet: 'Seria zrobiona',
@@ -1035,6 +1037,16 @@ export const pl = {
         term: 'RPE',
         definition:
           'Rate of Perceived Exertion (odczuwany wysiłek) — subiektywna ocena w skali 1–10, jak ciężka była cała sesja. 10 to maksymalny możliwy wysiłek.',
+      },
+      {
+        term: 'Superseria (A1, A2)',
+        definition:
+          'Dwa ćwiczenia z tą samą literą robisz na zmianę: seria A1, przerwa, seria A2, przerwa, i znowu A1 — aż skończysz wszystkie serie obu. Gdy jedna partia pracuje, druga odpoczywa, więc trening trwa krócej.',
+      },
+      {
+        term: 'Pozycja gumy P0–P3',
+        definition:
+          'Jak daleko od zaczepu stoisz. P0 to miejsce, w którym guma jest ledwo napięta; P1, P2 i P3 to kolejne znaczniki co 30 cm dalej. Im dalej, tym guma bardziej rozciągnięta i tym większy opór. Ta sama guma na dalszej pozycji to najdrobniejszy krok progresji.',
       },
       {
         term: 'DOMS',
