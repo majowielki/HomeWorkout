@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { ymoveMedia } from '@/assets/ymove-media';
 import { Badge } from '@/components/ui/badge';
@@ -209,12 +209,15 @@ export default function ExerciseDetailScreen() {
           <CardTitle>{s.substitutes}</CardTitle>
           <CardContent>
             {substituteRows.map((sub) => (
+              // asChild + our Text: a bare Link renders an unthemed Text that stays black in dark mode.
               <Link
                 key={sub.id}
                 href={{ pathname: '/exercises/[id]', params: { id: sub.id } }}
-                className="py-1 font-display-semibold text-base text-highlight"
+                asChild
               >
-                {sub.name}
+                <Pressable className="py-1 active:opacity-60">
+                  <Text className="font-display-semibold text-base text-highlight">{sub.name}</Text>
+                </Pressable>
               </Link>
             ))}
           </CardContent>

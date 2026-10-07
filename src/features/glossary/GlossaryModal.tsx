@@ -32,7 +32,8 @@ export function GlossaryModal({ visible, onClose }: Props) {
           <Text variant="heading" className="mb-3">
             {pl.glossary.title}
           </Text>
-          <ScrollView contentContainerClassName="gap-4 pb-2">
+          {/* shrink: inside the height-capped sheet the list must not grow to its content, or nothing scrolls. */}
+          <ScrollView className="shrink" contentContainerClassName="gap-4 pb-2">
             {pl.glossary.terms.map((item) => (
               <View key={item.term}>
                 <Text className="text-base font-semibold">{item.term}</Text>
