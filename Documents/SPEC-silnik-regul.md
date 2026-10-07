@@ -866,3 +866,31 @@ prośba o lżejszy dzień bez zmian (`REQUEST_CHANGED`), partia nie `RECOVERING`
   (`RECOVERING`), reszta tygodnia zostaje;
 - prośba o pominięcie partii działa tylko w swoich dniach; ból wyklucza też pracę pomocniczą;
 - objętość prognozy nie przekracza tygodniowego max żadnej partii.
+
+### 11.5 Zapis tygodnia i transakcje
+
+`computeToday` serializuje synchronizację tygodnia. `planned_days` przechowuje wybór oraz prognozę,
+`plan_generations` — powód i różnice, a `plan_constraints` — prośby z zakresem dat. Zapis wyborów,
+oznaczenie minionych dni i zapis generacji są jedną transakcją. Aktualizacja prognoz nie tworzy
+banera, jeśli wybór ćwiczeń się nie zmienił.
+
+Sterownik Drizzle dla Expo SQLite jest synchroniczny. Callback transakcji musi być synchroniczny,
+z jawnym `.run()` / `.all()` / `.get()`; `async` i `await` wewnątrz callbacku kończyły transakcję
+przed wykonaniem kolejnych zapytań. Test integracyjny `src/db/__tests__/storage.test.ts` sprawdza
+wycofanie zmian po błędzie podczas zapisu tygodnia, zmiany dnia, rotacji bloku, seeda i importu backupu.
+
+### 11.6 Kalendarz
+
+Zakładka Kalendarz zastępuje Trening; dotychczasowa trasa `/(tabs)/workout` pozostaje dla powrotu
+z podsumowania sesji. Siatka ma 42 dni i zaczyna tydzień od poniedziałku. Historia jest odczytywana
+według `trainingDate`, nie daty rozpoczęcia sesji, z zapytań ograniczonych do widocznej siatki.
+Można cofać miesiące bez limitu; daty po `asOf + 6` są nieaktywne.
+
+Arkusz dnia łączy sesje (odsyłacz do szczegółów i liczba serii bez rozgrzewkowych), wszystkie jazdy
+oraz dziennik. Przyszłość pokazuje ćwiczenia, serie, czas i odsyłacz do wyjaśnienia tego konkretnego
+dnia. Prognoza nie obiecuje przyszłych ciężarów: recepta nadal powstaje z historii w dniu treningu.
+Start, wznowienie, ręczne szablony i szybki wpis roweru są dostępne w arkuszu dzisiejszego dnia.
+
+„Dzień wolny / Jednak trenuję” zamienia pojedynczy wyjątek użytkownika atomowo, nie odwołuje prośby
+o pominięcie mięśni i uruchamia przeliczenie od wybranej daty. Ukończony dzień i dzień z sesją
+w trakcie nie udostępniają zmiany. Link do zgłaszania zakwasów zostanie dodany wraz z formularzem E5.

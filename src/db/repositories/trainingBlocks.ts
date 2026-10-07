@@ -61,16 +61,16 @@ export async function saveBlockAdvance(
   const updatedAt = now.toISOString();
   if (current === null || advance.closed !== null) {
     const id = randomUUID();
-    await db.transaction(async (tx) => {
+    db.transaction((tx) => {
       if (current !== null) {
-        await tx
-          .update(trainingBlocks)
+        tx.update(trainingBlocks)
           .set({ closedOn: asOf, updatedAt })
-          .where(eq(trainingBlocks.id, current.id));
+          .where(eq(trainingBlocks.id, current.id))
+          .run();
       }
-      await tx
-        .insert(trainingBlocks)
-        .values({ id, ...toColumns(advance.block), closedOn: null, updatedAt });
+      tx.insert(trainingBlocks)
+        .values({ id, ...toColumns(advance.block), closedOn: null, updatedAt })
+        .run();
     });
     return { id, state: advance.block };
   }

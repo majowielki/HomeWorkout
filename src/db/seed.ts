@@ -31,58 +31,73 @@ export async function seedDatabase(): Promise<void> {
   const parsedTemplates = templateCatalogueSchema.parse(templateCatalogue);
   const now = new Date().toISOString();
 
-  await db.transaction(async (tx) => {
-    await ensureProfile(now, tx);
+  db.transaction((tx) => {
+    ensureProfile(now, tx);
 
-    const existing = await tx
+    const existing = tx
       .select({ id: exercises.id, dataVersion: exercises.dataVersion })
-      .from(exercises);
+      .from(exercises)
+      .all();
     const versionById = new Map(existing.map((row) => [row.id, row.dataVersion]));
 
     for (const exercise of parsed.exercises) {
       const currentVersion = versionById.get(exercise.id);
 
       if (currentVersion === undefined) {
-        await tx.insert(exercises).values({
-          id: exercise.id,
-          name: exercise.name,
-          data: exercise,
-          dataVersion: parsed.version,
-        });
+        tx.insert(exercises)
+          .values({
+            id: exercise.id,
+            name: exercise.name,
+            data: exercise,
+            dataVersion: parsed.version,
+          })
+          .run();
       } else if (currentVersion < parsed.version) {
-        await tx
-          .update(exercises)
+        tx.update(exercises)
           .set({ name: exercise.name, data: exercise, dataVersion: parsed.version })
-          .where(eq(exercises.id, exercise.id));
+          .where(eq(exercises.id, exercise.id))
+          .run();
       }
     }
 
     const shipped = new Set(parsed.exercises.map((e) => e.id));
     for (const row of existing) {
       if (shipped.has(row.id)) continue;
-      const [stored] = await tx.select().from(exercises).where(eq(exercises.id, row.id)).limit(1);
+      const stored = tx.select().from(exercises).where(eq(exercises.id, row.id)).get();
       if (stored && !stored.data.archived) {
-        await tx
-          .update(exercises)
+        tx.update(exercises)
           .set({ data: { ...stored.data, archived: true } })
-          .where(eq(exercises.id, row.id));
+          .where(eq(exercises.id, row.id))
+          .run();
       }
     }
 
-    const knownBands = new Set((await tx.select({ id: bands.id }).from(bands)).map((b) => b.id));
+    const knownBands = new Set(
+      tx
+        .select({ id: bands.id })
+        .from(bands)
+        .all()
+        .map((b) => b.id),
+    );
     for (const band of BANDS) {
       if (knownBands.has(band.id)) continue;
-      await tx.insert(bands).values({
-        id: band.id,
-        label: band.label,
-        nominalMinKg: band.nominalMinKg,
-        nominalMaxKg: band.nominalMaxKg,
-        calibration: null,
-      });
+      tx.insert(bands)
+        .values({
+          id: band.id,
+          label: band.label,
+          nominalMinKg: band.nominalMinKg,
+          nominalMaxKg: band.nominalMaxKg,
+          calibration: null,
+        })
+        .run();
     }
 
     const knownTemplates = new Set(
-      (await tx.select({ id: workoutTemplates.id }).from(workoutTemplates)).map((t) => t.id),
+      tx
+        .select({ id: workoutTemplates.id })
+        .from(workoutTemplates)
+        .all()
+        .map((t) => t.id),
     );
     for (const template of parsedTemplates.templates) {
       const values = {
@@ -92,9 +107,11 @@ export async function seedDatabase(): Promise<void> {
         warmupMinutes: template.warmupMinutes ?? null,
       };
       if (knownTemplates.has(template.id)) {
-        await tx.update(workoutTemplates).set(values).where(eq(workoutTemplates.id, template.id));
+        tx.update(workoutTemplates).set(values).where(eq(workoutTemplates.id, template.id)).run();
       } else {
-        await tx.insert(workoutTemplates).values({ id: template.id, ...values });
+        tx.insert(workoutTemplates)
+          .values({ id: template.id, ...values })
+          .run();
       }
     }
   });

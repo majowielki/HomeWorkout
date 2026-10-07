@@ -19,26 +19,29 @@ type Executor = Database | Parameters<Parameters<Database['transaction']>[0]>[0]
  * conservative (bilateral-only) mode until a physiotherapist has reviewed
  * the exercise list. See Documents/PLAN.md §1.4.
  */
-export async function ensureProfile(now: string, executor: Executor = db): Promise<void> {
-  const [existing] = await executor
+export function ensureProfile(now: string, executor: Executor = db): void {
+  const existing = executor
     .select({ id: userProfile.id })
     .from(userProfile)
     .where(eq(userProfile.id, PROFILE_ID))
-    .limit(1);
+    .get();
   if (existing) return;
 
-  await executor.insert(userProfile).values({
-    id: PROFILE_ID,
-    dayBoundaryHour: 4,
-    kneeProfile: {
-      side: 'right',
-      missingCollaterals: true,
-      aclReconstructed: true,
-      varusThrust: true,
-      physioApproved: false,
-    },
-    updatedAt: now,
-  });
+  executor
+    .insert(userProfile)
+    .values({
+      id: PROFILE_ID,
+      dayBoundaryHour: 4,
+      kneeProfile: {
+        side: 'right',
+        missingCollaterals: true,
+        aclReconstructed: true,
+        varusThrust: true,
+        physioApproved: false,
+      },
+      updatedAt: now,
+    })
+    .run();
 }
 
 export async function getMedicalProfile(): Promise<MedicalProfile> {
