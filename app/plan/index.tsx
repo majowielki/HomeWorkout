@@ -10,6 +10,7 @@ import { SLOT_BY_ID } from '@/features/plan/slots';
 import { usePlanToday } from '@/features/plan/usePlanToday';
 import { VolumeMeter } from '@/features/plan/VolumeMeter';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
+import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 
 /**
@@ -39,7 +40,12 @@ export default function PlanScreen() {
     );
   }
 
-  const { plan, events, volume } = state;
+  // Once today is done, "why" is about tomorrow's plan; today's block events are old news.
+  const tomorrow = state.done ? state.tomorrow : null;
+  const plan = tomorrow ?? state.plan;
+  const events = tomorrow ? [] : state.events;
+  const { volume } = state;
+  const screenTitle = tomorrow ? pl.plan.tomorrowScreenTitle : pl.plan.screenTitle;
   const nameOf = (id: string | null) => (id ? (exerciseMap[id]?.name ?? id) : '—');
   const dayLines = [
     ...events.map((e) => pl.plan.blockEvent[e]),
@@ -50,11 +56,13 @@ export default function PlanScreen() {
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-4 px-5 pb-12 pt-4">
-      <Stack.Screen options={{ title: pl.plan.screenTitle }} />
+      <Stack.Screen options={{ title: screenTitle }} />
 
       <View className="gap-1">
         <Text variant="title">{planTitle(plan)}</Text>
-        <Text variant="muted">{pl.plan.meta(plan.estimatedMinutes)}</Text>
+        <Text variant="muted">
+          {formatDate(plan.date)} · {pl.plan.meta(plan.estimatedMinutes)}
+        </Text>
       </View>
 
       {dayLines.length > 0 ? (

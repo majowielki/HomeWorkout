@@ -194,6 +194,8 @@ export default function ActiveSessionScreen() {
    */
   function goToSummary(back: 'undo' | 'resume' = 'undo') {
     if (!loaded) return;
+    // A rest still running would ring "back to training" after the workout ended.
+    void useRestTimerStore.getState().stop();
     router.replace({
       pathname: '/workout/summary/[id]',
       params: { id: loaded.workoutId, back },
