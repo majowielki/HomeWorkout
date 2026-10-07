@@ -6,6 +6,12 @@ import type { Exercise } from '@/domain/types';
 
 import { SubstituteModal } from '../SubstituteModal';
 
+// The sheet itself is native-gesture driven; the suites only care what is inside it.
+jest.mock('@gorhom/bottom-sheet', () => ({
+  __esModule: true,
+  ...jest.requireActual('@gorhom/bottom-sheet/mock'),
+}));
+
 const exercises = exerciseCatalogueSchema.parse(catalogue).exercises as Exercise[];
 const exerciseMap = Object.fromEntries(exercises.map((e) => [e.id, e]));
 const goblet = exerciseMap['goblet-squat']!;
