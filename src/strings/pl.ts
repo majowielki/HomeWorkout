@@ -135,6 +135,13 @@ export const pl = {
       saddleHeight: (cm: number) =>
         `Siodełko: ${String(cm).replace('.', ',')} cm — sprawdź przed jazdą.`,
       substituteTitle: 'Zamień ćwiczenie',
+      substituteHow:
+        'Propozycje z tego samego ruchu, ułożone od tych, które najbardziej pokrywają się z głównymi mięśniami ćwiczenia z planu. Tylko bezpieczne dla Twojego kolana. Dotknij, żeby zobaczyć.',
+      substitutePreviewHint: 'Pokazuje podgląd ćwiczenia',
+      substituteBack: '‹ Wróć do listy',
+      substituteMuscles: (list: string) => `Główne mięśnie: ${list}`,
+      substitutePick: 'Zamień na to ćwiczenie',
+      restorePlanned: 'Wróć do ćwiczenia z planu',
       noSubstitutes: 'Brak dostępnych zamienników dla Twojego profilu.',
       substituteForBlock: 'Na resztę bloku',
       substituteForBlockHint: 'Zamiennik zostaje w planie do końca bloku.',

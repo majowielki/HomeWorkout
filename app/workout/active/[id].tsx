@@ -63,6 +63,8 @@ export default function ActiveSessionScreen() {
   const [profile, setProfile] = useState<MedicalProfile>({ knee: null });
   // blockIndex -> exercise swapped in for the rest of this session.
   const [substitutes, setSubstitutes] = useState<Record<number, string>>({});
+  // blockIndex -> slot whose block selection the swap also changed, so a restore can undo it.
+  const [blockSwaps, setBlockSwaps] = useState<Record<number, string>>({});
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -370,6 +372,7 @@ export default function ActiveSessionScreen() {
         <SubstituteModal
           visible={substituteModalOpen}
           current={templateExercise}
+          swappedTo={effectiveExercise?.id !== templateExercise.id ? effectiveExercise : null}
           exerciseMap={exerciseMap}
           profile={profile}
           excludedIds={excludedIds}
@@ -380,8 +383,22 @@ export default function ActiveSessionScreen() {
             setSubstituteModalOpen(false);
             if (choice.forBlock && choice.slotId) {
               const slotId = choice.slotId;
+              setBlockSwaps((prev) => ({ ...prev, [currentStep.blockIndex]: slotId }));
               void getCurrentBlock().then((block) =>
                 block ? setBlockSelection(block.id, slotId, choice.exercise.id) : undefined,
+              );
+            }
+          }}
+          onRestore={() => {
+            if (!currentStep) return;
+            const blockIndex = currentStep.blockIndex;
+            setSubstitutes(({ [blockIndex]: _, ...rest }) => rest);
+            setSubstituteModalOpen(false);
+            const slotId = blockSwaps[blockIndex];
+            if (slotId) {
+              setBlockSwaps(({ [blockIndex]: _, ...rest }) => rest);
+              void getCurrentBlock().then((block) =>
+                block ? setBlockSelection(block.id, slotId, templateExercise.id) : undefined,
               );
             }
           }}
