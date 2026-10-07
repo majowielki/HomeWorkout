@@ -54,7 +54,7 @@ export default function PlanScreen() {
 
       <View className="gap-1">
         <Text variant="title">{planTitle(plan)}</Text>
-        <Text variant="muted">{pl.plan.meta(plan.estimatedMinutes, plan.bike.minutes)}</Text>
+        <Text variant="muted">{pl.plan.meta(plan.estimatedMinutes)}</Text>
       </View>
 
       {dayLines.length > 0 ? (

@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import { getCardioForWorkout, hasWarmupLog, logCardio } from '@/db/repositories/cardioLogs';
 import { getExcludedExerciseIds, getProfile, setExerciseExcluded } from '@/db/repositories/profile';
 import { getLoggedStepKeys, getSetsForWorkout, logSet } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
@@ -23,6 +22,7 @@ import {
   type SessionStep,
   stepKey,
 } from '@/domain/session/steps';
+import { warmupMoves } from '@/domain/session/warmup';
 import type { PlannedExercise, SessionPlan } from '@/domain/plan/types';
 import { loadKindOf } from '@/domain/progression/load';
 import type { Exercise, MedicalProfile } from '@/domain/types';
@@ -35,7 +35,7 @@ import { type LoggedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
-import { WarmupCard, type WarmupResult } from '@/features/workout/WarmupCard';
+import { WarmupChecklist } from '@/features/workout/WarmupChecklist';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
@@ -45,11 +45,8 @@ type Loaded = {
   workoutId: string;
   trainingDate: string;
   title: string;
-  warmupMinutes: number | null;
   /** The engine's plan the session was started from; null for a template session. */
   plan: SessionPlan | null;
-  /** From the profile — shown on the warm-up card as a standing cue (PLAN §4.3). */
-  saddleHeightCm: number | null;
 };
 
 export default function ActiveSessionScreen() {
@@ -97,16 +94,9 @@ export default function ActiveSessionScreen() {
       const resumeIndex = findResumeIndex(builtSteps, keys);
       const profileRow = await getProfile();
       const excluded = await getExcludedExerciseIds();
-      // A planned session always starts on the bike (SPEC §7 v1.2); a
-      // template only when it asks for a warm-up.
-      const needsWarmup =
-        resumeIndex !== 0
-          ? false
-          : plan
-            ? (await getCardioForWorkout(id)).length === 0
-            : template!.warmupMinutes
-              ? !(await hasWarmupLog(id))
-              : false;
+      // A fresh session opens on the general warm-up; the bike is its own
+      // task on 'Dziś', done whenever suits the day.
+      const needsWarmup = resumeIndex === 0;
 
       if (cancelled) return;
 
@@ -119,9 +109,7 @@ export default function ActiveSessionScreen() {
         workoutId: id,
         trainingDate: workout.trainingDate,
         title: plan ? planTitle(plan) : template!.name,
-        warmupMinutes: plan ? plan.bike.minutes : template!.warmupMinutes,
         plan,
-        saddleHeightCm: profileRow?.saddleHeightCm ?? null,
       });
       setSteps(builtSteps);
       setLoggedKeys(keys);
@@ -210,24 +198,6 @@ export default function ActiveSessionScreen() {
       return { name: exerciseMap[id]?.name ?? id, sets: done.map(describeSet) };
     });
     setGroupDone(exercises);
-  }
-
-  async function handleLogWarmup(result: WarmupResult) {
-    if (!loaded || saving) return;
-    setSaving(true);
-    try {
-      await logCardio({
-        workoutId: loaded.workoutId,
-        trainingDate: loaded.trainingDate,
-        purpose: loaded.plan ? 'cardio' : 'warmup',
-        minutes: result.minutes,
-        resistanceLevel: result.resistance,
-        rpe: result.rpe,
-      });
-      setPhase('logging');
-    } finally {
-      setSaving(false);
-    }
   }
 
   async function handleSaveSet(data: LoggedSetData) {
@@ -343,17 +313,8 @@ export default function ActiveSessionScreen() {
         }}
       />
 
-      {phase === 'warmup' && loaded.warmupMinutes ? (
-        <WarmupCard
-          defaultMinutes={loaded.warmupMinutes}
-          saddleHeightCm={loaded.saddleHeightCm}
-          askEffort={loaded.plan !== null}
-          defaultResistance={loaded.plan?.bike.resistance ?? null}
-          note={loaded.plan?.bike.reasons.map((r) => pl.plan.bike[r]).join(' ')}
-          onLog={handleLogWarmup}
-          onSkip={() => setPhase('logging')}
-          saving={saving}
-        />
+      {phase === 'warmup' ? (
+        <WarmupChecklist moves={warmupMoves(profile)} onDone={() => setPhase('logging')} />
       ) : null}
 
       {phase === 'resting' && currentStep ? (

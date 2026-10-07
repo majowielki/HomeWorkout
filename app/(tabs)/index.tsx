@@ -20,6 +20,7 @@ import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { WeightTrendBadge } from '@/features/body/WeightTrendBadge';
 import { planTitle } from '@/features/plan/format';
 import { PlanHero } from '@/features/plan/PlanHero';
+import { RideCard } from '@/features/plan/RideCard';
 import { usePlanToday } from '@/features/plan/usePlanToday';
 import { SessionHero } from '@/features/workout/SessionHero';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
@@ -151,6 +152,10 @@ export default function TodayScreen() {
         ) : (
           <PlanHero today={today} exerciseMap={exerciseMap} />
         )}
+
+        {today.state.status === 'ready' ? (
+          <RideCard key={today.state.asOf} asOf={today.state.asOf} ride={today.state.plan.bike} />
+        ) : null}
 
         <Card className="gap-4">
           <View className="flex-row items-center justify-between">

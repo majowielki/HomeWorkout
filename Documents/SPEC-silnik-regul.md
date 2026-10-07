@@ -556,6 +556,13 @@ Progresja: czas → kadencja → opór, w tej kolejności. Bez pretendowania do 
 nie mierzy mocy, a przeliczenia „opór × kadencja = waty" byłyby zmyśleniem.
 
 **v1.2 — rower codziennie, 10–20 min, na początku sesji** (rozgrzewa kolano przed ćwiczeniami).
+
+**v1.3 (2026-10-07, po pierwszych testach)** — rower to osobne zadanie dnia na ekranie „Dziś”
+(„Zrobione” / „Później”), do zrobienia przed treningiem, po nim albo wieczorem; niezrobiony nie blokuje
+sesji. Sesja zaczyna się od ogólnej rozgrzewki do odhaczenia (`src/domain/session/warmup.ts`):
+same ruchy obunóż bez obciążenia, wykroki w tył dopiero po zgodzie fizjoterapeuty. Przepis na jazdę
+liczy się tak samo jak niżej — z każdej zapisanej jazdy, w sesji czy osobno.
+
 Kadencja jest opcjonalna w logu, więc decyduje RPE ostatniej jazdy:
 
 | Ostatnia jazda | Następna |

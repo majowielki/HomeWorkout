@@ -51,7 +51,7 @@ export function PlanHero({ today, exerciseMap }: Props) {
           ? pl.plan.deloadBadge(plan.blockIndex)
           : pl.plan.blockBadge(plan.blockIndex)
       }
-      meta={pl.plan.meta(plan.estimatedMinutes, plan.bike.minutes)}
+      meta={pl.plan.meta(plan.estimatedMinutes)}
       blocks={plan.exercises}
       exerciseMap={exerciseMap}
     >
