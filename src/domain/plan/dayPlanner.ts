@@ -360,7 +360,7 @@ export function directVolume(
  * When each muscle last had working sets as a primary, and when each slot
  * was last trained. Light practice at RIR 5 is not training here either.
  */
-function lastTrained(
+export function lastTrained(
   sessions: readonly HistorySession[],
   catalog: Readonly<Record<string, Exercise>>,
   slotOf: ReadonlyMap<string, Slot>,

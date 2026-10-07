@@ -225,7 +225,15 @@ export const pl = {
     },
   },
   plan: {
-    eyebrow: 'Plan na dziś',
+    eyebrow: (date: string) => `Plan na dziś · ${date}`,
+    tomorrowEyebrow: (date: string) => `Plan na jutro · ${date}`,
+    tomorrowScreenTitle: 'Plan na jutro',
+    done: {
+      eyebrow: 'Dziś zrobione',
+      title: 'Czas na regenerację',
+      readyFrom: (date: string) => `Odpoczywają, gotowe od ${date}:`,
+      nothingRests: 'Dzisiejsza praca była lekka — żadna partia nie potrzebuje przerwy.',
+    },
     screenTitle: 'Plan dnia',
     start: 'Rozpocznij plan',
     details: 'Dlaczego taki plan?',
