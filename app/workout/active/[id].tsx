@@ -34,6 +34,7 @@ import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { WarmupChecklist } from '@/features/workout/WarmupChecklist';
+import { useLandscapeAllowed } from '@/lib/useLandscapeAllowed';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
@@ -49,6 +50,8 @@ type Loaded = {
 
 export default function ActiveSessionScreen() {
   useKeepAwake();
+  // On the floor, a phone on its side shows the clip next to the set.
+  useLandscapeAllowed();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const exerciseMap = useExerciseMap();

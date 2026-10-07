@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { ymoveMedia } from '@/assets/ymove-media';
 import { Badge } from '@/components/ui/badge';
@@ -150,6 +150,8 @@ function SetLoggerFields({
   };
 
   const hasClip = ymoveMedia[exercise.id] !== undefined;
+  const { width, height } = useWindowDimensions();
+  const wide = width > height;
 
   const heading = (
     <View className="flex-1 gap-1">
@@ -172,46 +174,23 @@ function SetLoggerFields({
     </View>
   );
 
-  return (
-    <ScrollView className="flex-1" contentContainerClassName="gap-5 px-5 pb-6 pt-4">
-      {hasClip ? (
-        // The clip is the point of this screen: big enough to read the movement from a metre away.
-        <View className="flex-row items-start gap-4">
-          <ExerciseVideo
-            exerciseId={exercise.id}
-            mediaKey={exercise.media}
-            name={exercise.name}
-            className="aspect-[9/16] w-36"
-          />
-          <View className="flex-1 gap-3">
-            <View className="flex-row items-start">
-              {heading}
-              <GlossaryButton className="-mr-3 -mt-2" />
-            </View>
-            {targets}
-            {onShowDetails ? (
-              <Pressable onPress={onShowDetails} hitSlop={8} accessibilityRole="link">
-                <Text className="font-display-semibold text-highlight">
-                  {pl.workout.session.exerciseDetails}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-      ) : (
-        <View className="flex-row items-start gap-4">
-          <ExerciseThumb mediaKey={exercise.media} className="h-20 w-20 rounded-2xl" />
-          {heading}
-          <GlossaryButton className="-mr-3 -mt-2" />
-        </View>
-      )}
+  const details = onShowDetails ? (
+    <Pressable onPress={onShowDetails} hitSlop={8} accessibilityRole="link">
+      <Text className="font-display-semibold text-highlight">
+        {pl.workout.session.exerciseDetails}
+      </Text>
+    </Pressable>
+  ) : null;
 
-      <View className="flex-row gap-2">
-        <SetProgress done={setNumber - 1} total={totalSets} />
-      </View>
+  const progress = (
+    <View className="flex-row gap-2">
+      <SetProgress done={setNumber - 1} total={totalSets} />
+    </View>
+  );
 
-      {hasClip ? null : targets}
-
+  // Notes and controls, the same in both orientations.
+  const body = (
+    <>
       {supersetWith ? (
         <View className="rounded-2xl border border-border p-4">
           <Text className="text-sm leading-5">{pl.workout.session.supersetWith(supersetWith)}</Text>
@@ -248,6 +227,73 @@ function SetLoggerFields({
       />
 
       <Button label={pl.workout.session.saveSet} size="lg" onPress={handleSave} disabled={saving} />
+    </>
+  );
+
+  if (wide) {
+    // A phone on its side: the clip fills the height on the left, the set
+    // scrolls on the right.
+    return (
+      <View className="flex-1 flex-row gap-5 px-5 py-3">
+        {hasClip ? (
+          <ExerciseVideo
+            exerciseId={exercise.id}
+            mediaKey={exercise.media}
+            name={exercise.name}
+            className="aspect-[9/16] h-full"
+          />
+        ) : (
+          <ExerciseThumb mediaKey={exercise.media} className="h-40 w-40 rounded-2xl" />
+        )}
+        <ScrollView className="flex-1" contentContainerClassName="gap-4 pb-4">
+          <View className="flex-row items-start">
+            {heading}
+            <GlossaryButton className="-mr-3 -mt-2" />
+          </View>
+          <View className="flex-row flex-wrap items-center gap-4">
+            {targets}
+            {details}
+          </View>
+          {progress}
+          {body}
+        </ScrollView>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView className="flex-1" contentContainerClassName="gap-5 px-5 pb-6 pt-4">
+      {hasClip ? (
+        // The clip is the point of this screen: big enough to read the movement from a metre away.
+        <View className="flex-row items-start gap-4">
+          <ExerciseVideo
+            exerciseId={exercise.id}
+            mediaKey={exercise.media}
+            name={exercise.name}
+            className="aspect-[9/16] w-36"
+          />
+          <View className="flex-1 gap-3">
+            <View className="flex-row items-start">
+              {heading}
+              <GlossaryButton className="-mr-3 -mt-2" />
+            </View>
+            {targets}
+            {details}
+          </View>
+        </View>
+      ) : (
+        <View className="flex-row items-start gap-4">
+          <ExerciseThumb mediaKey={exercise.media} className="h-20 w-20 rounded-2xl" />
+          {heading}
+          <GlossaryButton className="-mr-3 -mt-2" />
+        </View>
+      )}
+
+      {progress}
+
+      {hasClip ? null : targets}
+
+      {body}
     </ScrollView>
   );
 }
