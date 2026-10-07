@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Link, Stack } from 'expo-router';
-import { useMemo } from 'react';
-import { SectionList, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { SectionList, View, type ViewToken } from 'react-native';
 
+import { FastScroll } from '@/components/ui/fast-scroll';
 import { Text } from '@/components/ui/text';
 import { liveExercisesQuery } from '@/db/repositories/exercises';
 import { screenExercise } from '@/domain/exercises/screen';
@@ -30,6 +31,18 @@ type Row = { exercise: Exercise; excluded: boolean; pendingPhysio: boolean };
 export default function ExercisesScreen() {
   const { data } = useLiveQuery(liveExercisesQuery());
   const profile = useMedicalProfile();
+  const listRef = useRef<SectionList<Row>>(null);
+  // What the fast scroller needs to place its thumb and name the section under it.
+  const [offset, setOffset] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [section, setSection] = useState<string | null>(null);
+  // Must keep its identity: a list throws if this handler changes after mount.
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<Row>[] }) =>
+      setSection((viewableItems[0]?.section as { title?: string } | undefined)?.title ?? null),
+    [],
+  );
 
   const { sections, total, excludedCount } = useMemo(() => {
     const rows: Row[] = (data ?? [])
@@ -70,7 +83,14 @@ export default function ExercisesScreen() {
     <View className="flex-1 bg-background">
       <Stack.Screen options={{ title: pl.exercises.title }} />
       <SectionList
+        ref={listRef}
         sections={sections}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(e) => setOffset(e.nativeEvent.contentOffset.y)}
+        onContentSizeChange={(_, h) => setContentHeight(h)}
+        onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+        onViewableItemsChanged={onViewableItemsChanged}
         keyExtractor={(row) => row.exercise.id}
         contentContainerClassName="px-5 pb-12"
         stickySectionHeadersEnabled={false}
@@ -121,6 +141,13 @@ export default function ExercisesScreen() {
             </View>
           </Link>
         )}
+      />
+      <FastScroll
+        contentHeight={contentHeight}
+        viewportHeight={viewportHeight}
+        offset={offset}
+        label={section}
+        onScrollTo={(y) => listRef.current?.getScrollResponder()?.scrollTo({ y, animated: false })}
       />
     </View>
   );
