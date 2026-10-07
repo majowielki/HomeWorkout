@@ -158,6 +158,9 @@ export function SetFields({ exercise, values, onChange, calibrations }: Props) {
                 />
               ))}
             </View>
+            <Text variant="muted" className="text-xs">
+              {pl.workout.session.anchorPositionHint(BAND_CONFIG.anchorStepCm)}
+            </Text>
           </View>
           {estimate && estimate.kind !== 'none' ? (
             <Text variant="muted" className="text-center">
