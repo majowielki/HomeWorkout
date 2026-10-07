@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import type { SessionPlan } from '@/domain/plan/types';
 
@@ -37,11 +37,17 @@ const today = (patch: Partial<Extract<Today['state'], { status: 'ready' }>>): To
     done: false,
     recovery: [],
     tomorrow: null,
+    bike: { minutes: 12, resistance: 3, reasons: [] },
+    rest: false,
+    week: [],
+    banner: null,
     ...patch,
   },
   starting: false,
   start: jest.fn(async () => undefined),
   reload: jest.fn(async () => undefined),
+  recalculate: jest.fn(async () => undefined),
+  dismissBanner: jest.fn(async () => undefined),
 });
 
 describe('PlanHero', () => {
@@ -84,5 +90,48 @@ describe('PlanHero', () => {
       />,
     );
     expect(screen.getByText(/żadna partia nie potrzebuje przerwy/)).toBeTruthy();
+  });
+
+  it('on a rest day, says so and shows the next training day without a start button', async () => {
+    const next = plan('2026-10-09', ['push']);
+    await render(
+      <PlanHero
+        today={today({
+          plan: null,
+          rest: true,
+          week: [
+            { date: '2026-10-07', selection: null, forecast: null, status: 'planned' },
+            { date: '2026-10-08', selection: null, forecast: null, status: 'planned' },
+            { date: '2026-10-09', selection: null, forecast: next, status: 'planned' },
+          ],
+        })}
+        exerciseMap={{}}
+      />,
+    );
+    expect(screen.getByText('Dziś odpoczywasz')).toBeTruthy();
+    expect(screen.getByText(/^Następny trening · /)).toBeTruthy();
+    expect(screen.getByText('Pchanie')).toBeTruthy();
+    expect(screen.queryByText('Rozpocznij plan')).toBeNull();
+  });
+
+  it('shows what the last replanning changed until it is closed', async () => {
+    const t = today({
+      banner: {
+        id: 'g1',
+        trigger: 'missed_day',
+        createdAt: '2026-10-07T06:00:00.000Z',
+        changes: [
+          { date: '2026-10-08', before: ['lower'], after: ['pull'], reasons: [] },
+          { date: '2026-10-09', before: ['push'], after: null, reasons: ['REST_DAY'] },
+        ],
+      },
+    });
+    await render(<PlanHero today={t} exerciseMap={{}} />);
+    expect(screen.getByText('Plan tygodnia się zmienił')).toBeTruthy();
+    expect(screen.getByText(/Pominięta sesja/)).toBeTruthy();
+    expect(screen.getByText(/Nogi → Przyciąganie$/)).toBeTruthy();
+    expect(screen.getByText(/Pchanie → wolne$/)).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Zamknij'));
+    expect(t.dismissBanner).toHaveBeenCalledWith('g1');
   });
 });

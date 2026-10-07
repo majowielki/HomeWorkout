@@ -79,6 +79,7 @@ function validBackup(): BackupFile {
           },
           reminders: null,
           excludedExerciseIds: null,
+          restWeekdays: null,
           updatedAt: '2026-09-15T08:00:00.000Z',
         },
       ],
@@ -183,6 +184,32 @@ function validBackup(): BackupFile {
           updatedAt: '2026-09-14T17:00:00.000Z',
         },
       ],
+      plan_constraints: [
+        {
+          id: 'p1',
+          kind: 'avoid_muscle',
+          muscles: ['quads'],
+          fromDate: '2026-09-15',
+          untilDate: '2026-09-16',
+          reason: 'doms',
+          source: 'user',
+          note: null,
+          createdAt: '2026-09-15T08:00:00.000Z',
+          revokedAt: null,
+        },
+      ],
+    },
+  };
+}
+
+/** What an older file lifts to: no rest days in the pattern and no requests. */
+function withoutPlanning(doc: BackupFile): BackupFile {
+  return {
+    ...doc,
+    tables: {
+      ...doc.tables,
+      user_profile: doc.tables.user_profile.map((r) => ({ ...r, restWeekdays: null })),
+      plan_constraints: [],
     },
   };
 }
@@ -254,7 +281,7 @@ describe('parseBackup', () => {
   });
 
   it('lifts a version 1 file: no exclusions, no plans, no blocks', () => {
-    const v2 = validBackup();
+    const v2 = withoutPlanning(validBackup());
     const v1 = {
       ...v2,
       schemaVersion: 1,
@@ -272,13 +299,32 @@ describe('parseBackup', () => {
   });
 
   it('lifts a version 2 file: every set two-sided', () => {
-    const v3 = validBackup();
+    const v4 = withoutPlanning(validBackup());
     const v2 = {
-      ...v3,
+      ...v4,
       schemaVersion: 2,
-      tables: { ...v3.tables, set_logs: v3.tables.set_logs.map(({ side: _, ...row }) => row) },
+      tables: {
+        ...v4.tables,
+        user_profile: v4.tables.user_profile.map(({ restWeekdays: _, ...row }) => row),
+        set_logs: v4.tables.set_logs.map(({ side: _, ...row }) => row),
+        plan_constraints: undefined,
+      },
     };
-    expect(parseBackup(JSON.stringify(v2))).toEqual({ ok: true, data: v3 });
+    expect(parseBackup(JSON.stringify(v2))).toEqual({ ok: true, data: v4 });
+  });
+
+  it('lifts a version 3 file: training every day, no requests', () => {
+    const v4 = withoutPlanning(validBackup());
+    const v3 = {
+      ...v4,
+      schemaVersion: 3,
+      tables: {
+        ...v4.tables,
+        user_profile: v4.tables.user_profile.map(({ restWeekdays: _, ...row }) => row),
+        plan_constraints: undefined,
+      },
+    };
+    expect(parseBackup(JSON.stringify(v3))).toEqual({ ok: true, data: v4 });
   });
 
   it('lifts a version 1 file even without the tables it extends', () => {

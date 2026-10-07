@@ -37,6 +37,7 @@ export default function SettingsScreen() {
   const [knee, setKnee] = useState<KneeProfile | null>(null);
   const [reminders, setReminders] = useState<ReminderSettings | null>(null);
   const [excluded, setExcluded] = useState<string[]>([]);
+  const [restWeekdays, setRestWeekdays] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export default function SettingsScreen() {
           formatDecimal(profile?.saddleHeightCm),
           profile?.kneeProfile ?? null,
           rem,
+          profile?.restWeekdays ?? [],
         ] as const;
         setHeightCm(form[0]);
         setBirthYear(form[1]);
@@ -62,6 +64,7 @@ export default function SettingsScreen() {
         setSaddleHeightCm(form[4]);
         setKnee(form[5]);
         setReminders(form[6]);
+        setRestWeekdays([...form[7]]);
         setSavedSnapshot(JSON.stringify(form));
         setExcluded(excludedIds);
         setLoaded(true);
@@ -82,6 +85,7 @@ export default function SettingsScreen() {
     saddleHeightCm,
     knee,
     reminders,
+    restWeekdays,
   ]);
   const dirty = loaded && savedSnapshot !== null && snapshot !== savedSnapshot;
   const { allowLeave } = useLeaveGuard(dirty, save);
@@ -118,6 +122,7 @@ export default function SettingsScreen() {
         saddleHeightCm: saddle,
         kneeProfile: knee,
         reminders,
+        restWeekdays: restWeekdays.length > 0 ? restWeekdays : null,
       });
       // The only place that asks the OS for notification permission: the
       // user has just looked at the reminder switches, so the dialog has
@@ -228,6 +233,31 @@ export default function SettingsScreen() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardTitle>{pl.settings.trainingDays.title}</CardTitle>
+        <CardContent className="gap-3">
+          <View className="flex-row flex-wrap gap-2">
+            {pl.settings.trainingDays.weekdays.map((label, day) => (
+              <Chip
+                key={label}
+                label={label}
+                selected={!restWeekdays.includes(day)}
+                onPress={() =>
+                  setRestWeekdays((prev) =>
+                    prev.includes(day)
+                      ? prev.filter((d) => d !== day)
+                      : [...prev, day].sort((a, b) => a - b),
+                  )
+                }
+              />
+            ))}
+          </View>
+          <Text variant="muted" className="text-sm leading-5">
+            {pl.settings.trainingDays.hint}
+          </Text>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardTitle>{pl.settings.excludedSection}</CardTitle>

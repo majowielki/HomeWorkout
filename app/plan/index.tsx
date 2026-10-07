@@ -1,8 +1,10 @@
 import { Stack } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
+import { RefreshCw } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { TRAINING_CONFIG } from '@/domain/config/training';
 import { planTitle, prescriptionText } from '@/features/plan/format';
@@ -10,6 +12,7 @@ import { SLOT_BY_ID } from '@/features/plan/slots';
 import { usePlanToday } from '@/features/plan/usePlanToday';
 import { VolumeMeter } from '@/features/plan/VolumeMeter';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
+import { addDays } from '@/domain/time/trainingDate';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 
@@ -41,11 +44,31 @@ export default function PlanScreen() {
   }
 
   // Once today is done, "why" is about tomorrow's plan; today's block events are old news.
-  const tomorrow = state.done ? state.tomorrow : null;
-  const plan = tomorrow ?? state.plan;
-  const events = tomorrow ? [] : state.events;
+  const upcoming = state.week.find((d) => d.date > state.asOf && d.forecast)?.forecast ?? null;
+  const plan = state.done ? (state.tomorrow ?? upcoming) : (state.plan ?? upcoming);
+  const isToday = plan?.date === state.asOf;
+  if (!plan) {
+    return (
+      <ScrollView
+        className="flex-1 bg-background"
+        contentContainerClassName="gap-4 px-5 pb-12 pt-4"
+      >
+        <Stack.Screen options={{ title: pl.plan.screenTitle }} />
+        <Card className="gap-2">
+          <CardTitle>{state.done ? pl.plan.done.eyebrow : pl.plan.restDay.title}</CardTitle>
+          <Text variant="muted">{state.done ? pl.plan.noneAhead : pl.plan.restDay.body}</Text>
+        </Card>
+        <RecalculateButton today={today} />
+      </ScrollView>
+    );
+  }
+  const events = isToday ? state.events : [];
   const { volume } = state;
-  const screenTitle = tomorrow ? pl.plan.tomorrowScreenTitle : pl.plan.screenTitle;
+  const screenTitle = isToday
+    ? pl.plan.screenTitle
+    : plan.date === addDays(state.asOf, 1)
+      ? pl.plan.tomorrowScreenTitle
+      : pl.plan.nextScreenTitle;
   const nameOf = (id: string | null) => (id ? (exerciseMap[id]?.name ?? id) : '—');
   const dayLines = [
     ...events.map((e) => pl.plan.blockEvent[e]),
@@ -137,6 +160,32 @@ export default function PlanScreen() {
         </Text>
         <VolumeMeter volume={volume} />
       </Card>
+      <RecalculateButton today={today} />
     </ScrollView>
+  );
+}
+
+/**
+ * "Przelicz tydzień": the week planned again from scratch, with a loader —
+ * then the banner on "Dziś" says what changed.
+ */
+function RecalculateButton({ today }: { today: ReturnType<typeof usePlanToday> }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <View className="mt-2 gap-2">
+      <Button
+        variant="outline"
+        label={busy ? pl.plan.recalculating : pl.plan.recalculate}
+        icon={busy ? <ActivityIndicator /> : <RefreshCw size={16} className="text-foreground" />}
+        disabled={busy}
+        onPress={() => {
+          setBusy(true);
+          void today.recalculate().finally(() => setBusy(false));
+        }}
+      />
+      <Text variant="muted" className="text-center text-xs">
+        {pl.plan.recalculateHint}
+      </Text>
+    </View>
   );
 }

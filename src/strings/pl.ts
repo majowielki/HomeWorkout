@@ -13,6 +13,7 @@ import type {
   ValidationCode,
 } from '@/domain/plan/reasons';
 import type { SlotRegion } from '@/domain/plan/types';
+import type { SyncTrigger } from '@/domain/plan/weekSync';
 import type { LoadEstimate } from '@/domain/progression/calibration';
 import type { Unit } from '@/domain/progression/history';
 import type {
@@ -232,6 +233,33 @@ export const pl = {
     eyebrow: (date: string) => `Plan na dziś · ${date}`,
     tomorrowEyebrow: (date: string) => `Plan na jutro · ${date}`,
     tomorrowScreenTitle: 'Plan na jutro',
+    nextScreenTitle: 'Następny trening',
+    noneAhead:
+      'Dziś zrobione, a w najbliższych dniach nie ma treningu — sprawdź dni treningowe w Ustawieniach.',
+    restDay: {
+      eyebrow: 'Dzień wolny',
+      title: 'Dziś odpoczywasz',
+      body: 'Ten dzień jest wolny — z Twojego tygodnia albo na Twoją prośbę. Rower i dziennik jak zwykle.',
+      next: (date: string) => `Następny trening · ${date}`,
+    },
+    recalculate: 'Przelicz tydzień',
+    recalculating: 'Liczę tydzień…',
+    recalculateHint:
+      'Silnik ułoży cały tydzień od nowa z tego, co już zapisane. Zwykle robi to sam, gdy coś się zmieni.',
+    banner: {
+      title: 'Plan tygodnia się zmienił',
+      trigger: {
+        horizon: 'Doszedł nowy dzień.',
+        missed_day: 'Pominięta sesja — reszta tygodnia ułożona od nowa.',
+        unsafe: 'Część dni przestała pasować do tego, co zrobione i zgłoszone.',
+        manual: 'Tydzień przeliczony na Twoją prośbę.',
+        constraint: 'Plan uwzględnia Twoją prośbę.',
+        coach: 'Plan uwzględnia propozycję trenera.',
+      } satisfies Record<SyncTrigger, string>,
+      change: (date: string, before: string, after: string) => `${date}: ${before} → ${after}`,
+      rest: 'wolne',
+      close: 'Zamknij',
+    },
     done: {
       eyebrow: 'Dziś zrobione',
       title: 'Czas na regenerację',
@@ -427,6 +455,11 @@ export const pl = {
     stressHigh: '5 = ciężko',
   },
   settings: {
+    trainingDays: {
+      title: 'Dni treningowe',
+      weekdays: ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'],
+      hint: 'Zaznaczone dni silnik planuje z treningiem, pozostałe są wolne. Przy mniejszej liczbie dni sesje są trochę dłuższe (do 30 min), żeby tygodniowa praca została podobna.',
+    },
     title: 'Ustawienia',
     profileSection: 'Profil',
     heightCm: 'Wzrost (cm)',

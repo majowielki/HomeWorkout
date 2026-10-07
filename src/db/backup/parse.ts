@@ -56,6 +56,20 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
+  // v4: the weekly pattern of rest days and the requests to the planner.
+  // The planned week itself is derived and planned again after a restore.
+  3: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 4,
+      tables: {
+        ...doc.tables,
+        user_profile: (doc.tables.user_profile ?? []).map((r) => ({ ...r, restWeekdays: null })),
+        plan_constraints: [],
+      },
+    };
+  },
 };
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {

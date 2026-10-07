@@ -22,7 +22,7 @@ export const toolEnvironment: ExecuteEnvironment = {
     if (row?.plan) return { plan: row.plan, source: 'session', slotNames: SLOT_NAMES };
     if (daysAgo !== 0) return null;
     const today = await computeToday({ persist: false });
-    return { plan: today.plan, source: 'today', slotNames: SLOT_NAMES };
+    return today.plan ? { plan: today.plan, source: 'today', slotNames: SLOT_NAMES } : null;
   },
   report: (tool, error) => console.warn(`chat tool ${tool} failed`, error),
 };
