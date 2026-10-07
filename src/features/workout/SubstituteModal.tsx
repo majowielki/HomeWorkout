@@ -110,7 +110,7 @@ export function SubstituteModal({
               }}
             />
           ) : (
-            <ScrollView contentContainerClassName="pb-2">
+            <ScrollView className="shrink" contentContainerClassName="pb-2">
               <Text variant="heading" className="mb-1">
                 {t.substituteTitle}
               </Text>
@@ -207,7 +207,7 @@ function Preview({
 }) {
   const t = pl.workout.session;
   return (
-    <ScrollView contentContainerClassName="gap-4 pb-2">
+    <ScrollView className="shrink" contentContainerClassName="gap-4 pb-2">
       <Pressable onPress={onBack} hitSlop={8} className="self-start py-1">
         <Text className="font-display-semibold text-highlight">{t.substituteBack}</Text>
       </Pressable>
