@@ -533,6 +533,7 @@ raport mówi „neutralne", więc to kwestia strojenia, nie bezpieczeństwa.
 | E2 | silnik tygodnia: `selectDay` / `buildDay` / `checkSelection`, `planWeek`, prośby (`constraints.ts`), SPEC §11 |
 | E3 | zapis tygodnia: tabele `planned_days`, `plan_generations`, `plan_constraints`, `user_profile.rest_weekdays` (migracja 0006, backup v4); `weekSync` (pominięty dzień → przeliczenie, niebezpieczny dzień → zmiana tylko jego, horyzont 7 dni); „Dziś” czyta zapisany plan; baner „Plan tygodnia się zmienił”; dzień wolny; „Przelicz tydzień” na ekranie „Dlaczego taki plan?”; dni treningowe w Ustawieniach |
 | E4 | Kalendarz zamiast Treningu: siatka 7 × 6, strzałki i przesuwanie miesięcy, horyzont 7 dni, ikony sesji/jazd/planu, pominięcie i deload; arkusz dnia z historią, dziennikiem, prognozą i wyjaśnieniem konkretnej daty; wyjątek „Dzień wolny / Jednak trenuję”; start/wznowienie, FBW A/B i szybki wpis roweru przeniesione do arkusza dziś. Trasa `/(tabs)/workout` zachowana. |
+| E5 | „Zgłoś zakwasy / ból” z kalendarza: wybór objawów, partii i przegląd prośby; lekkie zakwasy → dziennik bez nowej blokady, silne → ograniczenie domyślnie 2 dni, ból mięśnia → 3 pytania i domyślnie 3 dni; objawy alarmowe i ból stawu → konsultacja bez zmiany planu; aktywne zgłoszenia z odwołaniem i przeliczeniem; daty włącznie, od 1 do 3 dni. |
 
 **Weryfikacja E4 (2026-10-07):** `npm run verify` — 1813 testów, 89 zestawów, wymagane pokrycie domeny
 i AI 100%. Build `release` x86_64 na Pixel_API36 z nawigacją trzyprzyciskową: sprawdzone siatka,
@@ -545,14 +546,33 @@ callbacków z `.run()` / `.all()` / `.get()`. Test integracyjny na prawdziwym SQ
 w połowie operacji i potwierdza rollback; błąd importu nie usuwa dotychczasowych danych. To nie
 wymaga migracji ani zmiany formatu backupu.
 
+**Weryfikacja E5 (2026-10-07):** `npm run verify` — 1862 testy, 94 zestawy, wymagane pokrycie domeny
+i AI 100%. Emulator Pixel_API36, `release` x86_64, nawigacja trzyprzyciskowa, jasny i ciemny motyw:
+silne zakwasy → przegląd 2 dni → zapis → odwołanie; ból mięśnia → 3 odpowiedzi → przegląd 3 dni
+→ zapis → odwołanie; lekkie zakwasy → wpis „barki · lekko” w dzienniku, bez ograniczenia;
+czerwone flagi → komunikat bez przycisku zastosowania; ból kolana → Ustawienia → powrót;
+powrót do kalendarza i baner zmian. Przy symulowanym 8.10 o 00:30 zgłoszenie i link do dziennika
+nadal wskazują 7.10 (granica dnia treningowego); zegar emulatora został przywrócony.
+
+**Doprecyzowania E5:** pełne pominięcie mięśni dotyczy każdego zgłoszenia bólu mięśnia, także przy
+odpowiedziach przypominających DOMS — formularz nie wyklucza urazu. Daty ograniczenia to ustawienia
+planera, nie czas leczenia. Replan po błędzie można ponowić bez ponownego zapisu zgłoszenia.
+Odwołanie nie kasuje porannego DOMS ≥ 4; ekran wyjaśnia to i odsyła do właściwej daty dziennika.
+Zmiana dotyczy planu siłowego; komunikat nie zezwala na bolesny rower ani rozgrzewkę.
+
+Komunikaty konsultacyjne sprawdzone z [NHS — sprains and strains](https://www.nhs.uk/conditions/sprains-and-strains/).
+Lista objawów alarmowych uwzględnia też bardzo silny lub szybko narastający ból.
+Opis początku i lokalizacji objawów porównany z [konsensusem monachijskim](https://pmc.ncbi.nlm.nih.gov/articles/PMC3607100/)
+(DOI 10.1136/bjsports-2012-091448, opinia ekspertów); trzy pytania nie są zwalidowanym testem diagnostycznym.
+
 **Dalej (kolejność bez zmian):**
 
-1. **E5 — Zgłoś zakwasy / ból**: formularz wg dodatku D (nasilenie, 3 pytania o naciągnięcie, czerwone flagi → fizjoterapeuta), `addConstraint` (`avoid_muscle`, doms 2 dni / pain 3 dni), lista aktywnych z odwołaniem (`revokeConstraints`). Link na górze kalendarza dodać wraz z działającym formularzem.
-2. **E6 — Dodatkowy trening**: `extraSessionOptions` (sloty, które dziś jeszcze mogą wejść) + wybór → `selectDay` z ograniczeniem do wybranych slotów → `buildDay`; FBW A/B znika z UI.
-3. **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach, prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą „Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
+1. **E6 — Dodatkowy trening**: `extraSessionOptions` (sloty, które dziś jeszcze mogą wejść) + wybór → `selectDay` z ograniczeniem do wybranych slotów → `buildDay`; FBW A/B znika z UI.
+2. **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach, prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą „Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
 
 **Uwagi na następną sesję:** emulator ma testowe dane (czwartek odznaczony w dniach treningowych,
-sesje testowe 7.10, testowy rower 20 min 7.10 i wyjątek „trenuję” 9.10 po sprawdzeniu przełączania).
+sesje testowe 7.10, testowy rower 20 min 7.10 i wyjątek „trenuję” 9.10 po sprawdzeniu przełączania;
+lekkie zakwasy barków w dzienniku 7.10; testowe zgłoszenia silnych zakwasów i bólu zostały odwołane).
 Na telefon nic jeszcze nie poszło — przed instalacją: eksport backupu, nowe APK (migracje 0005
 i 0006 wykonają się same).
 

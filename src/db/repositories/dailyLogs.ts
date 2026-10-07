@@ -35,3 +35,21 @@ export async function upsertDailyLog(date: string, input: DailyLogInput): Promis
     .values({ date, ...values })
     .onConflictDoUpdate({ target: dailyLogs.date, set: values });
 }
+
+/** Records mild DOMS without overwriting the rest of the diary or other muscles. */
+export async function recordMildSoreness(
+  date: string,
+  muscles: readonly MuscleGroup[],
+  now = new Date(),
+): Promise<void> {
+  db.transaction((tx) => {
+    const row = tx.select().from(dailyLogs).where(eq(dailyLogs.date, date)).get();
+    const soreness = { ...row?.soreness };
+    for (const muscle of muscles) soreness[muscle] = 2;
+    const values = { soreness, updatedAt: now.toISOString() };
+    tx.insert(dailyLogs)
+      .values({ date, ...values })
+      .onConflictDoUpdate({ target: dailyLogs.date, set: values })
+      .run();
+  });
+}

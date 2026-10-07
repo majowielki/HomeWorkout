@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 
@@ -11,6 +11,8 @@ import { Text } from '@/components/ui/text';
 import { getDailyLog, upsertDailyLog } from '@/db/repositories/dailyLogs';
 import { toIsoDate } from '@/domain/time/trainingDate';
 import type { MuscleGroup } from '@/domain/types';
+import { dailyLogDate } from '@/features/body/dailyDate';
+import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 
 const SCALE = [1, 2, 3, 4, 5] as const;
@@ -40,6 +42,7 @@ const SORENESS_CYCLE = [0, 2, 4] as const;
 
 export default function DailyLogScreen() {
   const router = useRouter();
+  const { date: requestedDate } = useLocalSearchParams<{ date?: string }>();
   const [loaded, setLoaded] = useState(false);
   const [today, setToday] = useState('');
   const [sleep, setSleep] = useState<number | null>(null);
@@ -52,7 +55,7 @@ export default function DailyLogScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      const date = toIsoDate(new Date());
+      const date = dailyLogDate(requestedDate, toIsoDate(new Date()));
       getDailyLog(date).then((row) => {
         if (cancelled) return;
         setToday(date);
@@ -66,7 +69,7 @@ export default function DailyLogScreen() {
       return () => {
         cancelled = true;
       };
-    }, []),
+    }, [requestedDate]),
   );
 
   function cycleSoreness(muscle: MuscleGroup) {
@@ -113,6 +116,7 @@ export default function DailyLogScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Stack.Screen options={{ title: pl.daily.title }} />
+      <Text variant="muted">{formatDate(today, 'long')}</Text>
 
       <Card>
         <CardContent className="items-center">

@@ -1,9 +1,9 @@
-import { useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { RefreshCw } from '@/components/ui/icons';
+import { Bandage, RefreshCw } from '@/components/ui/icons';
 import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import { getCalendarRange, type CalendarData } from '@/db/repositories/calendar';
@@ -98,6 +98,15 @@ export function CalendarScreen() {
     <View className="flex-1 bg-background">
       <ScrollView contentContainerClassName="gap-4 px-5 pb-12">
         <PageHeader title={pl.calendar.title} subtitle={pl.calendar.subtitle} />
+        <Link href="/plan/report" asChild>
+          <Button
+            label={pl.soreness.entry}
+            variant="secondary"
+            disabled={busy}
+            icon={<Bandage size={18} className="text-foreground" />}
+            onPress={close}
+          />
+        </Link>
         <Button
           label={busy ? pl.plan.recalculating : pl.plan.recalculate}
           variant="outline"
