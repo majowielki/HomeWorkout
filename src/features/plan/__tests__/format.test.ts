@@ -44,6 +44,15 @@ describe('loadText', () => {
 });
 
 describe('prescriptionText', () => {
+  it('describes mini-band resistance without using the long-band load ladder', () => {
+    const text = prescriptionText({
+      ...planned,
+      exerciseId: 'mini-band-overhead-raise',
+      load: { kind: 'bodyweight' },
+    });
+    expect(text).toContain('mini band — stały lekki opór');
+    expect(text).not.toContain('masa ciała');
+  });
   it('reads sets, target with range, load and RIR', () => {
     expect(prescriptionText(planned)).toBe('2 serie · 10 powt. (zakres 10–20) · 2 × 6 kg · RIR 4');
   });

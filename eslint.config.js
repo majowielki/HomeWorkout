@@ -12,6 +12,8 @@ module.exports = defineConfig([
       'android/**',
       'ios/**',
       'dist/**',
+      // Local licensed media and preserved source scripts are not app code.
+      'assets/ymove-trial/**',
       'src/db/migrations/**',
       // A separate package with its own runtime (workerd) and toolchain.
       'worker/**',

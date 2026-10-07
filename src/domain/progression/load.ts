@@ -6,7 +6,9 @@ export type LoadKind = PlannedLoad['kind'];
  * What an exercise is loaded with. Mirrors the set logger: a band exercise
  * logs a band and a position, anything with a dumbbell logs kilograms (the
  * lightest rung is 2 kg — "dumbbell or bodyweight" exercises are logged
- * with the dumbbell), the rest is bodyweight.
+ * with the dumbbell), the rest is bodyweight. Mini-band mobility drills use
+ * a fixed light resistance and progress by reps/time; they never use the
+ * calibrated load ladder of the user's long bands.
  */
 export function loadKindOf(exercise: Pick<Exercise, 'equipment'>): LoadKind {
   if (exercise.equipment.includes('band')) return 'band';

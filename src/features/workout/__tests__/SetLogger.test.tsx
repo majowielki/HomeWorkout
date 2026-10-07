@@ -80,6 +80,34 @@ describe('SetLogger', () => {
     mockedLastSet.mockReset();
   });
 
+  it('logs mini-band mobility without long-band colours, anchors or kilograms', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    await render(
+      <SetLogger
+        exercise={exercise({
+          id: 'mini-band-overhead-raise',
+          equipment: ['mini-band'],
+          dumbbellMode: undefined,
+          movementPattern: 'Mobility',
+          loadsKnee: false,
+        })}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    expect(await screen.findByText(/Mini band: używaj tego samego lekkiego oporu/)).toBeTruthy();
+    expect(screen.queryByText('żółta')).toBeNull();
+    expect(screen.queryByText('P1')).toBeNull();
+    expect(screen.queryByText('2 kg')).toBeNull();
+    await fireEvent.press(screen.getByText('Zapisz serię'));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ reps: 10, weightKg: null, bandId: null, anchorPosition: null }),
+    );
+  });
+
   it('falls back to the block targets and the lightest rung on a first-ever set', async () => {
     mockedLastSet.mockResolvedValue(null);
     const onSave = jest.fn();

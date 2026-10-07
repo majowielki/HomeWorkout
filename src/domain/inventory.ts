@@ -44,6 +44,7 @@ export const DUMBBELLS: DumbbellInventory = {
 export const AVAILABLE_EQUIPMENT: readonly Equipment[] = [
   'dumbbell',
   'band',
+  'mini-band',
   'mat',
   'bike',
   'bodyweight',
