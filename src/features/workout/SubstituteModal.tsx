@@ -81,7 +81,15 @@ export function SubstituteModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={close}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      // Draw under the system bars so the sheet pads itself by the inset, like every screen.
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={close}
+    >
       <Pressable className="flex-1 bg-black/40" onPress={close}>
         <Pressable
           className="mt-auto rounded-t-[32px] bg-background px-5 pt-3"
