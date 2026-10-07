@@ -10,7 +10,13 @@ import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
 import type { PlannedExercise } from '@/domain/plan/types';
-import type { AnchorPosition, BandCalibrationMap, Exercise, TemplateBlock } from '@/domain/types';
+import type {
+  AnchorPosition,
+  BandCalibrationMap,
+  Exercise,
+  Side,
+  TemplateBlock,
+} from '@/domain/types';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
 import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
@@ -50,6 +56,13 @@ type Props = {
   planned?: PlannedExercise;
   setNumber: number;
   totalSets: number;
+  /** Which set of the block this is; defaults to `setNumber`. */
+  round?: number;
+  /** The side of a one-sided set; null or absent for two-sided work. */
+  side?: Side | null;
+  /** The step's position among its block's steps and their count — the segments under the clip. */
+  stepOfBlock?: number;
+  stepsInBlock?: number;
   onSave: (data: SavedSetData) => void;
   saving?: boolean;
   calibrations?: BandCalibrationMap;
@@ -129,6 +142,10 @@ function SetLoggerFields({
   block,
   setNumber,
   totalSets,
+  round = setNumber,
+  side = null,
+  stepOfBlock = setNumber - 1,
+  stepsInBlock = totalSets,
   prefill,
   onSave,
   saving,
@@ -160,8 +177,15 @@ function SetLoggerFields({
   const heading = (
     <View className="flex-1 gap-1">
       <Text variant="eyebrow" className="text-highlight">
-        {block.label} · {pl.workout.session.setOf(setNumber, totalSets)}
+        {block.label} · {pl.workout.session.setOf(round, totalSets)}
       </Text>
+      {side ? (
+        <View className="self-start rounded-full bg-foreground px-3 py-1">
+          <Text className="font-display-semibold text-sm uppercase tracking-wider text-background">
+            {pl.workout.session.side[side]}
+          </Text>
+        </View>
+      ) : null}
       <Text variant="title" className="leading-8">
         {exercise.name}
       </Text>
@@ -188,13 +212,16 @@ function SetLoggerFields({
 
   const progress = (
     <View className="flex-row gap-2">
-      <SetProgress current={setNumber - 1} total={totalSets} />
+      <SetProgress current={stepOfBlock} total={stepsInBlock} />
     </View>
   );
 
   // Notes and controls, the same in both orientations.
   const notes = (
     <>
+      {exercise.sides === 'alternating' ? (
+        <Text className="text-sm leading-5">{pl.workout.session.alternatingSides}</Text>
+      ) : null}
       {supersetWith ? (
         <View className="rounded-2xl border border-border p-4">
           <Text className="text-sm leading-5">{pl.workout.session.supersetWith(supersetWith)}</Text>

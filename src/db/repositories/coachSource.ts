@@ -83,6 +83,7 @@ export async function loadCoachSource(
       dumbbellMode: set.dumbbellMode,
       bandId: set.bandId,
       anchorPosition: set.anchorPosition,
+      side: set.side,
       loggedAt: set.loggedAt,
     })),
     weights,

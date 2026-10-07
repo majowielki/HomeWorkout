@@ -54,6 +54,11 @@ export type DumbbellMode = 'paired' | 'single';
  */
 export type BandSuitability = 'excellent' | 'ok' | 'poor';
 
+export type ExerciseSides = 'perSet' | 'alternating';
+
+/** The side a one-sided set was done on. */
+export type Side = 'left' | 'right';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -87,6 +92,16 @@ export interface Exercise {
   cues: string[];
   /** Mandatory for loadsKnee exercises; validated in scripts/validate-data.ts. */
   kneeCue?: string;
+  /**
+   * One-sided work: 'perSet' — a set is one side, the next set the other
+   * (side plank); 'alternating' — sides alternate inside every set (bird
+   * dog). Absent for two-sided work.
+   */
+  sides?: ExerciseSides;
+  /** Our own Polish steps; they win over the media provider's text where that is wrong. */
+  steps?: string[];
+  /** The provider's clip shows another exercise or variant: the app shows the photo instead. */
+  hideClip?: boolean;
 
   archived?: boolean;
 }

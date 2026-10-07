@@ -69,6 +69,16 @@ export const exerciseSchema = z
     media: z.string().nullable(),
     cues: z.array(z.string()).min(1),
     kneeCue: z.string().optional(),
+    /**
+     * One-sided work: 'perSet' — a set is one side, the next set the other
+     * (side plank); 'alternating' — sides alternate rep by rep inside every
+     * set (bird dog). Absent for two-sided work.
+     */
+    sides: z.enum(['perSet', 'alternating']).optional(),
+    /** Our own Polish steps; they win over the media provider's text where that is wrong. */
+    steps: z.array(z.string().min(1)).min(1).optional(),
+    /** The provider's clip shows another exercise or variant: the app shows the photo instead. */
+    hideClip: z.boolean().optional(),
 
     archived: z.boolean().optional(),
   })

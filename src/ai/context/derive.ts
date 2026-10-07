@@ -25,7 +25,7 @@ export function volumeWeek(
     const date = dateOfWorkout.get(s.workoutId);
     return s.isWarmup || date === undefined
       ? []
-      : [{ exerciseId: s.exerciseId, date, isWarmup: false, rir: s.rir }];
+      : [{ exerciseId: s.exerciseId, date, isWarmup: false, rir: s.rir, side: s.side ?? null }];
   });
   const volumeExercises = Object.fromEntries(
     source.exercises.map((e) => [

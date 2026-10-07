@@ -1,3 +1,5 @@
+import catalogue from '@data/exercises.json';
+
 import type { YmoveEntry } from './ymove-media.types';
 
 export type { YmoveDifficulty, YmoveEntry, YmoveInfo } from './ymove-media.types';
@@ -24,4 +26,18 @@ function load(): Record<string, YmoveEntry> {
   }
 }
 
-export const ymoveMedia: Record<string, YmoveEntry> = load();
+/**
+ * Clips that show another exercise or variant than ours (the description
+ * audit, Documents/PLAN-TYGODNIA-I-POPRAWKI.md appendix B) are left out:
+ * a wrong clip misleads more than a still photo.
+ */
+function withoutHidden(media: Record<string, YmoveEntry>): Record<string, YmoveEntry> {
+  const hidden = new Set(
+    (catalogue as { exercises: { id: string; hideClip?: boolean }[] }).exercises
+      .filter((e) => e.hideClip)
+      .map((e) => e.id),
+  );
+  return Object.fromEntries(Object.entries(media).filter(([id]) => !hidden.has(id)));
+}
+
+export const ymoveMedia: Record<string, YmoveEntry> = withoutHidden(load());

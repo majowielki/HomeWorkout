@@ -348,6 +348,7 @@ export function directVolume(
         date: s.date,
         isWarmup: set.isWarmup,
         rir: set.rir,
+        side: set.side ?? null,
       })),
     ),
     catalog,
@@ -386,7 +387,8 @@ export function lastTrained(
 /**
  * Compounds first, lower body paired with upper body as supersets (A1/A2),
  * then accessories and core in pairs, then the light fill and the
- * mobility as one circuit each. The
+ * mobility as one circuit each. No exercise is left in a group of its
+ * own (Documents/PLAN-TYGODNIA-I-POPRAWKI.md, Q-5). The
  * labels drive the existing session runner, which interleaves a group's
  * sets.
  */
@@ -424,9 +426,43 @@ function orderAndLabel(
   if (light.length > 0) groups.push([...light]);
   if (mobility.length > 0) groups.push([...mobility]);
 
-  return groups.flatMap((group, g) =>
+  return withoutLoners(groups).flatMap((group, g) =>
     group.map((p, i) => toPlanned(p, `${String.fromCharCode(65 + g)}${i + 1}`)),
   );
+}
+
+/**
+ * A lone exercise would run its sets back to back with nothing in between
+ * (Documents/PLAN-TYGODNIA-I-POPRAWKI.md, Q-5). Neighbouring loners pair
+ * up; an odd one out joins the group before it — or, first in line, the
+ * one after it. Only a session of one exercise keeps it alone.
+ */
+function withoutLoners(groups: readonly Picked[][]): Picked[][] {
+  const out: Picked[][] = [];
+  let loner: Picked | null = null;
+  for (const group of groups) {
+    if (group.length === 1) {
+      if (loner) {
+        out.push([loner, group[0]!]);
+        loner = null;
+      } else {
+        loner = group[0]!;
+      }
+      continue;
+    }
+    const next = [...group];
+    if (loner) {
+      if (out.length > 0) out[out.length - 1]!.push(loner);
+      else next.unshift(loner);
+      loner = null;
+    }
+    out.push(next);
+  }
+  if (loner) {
+    if (out.length > 0) out[out.length - 1]!.push(loner);
+    else out.push([loner]);
+  }
+  return out;
 }
 
 function toPlanned(p: Picked, label: string): PlannedExercise {

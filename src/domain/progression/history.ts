@@ -1,4 +1,4 @@
-import type { PlannedLoad } from '../types';
+import type { PlannedLoad, Side } from '../types';
 import type { LoadLadder } from './ladder';
 
 /** One logged set as the engine reads history. */
@@ -9,6 +9,8 @@ export interface HistorySet {
   timeSec: number | null;
   rir: number | null;
   load: PlannedLoad;
+  /** One side of a one-sided exercise (`sides: 'perSet'`); absent or null for two-sided work. */
+  side?: Side | null;
 }
 
 /** One completed session: its training date and every set in the order performed. */

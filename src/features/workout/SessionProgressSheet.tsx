@@ -85,7 +85,8 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
                 {done ? <Check size={14} className="text-primary-foreground" /> : null}
               </View>
               <Text className={cn('flex-1', done && 'text-muted-foreground line-through')}>
-                {step.block.label} · {exercise?.name ?? step.block.exerciseId} · #{step.setNumber}
+                {step.block.label} · {exercise?.name ?? step.block.exerciseId} · #{step.round}
+                {step.side ? ` · ${pl.workout.session.side[step.side]}` : ''}
               </Text>
             </Pressable>
           );

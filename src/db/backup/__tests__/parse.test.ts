@@ -143,6 +143,7 @@ function validBackup(): BackupFile {
           bandId: null,
           anchorPosition: null,
           estimatedLoadKg: null,
+          side: null,
           loggedAt: '2026-09-14T17:05:00.000Z',
         },
       ],
@@ -268,6 +269,16 @@ describe('parseBackup', () => {
       ok: true,
       data: { ...v2, tables: { ...v2.tables, training_blocks: [] } },
     });
+  });
+
+  it('lifts a version 2 file: every set two-sided', () => {
+    const v3 = validBackup();
+    const v2 = {
+      ...v3,
+      schemaVersion: 2,
+      tables: { ...v3.tables, set_logs: v3.tables.set_logs.map(({ side: _, ...row }) => row) },
+    };
+    expect(parseBackup(JSON.stringify(v2))).toEqual({ ok: true, data: v3 });
   });
 
   it('lifts a version 1 file even without the tables it extends', () => {

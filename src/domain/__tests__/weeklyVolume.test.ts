@@ -44,6 +44,16 @@ describe('weeklyVolume', () => {
     expect(out.biceps).toBe(0.5);
   });
 
+  it('counts a set on one side as half: left and right together are one set', () => {
+    const out = weeklyVolume(
+      [set({ exerciseId: 'row', side: 'left' }), set({ exerciseId: 'row', side: 'right' })],
+      exercises,
+      END,
+    );
+    expect(out.back).toBe(1);
+    expect(out.biceps).toBe(0.5);
+  });
+
   it('covers 7 days ending on the end date, inclusive', () => {
     const sets = [
       set({ date: '2026-10-01' }), // 6 days back: in

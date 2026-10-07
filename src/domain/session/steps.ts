@@ -1,4 +1,4 @@
-import type { TemplateBlock } from '../types';
+import type { Side, TemplateBlock } from '../types';
 
 /**
  * One unit of work in an active session: "do set N of this block".
@@ -7,14 +7,34 @@ import type { TemplateBlock } from '../types';
  * both belong to group 'A') are interleaved set-by-set rather than run
  * back to back, matching how a superset is actually performed: A1 set 1,
  * A2 set 1, A1 set 2, A2 set 2, ... See Documents/IMPLEMENTACJA.md §2.3.
+ *
+ * An exercise done one side per set (`sides: 'perSet'`) has two steps per
+ * set, one per side. Its `setNumber` counts the steps (1-2 are set 1, left
+ * and right), so every step keeps its own log; `round` is the set.
  */
 export interface SessionStep {
   block: TemplateBlock;
   blockIndex: number;
+  /** The step's number within its block, as stored in set_logs.set_index. */
   setNumber: number;
+  /** Which set of the block this is, 1..block.sets — "seria 2 / 3". */
+  round: number;
+  /** The side of a one-sided set; null for two-sided work. */
+  side: Side | null;
+  /** This step's position among its block's steps (0-based), and how many there are. */
+  stepOfBlock: number;
+  stepsInBlock: number;
   isLastSetOfBlock: boolean;
   /** The next step after this one, if any — drives the "up next" preview. */
-  next: { block: TemplateBlock; setNumber: number } | null;
+  next: { block: TemplateBlock; setNumber: number; side: Side | null } | null;
+}
+
+export interface StepOptions {
+  /**
+   * The order of the two sides for a block whose exercise is done one side
+   * per set, or null when it is two-sided. Absent: everything two-sided.
+   */
+  sidesOf?: (block: TemplateBlock, blockIndex: number) => readonly [Side, Side] | null;
 }
 
 /** 'A' for 'A1' and 'A2': blocks with the same key are one superset. */
@@ -44,8 +64,12 @@ export function isGroupComplete(
     .every((s) => loggedPairs.has(stepKey(s.blockIndex, s.setNumber)));
 }
 
-export function buildSessionSteps(blocks: readonly TemplateBlock[]): SessionStep[] {
+export function buildSessionSteps(
+  blocks: readonly TemplateBlock[],
+  options: StepOptions = {},
+): SessionStep[] {
   type Indexed = { block: TemplateBlock; blockIndex: number };
+  type Raw = Indexed & { setNumber: number; round: number; side: Side | null };
   const groups = new Map<string, Indexed[]>();
 
   blocks.forEach((block, blockIndex) => {
@@ -55,29 +79,67 @@ export function buildSessionSteps(blocks: readonly TemplateBlock[]): SessionStep
     groups.set(key, list);
   });
 
-  const raw: { block: TemplateBlock; blockIndex: number; setNumber: number }[] = [];
-
+  const raw: Raw[] = [];
   for (const members of groups.values()) {
     const maxSets = Math.max(...members.map((m) => m.block.sets));
-    for (let setNumber = 1; setNumber <= maxSets; setNumber += 1) {
+    for (let round = 1; round <= maxSets; round += 1) {
       for (const member of members) {
-        if (setNumber <= member.block.sets) {
-          raw.push({ block: member.block, blockIndex: member.blockIndex, setNumber });
+        if (round > member.block.sets) continue;
+        const sides = options.sidesOf?.(member.block, member.blockIndex) ?? null;
+        if (sides === null) {
+          raw.push({ ...member, setNumber: round, round, side: null });
+        } else {
+          sides.forEach((side, i) =>
+            raw.push({ ...member, setNumber: (round - 1) * 2 + i + 1, round, side }),
+          );
         }
       }
     }
   }
 
-  return raw.map((step, i) => {
-    const nextRaw = raw[i + 1];
+  const ordered = spread(raw);
+  const count = new Map<number, number>();
+  for (const step of ordered) count.set(step.blockIndex, (count.get(step.blockIndex) ?? 0) + 1);
+  const seen = new Map<number, number>();
+
+  return ordered.map((step, i) => {
+    const nextRaw = ordered[i + 1];
+    const stepOfBlock = seen.get(step.blockIndex) ?? 0;
+    seen.set(step.blockIndex, stepOfBlock + 1);
+    const stepsInBlock = count.get(step.blockIndex)!;
     return {
       block: step.block,
       blockIndex: step.blockIndex,
       setNumber: step.setNumber,
-      isLastSetOfBlock: step.setNumber === step.block.sets,
-      next: nextRaw ? { block: nextRaw.block, setNumber: nextRaw.setNumber } : null,
+      round: step.round,
+      side: step.side,
+      stepOfBlock,
+      stepsInBlock,
+      isLastSetOfBlock: stepOfBlock === stepsInBlock - 1,
+      next: nextRaw
+        ? { block: nextRaw.block, setNumber: nextRaw.setNumber, side: nextRaw.side }
+        : null,
     };
   });
+}
+
+/**
+ * The same exercise twice in a row gives its muscles no rest — it happens
+ * at the tail of a superset whose members have different set counts, in a
+ * lone exercise, and between the two sides of a one-sided set. Whenever
+ * the next step would repeat the exercise just done, the first step of any
+ * other exercise further down moves up in between. Each exercise keeps the
+ * order of its own sets; when nothing else is left, the repeat stays.
+ */
+function spread<T extends { blockIndex: number }>(steps: readonly T[]): T[] {
+  const rest = [...steps];
+  const out: T[] = [];
+  while (rest.length > 0) {
+    const previous = out[out.length - 1];
+    const other = previous ? rest.findIndex((s) => s.blockIndex !== previous.blockIndex) : 0;
+    out.push(rest.splice(Math.max(0, other), 1)[0]!);
+  }
+  return out;
 }
 
 /**

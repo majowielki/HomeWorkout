@@ -13,6 +13,8 @@ import { PLANNER_CONFIG, TRAINING_CONFIG } from '../config/training';
 import { allowedCandidates, type EligibilityContext, isEligible } from '../plan/eligibility';
 import { FOLLOWS_THE_PLAN, simulate } from '../plan/simulate';
 import type { PlannedExercise } from '../plan/types';
+import { sideOrder } from '../session/sides';
+import { buildSessionSteps } from '../session/steps';
 import { addDays } from '../time/trainingDate';
 import type { Exercise, MuscleGroup } from '../types';
 import { countsAsVolume, maxDirectSets } from '../volume/weekly';
@@ -45,6 +47,21 @@ describe('simulation — 12 weeks of daily training', () => {
       const yesterday = hardMuscles(days[i - 1]!.plan);
       const clash = [...hardMuscles(days[i]!.plan)].filter((m) => yesterday.has(m));
       expect({ date: days[i]!.date, clash }).toEqual({ date: days[i]!.date, clash: [] });
+    }
+  });
+
+  it('never puts two sets of one exercise back to back, one side per set included', () => {
+    for (const day of days) {
+      const steps = buildSessionSteps(day.plan!.exercises, {
+        sidesOf: (b) => sideOrder(catalog[b.exerciseId]!, HARD_ONLY),
+      });
+      // A repeat is fine only when nothing else is left to put in between.
+      const avoidable = steps
+        .map((s, j) => ({ s, j }))
+        .filter(({ s, j }) => j > 0 && s.blockIndex === steps[j - 1]!.blockIndex)
+        .filter(({ s, j }) => steps.slice(j).some((t) => t.blockIndex !== s.blockIndex))
+        .map(({ s }) => s.block.exerciseId);
+      expect({ date: day.date, avoidable }).toEqual({ date: day.date, avoidable: [] });
     }
   });
 

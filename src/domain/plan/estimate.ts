@@ -7,21 +7,25 @@ type Timed = Pick<PlannedExercise, 'sets' | 'unit' | 'target' | 'restSec' | 'war
 /**
  * Rough seconds one planned exercise takes: every set's work plus its rest,
  * a changeover, and the band warm-up. One-legged work is done per side, so
- * its work time doubles. A tuning parameter, not a stopwatch (SPEC §10.4).
+ * its work time doubles; an exercise done one side per set has two sets —
+ * each with its rest — for every planned one. A tuning parameter, not a
+ * stopwatch (SPEC §10.4).
  */
 export function exerciseSeconds(
   planned: Timed,
-  exercise: Pick<Exercise, 'stanceMechanics'>,
+  exercise: Pick<Exercise, 'stanceMechanics' | 'sides'>,
   cfg: PlannerConfig = PLANNER_CONFIG,
 ): number {
   const perSide = planned.unit === 'sec' ? planned.target : planned.target * cfg.secondsPerRep;
+  const perSet = exercise.sides === 'perSet';
   const sides =
-    exercise.stanceMechanics === 'UnilateralSupported' ||
-    exercise.stanceMechanics === 'UnilateralUnsupported'
+    !perSet &&
+    (exercise.stanceMechanics === 'UnilateralSupported' ||
+      exercise.stanceMechanics === 'UnilateralUnsupported')
       ? 2
       : 1;
   return (
-    planned.sets * (perSide * sides + planned.restSec) +
+    planned.sets * (perSet ? 2 : 1) * (perSide * sides + planned.restSec) +
     cfg.exerciseChangeoverSec +
     (planned.warmupSet ? cfg.bandWarmupSec : 0)
   );
@@ -30,7 +34,7 @@ export function exerciseSeconds(
 /** Whole minutes for a list of planned exercises, rounded up; unknown exercises count as two-legged. */
 export function planMinutes(
   planned: readonly (Timed & { exerciseId: string })[],
-  catalog: Readonly<Record<string, Pick<Exercise, 'stanceMechanics'>>>,
+  catalog: Readonly<Record<string, Pick<Exercise, 'stanceMechanics' | 'sides'>>>,
   cfg: PlannerConfig = PLANNER_CONFIG,
 ): number {
   const seconds = planned.reduce(

@@ -44,6 +44,18 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
+  // v3: the side of a one-sided set. Every set before it was two-sided as far as the app knew.
+  2: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 3,
+      tables: {
+        ...doc.tables,
+        set_logs: (doc.tables.set_logs ?? []).map((r) => ({ ...r, side: null })),
+      },
+    };
+  },
 };
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {

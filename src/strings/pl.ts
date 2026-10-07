@@ -21,6 +21,7 @@ import type {
   MovementPattern,
   MuscleGroup,
   Plane,
+  Side,
   Stance,
 } from '@/domain/types';
 
@@ -160,6 +161,9 @@ export const pl = {
       supersetWith: (names: string) =>
         `Superseria z: ${names}. Robisz je na zmianę, po jednej serii, aż skończysz wszystkie.`,
       supersetNext: 'Superseria: teraz drugie ćwiczenie z pary',
+      side: { left: 'lewa strona', right: 'prawa strona' } satisfies Record<Side, string>,
+      otherSideNext: 'Teraz druga strona',
+      alternatingSides: 'Strony na zmianę w każdej serii.',
       groupDone: 'Ćwiczenie zrobione',
       supersetDone: 'Superseria zrobiona',
       nextExercise: 'Następne ćwiczenie',
@@ -516,6 +520,7 @@ export const pl = {
       /** The stored estimate is the top of the calibrated range, never a point value. */
       peakKg: (n: number) => `(do ≈ ${n} kg)`,
       rir: (n: number) => `RIR ${n}`,
+      side: { left: 'lewa', right: 'prawa' } satisfies Record<Side, string>,
     },
   },
   bands: {
