@@ -893,4 +893,34 @@ Start, wznowienie, ręczne szablony i szybki wpis roweru są dostępne w arkuszu
 
 „Dzień wolny / Jednak trenuję” zamienia pojedynczy wyjątek użytkownika atomowo, nie odwołuje prośby
 o pominięcie mięśni i uruchamia przeliczenie od wybranej daty. Ukończony dzień i dzień z sesją
-w trakcie nie udostępniają zmiany. Link do zgłaszania zakwasów zostanie dodany wraz z formularzem E5.
+w trakcie nie udostępniają zmiany. Link do zgłaszania zakwasów otwiera formularz E5.
+
+### 11.7 Zgłoszenie zakwasów i bólu (E5)
+
+`assessReport` jest czystą funkcją, nie diagnozą. Czerwone flagi mają pierwszeństwo przed rodzajem
+zgłoszenia. Ból stawu / kolana i czerwone flagi zwracają ścieżkę konsultacji, nigdy prośbę do
+planera. Brak odpowiedzi o objawach alarmowych nie oznacza ich braku — użytkownik musi odpowiedzieć.
+
+| Zgłoszenie | Zapis i działanie |
+|---|---|
+| lekkie zakwasy (1–3/5) | zapis `2` w `daily_logs.soreness` wybranych partii; reszta dziennika i inne partie pozostają; bez nowego `avoid_muscle` |
+| silne zakwasy (4–5/5) | `avoid_muscle`, powód `doms`, domyślnie dziś i jutro; wykluczenie partii jako głównych |
+| ból mięśnia | trzy odpowiedzi o początku, lokalizacji i reakcji na wcześniejszy ruch; `avoid_muscle`, powód `pain`, domyślnie 3 dni; wykluczenie partii głównych i pomocniczych |
+| objawy alarmowe / ból stawu | komunikat konsultacyjny; brak zapisu i przeliczenia |
+
+Dla bólu mięśnia pełne wykluczenie obowiązuje także, gdy odpowiedzi przypominają zakwasy. Odpowiedź
+„Nie sprawdzałem” jest dozwolona; formularz nie zachęca do wykonania ruchu w celu testowania bólu.
+Ograniczenia planu siłowego nie stanowią zezwolenia na bolesny rower ani rozgrzewkę.
+
+Użytkownik widzi partie, działanie i zakres dat przed „Zastosuj”. Zakres obejmuje oba końce, liczony
+od daty treningowej; można wybrać 1–3 dni. Termin planera nie jest potwierdzeniem wyleczenia.
+Przy zapisie data jest sprawdzana ponownie, żeby zmiana dnia nie przesunęła zgłoszenia bez wiedzy
+użytkownika. Link do dziennika przekazuje tę samą datę, także po północy przed granicą dnia.
+
+Odwołanie oznacza `revokedAt` i przeliczenie. Nie kasuje innych zgłoszeń ani wpisu DOMS w dzienniku:
+jeśli w dzienniku nadal jest ≥ 4, reguła `DOMS_HIGH` pozostaje. Silne zgłoszenie nie wpisuje dodatkowo
+DOMS 4 do dziennika, więc samo nie tworzy drugiej blokady, której odwołanie nie zdejmie.
+
+Zapis i przeliczenie mają osobne wyniki: awaria przeliczenia pozostawia zgłoszenie i informację
+o potrzebie ponowienia planu; ponowienie nie wymaga tworzenia kolejnego zgłoszenia. Backup v4
+już obejmuje dziennik i ograniczenia, więc E5 nie wymaga migracji ani nowego formatu eksportu.

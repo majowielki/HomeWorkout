@@ -69,6 +69,113 @@ export const pl = {
     diary: 'Dziennik dnia',
     details: 'Dlaczego taki plan?',
   },
+  soreness: {
+    entry: 'Zgłoś zakwasy / ból',
+    title: 'Zakwasy / ból',
+    intro: 'Zgłoszenie pomoże dostosować plan. Formularz nie rozpoznaje urazu.',
+    kindTitle: 'Co czujesz?',
+    kind: {
+      mild_doms: 'Lekkie zakwasy · 1–3/5',
+      strong_doms: 'Silne zakwasy · 4–5/5',
+      muscle_pain: 'Ból mięśnia',
+      joint_pain: 'Ból stawu / kolana',
+    },
+    redTitle: 'Czy występuje któryś z tych objawów?',
+    redList: [
+      'Bardzo silny lub szybko narastający ból',
+      'Wyraźny obrzęk lub krwiak',
+      'Wyczuwalne wgłębienie w mięśniu',
+      'Ból utrudniający chód lub obciążenie nogi',
+      'Kolano „ucieka” lub traci stabilność',
+    ],
+    redNone: 'Żaden z tych objawów',
+    redSome: 'Tak, co najmniej jeden',
+    redHeading: 'Przerwij trening i skonsultuj objawy',
+    redBody:
+      'Skontaktuj się z lekarzem lub fizjoterapeutą. Jeśli nie możesz obciążyć nogi lub ból albo obrzęk są duże lub narastają, potrzebna jest pilna konsultacja lekarska. Ten formularz nie zapisze zmiany planu dla takiego zgłoszenia.',
+    jointHeading: 'Ból stawu wymaga osobnej oceny',
+    jointBody:
+      'Przerwij ćwiczenie, które wywołuje ból, i skonsultuj kolano lub inny staw z fizjoterapeutą lub lekarzem. Formularz nie dobiera treningu na uraz stawu.',
+    settings: 'Ustawienia kolana',
+    settingsHint:
+      'Tryb konserwatywny kolana możesz ustawić w Ustawieniach. Nie zastępuje on konsultacji.',
+    musclesTitle: 'Które partie dotyczą zgłoszenia?',
+    next: 'Dalej',
+    previous: 'Wstecz',
+    painTitle: 'Trzy pytania o ból mięśnia',
+    painHint:
+      'Opisz to, co już zauważyłeś. Nie wykonuj ćwiczenia ani rozgrzewki, żeby sprawdzać ból.',
+    questions: {
+      onset: 'Kiedy ból się zaczął?',
+      location: 'Gdzie go czujesz?',
+      movement: 'Jak reagował na wcześniejszy lekki ruch?',
+    },
+    answers: {
+      onset: {
+        during: 'Nagle podczas ćwiczenia',
+        delayed: 'Narastał po treningu',
+        unknown: 'Nie wiem',
+      },
+      location: {
+        focal: 'W jednym, wyraźnym punkcie',
+        diffuse: 'W większej części mięśnia',
+        unknown: 'Trudno określić',
+      },
+      movement: {
+        worse: 'Nasilał się',
+        same: 'Bez zmiany',
+        better: 'Łagodniał',
+        not_tried: 'Nie sprawdzałem',
+      },
+    },
+    review: 'Co zmieni się w planie?',
+    duration: 'Na ile dni, licząc od dziś?',
+    days: (n: number) => (n === 1 ? '1 dzień' : `${n} dni`),
+    range: (from: string, until: string) => `Od ${from} do ${until} włącznie.`,
+    mildEffect:
+      'Zapiszemy lekkie zakwasy w dzienniku (2/5), bez nowego wyłączenia partii. Wcześniejsze ograniczenia pozostają, dopóki ich nie odwołasz.',
+    domsEffect:
+      'Wybrane partie nie wystąpią jako główne w ćwiczeniach. Mogą nadal pracować pomocniczo.',
+    painEffect:
+      'Wybrane partie pominiemy w ćwiczeniach planu siłowego — jako główne i pomocnicze. Nie wykonuj ruchu, który wywołuje ból, także na rowerze lub w rozgrzewce.',
+    strainHint:
+      'Ten opis może wskazywać na uraz mięśnia. Formularz nie potwierdza diagnozy; nie ćwicz przez ból i skonsultuj utrzymujące się objawy.',
+    painUncertain:
+      'Odpowiedzi nie wykluczają urazu. Dla bólu mięśnia pozostaje pełne wyłączenie wybranych partii.',
+    expiryHint:
+      'To termin ograniczenia planu, nie potwierdzenie wyleczenia. Jeśli ból pozostaje, nie wracaj do ćwiczenia tylko dlatego, że termin upłynął.',
+    save: 'Zastosuj i przelicz plan',
+    saveMild: 'Zapisz lekkie zakwasy',
+    saving: 'Zapisuję i przeliczam…',
+    required: {
+      kind: 'Wybierz rodzaj zgłoszenia.',
+      redFlags: 'Odpowiedz na pytanie o objawy alarmowe.',
+      muscles: 'Wybierz przynajmniej jedną partię.',
+      pain: 'Odpowiedz na wszystkie trzy pytania.',
+      days: 'Wybierz od 1 do 3 dni.',
+    },
+    saved: 'Zgłoszenie zapisane, plan przeliczony.',
+    mildSaved: 'Lekkie zakwasy zapisane w dzienniku. To zgłoszenie nie wyłącza partii.',
+    withdrawn: 'Zgłoszenie odwołane, plan przeliczony.',
+    updateFailed:
+      'Zgłoszenie zapisane, ale nie udało się przeliczyć planu. Wróć do kalendarza i spróbuj ponownie — nie musisz zapisywać zgłoszenia drugi raz.',
+    withdrawalUpdateFailed:
+      'Zgłoszenie odwołane, ale nie udało się przeliczyć planu. Wróć do kalendarza i spróbuj ponownie.',
+    saveFailed: 'Nie udało się zapisać zmiany. Spróbuj ponownie.',
+    dateChanged: 'Zmienił się dzień treningowy. Sprawdź nowe daty i zastosuj zgłoszenie ponownie.',
+    activeTitle: 'Zgłoszenia uwzględniane w planie',
+    none: 'Brak aktywnych zgłoszeń zakwasów lub bólu mięśni.',
+    reason: { doms: 'Silne zakwasy', pain: 'Ból mięśnia' },
+    coach: 'Propozycja trenera, zaakceptowana przez Ciebie',
+    revoke: 'Odwołaj zgłoszenie',
+    revokeLabel: (muscles: string) => `Odwołaj zgłoszenie: ${muscles}`,
+    diaryHint:
+      'Odwołanie nie usuwa wpisu w dzienniku. Jeśli nadal masz tam zakwasy 4–5/5, te partie mogą pozostać wyłączone na dziś.',
+    diary: 'Sprawdź dziennik dnia',
+    newReport: 'Nowe zgłoszenie',
+    calendar: 'Wróć do kalendarza',
+    loadFailed: 'Nie udało się odczytać zgłoszeń.',
+  },
   today: {
     title: 'Dziś',
     weightCard: 'Waga',

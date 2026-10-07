@@ -55,6 +55,7 @@ const week = require('../repositories/weekPlan.ts');
 const backup = require('../repositories/backup.ts');
 const calendar = require('../repositories/calendar.ts');
 const blocks = require('../repositories/trainingBlocks.ts');
+const diary = require('../repositories/dailyLogs.ts');
 const all = (sql) => native.prepare(sql).all();
 
 async function main() {
@@ -224,6 +225,47 @@ async function main() {
   assert.equal(range.diary[0].energy, 4);
   assert.equal(range.days[0].date, '2026-10-08');
   assert.equal((await calendar.getCalendarRange('2020-01-01', '2020-01-31')).sessions.length, 0);
+
+  db.insert(schema.dailyLogs)
+    .values({
+      date: '2026-10-07',
+      energy: 3,
+      stress: 2,
+      sleepHours: 7,
+      steps: 2000,
+      note: 'unchanged diary',
+      soreness: { quads: 4, back: 4 },
+      updatedAt: 'before',
+    })
+    .run();
+  await diary.recordMildSoreness('2026-10-07', ['quads']);
+  const mild = await diary.getDailyLog('2026-10-07');
+  assert.deepEqual(mild.soreness, { quads: 2, back: 4 });
+  assert.equal(mild.energy, 3);
+  assert.equal(mild.sleepHours, 7);
+  assert.equal(mild.stress, 2);
+  assert.equal(mild.steps, 2000);
+  assert.equal(mild.note, 'unchanged diary');
+  await diary.recordMildSoreness('2026-10-08', ['calves']);
+  assert.deepEqual((await diary.getDailyLog('2026-10-08')).soreness, { calves: 2 });
+  assert.equal((await diary.getDailyLog('2026-10-08')).sleepHours, null);
+  const sorenessId = await week.addConstraint({
+    kind: 'avoid_muscle',
+    muscles: ['back'],
+    from: '2026-10-07',
+    until: '2026-10-08',
+    reason: 'doms',
+    source: 'user',
+    note: null,
+  });
+  assert.ok((await week.getActiveConstraints('2026-10-08')).some((c) => c.id === sorenessId));
+  assert.ok(!(await week.getActiveConstraints('2026-10-09')).some((c) => c.id === sorenessId));
+  await week.revokeConstraints([sorenessId]);
+  assert.ok(!(await week.getActiveConstraints('2026-10-07')).some((c) => c.id === sorenessId));
+  assert.ok(
+    native.prepare('SELECT revoked_at FROM plan_constraints WHERE id = ?').get(sorenessId)
+      .revoked_at,
+  );
 
   const saved = await backup.dumpAll();
   const corrupted = structuredClone(saved);
