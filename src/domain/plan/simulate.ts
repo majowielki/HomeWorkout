@@ -120,7 +120,6 @@ function perform(plan: SessionPlan, athlete: Athlete): HistorySet[] {
       p.unit === 'sec'
         ? { reps: null, timeSec: athlete.amount(p, n) }
         : { reps: athlete.amount(p, n), timeSec: null };
-    if (p.warmupSet) sets.push({ ...base, ...amount(1), isWarmup: true, rir: 5 });
     for (let n = 1; n <= p.sets; n += 1) {
       sets.push({ ...base, ...amount(n), isWarmup: false, rir: athlete.rir(p) });
     }
