@@ -57,7 +57,7 @@ describe('RestTimer', () => {
     await render(<RestTimer nextLabel={null} onDone={onDone} />);
     await act(() => jest.advanceTimersByTime(300));
 
-    await fireEvent.press(screen.getByText('Pomiń'));
+    await fireEvent.press(screen.getByText('Pomiń przerwę'));
 
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(useRestTimerStore.getState().restEndsAt).toBeNull();

@@ -126,10 +126,10 @@ export const pl = {
       anchorPosition: 'Pozycja',
       reps: 'Powtórzenia',
       time: 'Czas',
-      saveSet: 'Zapisz serię',
+      saveSet: 'Seria zrobiona',
       restLabel: 'Przerwa',
       restExtend: '+30 s',
-      restSkip: 'Pomiń',
+      restSkip: 'Pomiń przerwę',
       restNotificationBody: 'Wracaj do treningu — czas na kolejną serię.',
       upNext: 'Następne',
       exerciseDetails: 'Opis i mięśnie',
@@ -152,7 +152,24 @@ export const pl = {
       excludedDone:
         'Na liście „nie proponuj”. Od następnego planu silnik je pominie — wybierz zamiennik na dziś.',
       progressTitle: 'Postęp sesji',
-      finishEarly: 'Zakończ',
+      finishEarly: 'Zakończ trening',
+      finishConfirmTitle: 'Zakończyć trening?',
+      finishConfirmBody: (left: number) =>
+        `Do zrobienia zostało: ${left} ${left === 1 ? 'seria' : left % 10 >= 2 && left % 10 <= 4 && (left % 100 < 10 || left % 100 >= 20) ? 'serie' : 'serii'}. To, co już zapisane, zostaje w historii.`,
+      finishConfirm: 'Zakończ',
+      supersetWith: (names: string) =>
+        `Superseria z: ${names}. Robisz je na zmianę, po jednej serii, aż skończysz wszystkie.`,
+      supersetNext: 'Superseria: teraz drugie ćwiczenie z pary',
+      groupDone: 'Ćwiczenie zrobione',
+      supersetDone: 'Superseria zrobiona',
+      nextExercise: 'Następne ćwiczenie',
+      stopwatch: {
+        start: 'Start',
+        stop: 'Stop',
+        again: 'Od nowa',
+        hint: 'Start, gdy zaczynasz. Stop wpisze czas poniżej.',
+        targetReached: 'Cel osiągnięty — trzymaj albo Stop',
+      },
       notFound: 'Nie znaleziono treningu.',
     },
     summary: {

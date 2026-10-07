@@ -102,7 +102,7 @@ describe('SetLogger', () => {
     expect(screen.queryByText('żółta')).toBeNull();
     expect(screen.queryByText('P1')).toBeNull();
     expect(screen.queryByText('2 kg')).toBeNull();
-    await fireEvent.press(screen.getByText('Zapisz serię'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ reps: 10, weightKg: null, bandId: null, anchorPosition: null }),
     );
@@ -125,7 +125,7 @@ describe('SetLogger', () => {
     expect(await screen.findByText('2 kg')).toBeTruthy(); // LADDER_SINGLE[0]
     expect(screen.getByText('10')).toBeTruthy(); // block.repMin
 
-    await fireEvent.press(screen.getByText('Zapisz serię'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
 
     expect(onSave).toHaveBeenCalledWith({
       reps: 10,
@@ -193,7 +193,7 @@ describe('SetLogger', () => {
     expect(await screen.findByText('12 kg')).toBeTruthy();
     expect(screen.getByText('14')).toBeTruthy();
 
-    await fireEvent.press(screen.getByText('Zapisz serię'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ reps: 14, rir: 3, weightKg: 12, dumbbellMode: 'single' }),
@@ -240,7 +240,7 @@ describe('SetLogger', () => {
     expect(screen.queryByText(/kg$/)).toBeNull();
 
     await fireEvent.press(screen.getByText('P3'));
-    await fireEvent.press(screen.getByText('Zapisz serię'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -288,7 +288,7 @@ describe('SetLogger', () => {
     await fireEvent.press(screen.getByText('P0'));
     expect(screen.getByText('≈ 0–10 kg')).toBeTruthy();
 
-    await fireEvent.press(screen.getByText('Zapisz serię'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ bandId: 'black', anchorPosition: 0, estimatedLoadKg: 10 }),
     );
@@ -317,11 +317,73 @@ describe('SetLogger', () => {
 
     expect(await screen.findByText('45 s')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Zwiększ: Czas'));
-    await fireEvent.press(screen.getByText('Zapisz serię'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ reps: null, timeSec: 50, weightKg: null, bandId: null }),
     );
+  });
+
+  it('times a hold with the stopwatch and logs what was held', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    await render(
+      <SetLogger
+        exercise={exercise({
+          id: 'plank',
+          forceProfile: 'Isometric',
+          equipment: ['mat', 'bodyweight'],
+          dumbbellMode: undefined,
+          loadsKnee: false,
+          kneeCue: undefined,
+        })}
+        block={{ ...block, exerciseId: 'plank', repMin: undefined, repMax: undefined, timeSec: 45 }}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+
+    await fireEvent.press(await screen.findByText('Start'));
+    now.mockReturnValue(1_000_000 + 38_400);
+    await fireEvent.press(screen.getByText('Stop'));
+    expect(screen.getByText('38 s')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: null, timeSec: 38 }));
+    now.mockRestore();
+  });
+
+  it('has no stopwatch for a rep-based exercise', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={jest.fn()}
+      />,
+    );
+    expect(await screen.findByText('Seria zrobiona')).toBeTruthy();
+    expect(screen.queryByText('Start')).toBeNull();
+  });
+
+  it('names the other half of a superset', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={jest.fn()}
+        supersetWith="Wiosłowanie gumą"
+      />,
+    );
+    expect(await screen.findByText(/Superseria z: Wiosłowanie gumą/)).toBeTruthy();
   });
 
   it('shows the knee cue for knee-loading exercises', async () => {
@@ -366,7 +428,7 @@ describe('SetLogger', () => {
       expect(screen.getByText('13')).toBeTruthy();
       expect(mockedLastSet).not.toHaveBeenCalled();
 
-      await fireEvent.press(screen.getByText('Zapisz serię'));
+      await fireEvent.press(screen.getByText('Seria zrobiona'));
       expect(onSave).toHaveBeenCalledWith(
         expect.objectContaining({ reps: 13, weightKg: 8, rir: 2, isWarmup: false }),
       );
