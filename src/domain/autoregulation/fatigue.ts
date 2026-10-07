@@ -1,5 +1,5 @@
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
-import { AUTOREGULATION_CONFIG } from '../config/training';
+import { AUTOREGULATION_CONFIG, PROGRESSION_CONFIG } from '../config/training';
 import type { FatigueSignal } from '../plan/reasons';
 import type { DailyReadiness, Slot } from '../plan/types';
 import { amountOf, exposuresOf, type HistorySession } from '../progression/history';
@@ -61,9 +61,13 @@ function performanceDrop(sessions: readonly HistorySession[], input: FatigueInpu
     if (!exercise || !slot) continue;
     const ladder = ladderFor(exercise, slot);
     const unit = unitOf(exercise);
-    const last3 = exposuresOf(id, sessions, ladder, unit, loadKindOf(exercise) === 'band').slice(
-      -3,
-    );
+    const last3 = exposuresOf(
+      id,
+      sessions,
+      ladder,
+      unit,
+      loadKindOf(exercise) === 'band' && PROGRESSION_CONFIG.requireBandWarmup,
+    ).slice(-3);
     if (last3.length < 3) continue;
     const ranks = new Set(last3.map((e) => ladder.rank(e.load)));
     if (ranks.size !== 1) continue;

@@ -23,14 +23,13 @@ import {
 } from '@/domain/session/steps';
 import { warmupMoves } from '@/domain/session/warmup';
 import type { PlannedExercise, SessionPlan } from '@/domain/plan/types';
-import { loadKindOf } from '@/domain/progression/load';
 import type { Exercise, MedicalProfile } from '@/domain/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { describeSet } from '@/features/history/describeSet';
 import { planTitle } from '@/features/plan/format';
 import { type GroupDoneExercise, GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
-import { type LoggedSetData, SetLogger } from '@/features/workout/SetLogger';
+import { type SavedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
@@ -67,9 +66,6 @@ export default function ActiveSessionScreen() {
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [warmupsLogged, setWarmupsLogged] = useState(0);
-  // Blocks that had their warm-up set this session, so the toggle defaults off again.
-  const [warmedBlocks, setWarmedBlocks] = useState<ReadonlySet<number>>(new Set());
   // What the just-finished exercise or superset looked like, for the groupDone card.
   const [groupDone, setGroupDone] = useState<GroupDoneExercise[]>([]);
 
@@ -198,16 +194,14 @@ export default function ActiveSessionScreen() {
     setGroupDone(exercises);
   }
 
-  async function handleSaveSet(data: LoggedSetData) {
+  async function handleSaveSet(data: SavedSetData) {
     if (!loaded || !currentStep || !effectiveExercise || saving) return;
 
     // The progress sheet only allows jumping onto unlogged steps, but this
     // is the last line of defence against a duplicate (blockIndex, setNumber)
     // row — which would corrupt resume and every future progression read.
-    // A warm-up set is not a step: it shares the step's position but never
-    // counts as logging it (getLoggedStepKeys ignores warm-ups).
     const key = stepKey(currentStep.blockIndex, currentStep.setNumber);
-    if (!data.isWarmup && loggedKeys.has(key)) return;
+    if (loggedKeys.has(key)) return;
 
     setSaving(true);
     let freshKeys = loggedKeys;
@@ -217,7 +211,7 @@ export default function ActiveSessionScreen() {
         exerciseId: effectiveExercise.id,
         exerciseOrder: currentStep.blockIndex,
         setIndex: currentStep.setNumber,
-        isWarmup: data.isWarmup,
+        isWarmup: false,
         reps: data.reps,
         timeSec: data.timeSec,
         rir: data.rir,
@@ -227,10 +221,8 @@ export default function ActiveSessionScreen() {
         anchorPosition: data.anchorPosition,
         estimatedLoadKg: data.estimatedLoadKg,
       });
-      if (!data.isWarmup) {
-        freshKeys = await getLoggedStepKeys(loaded.workoutId);
-        setLoggedKeys(freshKeys);
-      }
+      freshKeys = await getLoggedStepKeys(loaded.workoutId);
+      setLoggedKeys(freshKeys);
     } finally {
       setSaving(false);
     }
@@ -242,12 +234,7 @@ export default function ActiveSessionScreen() {
       return;
     }
 
-    // After a warm-up the same step comes back once the rest is over;
-    // the remount key below includes the warm-up count so the toggle resets.
-    if (data.isWarmup) {
-      setWarmupsLogged((n) => n + 1);
-      setWarmedBlocks((prev) => new Set(prev).add(currentStep.blockIndex));
-    } else if (isGroupComplete(steps, freshKeys, currentStep.blockIndex)) {
+    if (isGroupComplete(steps, freshKeys, currentStep.blockIndex)) {
       // The exercise (or the whole superset) is done: show what was done and
       // let the person move on when ready, instead of a rest countdown.
       await loadGroupDone(loaded.workoutId, currentStep.blockIndex);
@@ -264,11 +251,8 @@ export default function ActiveSessionScreen() {
     // Synchronous first so RestTimer unmounts immediately and its own
     // interval stops, before the async store cleanup below resolves.
     setPhase('logging');
-    // Advance to the next step that still needs a log, starting from the
-    // current one: after a working set it is logged and the scan moves on,
-    // after a warm-up it is not and the same step comes back. "index + 1"
-    // would skip that case, and is not safe once the user has jumped around
-    // via the sheet anyway.
+    // Advance to the next step that still needs a log. "index + 1" is not
+    // safe once the user has jumped around via the progress sheet.
     const next =
       nextUnloggedIndex(steps, loggedKeys, currentIndex) ?? nextUnloggedIndex(steps, loggedKeys, 0);
     if (next === null) {
@@ -335,17 +319,10 @@ export default function ActiveSessionScreen() {
 
       {phase === 'logging' && currentStep && effectiveExercise ? (
         <SetLogger
-          key={`${currentIndex}-${effectiveExercise.id}-${warmupsLogged}`}
+          key={`${currentIndex}-${effectiveExercise.id}`}
           exercise={effectiveExercise}
           block={currentStep.block}
           planned={loaded.plan ? (currentStep.block as PlannedExercise) : undefined}
-          defaultWarmup={
-            // The band warm-up of SPEC §5.6 — for the exercise actually done,
-            // which a swap may have turned into a dumbbell one.
-            loaded.plan !== null &&
-            loadKindOf(effectiveExercise) === 'band' &&
-            !warmedBlocks.has(currentStep.blockIndex)
-          }
           setNumber={currentStep.setNumber}
           supersetWith={supersetWith || undefined}
           totalSets={currentStep.block.sets}

@@ -305,15 +305,15 @@ describe('prescribe', () => {
     });
   });
 
-  it('asks for a band warm-up and reports a missed one', () => {
+  it('no longer asks for a band warm-up set or sets the first band set aside (SPEC v1.3)', () => {
     const row = exercise({ id: 'press', equipment: ['band'] });
     const r = band('red', 1);
     const sessions = [
       { date: '2026-10-06', sets: [set({ load: r, reps: 10 }), set({ load: r, reps: 10 })] },
     ];
     expect(prescribe(input({ exercise: row, sessions }))).toMatchObject({
-      warmupSet: true,
-      reasons: ['REP_PROGRESSION', 'INTRO_EXPOSURE', 'WARMUP_MISSING'],
+      warmupSet: false,
+      reasons: ['REP_PROGRESSION', 'INTRO_EXPOSURE'],
     });
   });
 

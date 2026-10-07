@@ -1,4 +1,9 @@
-import { PLANNER_CONFIG, type PlannerConfig, TRAINING_CONFIG } from '../config/training';
+import {
+  PLANNER_CONFIG,
+  type PlannerConfig,
+  PROGRESSION_CONFIG,
+  TRAINING_CONFIG,
+} from '../config/training';
 import { targetMet } from '../progression/doubleProgression';
 import { exposuresOf, type HistorySession } from '../progression/history';
 import { ladderFor, type LoadLadder } from '../progression/ladder';
@@ -197,7 +202,13 @@ export function lastLoadsOf(
     const slot = slotOf.get(id) ?? NO_SLOT;
     const ladder = ladderFor(exercise, slot);
     const unit = unitOf(exercise);
-    const exposures = exposuresOf(id, sessions, ladder, unit, loadKindOf(exercise) === 'band');
+    const exposures = exposuresOf(
+      id,
+      sessions,
+      ladder,
+      unit,
+      loadKindOf(exercise) === 'band' && PROGRESSION_CONFIG.requireBandWarmup,
+    );
     const last = exposures[exposures.length - 1];
     if (!last) continue;
     const range = (unit === 'sec' ? slot.timeRange : slot.repRange) ?? [Infinity, Infinity];

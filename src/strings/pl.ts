@@ -117,10 +117,8 @@ export const pl = {
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
       targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
       targetTime: (sec: number) => `cel: ${sec} s`,
-      /** Toggle on the first set of a block: log this as a warm-up, then do the working set. */
-      warmupSet: 'Seria rozgrzewkowa',
-      warmupSetHint: 'Rozgrzewkowa nie liczy się do objętości; po niej wracasz do tej samej serii.',
-      saveWarmupSet: 'Zapisz rozgrzewkową',
+      bandPrestretch:
+        'Przed pierwszą serią rozciągnij gumę 5–10 razy bez liczenia — pierwsze rozciągnięcia są wyraźnie twardsze.',
       dumbbellSingle: 'Hantel (jeden gryf)',
       dumbbellPaired: 'Hantle (para)',
       band: 'Guma',
