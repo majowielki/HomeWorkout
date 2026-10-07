@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { ymoveMedia } from '@/assets/ymove-media';
@@ -48,6 +48,8 @@ export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) 
   const { restEndsAt, restTotalMs, extend, stop } = useRestTimerStore();
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const colors = useThemeColors();
+  const { width, height } = useWindowDimensions();
+  const wide = width > height;
 
   useEffect(() => {
     // No synchronous setState here on purpose — the render-pure rule flags
@@ -68,12 +70,13 @@ export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) 
   const fraction = restTotalMs ? Math.min(1, Math.max(0, remainingMs / restTotalMs)) : 1;
   const clipExercise =
     nextExercise && ymoveMedia[nextExercise.id] !== undefined ? nextExercise : null;
-  const size = clipExercise ? RING_SIZE_WITH_CLIP : RING_SIZE;
+  const size = clipExercise || wide ? RING_SIZE_WITH_CLIP : RING_SIZE;
   const radius = (size - RING_STROKE) / 2;
   const circumference = 2 * Math.PI * radius;
 
   return (
-    <View className="items-center gap-6">
+    // On its side the ring sits left of the buttons and what comes next.
+    <View className={wide ? 'flex-row items-center gap-8' : 'items-center gap-6'}>
       <View style={{ width: size, height: size }}>
         <Svg width={size} height={size}>
           <Circle
@@ -109,47 +112,49 @@ export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) 
         </View>
       </View>
 
-      <View className="w-full flex-row gap-3">
-        <Button
-          variant="secondary"
-          className="flex-1"
-          label={pl.workout.session.restExtend}
-          onPress={() => void extend(30, pl.workout.session.restNotificationBody)}
-        />
-        <Button
-          variant="inverse"
-          className="flex-1"
-          label={pl.workout.session.restSkip}
-          onPress={() => {
-            void stop();
-            onDone();
-          }}
-        />
-      </View>
-
-      {nextLabel ? (
-        <View className="w-full flex-row items-center gap-4 rounded-3xl bg-secondary p-4">
-          {clipExercise ? (
-            <ExerciseVideo
-              exerciseId={clipExercise.id}
-              mediaKey={clipExercise.media}
-              name={clipExercise.name}
-              className="aspect-[9/16] w-28 bg-card"
-            />
-          ) : null}
-          <View className="flex-1 gap-1">
-            <Text variant="eyebrow">{pl.workout.session.upNext}</Text>
-            <Text className="font-display-semibold text-base text-secondary-foreground">
-              {nextLabel}
-            </Text>
-            {nextNote ? (
-              <Text variant="muted" className="text-xs">
-                {nextNote}
-              </Text>
-            ) : null}
-          </View>
+      <View className={wide ? 'flex-1 gap-4' : 'w-full gap-6'}>
+        <View className="w-full flex-row gap-3">
+          <Button
+            variant="secondary"
+            className="flex-1"
+            label={pl.workout.session.restExtend}
+            onPress={() => void extend(30, pl.workout.session.restNotificationBody)}
+          />
+          <Button
+            variant="inverse"
+            className="flex-1"
+            label={pl.workout.session.restSkip}
+            onPress={() => {
+              void stop();
+              onDone();
+            }}
+          />
         </View>
-      ) : null}
+
+        {nextLabel ? (
+          <View className="w-full flex-row items-center gap-4 rounded-3xl bg-secondary p-4">
+            {clipExercise ? (
+              <ExerciseVideo
+                exerciseId={clipExercise.id}
+                mediaKey={clipExercise.media}
+                name={clipExercise.name}
+                className="aspect-[9/16] w-28 bg-card"
+              />
+            ) : null}
+            <View className="flex-1 gap-1">
+              <Text variant="eyebrow">{pl.workout.session.upNext}</Text>
+              <Text className="font-display-semibold text-base text-secondary-foreground">
+                {nextLabel}
+              </Text>
+              {nextNote ? (
+                <Text variant="muted" className="text-xs">
+                  {nextNote}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }

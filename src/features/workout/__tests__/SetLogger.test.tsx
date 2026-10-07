@@ -495,3 +495,29 @@ describe('SetLogger', () => {
     });
   });
 });
+
+describe('SetLogger on its side', () => {
+  it('keeps every control in the landscape layout', async () => {
+    const dims = jest
+      .spyOn(
+        jest.requireActual<typeof import('react-native')>('react-native'),
+        'useWindowDimensions',
+      )
+      .mockReturnValue({ width: 900, height: 400, scale: 1, fontScale: 1 });
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    expect(await screen.findByText('Przysiad goblet')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    dims.mockRestore();
+  });
+});

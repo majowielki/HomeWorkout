@@ -72,7 +72,10 @@ export default function RootLayout() {
               headerTitleStyle: { fontFamily: fonts.displaySemibold, fontSize: 19 },
               contentStyle: {
                 backgroundColor: colors.background,
+                // In landscape (the workout screen) the buttons move to a side.
                 paddingBottom: route.name === '(tabs)' ? 0 : insets.bottom,
+                paddingLeft: route.name === '(tabs)' ? 0 : insets.left,
+                paddingRight: route.name === '(tabs)' ? 0 : insets.right,
               },
             })}
           >
