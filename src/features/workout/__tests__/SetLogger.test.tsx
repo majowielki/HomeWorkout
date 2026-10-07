@@ -494,6 +494,36 @@ describe('SetLogger', () => {
       );
     });
   });
+
+  it('shows a set taken back with its logged numbers, not the previous log', async () => {
+    mockedLastSet.mockClear();
+    mockedLastSet.mockResolvedValue(lastSet({ reps: 14, rir: 3, weightKg: 12 }));
+    const onSave = jest.fn();
+
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={2}
+        totalSets={2}
+        onSave={onSave}
+        restore={{
+          reps: 9,
+          timeSec: null,
+          rir: 1,
+          weightKg: 10,
+          bandId: null,
+          anchorPosition: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('10 kg')).toBeTruthy();
+    expect(screen.getByText('9')).toBeTruthy();
+    expect(mockedLastSet).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: 9, rir: 1, weightKg: 10 }));
+  });
 });
 
 describe('SetLogger on its side', () => {

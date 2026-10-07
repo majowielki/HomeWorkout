@@ -7,7 +7,12 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-nat
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { getExcludedExerciseIds, getProfile, setExerciseExcluded } from '@/db/repositories/profile';
-import { getLoggedStepKeys, getSetsForWorkout, logSet } from '@/db/repositories/setLogs';
+import {
+  getLoggedStepKeys,
+  getSetsForWorkout,
+  logSet,
+  takeBackLastSet,
+} from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { getCurrentBlock, setBlockSelection } from '@/db/repositories/trainingBlocks';
 import { getWorkout } from '@/db/repositories/workouts';
@@ -33,6 +38,7 @@ import { type SavedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
+import { takeUndone, type UndoneSet, undoneFromRow } from '@/features/workout/undoneSet';
 import { WarmupChecklist } from '@/features/workout/WarmupChecklist';
 import { useLandscapeAllowed } from '@/lib/useLandscapeAllowed';
 import { useRestTimerStore } from '@/stores/restTimerStore';
@@ -73,6 +79,8 @@ export default function ActiveSessionScreen() {
   const [saving, setSaving] = useState(false);
   // What the just-finished exercise or superset looked like, for the groupDone card.
   const [groupDone, setGroupDone] = useState<GroupDoneExercise[]>([]);
+  // A set taken back with "Cofnij serię": its step shows the logged numbers again.
+  const [restored, setRestored] = useState<UndoneSet | null>(null);
 
   // Initial load: workout -> template -> steps -> where to resume.
   useEffect(() => {
@@ -100,9 +108,14 @@ export default function ActiveSessionScreen() {
       if (cancelled) return;
 
       if (resumeIndex >= builtSteps.length) {
-        router.replace({ pathname: '/workout/summary/[id]', params: { id } });
+        router.replace({ pathname: '/workout/summary/[id]', params: { id, back: 'undo' } });
         return;
       }
+      // Back from the summary with the last set taken back: open on that set.
+      const undone = takeUndone(id);
+      const undoneIndex = undone
+        ? builtSteps.findIndex((s) => stepKey(s.blockIndex, s.setNumber) === undone.key)
+        : -1;
 
       setLoaded({
         workoutId: id,
@@ -114,8 +127,14 @@ export default function ActiveSessionScreen() {
       setLoggedKeys(keys);
       setProfile({ knee: profileRow?.kneeProfile ?? null });
       setExcludedIds(new Set(excluded));
-      setCurrentIndex(resumeIndex);
-      setPhase(needsWarmup ? 'warmup' : 'logging');
+      if (undone && undoneIndex >= 0) {
+        setCurrentIndex(undoneIndex);
+        setRestored(undone);
+        setPhase('logging');
+      } else {
+        setCurrentIndex(resumeIndex);
+        setPhase(needsWarmup ? 'warmup' : 'logging');
+      }
     }
 
     void run();
@@ -168,9 +187,17 @@ export default function ActiveSessionScreen() {
         .join(', ')
     : '';
 
-  function goToSummary() {
+  /**
+   * `back` tells the summary what "Wróć do treningu" does there: take the
+   * last set back when everything is logged (the last tap may have been a
+   * mistake), or simply return when the workout was finished early.
+   */
+  function goToSummary(back: 'undo' | 'resume' = 'undo') {
     if (!loaded) return;
-    router.replace({ pathname: '/workout/summary/[id]', params: { id: loaded.workoutId } });
+    router.replace({
+      pathname: '/workout/summary/[id]',
+      params: { id: loaded.workoutId, back },
+    });
   }
 
   function confirmFinish() {
@@ -182,7 +209,7 @@ export default function ActiveSessionScreen() {
     const t = pl.workout.session;
     Alert.alert(t.finishConfirmTitle, t.finishConfirmBody(left), [
       { text: pl.common.cancel, style: 'cancel' },
-      { text: t.finishConfirm, style: 'destructive', onPress: goToSummary },
+      { text: t.finishConfirm, style: 'destructive', onPress: () => goToSummary('resume') },
     ]);
   }
 
@@ -228,6 +255,7 @@ export default function ActiveSessionScreen() {
       });
       freshKeys = await getLoggedStepKeys(loaded.workoutId);
       setLoggedKeys(freshKeys);
+      setRestored(null);
     } finally {
       setSaving(false);
     }
@@ -266,6 +294,29 @@ export default function ActiveSessionScreen() {
       setCurrentIndex(next);
     }
     void useRestTimerStore.getState().stop();
+  }
+
+  /**
+   * "Cofnij serię" on the rest timer or the done card: the set just logged
+   * is deleted and its step opens again with the logged numbers in it.
+   */
+  async function handleUndo() {
+    if (!loaded || saving) return;
+    setSaving(true);
+    try {
+      const row = await takeBackLastSet(loaded.workoutId);
+      void useRestTimerStore.getState().stop();
+      setLoggedKeys(await getLoggedStepKeys(loaded.workoutId));
+      if (row) {
+        const undone = undoneFromRow(row);
+        const index = steps.findIndex((s) => stepKey(s.blockIndex, s.setNumber) === undone.key);
+        if (index >= 0) setCurrentIndex(index);
+        setRestored(undone);
+      }
+      setPhase('logging');
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (phase === 'loading' || (phase !== 'notFound' && !loaded)) {
@@ -312,13 +363,19 @@ export default function ActiveSessionScreen() {
             nextExercise={upcoming?.exercise}
             nextNote={upcoming?.note}
             onDone={handleRestDone}
+            onUndo={() => void handleUndo()}
           />
         </ScrollView>
       ) : null}
 
       {phase === 'groupDone' && upcoming ? (
         <ScrollView contentContainerClassName="flex-grow">
-          <GroupDoneCard exercises={groupDone} nextLabel={upcoming.label} onNext={handleRestDone} />
+          <GroupDoneCard
+            exercises={groupDone}
+            nextLabel={upcoming.label}
+            onNext={handleRestDone}
+            onUndo={() => void handleUndo()}
+          />
         </ScrollView>
       ) : null}
 
@@ -330,6 +387,11 @@ export default function ActiveSessionScreen() {
           planned={loaded.plan ? (currentStep.block as PlannedExercise) : undefined}
           setNumber={currentStep.setNumber}
           supersetWith={supersetWith || undefined}
+          restore={
+            restored?.key === stepKey(currentStep.blockIndex, currentStep.setNumber)
+              ? restored.prefill
+              : undefined
+          }
           totalSets={currentStep.block.sets}
           onSave={handleSaveSet}
           saving={saving}

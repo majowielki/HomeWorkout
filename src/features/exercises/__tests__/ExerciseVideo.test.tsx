@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { useVideoPlayer } from 'expo-video';
 
 import { ExerciseVideo } from '../ExerciseVideo';
@@ -83,5 +83,30 @@ describe('ExerciseVideo', () => {
 
     expect(screen.getByLabelText('Brak zdjęcia')).toBeTruthy();
     expect(mockedPlayer).not.toHaveBeenCalled();
+  });
+
+  it('opens the clip over the whole screen on a tap and pauses the small one', async () => {
+    await render(
+      <ExerciseVideo exerciseId="goblet-squat" mediaKey={null} name="Przysiad goblet" zoomable />,
+    );
+    // The mock hands out a fresh player per render: look at every one of them.
+    const players = () => mockedPlayer.mock.results.map((r) => r.value as FakePlayer);
+    const paused = () => players().filter((p) => p.pause.mock.calls.length > 0).length;
+    expect(paused()).toBe(0);
+
+    await fireEvent.press(screen.getByLabelText('Powiększ film: Przysiad goblet'));
+
+    expect(screen.getAllByLabelText('Film pokazujący: Przysiad goblet')).toHaveLength(2);
+    expect(paused()).toBe(1);
+
+    await fireEvent.press(screen.getByLabelText('Zamknij'));
+    expect(screen.getAllByLabelText('Film pokazujący: Przysiad goblet')).toHaveLength(1);
+  });
+
+  it('is a plain clip unless asked to zoom', async () => {
+    await render(
+      <ExerciseVideo exerciseId="goblet-squat" mediaKey={null} name="Przysiad goblet" />,
+    );
+    expect(screen.queryByLabelText('Powiększ film: Przysiad goblet')).toBeNull();
   });
 });

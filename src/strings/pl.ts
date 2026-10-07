@@ -163,6 +163,7 @@ export const pl = {
       groupDone: 'Ćwiczenie zrobione',
       supersetDone: 'Superseria zrobiona',
       nextExercise: 'Następne ćwiczenie',
+      undoSet: 'Cofnij serię',
       stopwatch: {
         start: 'Start',
         stop: 'Stop',
@@ -177,6 +178,10 @@ export const pl = {
       description: 'Kilka minut we własnym tempie. Odhacz, co zrobione — albo od razu zacznij.',
       done: 'Gotowe, zaczynamy',
       skip: 'Pomiń rozgrzewkę',
+      showCards: 'Pokaż duże karty',
+      showList: 'Pokaż listę',
+      cardCounter: (n: number, total: number) => `${n} z ${total}`,
+      cardDone: 'Zrobione, dalej',
       moves: {
         'arm-circles': { name: 'Krążenia ramion', dose: '10 w przód, 10 w tył' },
         'arm-swings': { name: 'Wymachy rąk', dose: '10 przed sobą, 10 na boki' },
@@ -215,6 +220,8 @@ export const pl = {
       notes: 'Notatka (opcjonalnie)',
       notesPlaceholder: 'Coś ważnego z dzisiejszej sesji…',
       finish: 'Zakończ trening',
+      backToSession: 'Wróć do treningu',
+      backUndoHint: 'Ostatnia seria wróci do poprawki.',
     },
   },
   plan: {
@@ -996,6 +1003,7 @@ export const pl = {
     increment: (label: string) => `Zwiększ: ${label}`,
     noPhoto: 'Brak zdjęcia',
     exerciseVideo: (name: string) => `Film pokazujący: ${name}`,
+    zoomExercise: (name: string) => `Powiększ film: ${name}`,
     bodyMap: (name: string) => `Mięśnie zaangażowane w: ${name}`,
   },
   common: {

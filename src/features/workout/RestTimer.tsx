@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { ymoveMedia } from '@/assets/ymove-media';
 import { Button } from '@/components/ui/button';
+import { Undo2 } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { Exercise } from '@/domain/types';
 import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
@@ -18,6 +19,8 @@ type Props = {
   /** One line under the next exercise, e.g. that it is the other half of a superset. */
   nextNote?: string | null;
   onDone: () => void;
+  /** Takes the set just logged back (a mis-tap on "Seria zrobiona"). */
+  onUndo?: () => void;
 };
 
 /** Shrinks to make room for the clip below it. */
@@ -44,7 +47,7 @@ function formatRemaining(ms: number): string {
  * The ring drains from full to empty over the whole rest, extensions
  * included, so "+30 s" visibly refills it.
  */
-export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) {
+export function RestTimer({ nextLabel, nextExercise, nextNote, onDone, onUndo }: Props) {
   const { restEndsAt, restTotalMs, extend, stop } = useRestTimerStore();
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const colors = useThemeColors();
@@ -139,6 +142,7 @@ export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) 
                 mediaKey={clipExercise.media}
                 name={clipExercise.name}
                 className="aspect-[9/16] w-28 bg-card"
+                zoomable
               />
             ) : null}
             <View className="flex-1 gap-1">
@@ -153,6 +157,16 @@ export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) 
               ) : null}
             </View>
           </View>
+        ) : null}
+
+        {onUndo ? (
+          <Button
+            variant="ghost"
+            label={pl.workout.session.undoSet}
+            icon={<Undo2 size={16} className="text-muted-foreground" />}
+            labelClassName="text-muted-foreground"
+            onPress={onUndo}
+          />
         ) : null}
       </View>
     </View>
