@@ -386,6 +386,7 @@ export const pl = {
     mutedUntil: (date: string) => `Wyciszone do ${date}`,
     unmute: 'Włącz z powrotem',
     save: 'Zapisz ustawienia',
+    saveShort: 'Zapisz',
     saved: 'Zapisano.',
     invalidProfile: 'Sprawdź wartości: wzrost 100–250, rok 1900–2020, godzina 0–23.',
   },
@@ -958,6 +959,13 @@ export const pl = {
     close: 'Zamknij',
     today: 'dziś',
     yesterday: 'wczoraj',
+    unsaved: {
+      title: 'Niezapisane zmiany',
+      body: 'Zapisać je przed wyjściem?',
+      stay: 'Zostań',
+      discard: 'Odrzuć',
+      save: 'Zapisz',
+    },
   },
   glossary: {
     title: 'Słownik pojęć',

@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { isMuted, muteUntilDate, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { KneeProfile } from '@/domain/types';
 import { syncReminders } from '@/lib/reminders';
+import { useLeaveGuard } from '@/lib/useLeaveGuard';
 import { pl } from '@/strings/pl';
 
 export default function SettingsScreen() {
@@ -38,19 +39,30 @@ export default function SettingsScreen() {
   const [excluded, setExcluded] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([getProfile(), getReminderSettings(), getExcludedExerciseIds()]).then(
       ([profile, rem, excludedIds]) => {
         if (cancelled) return;
-        setHeightCm(formatDecimal(profile?.heightCm));
-        setBirthYear(profile?.birthYear ? String(profile.birthYear) : '');
-        setSex(profile?.sex ?? null);
-        setDayBoundaryHour(profile?.dayBoundaryHour ?? 4);
-        setSaddleHeightCm(formatDecimal(profile?.saddleHeightCm));
-        setKnee(profile?.kneeProfile ?? null);
-        setReminders(rem);
+        const form = [
+          formatDecimal(profile?.heightCm),
+          profile?.birthYear ? String(profile.birthYear) : '',
+          profile?.sex ?? null,
+          profile?.dayBoundaryHour ?? 4,
+          formatDecimal(profile?.saddleHeightCm),
+          profile?.kneeProfile ?? null,
+          rem,
+        ] as const;
+        setHeightCm(form[0]);
+        setBirthYear(form[1]);
+        setSex(form[2]);
+        setDayBoundaryHour(form[3]);
+        setSaddleHeightCm(form[4]);
+        setKnee(form[5]);
+        setReminders(form[6]);
+        setSavedSnapshot(JSON.stringify(form));
         setExcluded(excludedIds);
         setLoaded(true);
       },
@@ -60,8 +72,30 @@ export default function SettingsScreen() {
     };
   }, []);
 
+  // What the form holds, to tell an edit from what was loaded. The
+  // "nie proponuj" list saves on its own tap, so it is not part of it.
+  const snapshot = JSON.stringify([
+    heightCm,
+    birthYear,
+    sex,
+    dayBoundaryHour,
+    saddleHeightCm,
+    knee,
+    reminders,
+  ]);
+  const dirty = loaded && savedSnapshot !== null && snapshot !== savedSnapshot;
+  const { allowLeave } = useLeaveGuard(dirty, save);
+
   async function handleSave() {
-    if (saving || !reminders) return;
+    if (await save()) {
+      allowLeave();
+      router.back();
+    }
+  }
+
+  /** Validates and stores the form; true when it was saved. */
+  async function save(): Promise<boolean> {
+    if (saving || !reminders) return false;
     const h = parseDecimal(heightCm);
     const y = parseDecimal(birthYear);
     const saddle = parseDecimal(saddleHeightCm);
@@ -71,7 +105,7 @@ export default function SettingsScreen() {
       (saddle !== null && (saddle < 30 || saddle > 150));
     if (invalid) {
       setError(pl.settings.invalidProfile);
-      return;
+      return false;
     }
     setError(null);
     setSaving(true);
@@ -90,7 +124,8 @@ export default function SettingsScreen() {
       // context. Everywhere else a missing grant is silently tolerated.
       const wantsReminders = reminders.weight.enabled || reminders.workout.enabled;
       await syncReminders({ requestPermission: wantsReminders });
-      router.back();
+      setSavedSnapshot(snapshot);
+      return true;
     } finally {
       setSaving(false);
     }
@@ -112,7 +147,17 @@ export default function SettingsScreen() {
       contentContainerClassName="gap-3 px-5 pb-12 pt-4"
       keyboardShouldPersistTaps="handled"
     >
-      <Stack.Screen options={{ title: pl.settings.title }} />
+      <Stack.Screen
+        options={{
+          title: pl.settings.title,
+          // Reachable while the keyboard covers the button at the bottom.
+          headerRight: () => (
+            <Pressable onPress={handleSave} disabled={saving} hitSlop={8}>
+              <Text className="font-display-semibold text-highlight">{pl.settings.saveShort}</Text>
+            </Pressable>
+          ),
+        }}
+      />
 
       <Card>
         <CardTitle>{pl.settings.profileSection}</CardTitle>
