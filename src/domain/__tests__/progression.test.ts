@@ -1,3 +1,4 @@
+import { PROGRESSION_CONFIG } from '../config/training';
 import { doubleProgression, type DoubleProgressionParams } from '../progression/doubleProgression';
 import { amountOf, type Exposure, exposuresOf, type HistorySet } from '../progression/history';
 import { BODYWEIGHT_LADDER, bandLoadLadder, dumbbellLoadLadder } from '../progression/ladder';
@@ -314,6 +315,19 @@ describe('prescribe', () => {
     expect(prescribe(input({ exercise: row, sessions }))).toMatchObject({
       warmupSet: false,
       reasons: ['REP_PROGRESSION', 'INTRO_EXPOSURE'],
+    });
+  });
+
+  it('with the band warm-up switched back on, asks for one and reports a missed one', () => {
+    const row = exercise({ id: 'press', equipment: ['band'] });
+    const r = band('red', 1);
+    const sessions = [
+      { date: '2026-10-06', sets: [set({ load: r, reps: 10 }), set({ load: r, reps: 10 })] },
+    ];
+    const cfg = { ...PROGRESSION_CONFIG, requireBandWarmup: true };
+    expect(prescribe(input({ exercise: row, sessions }), cfg)).toMatchObject({
+      warmupSet: true,
+      reasons: ['REP_PROGRESSION', 'INTRO_EXPOSURE', 'WARMUP_MISSING'],
     });
   });
 

@@ -135,7 +135,7 @@ export const PROGRESSION_CONFIG = {
    * (2026-10-07): logging warm-up sets felt pointless in use; the Mullins
    * effect is met by a cue to stretch the band a few times first.
    */
-  requireBandWarmup: false,
+  requireBandWarmup: false as boolean,
   /** Above this jump in estimated force, a new band starts at P0, not P1. SPEC §5.4. */
   bandMacroMaxJump: 0.15,
   /** Used only when a slot lacks the range a candidate needs (the data check prevents it). */
