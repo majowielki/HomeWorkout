@@ -391,6 +391,22 @@ describe('getPlanExplanation', () => {
     expect(() => CHAT_TOOLS.getPlanExplanation.output.parse(out)).not.toThrow();
   });
 
+  it('keeps the codes of a request on the phone until the contract knows them (v3)', async () => {
+    const base = plan();
+    const out = await ask(
+      plan({
+        dayReasons: ['DELOAD_WEEK', 'LIGHTER_DAY_REQUESTED'],
+        skipped: [
+          ...base.plan.skipped,
+          { slotId: 'squat', exerciseId: null, reason: 'AVOIDED_BY_REQUEST' },
+        ],
+      }),
+    );
+    expect(out).toMatchObject({ dayReasons: ['DELOAD_WEEK'] });
+    expect((out as { skipped: unknown[] }).skipped).toHaveLength(2);
+    expect(() => CHAT_TOOLS.getPlanExplanation.output.parse(out)).not.toThrow();
+  });
+
   it('caps what it lists at the contract limits', async () => {
     const many = plan();
     const out = (await ask(

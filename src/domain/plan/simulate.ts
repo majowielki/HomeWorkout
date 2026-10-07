@@ -113,7 +113,7 @@ export function simulate(opts: SimulationOptions): SimulatedDay[] {
 }
 
 /** The plan done as written; an exercise done one side per set logs each set twice, left and right. */
-function perform(
+export function perform(
   plan: SessionPlan,
   athlete: Athlete,
   catalog: Readonly<Record<string, Exercise>>,

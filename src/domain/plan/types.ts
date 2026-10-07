@@ -133,3 +133,51 @@ export interface SessionPlan {
   estimatedMinutes: number;
   adjustments: PlanAdjustment[];
 }
+
+/**
+ * One exercise chosen for a day, without its load: what the week plan
+ * stores (SPEC §11). The load and the target come when the day is built
+ * from the logs as they are then.
+ */
+export interface SelectedItem {
+  slotId: string;
+  exerciseId: string;
+  /** Sets per side for an exercise done one side per set. */
+  sets: number;
+  /** Hard work, light practice at RIR 5, or mobility (SPEC §10.4). */
+  role: 'work' | 'light' | 'mobility';
+  /** A one-legged exercise swapped for a two-legged one under overload signals. */
+  swapped?: boolean;
+}
+
+/** What to train on a day, as decided by `selectDay`. */
+export interface DaySelection {
+  date: string;
+  blockIndex: number;
+  phase: 'work' | 'deload';
+  /** Hard work in the order chosen, then the light fill, then mobility. */
+  items: SelectedItem[];
+  skipped: SkippedSlot[];
+  /** Reasons known when choosing: LIGHT_DAY, LIGHTER_DAY_REQUESTED. */
+  dayReasons: DayReason[];
+}
+
+/** Why a stored day no longer holds, SPEC §11. */
+export type ViolationCode =
+  | SkipReason
+  /** The block rotated or entered its deload since the day was chosen. */
+  | 'BLOCK_CHANGED'
+  /** A lighter day was asked for, or taken back. */
+  | 'REQUEST_CHANGED'
+  /** The exercise is no longer allowed (knee filter, "nie proponuj", equipment). */
+  | 'NOT_ALLOWED'
+  /** The slot's exercise for the block changed ("na resztę bloku"). */
+  | 'SELECTION_CHANGED'
+  /** The day became a rest day. */
+  | 'REST_DAY';
+
+export interface SelectionViolation {
+  /** Null when it concerns the whole day. */
+  slotId: string | null;
+  code: ViolationCode;
+}

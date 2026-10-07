@@ -322,6 +322,7 @@ export const pl = {
       ALREADY_TODAY: 'ta partia pracuje już dziś w innym ćwiczeniu',
       FATIGUE_BILATERAL_ONLY: 'przy sygnałach zmęczenia tylko ćwiczenia obunóż',
       NOT_PICKED: 'nie zmieściło się w dzisiejszym czasie',
+      AVOIDED_BY_REQUEST: 'na Twoją prośbę ta partia dziś odpoczywa',
     } satisfies Record<SkipReason, string>,
     day: {
       FIRST_DAY: 'Pierwszy trening — wszystko lekko, z zapasem.',
@@ -332,6 +333,7 @@ export const pl = {
       LAYOFF_RECALIBRATION: 'Druga spokojna sesja po długiej przerwie.',
       LOW_READINESS: 'Sen albo energia słabsze — dziś lżej.',
       LIGHT_DAY: 'Większość partii odpoczywa albo ma już swoje serie — lekki dzień.',
+      LIGHTER_DAY_REQUESTED: 'Na Twoją prośbę lżej: jedna seria każdego ćwiczenia.',
     } satisfies Record<DayReason, string>,
     bike: {
       FIRST_EXPOSURE: 'Pierwsza jazda — opór dobierz tak, żeby dało się rozmawiać.',

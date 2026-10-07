@@ -10,20 +10,35 @@ import {
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
 import { bikePrescription, type Ride } from '../progression/bike';
 import type { HistorySession } from '../progression/history';
-import { layoffState } from '../progression/layoff';
+import { layoffState, type LayoffState } from '../progression/layoff';
 import { ladderFor } from '../progression/ladder';
 import { prescribe, type Prescription, unitOf } from '../progression/prescribe';
 import { daysBetween } from '../time/trainingDate';
 import type { BandCalibrationMap, Exercise, MuscleGroup } from '../types';
 import { countsAsVolume, maxDirectSets, weeklyVolume } from '../volume/weekly';
 import { phaseOf } from './block';
-import { allowedCandidates, type EligibilityContext, slotByExercise } from './eligibility';
+import {
+  type Avoided,
+  avoidedOn,
+  isAvoided,
+  isLighterDay,
+  type PlanConstraint,
+} from './constraints';
+import {
+  allowedCandidates,
+  type EligibilityContext,
+  isEligible,
+  slotByExercise,
+} from './eligibility';
 import { exerciseSeconds, planMinutes } from './estimate';
-import type { DayReason, SkipReason } from './reasons';
+import type { DayReason, FatigueSignal, SkipReason } from './reasons';
 import type {
   BlockState,
   DailyReadiness,
+  DaySelection,
   PlannedExercise,
+  SelectedItem,
+  SelectionViolation,
   SessionPlan,
   SkippedSlot,
   Slot,
@@ -44,6 +59,8 @@ export interface PlannerInput {
   rides: readonly Ride[];
   daily: readonly DailyReadiness[];
   calibrations?: BandCalibrationMap;
+  /** What the person asked for; only the ones covering `asOf` matter. */
+  constraints?: readonly PlanConstraint[];
 }
 
 interface Candidate {
@@ -59,6 +76,86 @@ interface Picked extends Candidate {
 const ONE_LEGGED = new Set(['UnilateralSupported', 'UnilateralUnsupported']);
 
 /**
+ * The state of one day as the planner reads it: layoff, overload signals,
+ * block phase, readiness, the week's volume, when each muscle and slot was
+ * last trained, and what was asked to be left out. Choosing a day, building
+ * it and checking a stored one all read it, so they cannot disagree.
+ */
+interface DayContext {
+  asOf: string;
+  past: readonly HistorySession[];
+  slotOf: ReadonlyMap<string, Slot>;
+  layoff: LayoffState;
+  signals: FatigueSignal[];
+  phase: 'work' | 'deload';
+  lowReadiness: boolean;
+  lighter: boolean;
+  volume: Record<MuscleGroup, number>;
+  lastPrimary: Partial<Record<MuscleGroup, string>>;
+  lastSlot: Record<string, string>;
+  avoided: Avoided;
+  isSore: (e: Exercise) => boolean;
+}
+
+function dayContext(
+  input: PlannerInput,
+  cfg: PlannerConfig,
+  training: typeof TRAINING_CONFIG,
+): DayContext {
+  const { asOf, catalog, slots } = input;
+  const slotOf = slotByExercise(slots);
+  const past = input.sessions.filter((s) => s.date <= asOf);
+  const today = input.daily.find((d) => d.date === asOf);
+  const constraints = input.constraints ?? [];
+  return {
+    asOf,
+    past,
+    slotOf,
+    layoff: layoffState(
+      past.map((s) => s.date),
+      asOf,
+    ),
+    signals: fatigueSignals({ asOf, sessions: past, catalog, slotOf, daily: input.daily }),
+    phase: phaseOf(input.block, asOf),
+    lowReadiness:
+      today !== undefined &&
+      ((today.sleepHours !== null && today.sleepHours < cfg.lowReadiness.sleepHours) ||
+        (today.energy !== null && today.energy <= cfg.lowReadiness.energy)),
+    lighter: isLighterDay(constraints, asOf),
+    volume: directVolume(past, catalog, asOf, training),
+    ...lastTrained(past, catalog, slotOf, training),
+    avoided: avoidedOn(constraints, asOf),
+    isSore: (e) =>
+      e.primaryMuscles.some(
+        (m) => (today?.soreness?.[m] ?? 0) >= AUTOREGULATION_CONFIG.highSorenessLevel,
+      ),
+  };
+}
+
+/**
+ * Why the exercise cannot be trained today regardless of the budget — or
+ * null when it can: strong DOMS, a muscle still recovering, or a muscle
+ * left out on request.
+ */
+function blocked(exercise: Exercise, ctx: DayContext, cfg: PlannerConfig): SkipReason | null {
+  if (isAvoided(exercise, ctx.avoided)) return 'AVOIDED_BY_REQUEST';
+  if (ctx.isSore(exercise)) return 'DOMS_HIGH';
+  const recovering = exercise.primaryMuscles.some((m) => {
+    const last = ctx.lastPrimary[m];
+    return last !== undefined && daysBetween(last, ctx.asOf) <= cfg.recoveryDays;
+  });
+  return recovering ? 'RECOVERING' : null;
+}
+
+/** Sets per exercise today: fewer in a deload week and on a lighter day asked for. */
+function setsFor(ctx: DayContext, cfg: PlannerConfig): number {
+  if (ctx.lighter) return 1;
+  return ctx.phase === 'deload'
+    ? Math.max(1, Math.round(cfg.setsPerExercise * BLOCK_CONFIG.deloadSetFactor))
+    : cfg.setsPerExercise;
+}
+
+/**
  * The plan for one day, SPEC §10.4. Deterministic: the same logs give the
  * same plan, which is what makes it testable and explainable.
  *
@@ -67,37 +164,31 @@ const ONE_LEGGED = new Set(['UnilateralSupported', 'UnilateralUnsupported']);
  * …). The rest compete on how far their muscles are below target and how
  * long the slot has waited, and fill the time budget. A short day is
  * topped up with mobility. The result passes validatePlan like any plan.
+ *
+ * It is two steps, which the week planner also uses apart: `selectDay`
+ * decides what to train, `buildDay` how much, from the logs as they are
+ * on the day (SPEC §11).
  */
 export function planDay(
   input: PlannerInput,
   cfg: PlannerConfig = PLANNER_CONFIG,
   training = TRAINING_CONFIG,
 ): SessionPlan {
-  const { asOf, catalog, slots, block } = input;
-  const slotOf = slotByExercise(slots);
-  const past = input.sessions.filter((s) => s.date <= asOf);
-  const layoff = layoffState(
-    past.map((s) => s.date),
-    asOf,
-  );
-  const signals = fatigueSignals({ asOf, sessions: past, catalog, slotOf, daily: input.daily });
-  const phase = phaseOf(block, asOf);
-  const deload = phase === 'deload';
-  const today = input.daily.find((d) => d.date === asOf);
-  const isSore = (e: Exercise) =>
-    e.primaryMuscles.some(
-      (m) => (today?.soreness?.[m] ?? 0) >= AUTOREGULATION_CONFIG.highSorenessLevel,
-    );
-  const lowReadiness =
-    today !== undefined &&
-    ((today.sleepHours !== null && today.sleepHours < cfg.lowReadiness.sleepHours) ||
-      (today.energy !== null && today.energy <= cfg.lowReadiness.energy));
+  return buildDay(selectDay(input, cfg, training), input, cfg, training);
+}
 
-  const volume = directVolume(past, catalog, asOf, training);
-  const { lastPrimary, lastSlot } = lastTrained(past, catalog, slotOf, training);
+/** What to train on `input.asOf`: slots, exercises and sets, and the slots left out with why. */
+export function selectDay(
+  input: PlannerInput,
+  cfg: PlannerConfig = PLANNER_CONFIG,
+  training = TRAINING_CONFIG,
+): DaySelection {
+  const { asOf, catalog, slots, block } = input;
+  const ctx = dayContext(input, cfg, training);
+  const { volume, lastSlot } = ctx;
 
   const skipped: SkippedSlot[] = [];
-  const candidates: Candidate[] = [];
+  const candidates: (Candidate & { swapped: boolean })[] = [];
   for (const slot of slots) {
     if (slot.kind === 'filler') continue;
     const selected = block.selections[slot.id];
@@ -109,7 +200,7 @@ export function planDay(
       continue;
     }
     let swapped = false;
-    if (signals.includes('FATIGUE_HIGH') && ONE_LEGGED.has(exercise.stanceMechanics)) {
+    if (ctx.signals.includes('FATIGUE_HIGH') && ONE_LEGGED.has(exercise.stanceMechanics)) {
       const twoLegged = allowedCandidates(slot, catalog, input.eligibility).find(
         (e) => !ONE_LEGGED.has(e.stanceMechanics),
       );
@@ -120,37 +211,13 @@ export function planDay(
       exercise = twoLegged;
       swapped = true;
     }
-    if (isSore(exercise)) {
-      skip('DOMS_HIGH');
+    const reason = blocked(exercise, ctx, cfg);
+    if (reason) {
+      skip(reason);
       continue;
     }
-    if (
-      exercise.primaryMuscles.some((m) => {
-        const last = lastPrimary[m];
-        return last !== undefined && daysBetween(last, asOf) <= cfg.recoveryDays;
-      })
-    ) {
-      skip('RECOVERING');
-      continue;
-    }
-
-    const base = prescribe({
-      exercise,
-      slot,
-      sessions: past,
-      asOf,
-      layoff,
-      deload,
-      calibrations: input.calibrations,
-    });
-    const reasons = [...base.reasons];
-    let rir = base.rir;
-    if (swapped) reasons.push('BILATERAL_SWAP');
-    if (lowReadiness) {
-      reasons.push('LOW_READINESS');
-      rir = [Math.min(5, rir[0] + 1), Math.min(5, rir[1] + 1)];
-    }
-    candidates.push({ slot, exercise, prescription: { ...base, rir, reasons } });
+    const prescription = workPrescription(exercise, slot, ctx, input, swapped);
+    candidates.push({ slot, exercise, swapped, prescription });
   }
 
   // Greedy fill: muscles below target first, then the slots that waited longest.
@@ -187,17 +254,16 @@ export function planDay(
     Math.min(daysAway(slot), cfg.scoring.stalenessCapDays) / cfg.scoring.stalenessUnitDays;
   const wanted = (c: Candidate) =>
     deficit(c.exercise) > 0 || daysAway(c.slot) >= cfg.forceStaleDays;
-  const setsWanted = deload
-    ? Math.max(1, Math.round(cfg.setsPerExercise * BLOCK_CONFIG.deloadSetFactor))
-    : cfg.setsPerExercise;
+  const setsWanted = setsFor(ctx, cfg);
   const secondsOf = (c: Candidate, sets: number) =>
     exerciseSeconds({ ...c.prescription, sets, restSec: c.slot.restSec }, c.exercise, cfg);
 
-  const picked: Picked[] = [];
+  const items: SelectedItem[] = [];
   let seconds = 0;
   let remaining = [...candidates];
-  while (picked.length < cfg.maxExercisesPerSession && seconds < cfg.sessionMinutes.target * 60) {
-    let best: { c: Candidate; sets: number; secs: number; score: number } | null = null;
+  while (items.length < cfg.maxExercisesPerSession && seconds < cfg.sessionMinutes.target * 60) {
+    let best: { c: (typeof candidates)[number]; sets: number; secs: number; score: number } | null =
+      null;
     for (const c of remaining) {
       const sets = Math.min(setsWanted, weekRoom(c.exercise), dayRoom(c.exercise));
       if (sets < 1 || !wanted(c)) continue;
@@ -211,10 +277,17 @@ export function planDay(
       if (best === null || score > best.score) best = { c, sets, secs, score };
     }
     if (best === null) break;
-    picked.push({ ...best.c, sets: best.sets });
-    remaining = remaining.filter((c) => c !== best!.c);
+    const { c } = best;
+    items.push({
+      slotId: c.slot.id,
+      exerciseId: c.exercise.id,
+      sets: best.sets,
+      role: 'work',
+      ...(c.swapped ? { swapped: true } : {}),
+    });
+    remaining = remaining.filter((r) => r !== c);
     seconds += best.secs;
-    for (const m of best.c.exercise.primaryMuscles) added[m] += best.sets;
+    for (const m of c.exercise.primaryMuscles) added[m] += best.sets;
   }
   for (const c of remaining) {
     const reason: SkipReason =
@@ -233,48 +306,100 @@ export function planDay(
   // slots not already in the plan (RIR 5, not a working set), longest
   // waiting first; then mobility, which never progresses.
   const minSeconds = cfg.sessionMinutes.min * 60;
-  const light: Picked[] = [];
-  const inPlan = new Set(picked.map((p) => p.slot.id));
+  const inPlan = new Set(items.map((p) => p.slotId));
   const lightSlots = slots
     .filter((s) => s.lightFill && !inPlan.has(s.id))
     .sort((x, y) => staleness(y) - staleness(x));
   for (const slot of lightSlots) {
     const id = block.selections[slot.id];
     const exercise = id === undefined ? undefined : catalog[id];
-    if (seconds >= minSeconds || !exercise || isSore(exercise)) continue;
-    const rx = prescribe({ exercise, slot, sessions: past, asOf, layoff });
-    const candidate: Candidate = {
-      slot,
-      exercise,
-      prescription: {
-        ...rx,
-        target: rx.range[0],
-        rir: [cfg.lightFillRir, cfg.lightFillRir],
-        warmupSet: false,
-        reasons: ['LIGHT_FILL'],
-      },
-    };
+    if (seconds >= minSeconds || !exercise || ctx.isSore(exercise)) continue;
+    if (isAvoided(exercise, ctx.avoided)) continue;
+    const candidate = { slot, exercise, prescription: lightPrescription(exercise, slot, ctx, cfg) };
     seconds += secondsOf(candidate, cfg.fillerSets);
-    light.push({ ...candidate, sets: cfg.fillerSets });
+    items.push({ slotId: slot.id, exerciseId: exercise.id, sets: cfg.fillerSets, role: 'light' });
   }
-  const mobility: Picked[] = [];
   for (const slot of slots.filter((s) => s.kind === 'filler')) {
     for (const exercise of allowedCandidates(slot, catalog, input.eligibility)) {
       if (seconds >= minSeconds) break;
+      if (isAvoided(exercise, ctx.avoided)) continue;
       const candidate = { slot, exercise, prescription: mobilityPrescription(exercise, slot) };
       seconds += secondsOf(candidate, cfg.fillerSets);
-      mobility.push({ ...candidate, sets: cfg.fillerSets });
+      items.push({
+        slotId: slot.id,
+        exerciseId: exercise.id,
+        sets: cfg.fillerSets,
+        role: 'mobility',
+      });
     }
   }
 
-  const ordered = orderAndLabel(picked, light, mobility);
+  const dayReasons: DayReason[] = [];
+  if (hardSeconds < (cfg.sessionMinutes.min * 60) / 2) dayReasons.push('LIGHT_DAY');
+  if (ctx.lighter) dayReasons.push('LIGHTER_DAY_REQUESTED');
+
+  return {
+    date: asOf,
+    blockIndex: block.index,
+    phase: ctx.phase,
+    items,
+    skipped,
+    dayReasons,
+  };
+}
+
+/**
+ * How much, for a day's selection: every exercise prescribed from the logs
+ * as they are on `input.asOf` (progression, layoff, deload, readiness),
+ * ordered and labelled for the session runner, and checked by validatePlan.
+ * A selection made days ahead gets today's loads, not the forecast's.
+ */
+export function buildDay(
+  selection: DaySelection,
+  input: PlannerInput,
+  cfg: PlannerConfig = PLANNER_CONFIG,
+  training = TRAINING_CONFIG,
+): SessionPlan {
+  const { asOf, catalog } = input;
+  const ctx = dayContext(input, cfg, training);
+  const { past, slotOf, layoff } = ctx;
+  const slotById = new Map(input.slots.map((s) => [s.id, s]));
+
+  const work: Picked[] = [];
+  const light: Picked[] = [];
+  const mobility: Picked[] = [];
+  for (const item of selection.items) {
+    const slot = slotById.get(item.slotId);
+    const exercise = catalog[item.exerciseId];
+    if (!slot || !exercise) continue;
+    if (item.role === 'work') {
+      const prescription = workPrescription(exercise, slot, ctx, input, item.swapped === true);
+      work.push({ slot, exercise, sets: item.sets, prescription });
+    } else if (item.role === 'light') {
+      light.push({
+        slot,
+        exercise,
+        sets: item.sets,
+        prescription: lightPrescription(exercise, slot, ctx, cfg),
+      });
+    } else {
+      mobility.push({
+        slot,
+        exercise,
+        sets: item.sets,
+        prescription: mobilityPrescription(exercise, slot),
+      });
+    }
+  }
+
+  const ordered = orderAndLabel(work, light, mobility);
   const validated = validatePlan(
     ordered,
     {
       catalog,
       eligibility: input.eligibility,
       slotOf,
-      volume,
+      volume: ctx.volume,
       lastLoads: lastLoadsOf(
         ordered.map((p) => p.exerciseId),
         past,
@@ -289,27 +414,128 @@ export function planDay(
 
   const dayReasons: DayReason[] = [];
   if (past.length === 0) dayReasons.push('FIRST_DAY');
-  if (deload) dayReasons.push('DELOAD_WEEK');
+  if (ctx.phase === 'deload') dayReasons.push('DELOAD_WEEK');
   if (layoff.tier === 'short') dayReasons.push('LAYOFF_SHORT');
   else if (layoff.tier === 'medium') dayReasons.push('LAYOFF_MEDIUM');
   else if (layoff.tier === 'long') dayReasons.push('LAYOFF_LONG');
   else if (layoff.recalibrating) dayReasons.push('LAYOFF_RECALIBRATION');
-  if (lowReadiness) dayReasons.push('LOW_READINESS');
-  if (hardSeconds < (cfg.sessionMinutes.min * 60) / 2) dayReasons.push('LIGHT_DAY');
+  if (ctx.lowReadiness) dayReasons.push('LOW_READINESS');
+  dayReasons.push(...selection.dayReasons);
 
   return {
     version: 1,
     date: asOf,
-    blockIndex: block.index,
-    phase,
+    blockIndex: selection.blockIndex,
+    phase: selection.phase,
     regions: regionsOf(validated.exercises, slotOf),
     bike: bikePrescription(input.rides, layoff),
     exercises: validated.exercises,
-    skipped,
+    skipped: selection.skipped,
     dayReasons,
-    signals,
+    signals: ctx.signals,
     estimatedMinutes: planMinutes(validated.exercises, catalog, cfg),
     adjustments: validated.adjustments,
+  };
+}
+
+/**
+ * Whether a selection made earlier — for a week ahead — is still safe and
+ * possible on its day: the same rules `selectDay` applies, checked against
+ * the logs as they are now (SPEC §11). An empty list keeps the day as
+ * planned; anything else makes the week plan it again.
+ */
+export function checkSelection(
+  selection: DaySelection,
+  input: PlannerInput,
+  cfg: PlannerConfig = PLANNER_CONFIG,
+  training = TRAINING_CONFIG,
+): SelectionViolation[] {
+  const { catalog, block } = input;
+  const ctx = dayContext(input, cfg, training);
+  const out: SelectionViolation[] = [];
+  if (selection.blockIndex !== block.index || selection.phase !== ctx.phase) {
+    out.push({ slotId: null, code: 'BLOCK_CHANGED' });
+  }
+  if (ctx.lighter !== selection.dayReasons.includes('LIGHTER_DAY_REQUESTED')) {
+    out.push({ slotId: null, code: 'REQUEST_CHANGED' });
+  }
+  const added = Object.fromEntries(MUSCLE_GROUPS.map((m) => [m, 0])) as Record<MuscleGroup, number>;
+  for (const item of selection.items) {
+    const exercise = catalog[item.exerciseId];
+    const slot = input.slots.find((s) => s.id === item.slotId);
+    if (!exercise || !slot || !isEligible(exercise, input.eligibility)) {
+      out.push({ slotId: item.slotId, code: 'NOT_ALLOWED' });
+      continue;
+    }
+    if (item.role !== 'mobility' && !item.swapped && block.selections[slot.id] !== exercise.id) {
+      out.push({ slotId: item.slotId, code: 'SELECTION_CHANGED' });
+      continue;
+    }
+    if (item.role === 'work') {
+      const reason = blocked(exercise, ctx, cfg);
+      if (reason) out.push({ slotId: item.slotId, code: reason });
+      for (const m of exercise.primaryMuscles) added[m] += item.sets;
+    } else if (
+      isAvoided(exercise, ctx.avoided) ||
+      (item.role === 'light' && ctx.isSore(exercise))
+    ) {
+      out.push({
+        slotId: item.slotId,
+        code: isAvoided(exercise, ctx.avoided) ? 'AVOIDED_BY_REQUEST' : 'DOMS_HIGH',
+      });
+    }
+  }
+  for (const m of MUSCLE_GROUPS) {
+    if (added[m] === 0) continue;
+    if (
+      ctx.volume[m] + added[m] > maxDirectSets(m, training) ||
+      added[m] > cfg.maxDirectSetsPerMuscleDay
+    ) {
+      out.push({ slotId: null, code: 'VOLUME_AT_MAX' });
+      break;
+    }
+  }
+  return out;
+}
+
+/** A working exercise's prescription on the day: progression, layoff, deload, readiness. */
+function workPrescription(
+  exercise: Exercise,
+  slot: Slot,
+  ctx: DayContext,
+  input: PlannerInput,
+  swapped: boolean,
+): Prescription {
+  const base = prescribe({
+    exercise,
+    slot,
+    sessions: ctx.past,
+    asOf: ctx.asOf,
+    layoff: ctx.layoff,
+    deload: ctx.phase === 'deload',
+    calibrations: input.calibrations,
+  });
+  const reasons = [...base.reasons];
+  if (swapped) reasons.push('BILATERAL_SWAP');
+  if (!ctx.lowReadiness) return { ...base, reasons };
+  reasons.push('LOW_READINESS');
+  return { ...base, rir: [Math.min(5, base.rir[0] + 1), Math.min(5, base.rir[1] + 1)], reasons };
+}
+
+/** Light practice at RIR 5 to fill a short day — not a working set (SPEC §10.4). */
+function lightPrescription(
+  exercise: Exercise,
+  slot: Slot,
+  ctx: DayContext,
+  cfg: PlannerConfig,
+): Prescription {
+  const rx = prescribe({ exercise, slot, sessions: ctx.past, asOf: ctx.asOf, layoff: ctx.layoff });
+  return {
+    ...rx,
+    target: rx.range[0],
+    rir: [cfg.lightFillRir, cfg.lightFillRir],
+    warmupSet: false,
+    reasons: ['LIGHT_FILL'],
   };
 }
 

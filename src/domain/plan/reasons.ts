@@ -77,7 +77,17 @@ export const SKIP_REASONS = [
   'NOT_PICKED',
 ] as const;
 
-export type SkipReason = (typeof SKIP_REASONS)[number];
+/**
+ * Skips that come from a request (Documents/PLAN-TYGODNIA-I-POPRAWKI.md
+ * §3.6) rather than from the logs. Kept apart from SKIP_REASONS, which the
+ * chat contract v2 enumerates: they join it with contract v3 (stage E7).
+ */
+export const REQUEST_SKIP_REASONS = [
+  /** The person or the coach asked to leave the muscle out these days. */
+  'AVOIDED_BY_REQUEST',
+] as const;
+
+export type SkipReason = (typeof SKIP_REASONS)[number] | (typeof REQUEST_SKIP_REASONS)[number];
 
 /** What shapes the whole day. */
 export const DAY_REASONS = [
@@ -91,7 +101,13 @@ export const DAY_REASONS = [
   'LIGHT_DAY',
 ] as const;
 
-export type DayReason = (typeof DAY_REASONS)[number];
+/** Day reasons that come from a request; see REQUEST_SKIP_REASONS. */
+export const REQUEST_DAY_REASONS = [
+  /** One set per exercise today, as asked. */
+  'LIGHTER_DAY_REQUESTED',
+] as const;
+
+export type DayReason = (typeof DAY_REASONS)[number] | (typeof REQUEST_DAY_REASONS)[number];
 
 /** What validatePlan changed, SPEC §8. */
 export const VALIDATION_CODES = [
