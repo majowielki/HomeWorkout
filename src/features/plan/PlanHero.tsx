@@ -11,6 +11,7 @@ import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 
 import { DayDoneCard } from './DayDoneCard';
+import { PlanChangeBanner } from './PlanChangeBanner';
 import { planTitle } from './format';
 import type { usePlanToday } from './usePlanToday';
 
@@ -53,15 +54,26 @@ export function PlanHero({ today, exerciseMap }: Props) {
     </Link>
   );
 
-  // Today is behind: what rests, then tomorrow as it stands — nothing to start.
-  if (state.done) {
-    const next = state.tomorrow;
+  const banner = state.banner ? (
+    <PlanChangeBanner banner={state.banner} onClose={(id) => void today.dismissBanner(id)} />
+  ) : null;
+
+  // A day without a session to start: trained already, or a rest day. What
+  // rests (after training), then the next planned day to look at.
+  if (state.done || !state.plan) {
+    const upcoming = state.week.find((d) => d.date > state.asOf && d.forecast)?.forecast ?? null;
+    const next = state.done ? (state.tomorrow ?? upcoming) : upcoming;
     return (
       <>
-        <DayDoneCard recovery={state.recovery} />
+        {banner}
+        {state.done ? <DayDoneCard recovery={state.recovery} /> : <RestDayCard />}
         {next ? (
           <SessionHero
-            eyebrow={pl.plan.tomorrowEyebrow(formatDate(next.date))}
+            eyebrow={
+              state.done && state.tomorrow
+                ? pl.plan.tomorrowEyebrow(formatDate(next.date))
+                : pl.plan.restDay.next(formatDate(next.date))
+            }
             title={planTitle(next)}
             badge={
               next.phase === 'deload'
@@ -81,26 +93,40 @@ export function PlanHero({ today, exerciseMap }: Props) {
 
   const { plan } = state;
   return (
-    <SessionHero
-      eyebrow={pl.plan.eyebrow(formatDate(plan.date))}
-      title={planTitle(plan)}
-      badge={
-        plan.phase === 'deload'
-          ? pl.plan.deloadBadge(plan.blockIndex)
-          : pl.plan.blockBadge(plan.blockIndex)
-      }
-      meta={pl.plan.meta(plan.estimatedMinutes)}
-      blocks={plan.exercises}
-      exerciseMap={exerciseMap}
-    >
-      <Button
-        size="lg"
-        label={pl.plan.start}
-        icon={<Play size={18} className="text-primary-foreground" />}
-        onPress={() => void today.start()}
-        disabled={today.starting}
-      />
-      {details}
-    </SessionHero>
+    <>
+      {banner}
+      <SessionHero
+        eyebrow={pl.plan.eyebrow(formatDate(plan.date))}
+        title={planTitle(plan)}
+        badge={
+          plan.phase === 'deload'
+            ? pl.plan.deloadBadge(plan.blockIndex)
+            : pl.plan.blockBadge(plan.blockIndex)
+        }
+        meta={pl.plan.meta(plan.estimatedMinutes)}
+        blocks={plan.exercises}
+        exerciseMap={exerciseMap}
+      >
+        <Button
+          size="lg"
+          label={pl.plan.start}
+          icon={<Play size={18} className="text-primary-foreground" />}
+          onPress={() => void today.start()}
+          disabled={today.starting}
+        />
+        {details}
+      </SessionHero>
+    </>
+  );
+}
+
+function RestDayCard() {
+  const t = pl.plan.restDay;
+  return (
+    <Card className="gap-2 p-6">
+      <Text variant="eyebrow">{t.eyebrow}</Text>
+      <Text variant="title">{t.title}</Text>
+      <Text variant="muted">{t.body}</Text>
+    </Card>
   );
 }

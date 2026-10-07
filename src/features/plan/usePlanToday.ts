@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 
+import { markChangesSeen } from '@/db/repositories/weekPlan';
 import { startPlannedWorkout } from '@/db/repositories/workouts';
 
 import { computeToday, type PlanToday } from './computeToday';
@@ -20,9 +21,9 @@ export function usePlanToday() {
   const [starting, setStarting] = useState(false);
   const alive = useRef(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (request?: Parameters<typeof computeToday>[0]['request']) => {
     try {
-      const today = await computeToday({ persist: true });
+      const today = await computeToday({ persist: true, request });
       if (alive.current) setState({ status: 'ready', ...today });
     } catch {
       if (alive.current) setState({ status: 'error' });
@@ -32,7 +33,7 @@ export function usePlanToday() {
   useFocusEffect(
     useCallback(() => {
       alive.current = true;
-      void load();
+      void load(undefined);
       return () => {
         alive.current = false;
       };
@@ -40,7 +41,7 @@ export function usePlanToday() {
   );
 
   const start = useCallback(async () => {
-    if (state.status !== 'ready' || starting) return;
+    if (state.status !== 'ready' || !state.plan || starting) return;
     setStarting(true);
     try {
       const workoutId = await startPlannedWorkout(state.plan, state.asOf);
@@ -50,5 +51,17 @@ export function usePlanToday() {
     }
   }, [router, starting, state]);
 
-  return { state, starting, start, reload: load };
+  /** "Przelicz tydzień": the week planned again from scratch. */
+  const recalculate = useCallback(() => load({ trigger: 'manual' }), [load]);
+
+  /** Closes the banner of the last replanning. */
+  const dismissBanner = useCallback(
+    async (id: string) => {
+      await markChangesSeen(id);
+      await load(undefined);
+    },
+    [load],
+  );
+
+  return { state, starting, start, reload: () => load(undefined), recalculate, dismissBanner };
 }

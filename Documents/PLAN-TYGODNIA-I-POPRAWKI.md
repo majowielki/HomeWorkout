@@ -520,3 +520,24 @@ zawyża — poniżej ocena własna.
 Doprecyzowanie nie jest potrzebne do E1–E7. Jedyna rzecz warta osobnego pytania kiedyś: czy przy
 `recoveryDays` = 1 dla mięśni niezwiązanych z kolanem (ramiona, core) można by skrócić przerwę —
 raport mówi „neutralne", więc to kwestia strojenia, nie bezpieczeństwa.
+
+## Dodatek E — stan prac (2026-10-07, koniec sesji)
+
+**Zrobione i scalone do `main`** (każdy etap: `npm run verify` zielony, sprawdzony na emulatorze):
+
+| Etap | Co |
+|---|---|
+| Q1 | cofnij serię (przerwa, karta „zrobione”, podsumowanie), powiększanie klipu, duże karty rozgrzewki, paski serii |
+| E1 | „Dziś zrobione — czas na regenerację” + plan na jutro |
+| Q2 | strony L/P (seria = jedna strona, słabsze kolano pierwsze; `set_logs.side`, migracja 0005, backup v3, katalog v5), brak serii tego samego ćwiczenia pod rząd, audyt 130 klipów (dodatek B) |
+| E2 | silnik tygodnia: `selectDay` / `buildDay` / `checkSelection`, `planWeek`, prośby (`constraints.ts`), SPEC §11 |
+| E3 | zapis tygodnia: tabele `planned_days`, `plan_generations`, `plan_constraints`, `user_profile.rest_weekdays` (migracja 0006, backup v4); `weekSync` (pominięty dzień → przeliczenie, niebezpieczny dzień → zmiana tylko jego, horyzont 7 dni); „Dziś” czyta zapisany plan; baner „Plan tygodnia się zmienił”; dzień wolny; „Przelicz tydzień” na ekranie „Dlaczego taki plan?”; dni treningowe w Ustawieniach |
+
+**Dalej (kolejność bez zmian):**
+
+1. **E4 — Kalendarz** zamiast zakładki Trening: siatka miesiąca (ikony: rower, hantel / dwa hantle, zaplanowane przygaszone, pominięte z kropką, deload), arkusz dnia (przeszłość: sesje, jazdy; przyszłość: prognoza i „dlaczego”), „Dzień wolny / jednak trenuję” na pojedynczy dzień (`addConstraint` + `computeToday({ request: { trigger: 'constraint', from } })`), szybki wpis roweru i FBW A/B przenoszone stąd. Repozytorium (`src/db/repositories/weekPlan.ts`) ma już wszystko poza zapytaniem o przeszłe sesje miesiąca.
+2. **E5 — Zgłoś zakwasy / ból**: formularz wg dodatku D (nasilenie, 3 pytania o naciągnięcie, czerwone flagi → fizjoterapeuta), `addConstraint` (`avoid_muscle`, doms 2 dni / pain 3 dni), lista aktywnych z odwołaniem (`revokeConstraints`).
+3. **E6 — Dodatkowy trening**: `extraSessionOptions` (sloty, które dziś jeszcze mogą wejść) + wybór → `selectDay` z ograniczeniem do wybranych slotów → `buildDay`; FBW A/B znika z UI.
+4. **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach, prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą „Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
+
+**Uwagi na następną sesję:** emulator ma testowe dane (czwartek odznaczony w dniach treningowych, sesje testowe 7.10). Na telefon nic jeszcze nie poszło — przed instalacją: eksport backupu, nowe APK (migracje 0005 i 0006 wykonają się same).

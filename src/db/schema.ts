@@ -1,6 +1,7 @@
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import type { SessionPlan } from '@/domain/plan/types';
+import type { DaySelection, SessionPlan } from '@/domain/plan/types';
+import type { StoredDayChange } from '@/domain/plan/weekSync';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import type {
   AnchorPosition,
@@ -36,6 +37,8 @@ export const userProfile = sqliteTable('user_profile', {
   reminders: text('reminders', { mode: 'json' }).$type<ReminderSettings | null>(),
   /** Exercises the person asked never to be offered again (SPEC §10.2). Null = none. */
   excludedExerciseIds: text('excluded_exercise_ids', { mode: 'json' }).$type<string[] | null>(),
+  /** Weekdays without training, 0 = Monday … 6 = Sunday (SPEC §11.2). Null = train daily. */
+  restWeekdays: text('rest_weekdays', { mode: 'json' }).$type<number[] | null>(),
   updatedAt: text('updated_at').notNull(),
 });
 
@@ -237,3 +240,52 @@ export const aiExchanges = sqliteTable(
   },
   (t) => [index('ai_exchanges_created_idx').on(t.createdAt)],
 );
+
+/**
+ * The week ahead as the engine chose it (SPEC §11): one row per day, the
+ * choice (slots, exercises, sets — never loads) and the forecast shown in
+ * the calendar. Derived from the logs, so it is not in the backup: after a
+ * restore the week is simply planned again.
+ */
+export const plannedDays = sqliteTable('planned_days', {
+  date: text('date').primaryKey(),
+  /** Null on a rest day. */
+  selection: text('selection', { mode: 'json' }).$type<DaySelection | null>(),
+  forecast: text('forecast', { mode: 'json' }).$type<SessionPlan | null>(),
+  /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
+  status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
+  generationId: text('generation_id').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/** Every time the week was planned again, and what changed — the banner on "Dziś". */
+export const planGenerations = sqliteTable(
+  'plan_generations',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull(),
+    trigger: text('trigger', {
+      enum: ['horizon', 'missed_day', 'unsafe', 'manual', 'constraint', 'coach'],
+    }).notNull(),
+    fromDate: text('from_date').notNull(),
+    changes: text('changes', { mode: 'json' }).$type<StoredDayChange[]>().notNull(),
+    /** When the person closed the banner; null while it shows. */
+    seenAt: text('seen_at'),
+  },
+  (t) => [index('plan_generations_created_idx').on(t.createdAt)],
+);
+
+/** What the person (or the coach, with consent) asked the planner to respect, SPEC §11.2. */
+export const planConstraints = sqliteTable('plan_constraints', {
+  id: text('id').primaryKey(),
+  kind: text('kind', { enum: ['avoid_muscle', 'rest_day', 'train_day', 'lighter_day'] }).notNull(),
+  muscles: text('muscles', { mode: 'json' }).$type<MuscleGroup[]>().notNull(),
+  fromDate: text('from_date').notNull(),
+  untilDate: text('until_date').notNull(),
+  reason: text('reason', { enum: ['doms', 'pain', 'busy', 'other'] }).notNull(),
+  source: text('source', { enum: ['user', 'coach'] }).notNull(),
+  note: text('note'),
+  createdAt: text('created_at').notNull(),
+  /** Taken back early; null while it applies. */
+  revokedAt: text('revoked_at'),
+});

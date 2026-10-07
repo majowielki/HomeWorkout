@@ -10,6 +10,7 @@ import type {
   cardioLogs,
   dailyLogs,
   measurements,
+  planConstraints,
   setLogs,
   trainingBlocks,
   userProfile,
@@ -30,7 +31,7 @@ import type {
  * Bump BACKUP_SCHEMA_VERSION whenever a row shape changes and add a step
  * to MIGRATIONS in parse.ts that lifts the previous shape to the new one.
  */
-export const BACKUP_SCHEMA_VERSION = 3;
+export const BACKUP_SCHEMA_VERSION = 4;
 export const BACKUP_APP = 'homeworkout';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -75,6 +76,7 @@ export const userProfileRowSchema = z.object({
   kneeProfile: kneeProfileSchema.nullable(),
   reminders: reminderSettingsSchema.nullable(),
   excludedExerciseIds: z.array(z.string()).nullable(),
+  restWeekdays: z.array(z.number().int().min(0).max(6)).nullable(),
   updatedAt: instant,
 }) satisfies z.ZodType<typeof userProfile.$inferSelect>;
 
@@ -199,6 +201,19 @@ export const dailyLogRowSchema = z.object({
   updatedAt: instant,
 }) satisfies z.ZodType<typeof dailyLogs.$inferSelect>;
 
+export const planConstraintRowSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['avoid_muscle', 'rest_day', 'train_day', 'lighter_day']),
+  muscles: z.array(muscleGroupSchema),
+  fromDate: isoDate,
+  untilDate: isoDate,
+  reason: z.enum(['doms', 'pain', 'busy', 'other']),
+  source: z.enum(['user', 'coach']),
+  note: nullableString,
+  createdAt: instant,
+  revokedAt: instant.nullable(),
+}) satisfies z.ZodType<typeof planConstraints.$inferSelect>;
+
 export const backupTablesSchema = z.object({
   user_profile: z.array(userProfileRowSchema),
   bands: z.array(bandRowSchema),
@@ -210,6 +225,7 @@ export const backupTablesSchema = z.object({
   measurements: z.array(measurementRowSchema),
   daily_logs: z.array(dailyLogRowSchema),
   training_blocks: z.array(trainingBlockRowSchema),
+  plan_constraints: z.array(planConstraintRowSchema),
 });
 
 export const backupFileSchema = z.object({

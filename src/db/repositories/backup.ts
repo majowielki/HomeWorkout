@@ -10,6 +10,9 @@ import {
   dailyLogs,
   exercises,
   measurements,
+  planConstraints,
+  plannedDays,
+  planGenerations,
   setLogs,
   trainingBlocks,
   userProfile,
@@ -49,6 +52,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     measurementRows,
     dailyRows,
     blockRows,
+    constraintRows,
   ] = await Promise.all([
     db.select().from(userProfile),
     db.select().from(bands),
@@ -60,6 +64,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     db.select().from(measurements),
     db.select().from(dailyLogs),
     db.select().from(trainingBlocks),
+    db.select().from(planConstraints),
   ]);
 
   return {
@@ -77,6 +82,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
       measurements: measurementRows,
       daily_logs: dailyRows,
       training_blocks: blockRows,
+      plan_constraints: constraintRows,
     },
   };
 }
@@ -123,6 +129,10 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     await tx.delete(measurements);
     await tx.delete(dailyLogs);
     await tx.delete(trainingBlocks);
+    await tx.delete(planConstraints);
+    // The planned week follows from the logs being replaced: it is planned again.
+    await tx.delete(plannedDays);
+    await tx.delete(planGenerations);
     await tx.delete(userProfile);
 
     await insertChunked(tx, userProfile, data.tables.user_profile);
@@ -135,6 +145,7 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     await insertChunked(tx, measurements, data.tables.measurements);
     await insertChunked(tx, dailyLogs, data.tables.daily_logs);
     await insertChunked(tx, trainingBlocks, data.tables.training_blocks);
+    await insertChunked(tx, planConstraints, data.tables.plan_constraints);
 
     // A file with an empty profile table would otherwise leave the app
     // without its one row; the seed would fix it on next start, but the

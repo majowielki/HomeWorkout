@@ -154,7 +154,7 @@ export default function TodayScreen() {
         )}
 
         {today.state.status === 'ready' ? (
-          <RideCard key={today.state.asOf} asOf={today.state.asOf} ride={today.state.plan.bike} />
+          <RideCard key={today.state.asOf} asOf={today.state.asOf} ride={today.state.bike} />
         ) : null}
 
         <Card className="gap-4">
