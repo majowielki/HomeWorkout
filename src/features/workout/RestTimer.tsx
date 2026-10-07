@@ -15,6 +15,8 @@ type Props = {
   nextLabel: string | null;
   /** The exercise coming up; when it has a clip, the clip plays through the rest. */
   nextExercise?: Exercise | null;
+  /** One line under the next exercise, e.g. that it is the other half of a superset. */
+  nextNote?: string | null;
   onDone: () => void;
 };
 
@@ -42,7 +44,7 @@ function formatRemaining(ms: number): string {
  * The ring drains from full to empty over the whole rest, extensions
  * included, so "+30 s" visibly refills it.
  */
-export function RestTimer({ nextLabel, nextExercise, onDone }: Props) {
+export function RestTimer({ nextLabel, nextExercise, nextNote, onDone }: Props) {
   const { restEndsAt, restTotalMs, extend, stop } = useRestTimerStore();
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const colors = useThemeColors();
@@ -140,6 +142,11 @@ export function RestTimer({ nextLabel, nextExercise, onDone }: Props) {
             <Text className="font-display-semibold text-base text-secondary-foreground">
               {nextLabel}
             </Text>
+            {nextNote ? (
+              <Text variant="muted" className="text-xs">
+                {nextNote}
+              </Text>
+            ) : null}
           </View>
         </View>
       ) : null}

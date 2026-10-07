@@ -1,4 +1,11 @@
-import { buildSessionSteps, findResumeIndex, nextUnloggedIndex, stepKey } from '../session/steps';
+import {
+  buildSessionSteps,
+  findResumeIndex,
+  groupBlockIndices,
+  isGroupComplete,
+  nextUnloggedIndex,
+  stepKey,
+} from '../session/steps';
 import type { TemplateBlock } from '../types';
 
 function block(overrides: Partial<TemplateBlock>): TemplateBlock {
@@ -152,5 +159,27 @@ describe('nextUnloggedIndex', () => {
   it('starts from the beginning when no start index is given', () => {
     const logged = new Set([stepKey(0, 1)]);
     expect(nextUnloggedIndex(steps, logged)).toBe(1);
+  });
+});
+
+describe('superset groups', () => {
+  const steps = buildSessionSteps([
+    block({ label: 'A1', exerciseId: 'squat', sets: 2 }),
+    block({ label: 'A2', exerciseId: 'row', sets: 1 }),
+    block({ label: 'B1', exerciseId: 'curl', sets: 2 }),
+  ]);
+
+  it('finds the blocks of one superset, or a lone block', () => {
+    expect(groupBlockIndices(steps, 1)).toEqual([0, 1]);
+    expect(groupBlockIndices(steps, 2)).toEqual([2]);
+    expect(groupBlockIndices(steps, 9)).toEqual([]);
+  });
+
+  it('is complete only when every set of every member has a log', () => {
+    const partial = new Set([stepKey(0, 1), stepKey(1, 1)]);
+    expect(isGroupComplete(steps, partial, 0)).toBe(false);
+    const done = new Set([...partial, stepKey(0, 2)]);
+    expect(isGroupComplete(steps, done, 1)).toBe(true);
+    expect(isGroupComplete(steps, done, 2)).toBe(false);
   });
 });

@@ -2,20 +2,23 @@ import type BottomSheetType from '@gorhom/bottom-sheet';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { getCardioForWorkout, hasWarmupLog, logCardio } from '@/db/repositories/cardioLogs';
 import { getExcludedExerciseIds, getProfile, setExerciseExcluded } from '@/db/repositories/profile';
-import { getLoggedStepKeys, logSet } from '@/db/repositories/setLogs';
+import { getLoggedStepKeys, getSetsForWorkout, logSet } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { getCurrentBlock, setBlockSelection } from '@/db/repositories/trainingBlocks';
 import { getWorkout } from '@/db/repositories/workouts';
 import {
   buildSessionSteps,
   findResumeIndex,
+  groupBlockIndices,
+  groupKey,
+  isGroupComplete,
   nextUnloggedIndex,
   type SessionStep,
   stepKey,
@@ -24,7 +27,9 @@ import type { PlannedExercise, SessionPlan } from '@/domain/plan/types';
 import { loadKindOf } from '@/domain/progression/load';
 import type { Exercise, MedicalProfile } from '@/domain/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
+import { describeSet } from '@/features/history/describeSet';
 import { planTitle } from '@/features/plan/format';
+import { type GroupDoneExercise, GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
 import { type LoggedSetData, SetLogger } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
@@ -34,7 +39,7 @@ import { WarmupCard, type WarmupResult } from '@/features/workout/WarmupCard';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
-type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'notFound';
+type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'groupDone' | 'notFound';
 
 type Loaded = {
   workoutId: string;
@@ -70,6 +75,8 @@ export default function ActiveSessionScreen() {
   const [warmupsLogged, setWarmupsLogged] = useState(0);
   // Blocks that had their warm-up set this session, so the toggle defaults off again.
   const [warmedBlocks, setWarmedBlocks] = useState<ReadonlySet<number>>(new Set());
+  // What the just-finished exercise or superset looked like, for the groupDone card.
+  const [groupDone, setGroupDone] = useState<GroupDoneExercise[]>([]);
 
   // Initial load: workout -> template -> steps -> where to resume.
   useEffect(() => {
@@ -140,22 +147,69 @@ export default function ActiveSessionScreen() {
   // here, wrapping round — so after a warm-up (the same step comes back) and
   // after a jump through the progress sheet it still names the right exercise.
   const upcoming = useMemo(() => {
-    if (phase !== 'resting') return null;
+    if (phase !== 'resting' && phase !== 'groupDone') return null;
     const index =
       nextUnloggedIndex(steps, loggedKeys, currentIndex) ?? nextUnloggedIndex(steps, loggedKeys, 0);
     const step = index === null ? undefined : steps[index];
     if (!step) return null;
     const exercise =
       exerciseMap[substitutes[step.blockIndex] ?? ''] ?? exerciseMap[step.block.exerciseId];
+    const current = steps[currentIndex];
+    const supersetSwitch =
+      current !== undefined &&
+      current.blockIndex !== step.blockIndex &&
+      groupKey(current.block.label) === groupKey(step.block.label);
     return {
       exercise: exercise ?? null,
       label: `${step.block.label} · ${exercise?.name ?? step.block.exerciseId}`,
+      note: supersetSwitch ? pl.workout.session.supersetNext : null,
     };
   }, [phase, steps, loggedKeys, currentIndex, substitutes, exerciseMap]);
+
+  /** The exercise actually done for a block: today's swap, else the plan's. */
+  const exerciseFor = (blockIndex: number) => {
+    const block = steps.find((s) => s.blockIndex === blockIndex)?.block;
+    return exerciseMap[substitutes[blockIndex] ?? ''] ?? (block && exerciseMap[block.exerciseId]);
+  };
+
+  // "Superseria z: …" on the set screen, naming the other half of the pair.
+  const supersetWith = currentStep
+    ? groupBlockIndices(steps, currentStep.blockIndex)
+        .filter((i) => i !== currentStep.blockIndex)
+        .map((i) => exerciseFor(i)?.name)
+        .filter(Boolean)
+        .join(', ')
+    : '';
 
   function goToSummary() {
     if (!loaded) return;
     router.replace({ pathname: '/workout/summary/[id]', params: { id: loaded.workoutId } });
+  }
+
+  function confirmFinish() {
+    const left = steps.filter((s) => !loggedKeys.has(stepKey(s.blockIndex, s.setNumber))).length;
+    if (left === 0) {
+      goToSummary();
+      return;
+    }
+    const t = pl.workout.session;
+    Alert.alert(t.finishConfirmTitle, t.finishConfirmBody(left), [
+      { text: pl.common.cancel, style: 'cancel' },
+      { text: t.finishConfirm, style: 'destructive', onPress: goToSummary },
+    ]);
+  }
+
+  /** The finished exercise or superset, set by set, for the groupDone card. */
+  async function loadGroupDone(workoutId: string, blockIndex: number) {
+    const rows = await getSetsForWorkout(workoutId);
+    const exercises: GroupDoneExercise[] = groupBlockIndices(steps, blockIndex).map((i) => {
+      const done = rows
+        .filter((r) => r.exerciseOrder === i && !r.isWarmup)
+        .sort((a, b) => a.setIndex - b.setIndex);
+      const id = done[0]?.exerciseId ?? exerciseFor(i)?.id ?? '';
+      return { name: exerciseMap[id]?.name ?? id, sets: done.map(describeSet) };
+    });
+    setGroupDone(exercises);
   }
 
   async function handleLogWarmup(result: WarmupResult) {
@@ -225,6 +279,12 @@ export default function ActiveSessionScreen() {
     if (data.isWarmup) {
       setWarmupsLogged((n) => n + 1);
       setWarmedBlocks((prev) => new Set(prev).add(currentStep.blockIndex));
+    } else if (isGroupComplete(steps, freshKeys, currentStep.blockIndex)) {
+      // The exercise (or the whole superset) is done: show what was done and
+      // let the person move on when ready, instead of a rest countdown.
+      await loadGroupDone(loaded.workoutId, currentStep.blockIndex);
+      setPhase('groupDone');
+      return;
     }
     await useRestTimerStore
       .getState()
@@ -274,7 +334,7 @@ export default function ActiveSessionScreen() {
         options={{
           title: loaded.title,
           headerRight: () => (
-            <Pressable onPress={goToSummary} hitSlop={8}>
+            <Pressable onPress={confirmFinish} hitSlop={8}>
               <Text className="font-display-semibold text-highlight">
                 {pl.workout.session.finishEarly}
               </Text>
@@ -302,8 +362,15 @@ export default function ActiveSessionScreen() {
           <RestTimer
             nextLabel={upcoming?.label ?? null}
             nextExercise={upcoming?.exercise}
+            nextNote={upcoming?.note}
             onDone={handleRestDone}
           />
+        </ScrollView>
+      ) : null}
+
+      {phase === 'groupDone' && upcoming ? (
+        <ScrollView contentContainerClassName="flex-grow">
+          <GroupDoneCard exercises={groupDone} nextLabel={upcoming.label} onNext={handleRestDone} />
         </ScrollView>
       ) : null}
 
@@ -321,6 +388,7 @@ export default function ActiveSessionScreen() {
             !warmedBlocks.has(currentStep.blockIndex)
           }
           setNumber={currentStep.setNumber}
+          supersetWith={supersetWith || undefined}
           totalSets={currentStep.block.sets}
           onSave={handleSaveSet}
           saving={saving}

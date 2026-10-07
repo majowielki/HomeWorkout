@@ -19,12 +19,14 @@ import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
 import {
+  isTimed,
   ladderFor,
   type SavedSetData,
   SetFields,
   type SetFieldValues,
   toSavedSet,
 } from './SetFields';
+import { Stopwatch } from './Stopwatch';
 
 export type { SavedSetData } from './SetFields';
 
@@ -58,6 +60,8 @@ type Props = {
   calibrations?: BandCalibrationMap;
   /** Opens the exercise's full description; the link only shows next to a clip. */
   onShowDetails?: () => void;
+  /** Names of the other exercises in this superset; absent for a lone exercise. */
+  supersetWith?: string;
 };
 
 /**
@@ -132,6 +136,7 @@ function SetLoggerFields({
   calibrations,
   defaultWarmup,
   onShowDetails,
+  supersetWith,
 }: Props & { prefill: PrefillData | null }) {
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: prefill?.reps ?? block.repMin ?? 10,
@@ -215,6 +220,12 @@ function SetLoggerFields({
 
       {hasClip ? null : targets}
 
+      {supersetWith ? (
+        <View className="rounded-2xl border border-border p-4">
+          <Text className="text-sm leading-5">{pl.workout.session.supersetWith(supersetWith)}</Text>
+        </View>
+      ) : null}
+
       {exercise.kneeCue ? (
         <View className="flex-row gap-3 rounded-2xl bg-secondary p-4">
           <Info size={18} className="mt-0.5 text-highlight" />
@@ -237,6 +248,13 @@ function SetLoggerFields({
             </Text>
           ) : null}
         </View>
+      ) : null}
+
+      {isTimed(exercise) ? (
+        <Stopwatch
+          targetSec={block.timeSec}
+          onStop={(seconds) => setValues((v) => ({ ...v, timeSec: seconds }))}
+        />
       ) : null}
 
       <SetFields

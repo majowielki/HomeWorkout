@@ -17,8 +17,31 @@ export interface SessionStep {
   next: { block: TemplateBlock; setNumber: number } | null;
 }
 
-function groupKey(label: string): string {
+/** 'A' for 'A1' and 'A2': blocks with the same key are one superset. */
+export function groupKey(label: string): string {
   return label.match(/^[A-Za-z]+/)?.[0] ?? label;
+}
+
+/** Block indices of the superset `blockIndex` belongs to, in plan order (just itself when alone). */
+export function groupBlockIndices(steps: readonly SessionStep[], blockIndex: number): number[] {
+  const own = steps.find((s) => s.blockIndex === blockIndex);
+  if (!own) return [];
+  const key = groupKey(own.block.label);
+  const indices = new Set<number>();
+  for (const s of steps) if (groupKey(s.block.label) === key) indices.add(s.blockIndex);
+  return [...indices];
+}
+
+/** True when every set of every exercise in `blockIndex`'s superset has a log. */
+export function isGroupComplete(
+  steps: readonly SessionStep[],
+  loggedPairs: ReadonlySet<string>,
+  blockIndex: number,
+): boolean {
+  const group = new Set(groupBlockIndices(steps, blockIndex));
+  return steps
+    .filter((s) => group.has(s.blockIndex))
+    .every((s) => loggedPairs.has(stepKey(s.blockIndex, s.setNumber)));
 }
 
 export function buildSessionSteps(blocks: readonly TemplateBlock[]): SessionStep[] {
