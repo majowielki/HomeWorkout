@@ -65,3 +65,12 @@ export async function listStandaloneRides(): Promise<CardioLogRow[]> {
 export async function deleteCardioLog(id: string): Promise<void> {
   await db.delete(cardioLogs).where(eq(cardioLogs.id, id));
 }
+
+/** Every ride on one training date, oldest first — in a session or on its own. */
+export async function getRidesOn(trainingDate: string): Promise<CardioLogRow[]> {
+  return db
+    .select()
+    .from(cardioLogs)
+    .where(eq(cardioLogs.trainingDate, trainingDate))
+    .orderBy(asc(cardioLogs.loggedAt));
+}

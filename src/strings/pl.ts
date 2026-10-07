@@ -2,6 +2,7 @@ import { BAND_CONFIG } from '@/domain/config/training';
 import type { ToolName } from '@/ai/contract/chatTools';
 import type { SignalCode } from '@/domain/coach/vocabulary';
 import type { ExclusionCode } from '@/domain/exercises/screen';
+import type { WarmupMoveId } from '@/domain/session/warmup';
 import type {
   BikeReason,
   BlockEvent,
@@ -133,16 +134,8 @@ export const pl = {
       restNotificationBody: 'Wracaj do treningu — czas na kolejną serię.',
       upNext: 'Następne',
       exerciseDetails: 'Opis i mięśnie',
-      warmupTitle: 'Rozgrzewka',
-      rideTitle: 'Rower',
-      warmupDescription: 'Kilka minut na rowerze przed pierwszą serią.',
-      rideDescription:
-        'Codzienna jazda przed ćwiczeniami — rozgrzewa kolano. Zapisz opór i jak ciężko było (RPE): od tego zależy jutrzejsza jazda.',
       saddleHeight: (cm: number) =>
         `Siodełko: ${String(cm).replace('.', ',')} cm — sprawdź przed jazdą.`,
-      minutes: 'Minuty',
-      warmupLog: 'Zapisano, zaczynamy',
-      warmupSkip: 'Pomiń rozgrzewkę',
       substituteTitle: 'Zamień ćwiczenie',
       noSubstitutes: 'Brak dostępnych zamienników dla Twojego profilu.',
       substituteForBlock: 'Na resztę bloku',
@@ -172,6 +165,37 @@ export const pl = {
       },
       notFound: 'Nie znaleziono treningu.',
     },
+    warmup: {
+      title: 'Rozgrzewka',
+      description: 'Kilka minut we własnym tempie. Odhacz, co zrobione — albo od razu zacznij.',
+      done: 'Gotowe, zaczynamy',
+      skip: 'Pomiń rozgrzewkę',
+      moves: {
+        'arm-circles': { name: 'Krążenia ramion', dose: '10 w przód, 10 w tył' },
+        'arm-swings': { name: 'Wymachy rąk', dose: '10 przed sobą, 10 na boki' },
+        'shoulder-rolls': { name: 'Krążenia barków', dose: '10 razy' },
+        'hip-circles': { name: 'Krążenia bioder', dose: '8 w każdą stronę' },
+        'hip-hinge': { name: 'Skłony w przód z prostymi plecami', dose: '10 razy, bez pośpiechu' },
+        'side-bends': { name: 'Skłony w bok', dose: '8 na stronę' },
+        'cat-cow': { name: 'Koci grzbiet', dose: '8 razy' },
+        'chair-squat': {
+          name: 'Przysiad do krzesła bez obciążenia',
+          dose: '8 razy, kolana nad stopami',
+        },
+        'reverse-lunge': { name: 'Wykroki w tył z podparciem', dose: '6 na nogę, krótki krok' },
+        'calf-raises': { name: 'Wspięcia na palce', dose: '15 razy' },
+      } satisfies Record<WarmupMoveId, { name: string; dose: string }>,
+    },
+    ride: {
+      title: 'Rower',
+      eyebrow: 'Do zrobienia dziś',
+      done: 'Zrobione',
+      later: 'Później',
+      laterLine: (minutes: number) => `Rower ${minutes} min — na później`,
+      doneLine: 'Rower zrobiony',
+      hint: 'Kiedy chcesz: przed treningiem, po nim albo wieczorem. Zapisz opór i jak ciężko było (RPE) — od tego zależy następna jazda.',
+      save: 'Zapisz jazdę',
+    },
     summary: {
       title: 'Podsumowanie',
       setsLogged: (n: number) =>
@@ -194,8 +218,7 @@ export const pl = {
     lightDayTitle: 'Lekki dzień',
     blockBadge: (index: number) => `Blok ${index}`,
     deloadBadge: (index: number) => `Blok ${index} · deload`,
-    meta: (minutes: number, bikeMinutes: number) =>
-      `ok. ${minutes} min ćwiczeń + rower ${bikeMinutes} min`,
+    meta: (minutes: number) => `ok. ${minutes} min ćwiczeń`,
     loadError: 'Nie udało się ułożyć planu. Spróbuj ponownie.',
     retry: 'Spróbuj ponownie',
     manualEyebrow: 'Trening ręczny',
