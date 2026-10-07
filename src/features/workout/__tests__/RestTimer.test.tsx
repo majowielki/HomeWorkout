@@ -73,4 +73,16 @@ describe('RestTimer', () => {
     await act(() => jest.advanceTimersByTime(300));
     expect(screen.getByText('1:30')).toBeTruthy();
   });
+
+  it('offers to take the set just logged back', async () => {
+    const onUndo = jest.fn();
+    const onDone = jest.fn();
+    await act(() => useRestTimerStore.getState().start(90, 'body'));
+    await render(<RestTimer nextLabel={null} onDone={onDone} onUndo={onUndo} />);
+    await act(() => jest.advanceTimersByTime(300));
+
+    await fireEvent.press(screen.getByText('Cofnij serię'));
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+  });
 });

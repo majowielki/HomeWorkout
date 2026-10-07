@@ -5,14 +5,16 @@ import { ActivityIndicator, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { Undo2 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
-import { countWorkingSets } from '@/db/repositories/setLogs';
+import { countWorkingSets, takeBackLastSet } from '@/db/repositories/setLogs';
 import { getTemplate } from '@/db/repositories/templates';
 import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
 import { daysBetween } from '@/domain/time/trainingDate';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { planTitle } from '@/features/plan/format';
+import { rememberUndone, undoneFromRow } from '@/features/workout/undoneSet';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
 
@@ -29,7 +31,10 @@ type Loaded = {
 type State = { kind: 'loading' } | { kind: 'notFound' } | { kind: 'ready'; data: Loaded };
 
 export default function SessionSummaryScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `back`: what "Wróć do treningu" does — 'undo' takes the last set back
+  // (every set was logged, so the last tap may have been a mistake),
+  // 'resume' just returns to a workout finished early.
+  const { id, back } = useLocalSearchParams<{ id: string; back?: 'undo' | 'resume' }>();
   const router = useRouter();
 
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -83,6 +88,20 @@ export default function SessionSummaryScreen() {
       await completeWorkout(id, rpe, notes.trim().length > 0 ? notes.trim() : null);
       await syncReminders();
       router.replace('/(tabs)/workout');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleBack() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      if (back !== 'resume') {
+        const row = await takeBackLastSet(id);
+        if (row) rememberUndone(id, undoneFromRow(row));
+      }
+      router.replace({ pathname: '/workout/active/[id]', params: { id } });
     } finally {
       setSaving(false);
     }
@@ -166,6 +185,19 @@ export default function SessionSummaryScreen() {
         disabled={saving}
         className="mt-auto"
       />
+      <Button
+        label={pl.workout.summary.backToSession}
+        variant="ghost"
+        icon={<Undo2 size={16} className="text-muted-foreground" />}
+        labelClassName="text-muted-foreground"
+        onPress={() => void handleBack()}
+        disabled={saving}
+      />
+      {back !== 'resume' ? (
+        <Text variant="muted" className="-mt-3 text-center text-xs">
+          {pl.workout.summary.backUndoHint}
+        </Text>
+      ) : null}
     </View>
   );
 }

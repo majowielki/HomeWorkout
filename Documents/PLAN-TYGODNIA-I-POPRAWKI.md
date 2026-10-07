@@ -242,7 +242,8 @@ Karta roweru zostaje osobno, jak teraz.
 
 ### 3.6 Zgłaszanie zakwasów i bólu (bez AI)
 
-Arkusz „Zgłoś”: partie (te same co w dzienniku), rodzaj (zakwasy / lekki ból mięśnia), na ile dni
+Arkusz „Zgłoś” (doprecyzowany researchem, dodatek D): partie, rodzaj (zakwasy lekkie / silne, ból
+mięśnia z trzema pytaniami o naciągnięcie, czerwone flagi), na ile dni
 (1–3, domyślnie 2). Zapis do `plan_constraints` + przeliczenie od dziś. Odwołanie = `revokedAt`
 + przeliczenie.
 
@@ -475,3 +476,26 @@ Dla każdej odpowiedzi: konkretna rekomendacja liczbowa, siła dowodów (mocne /
 / opinia ekspertów) i źródła z działającym DOI albo linkiem PubMed. Nie podawaj źródeł, których nie
 możesz zweryfikować; jeśli dowodów brak, napisz to wprost.
 ```
+
+## Dodatek D — wnioski z researchu (2026-10-07)
+
+Źródło: `Documents/Gemini deep research docs/Naukowa Ocena Planu Treningowego.md`. Raport odpowiada
+na wszystkie 6 pytań. DOI kluczowych prac zgadzają się z tym, co znam (nie sprawdzane online): Schoenfeld 2017
+10.1080/02640414.2016.1210197, Krieger 2010, Schoenfeld 2019 10.1080/02640414.2018.1555906, konsensus
+monachijski 10.1136/bjsports-2012-091448, Dupuy 2018, Cheung 2003. Siłę dowodów raport miejscami
+zawyża — poniżej ocena własna.
+
+| Pytanie | Wniosek raportu | Co robimy | Uwaga |
+|---|---|---|---|
+| 1. Objętość 3–6, RIR 5 | 3–6 rozsądne dla początkującego w deficycie; RIR 5 to nie seria robocza | bez zmian | „bezpieczne maksimum" uzasadnia mechanizmem (AMPK/mTOR), nie badaniem — traktujemy 6 nadal jako parametr do strojenia |
+| 1. Ćwiczenia jednostronne | seria L + seria P = 1 seria dla partii | tak liczymy w Q-4 (strona = 0,5) | opinia ekspertów, nie metaanaliza |
+| 2. Regeneracja | dla samego mięśnia dzień po dniu przy 2 seriach jest neutralny; 48 h chroni ścięgna i kolano | `recoveryDays` zostaje 1 (~48 h) | cytowana metaanaliza częstotliwości nie dowodzi potrzeby 48 h — argument tkanki łącznej to rozumowanie, nie dowód |
+| 3. DOMS | 1–3/5: trenować można (lekki ruch pomaga); 4–5/5: omijać, aż spadnie do 2–3 | **zmiana w E5:** formularz pyta o nasilenie — lekkie zakwasy nie wyłączają partii, silne wyłączają na 2 dni (z dziennikiem DOMS ≥ 4 jak dotąd) | — |
+| 4. Naciągnięcie vs DOMS | rozróżnia początek (nagły w trakcie serii vs narastający po 12–24 h), lokalizacja (punkt jednym palcem vs rozlany), reakcja na rozgrzewkę; czerwone flagi: obrzęk/krwiak, wyczuwalne wgłębienie, ból utrudniający chód, „uciekanie" kolana | **E5:** te trzy pytania w formularzu; podejrzenie naciągnięcia → partia (główna i pomocnicza) wyłączona na 3 dni; czerwona flaga → komunikat o fizjoterapeucie, bez „leczenia" planem | 3 dni to opinia, nie wynik badania |
+| 5. Dni wolne | przy małej objętości niepotrzebne; dzień wolny/deload, gdy powtórzenia spadają o 15–20% przez 2–3 sesje albo pogarsza się sen | wzorzec tygodnia (decyzja 2), sygnały z SPEC §6.1 bez zmian — są zgodne | — |
+| 6. Strona słabsza pierwsza | zaczynać od strony operowanej/niestabilnej; zdrowa robi tyle samo | tak w Q-4 | **odrzucone:** zalecenie „edukacji skrzyżowanej" (zdrowa noga intensywnie, do RIR 0) — dotyczy unieruchomienia po operacji, kłóci się z filtrem kolana i z RIR silnika; poza zakresem aplikacji |
+| RIR u początkujących | początkujący zaniżają RIR (zostawiają 2–4 powt. w zapasie) — to bufor bezpieczeństwa | bez zmian | — |
+
+Doprecyzowanie nie jest potrzebne do E1–E7. Jedyna rzecz warta osobnego pytania kiedyś: czy przy
+`recoveryDays` = 1 dla mięśni niezwiązanych z kolanem (ramiona, core) można by skrócić przerwę —
+raport mówi „neutralne", więc to kwestia strojenia, nie bezpieczeństwa.

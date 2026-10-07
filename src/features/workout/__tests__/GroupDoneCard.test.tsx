@@ -33,4 +33,18 @@ describe('GroupDoneCard', () => {
     );
     expect(screen.getByText('Ćwiczenie zrobione')).toBeTruthy();
   });
+
+  it('offers to take the last set back', async () => {
+    const onUndo = jest.fn();
+    await render(
+      <GroupDoneCard
+        exercises={[{ name: 'Deska', sets: ['30 s'] }]}
+        nextLabel="C1"
+        onNext={jest.fn()}
+        onUndo={onUndo}
+      />,
+    );
+    await fireEvent.press(screen.getByText('Cofnij serię'));
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
 });

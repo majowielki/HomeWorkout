@@ -114,3 +114,20 @@ export async function updateSet(id: string, patch: SetPatch): Promise<void> {
 export async function deleteSet(id: string): Promise<void> {
   await db.delete(setLogs).where(eq(setLogs.id, id));
 }
+
+/**
+ * "Cofnij serię": takes back the newest working set of a workout — the one
+ * just logged by mistake — and returns it, so the logger can show its
+ * numbers again for a correction. Null when nothing is logged.
+ */
+export async function takeBackLastSet(workoutId: string): Promise<SetLogRow | null> {
+  const [row] = await db
+    .select()
+    .from(setLogs)
+    .where(and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false)))
+    .orderBy(desc(setLogs.loggedAt))
+    .limit(1);
+  if (!row) return null;
+  await db.delete(setLogs).where(eq(setLogs.id, row.id));
+  return row;
+}

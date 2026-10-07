@@ -57,13 +57,17 @@ type Props = {
   onShowDetails?: () => void;
   /** Names of the other exercises in this superset; absent for a lone exercise. */
   supersetWith?: string;
+  /** The numbers of a set just taken back ("Cofnij serię"): shown again for a correction. */
+  restore?: PrefillData;
 };
 
 /**
  * The first set of a planned exercise starts from the plan; every other
- * set starts from the last one logged for the exercise.
+ * set starts from the last one logged for the exercise. A set taken back
+ * starts from what was logged for it.
  */
 export function SetLogger(props: Props) {
+  if (props.restore) return <SetLoggerFields {...props} prefill={props.restore} />;
   const fromPlan =
     props.planned !== undefined &&
     props.planned.exerciseId === props.exercise.id &&
@@ -184,7 +188,7 @@ function SetLoggerFields({
 
   const progress = (
     <View className="flex-row gap-2">
-      <SetProgress done={setNumber - 1} total={totalSets} />
+      <SetProgress current={setNumber - 1} total={totalSets} />
     </View>
   );
 
@@ -245,6 +249,7 @@ function SetLoggerFields({
             mediaKey={exercise.media}
             name={exercise.name}
             className="aspect-[9/16] h-full"
+            zoomable
           />
         ) : (
           <ExerciseThumb mediaKey={exercise.media} className="h-40 w-40 rounded-2xl" />
@@ -278,6 +283,7 @@ function SetLoggerFields({
             mediaKey={exercise.media}
             name={exercise.name}
             className="aspect-[9/16] w-36"
+            zoomable
           />
           <View className="flex-1 gap-3">
             <View className="flex-row items-start">
@@ -306,8 +312,12 @@ function SetLoggerFields({
   );
 }
 
-/** One segment per set of the block; finished sets filled, the current one outlined. */
-function SetProgress({ done, total }: { done: number; total: number }) {
+/**
+ * One segment per set of the block; only the current one is lit. Done and
+ * waiting sets look the same — the eyebrow already says which set this is,
+ * and a lit first segment on set 2 read as the current one.
+ */
+function SetProgress({ current, total }: { current: number; total: number }) {
   return (
     <>
       {Array.from({ length: total }, (_, i) => (
@@ -315,7 +325,7 @@ function SetProgress({ done, total }: { done: number; total: number }) {
           key={i}
           className={cn(
             'h-1.5 flex-1 rounded-full',
-            i < done ? 'bg-primary' : i === done ? 'bg-foreground' : 'bg-secondary',
+            i === current ? 'bg-foreground' : 'bg-secondary',
           )}
         />
       ))}

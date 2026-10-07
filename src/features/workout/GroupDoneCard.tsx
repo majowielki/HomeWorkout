@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconBadge } from '@/components/ui/icon-badge';
-import { Check } from '@/components/ui/icons';
+import { Check, Undo2 } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';
 
@@ -18,6 +18,8 @@ type Props = {
   /** "B1 · Wiosłowanie gumą": what the button leads to. */
   nextLabel: string;
   onNext: () => void;
+  /** Takes the set just logged back (a mis-tap on "Seria zrobiona"). */
+  onUndo?: () => void;
 };
 
 /**
@@ -25,7 +27,7 @@ type Props = {
  * logged: what was just done, then one button on to the next exercise.
  * It stands in for the rest timer, so moving on is always a choice.
  */
-export function GroupDoneCard({ exercises, nextLabel, onNext }: Props) {
+export function GroupDoneCard({ exercises, nextLabel, onNext, onUndo }: Props) {
   const s = pl.workout.session;
   return (
     <View className="flex-1 justify-center gap-4 p-5">
@@ -52,6 +54,15 @@ export function GroupDoneCard({ exercises, nextLabel, onNext }: Props) {
         <Text className="text-center font-display-semibold text-base">{nextLabel}</Text>
       </View>
       <Button size="lg" label={s.nextExercise} onPress={onNext} />
+      {onUndo ? (
+        <Button
+          variant="ghost"
+          label={s.undoSet}
+          icon={<Undo2 size={16} className="text-muted-foreground" />}
+          labelClassName="text-muted-foreground"
+          onPress={onUndo}
+        />
+      ) : null}
     </View>
   );
 }
