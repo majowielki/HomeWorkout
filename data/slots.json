@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "_comment": "Movement slots for the daily planner (SPEC-silnik-regul.md §10). exerciseIds are in rotation order, easier first. start.* are guesses for a never-done exercise, not research; the first two sessions of every exercise run at RIR 4 so a wrong guess is harmless.",
   "slots": [
     {
@@ -16,7 +16,8 @@
         "db-front-squat",
         "bodyweight-squat",
         "wall-sit",
-        "band-leg-extension"
+        "band-leg-extension",
+        "chair-pose"
       ],
       "repRange": [10, 20],
       "timeRange": [20, 60],
@@ -80,7 +81,11 @@
         "shoulder-bridge",
         "donkey-kick",
         "band-hip-extension",
-        "band-heel-slide"
+        "band-heel-slide",
+        "single-leg-dumbbell-hip-thrust",
+        "clamshell",
+        "side-lying-leg-lifts",
+        "single-leg-glute-bridge-straight-leg"
       ],
       "repRange": [12, 20],
       "rir": [1, 2],
@@ -114,14 +119,20 @@
         "db-floor-press",
         "band-chest-press",
         "push-up",
-        "band-push-up"
+        "band-push-up",
+        "one-arm-dumbbell-floor-press-alternating",
+        "knee-push-ups",
+        "pilates-push-up",
+        "deadstop-push-up",
+        "archer-push-up"
       ],
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
       "start": {
         "paired": 4,
-        "band": "red"
+        "band": "red",
+        "single": 4
       }
     },
     {
@@ -142,7 +153,12 @@
       "name": "Pchanie pionowe",
       "kind": "compound",
       "region": "push",
-      "exerciseIds": ["seated-db-shoulder-press", "band-shoulder-press", "db-shoulder-press"],
+      "exerciseIds": [
+        "seated-db-shoulder-press",
+        "band-shoulder-press",
+        "db-shoulder-press",
+        "alternating-dumbbell-shoulder-press"
+      ],
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
@@ -156,7 +172,13 @@
       "name": "Przyciąganie poziome",
       "kind": "compound",
       "region": "pull",
-      "exerciseIds": ["band-row", "one-arm-db-row", "db-bent-over-row"],
+      "exerciseIds": [
+        "band-row",
+        "one-arm-db-row",
+        "db-bent-over-row",
+        "band-bent-over-row",
+        "seated-band-row"
+      ],
       "repRange": [8, 15],
       "rir": [2, 3],
       "restSec": 90,
@@ -189,14 +211,27 @@
         "band-face-pull",
         "band-pull-apart",
         "db-reverse-flyes",
-        "band-external-rotation"
+        "band-external-rotation",
+        "underhand-band-pull-apart",
+        "kneeling-band-face-pull",
+        "band-shoulder-internal-rotation",
+        "side-lying-rotation-with-band",
+        "cuban-press",
+        "dumbbell-halo",
+        "y-raises",
+        "w-raises",
+        "dumbbell-external-rotation",
+        "scapular-push-ups-on-knees",
+        "prone-w-to-lifts",
+        "reverse-snow-angels"
       ],
       "repRange": [12, 20],
       "rir": [1, 2],
       "restSec": 60,
       "start": {
         "paired": 2,
-        "band": "yellow"
+        "band": "yellow",
+        "single": 2
       },
       "lightFill": true
     },
@@ -205,7 +240,7 @@
       "name": "Boki barków",
       "kind": "accessory",
       "region": "shoulders",
-      "exerciseIds": ["lateral-raise"],
+      "exerciseIds": ["lateral-raise", "dumbbell-scaption", "t-raises"],
       "repRange": [10, 20],
       "rir": [0, 1],
       "restSec": 60,
@@ -218,12 +253,20 @@
       "name": "Biceps",
       "kind": "accessory",
       "region": "arms",
-      "exerciseIds": ["db-bicep-curl", "hammer-curl"],
+      "exerciseIds": [
+        "db-bicep-curl",
+        "hammer-curl",
+        "standing-band-biceps-curl",
+        "zottman-curl",
+        "concentration-curl"
+      ],
       "repRange": [10, 15],
       "rir": [0, 1],
       "restSec": 60,
       "start": {
-        "paired": 4
+        "paired": 4,
+        "single": 4,
+        "band": "yellow"
       }
     },
     {
@@ -235,7 +278,9 @@
         "band-triceps-pushdown",
         "db-overhead-triceps-extension",
         "db-lying-triceps-extension",
-        "close-grip-push-up"
+        "close-grip-push-up",
+        "dumbbell-tricep-kickback",
+        "diamond-push-ups-knee-assisted"
       ],
       "repRange": [10, 15],
       "rir": [0, 1],
@@ -267,7 +312,14 @@
         "db-dead-bug",
         "boat-hold",
         "the-hundred",
-        "reverse-plank"
+        "reverse-plank",
+        "double-leg-stretch",
+        "single-leg-stretch",
+        "pilates-roll-up",
+        "teaser",
+        "kneeling-plank-on-elbows",
+        "v-up",
+        "dead-bug-legs-only"
       ],
       "repRange": [8, 12],
       "timeRange": [20, 60],
@@ -290,7 +342,8 @@
         "oblique-crunch-tabletop",
         "db-russian-twist",
         "db-plank-pull-through",
-        "suitcase-carry"
+        "suitcase-carry",
+        "russian-twist-feet-on-floor"
       ],
       "timeRange": [15, 45],
       "rir": [1, 2],
@@ -307,19 +360,20 @@
       "name": "Prostowniki grzbietu",
       "kind": "core",
       "region": "core",
-      "exerciseIds": ["bird-dog", "superman"],
+      "exerciseIds": ["bird-dog", "superman", "back-extension-hold", "swimmers"],
       "repRange": [8, 12],
       "rir": [1, 2],
       "restSec": 45,
       "start": {},
-      "lightFill": true
+      "lightFill": true,
+      "timeRange": [20, 45]
     },
     {
       "id": "carry",
       "name": "Chwyt i kaptury",
       "kind": "accessory",
       "region": "arms",
-      "exerciseIds": ["farmers-carry", "db-shrug"],
+      "exerciseIds": ["farmers-carry", "db-shrug", "dumbbell-wrist-curls"],
       "repRange": [10, 15],
       "timeRange": [20, 45],
       "rir": [1, 2],
@@ -333,12 +387,36 @@
       "name": "Mobilność",
       "kind": "filler",
       "region": "mobility",
-      "exerciseIds": ["cat-cow", "open-book", "supine-figure-four"],
+      "exerciseIds": [
+        "cat-cow",
+        "open-book",
+        "supine-figure-four",
+        "mini-band-overhead-raise",
+        "mini-band-ankle-eversion",
+        "band-hamstring-stretch",
+        "spine-twist",
+        "supine-pelvic-tilt",
+        "pilates-swan",
+        "swan-prep",
+        "quadruped-thoracic-rotation",
+        "thread-the-needle",
+        "supine-chin-tuck-nod",
+        "knees-to-chest-stretch",
+        "standing-calf-stretch",
+        "seated-forward-fold",
+        "kneeling-shoulder-cars",
+        "cross-body-shoulder-stretch-standing",
+        "inchworm",
+        "downward-dog",
+        "seated-chest-opener"
+      ],
       "repRange": [6, 10],
       "timeRange": [30, 45],
       "rir": [4, 5],
       "restSec": 15,
-      "start": {}
+      "start": {
+        "band": "yellow"
+      }
     }
   ]
 }

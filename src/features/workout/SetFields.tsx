@@ -112,6 +112,9 @@ export function SetFields({ exercise, values, onChange, calibrations }: Props) {
 
   return (
     <>
+      {exercise.equipment.includes('mini-band') ? (
+        <Text variant="muted">{pl.workout.session.miniBandNote}</Text>
+      ) : null}
       {usesDumbbell(exercise) ? (
         <Stepper
           label={

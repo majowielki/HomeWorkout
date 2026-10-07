@@ -7,11 +7,12 @@
  * them — so this output is gitignored together with the folder it reads. See
  * src/assets/ymove-media.ts for how the app copes when it is missing.
  *
- * Inputs, per source folder (matched/, new/):
+ * Inputs, per source folder (ready/ after curation, or legacy matched/, new/):
  *   mapping.json       our exercise id -> what the API returned
  *   videos/<id>.mp4    the clip
  *   body-map/<id>.svg  the muscles-worked drawing
- * plus assets/ymove-trial/translations/*.json (optional, split only to keep
+ * plus ready/translations.json (required for curated material), or legacy
+ * assets/ymove-trial/translations/*.json (optional, split only to keep
  * each file writable in one go): our exercise id -> { instructions,
  * importantPoints } in Polish, same length as the English. An entry of
  * { "hide": true } drops the English text for an exercise whose steps describe
@@ -30,7 +31,9 @@ import catalogue from '../data/exercises.json';
 const ROOT = join(__dirname, '..');
 const SOURCE_ROOT = join(ROOT, 'assets', 'ymove-trial');
 const OUT_FILE = join(ROOT, 'src', 'assets', 'ymove-media.generated.ts');
-const SOURCES = ['matched', 'new'] as const;
+// Once curated, only ready/ is bundled. archive/ must never reach the app.
+const CURATED = existsSync(join(SOURCE_ROOT, 'ready', 'mapping.json'));
+const SOURCES = CURATED ? ['ready'] : ['matched', 'new'];
 const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
 
 type Mapping = Record<
@@ -55,6 +58,11 @@ function readJson<T>(path: string): T | null {
 }
 
 function readTranslations(problems: string[]): Translations {
+  if (CURATED) {
+    const translations = readJson<Translations>(join(SOURCE_ROOT, 'ready', 'translations.json'));
+    if (!translations) problems.push('ready/translations.json is missing');
+    return translations ?? {};
+  }
   const dir = join(SOURCE_ROOT, 'translations');
   const merged: Translations = {};
   if (!existsSync(dir)) return merged;
@@ -88,7 +96,8 @@ function main(): void {
 
     for (const [id, m] of Object.entries(mapping).sort(([a], [b]) => a.localeCompare(b))) {
       if (!knownIds.has(id)) {
-        waiting.push(`${source}/${id}`);
+        if (CURATED) problems.push(`${source}/${id}: unknown catalogue exercise`);
+        else waiting.push(`${source}/${id}`);
         continue;
       }
       const video = join(SOURCE_ROOT, source, 'videos', `${id}.mp4`);
@@ -116,6 +125,9 @@ function main(): void {
         pl.importantPoints.length === english.importantPoints.length;
       if (pl !== undefined && !plOk) {
         problems.push(`${id}: translation does not line up with the English steps/tips`);
+      }
+      if (CURATED && (hide || !plOk)) {
+        problems.push(`${id}: curated exercises require a complete Polish translation`);
       }
 
       const info = {
@@ -149,6 +161,12 @@ function main(): void {
     '};',
     '',
   ];
+  // Keep the previous, working module if input validation fails.
+  if (problems.length > 0) {
+    console.error('\nproblems:');
+    for (const p of problems) console.error(`  ${p}`);
+    process.exit(1);
+  }
   writeFileSync(OUT_FILE, lines.join('\n'));
 
   const translated = [...emitted].filter((id) => translations[id] && !hidden.has(id)).length;
@@ -165,11 +183,6 @@ function main(): void {
     console.log(
       `${waiting.length} downloaded clips wait for their exercise: ${waiting.join(', ')}`,
     );
-  }
-  if (problems.length > 0) {
-    console.error('\nproblems:');
-    for (const p of problems) console.error(`  ${p}`);
-    process.exit(1);
   }
 }
 

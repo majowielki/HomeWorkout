@@ -25,7 +25,7 @@ export type Stance =
 
 export type ForceProfile = 'ConcentricEccentric' | 'Isometric' | 'Plyometric';
 
-export type Equipment = 'dumbbell' | 'band' | 'mat' | 'bike' | 'bodyweight';
+export type Equipment = 'dumbbell' | 'band' | 'mini-band' | 'mat' | 'bike' | 'bodyweight';
 
 export type MuscleGroup =
   | 'quads'

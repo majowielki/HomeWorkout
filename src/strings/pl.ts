@@ -111,6 +111,8 @@ export const pl = {
       save: 'Zapisz',
     },
     session: {
+      miniBandNote:
+        'Mini band: używaj tego samego lekkiego oporu w kolejnych seriach. Zapisujemy powtórzenia lub czas, bez przeliczania oporu na kilogramy.',
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
       targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
       targetTime: (sec: number) => `cel: ${sec} s`,
@@ -211,6 +213,7 @@ export const pl = {
     sets: (n: number) => `${n} ${n === 1 ? 'seria' : n >= 2 && n <= 4 ? 'serie' : 'serii'}`,
     rir: (min: number, max: number) => (min === max ? `RIR ${min}` : `RIR ${min}–${max}`),
     load: {
+      miniBand: 'mini band — stały lekki opór',
       paired: (kg: number) => `2 × ${kg} kg`,
       single: (kg: number) => `${kg} kg`,
       band: (label: string, position: number) => `guma ${label}, P${position}`,
@@ -784,6 +787,7 @@ export const pl = {
     equipment: {
       dumbbell: 'hantle',
       band: 'guma',
+      'mini-band': 'mini band',
       mat: 'karimata',
       bike: 'rower',
       bodyweight: 'masa ciała',
@@ -831,6 +835,19 @@ export const pl = {
     } as Record<string, string>,
     /** YMove's muscle vocabulary (snake_case ids); see muscleLabel() for the fallback. */
     ymoveMuscle: {
+      achilles_tendon: 'ścięgno Achillesa',
+      cervical_extensors: 'prostowniki szyi',
+      deep_neck_flexors: 'głębokie zginacze szyi',
+      forearm_extensors: 'prostowniki przedramienia',
+      full_body: 'całe ciało',
+      legs: 'nogi',
+      pectoralis_minor: 'piersiowy mniejszy',
+      semimembranosus: 'półbłoniasty',
+      sternocleidomastoid: 'mostkowo-obojczykowo-sutkowy',
+      subscapularis: 'podłopatkowy',
+      trapezius: 'czworoboczny',
+      wrist_extensors: 'prostowniki nadgarstka',
+      wrist_flexors: 'zginacze nadgarstka',
       abductors: 'odwodziciele uda',
       abs: 'brzuch',
       adductors: 'przywodziciele uda',

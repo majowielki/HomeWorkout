@@ -49,6 +49,7 @@ describe('catalogue under the conservative knee profile', () => {
         'reverse-lunge',
         'split-squat',
         'step-up',
+        'standing-calf-stretch', // staggered stance supported by the wall
       ].sort(),
     );
   });

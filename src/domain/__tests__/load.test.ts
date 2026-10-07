@@ -8,6 +8,7 @@ describe('loadKindOf', () => {
     [['dumbbell', 'bodyweight'], 'dumbbell'],
     [['bodyweight', 'mat'], 'bodyweight'],
     [['bike'], 'bodyweight'],
+    [['mini-band'], 'bodyweight'],
   ] as const)('%j -> %s', (equipment, kind) => {
     expect(loadKindOf({ equipment: [...equipment] })).toBe(kind);
   });

@@ -59,7 +59,9 @@ export const exerciseSchema = z
 
     primaryMuscles: z.array(muscleGroupSchema).min(1),
     secondaryMuscles: z.array(muscleGroupSchema),
-    equipment: z.array(z.enum(['dumbbell', 'band', 'mat', 'bike', 'bodyweight'])).min(1),
+    equipment: z
+      .array(z.enum(['dumbbell', 'band', 'mini-band', 'mat', 'bike', 'bodyweight']))
+      .min(1),
     dumbbellMode: z.enum(['paired', 'single']).optional(),
     bandSuitability: z.enum(['excellent', 'ok', 'poor']),
     substituteIds: z.array(z.string()),
