@@ -91,7 +91,11 @@ export default function ExercisesScreen() {
         onContentSizeChange={(_, h) => setContentHeight(h)}
         onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
         onViewableItemsChanged={onViewableItemsChanged}
-        keyExtractor={(row) => row.exercise.id}
+        // With onViewableItemsChanged, RN also asks for the key of section
+        // headers and footers, which have no row (it crashed the screen).
+        keyExtractor={(row, index) =>
+          (row as Partial<Row> | undefined)?.exercise?.id ?? `section-${index}`
+        }
         contentContainerClassName="px-5 pb-12"
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={

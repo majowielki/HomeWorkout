@@ -189,7 +189,7 @@ function SetLoggerFields({
   );
 
   // Notes and controls, the same in both orientations.
-  const body = (
+  const notes = (
     <>
       {supersetWith ? (
         <View className="rounded-2xl border border-border p-4">
@@ -211,7 +211,11 @@ function SetLoggerFields({
           {pl.workout.session.bandPrestretch}
         </Text>
       ) : null}
+    </>
+  );
 
+  const controls = (
+    <>
       {isTimed(exercise) ? (
         <Stopwatch
           targetSec={block.timeSec}
@@ -231,8 +235,8 @@ function SetLoggerFields({
   );
 
   if (wide) {
-    // A phone on its side: the clip fills the height on the left, the set
-    // scrolls on the right.
+    // A phone on its side: the clip fills the height on the left, then what
+    // to do, then the set itself — no scrolling to reach the button.
     return (
       <View className="flex-1 flex-row gap-5 px-5 py-3">
         {hasClip ? (
@@ -255,7 +259,10 @@ function SetLoggerFields({
             {details}
           </View>
           {progress}
-          {body}
+          {notes}
+        </ScrollView>
+        <ScrollView className="flex-1" contentContainerClassName="gap-4 pb-4">
+          {controls}
         </ScrollView>
       </View>
     );
@@ -293,7 +300,8 @@ function SetLoggerFields({
 
       {hasClip ? null : targets}
 
-      {body}
+      {notes}
+      {controls}
     </ScrollView>
   );
 }
