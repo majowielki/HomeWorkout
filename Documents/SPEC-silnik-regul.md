@@ -813,3 +813,56 @@ Limit 8 dla pośladków i pleców **zatwierdzony przez użytkownika 2026-10-02**
 
 Wynik dla 12 tygodni: dzień 18–25 min ćwiczeń (śr. 22) + rower; każda partia w normie przez
 większość dni — pod normą głównie w tygodniach deloadu, czyli zgodnie z planem.
+
+---
+
+## 11. Tydzień do przodu (v1.4, 2026-10-07)
+
+Plan i decyzje: `Documents/PLAN-TYGODNIA-I-POPRAWKI.md` §3.9.
+
+### 11.1 Dwa kroki dnia
+
+`planDay = buildDay(selectDay(...))`. **`selectDay`** decyduje *co*: kwalifikacja slotów, punktacja,
+wypełnianie, dopełnienie — wynik to `DaySelection` (slot, ćwiczenie, serie, rola `work` / `light` /
+`mobility`, pominięte sloty, kody `LIGHT_DAY` i `LIGHTER_DAY_REQUESTED`). **`buildDay`** decyduje
+*ile*: receptę każdego elementu z historii z dnia, w którym dzień jest budowany (progresja, przerwa,
+deload, gotowość), kolejność i etykiety, `validatePlan`. Wszystkie testy `planDay` sprzed podziału
+przechodzą bez zmian.
+
+### 11.2 Prośby (`plan/constraints.ts`)
+
+| Rodzaj | Działanie |
+|---|---|
+| `avoid_muscle`, powód `doms` | partia odpada jako główna (`AVOIDED_BY_REQUEST`); praca pomocnicza zostaje — lekki ruch pomaga przy zakwasach (research, dodatek D) |
+| `avoid_muscle`, powód `pain` | partia odpada całkiem: główna, pomocnicza, dopełnienie i mobilność |
+| `rest_day` / `train_day` | dzień wolny / treningowy wbrew wzorcowi tygodnia |
+| `lighter_day` | jedna seria każdego ćwiczenia (`LIGHTER_DAY_REQUESTED`) |
+
+Wzorzec tygodnia (`TrainingWeek.restWeekdays`): przy mniej niż 7 dniach treningowych dzienny cel czasu
+rośnie, żeby tygodniowa praca została podobna: `clamp(cel × 7 / dni, min, max)` (`scaledConfig`).
+
+Kody `AVOIDED_BY_REQUEST` i `LIGHTER_DAY_REQUESTED` są poza listami kontraktu czatu v2 — narzędzie
+`getPlanExplanation` je pomija do kontraktu v3 (etap E7).
+
+### 11.3 `planWeek` i `checkSelection`
+
+`planWeek` idzie dzień po dniu jak symulacja (§10.6), na prawdziwej historii: dla każdego dnia
+przesuwa blok (w pamięci), sprawdza dzień wolny, a zapisany wcześniej wybór dnia **zostawia**, jeśli
+`checkSelection` nie zgłasza naruszeń; inaczej wybiera od nowa. Prognoza dnia (`buildDay`) jest
+„wykonywana” zgodnie z planem, zanim powstanie dzień następny. Wynik: dni ze statusem `kept` /
+`changed` / `new`, naruszeniami i prognozowaną objętością partii.
+
+`checkSelection` to reguły `selectDay` sprawdzone na stanie z dnia: ćwiczenie dozwolone i nadal
+wybrane w bloku (`NOT_ALLOWED`, `SELECTION_CHANGED`), blok i faza bez zmian (`BLOCK_CHANGED`),
+prośba o lżejszy dzień bez zmian (`REQUEST_CHANGED`), partia nie `RECOVERING` / `DOMS_HIGH` /
+`AVOIDED_BY_REQUEST`, limity tygodnia i dnia (`VOLUME_AT_MAX`). Dzień, który stał się wolny:
+`REST_DAY`.
+
+### 11.4 Właściwości (testy `week.test.ts`)
+
+- bez zapisanych dni `planWeek` daje te same plany co symulacja dzień po dniu;
+- zapisany tydzień przeliczony na tej samej historii zostaje w całości (`kept`);
+- dodatkowy trening w poniedziałek z pracą zaplanowaną na wtorek zmienia **tylko wtorek**
+  (`RECOVERING`), reszta tygodnia zostaje;
+- prośba o pominięcie partii działa tylko w swoich dniach; ból wyklucza też pracę pomocniczą;
+- objętość prognozy nie przekracza tygodniowego max żadnej partii.

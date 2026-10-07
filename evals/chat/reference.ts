@@ -18,7 +18,7 @@ import type { ChatEvent, ChatMessage, ChatRequest, ToolCall, ToolResult } from '
 import type { ToolName, ToolOutput } from '@/ai/contract/chatTools';
 import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v2';
 import { fold } from '@/domain/coach/text';
-import type { SkipReason } from '@/domain/plan/reasons';
+import type { SKIP_REASONS } from '@/domain/plan/reasons';
 
 export const REFERENCE_CHAT_MODEL = 'reference-chat-model';
 
@@ -183,7 +183,7 @@ function bodyLines(body: ToolOutput<'getBodyTrend'>): string[] {
 }
 
 /** Why a movement is left out, in plain Polish — the engine's code, nothing added. */
-const SKIPPED: Record<SkipReason, string> = {
+const SKIPPED: Record<(typeof SKIP_REASONS)[number], string> = {
   NO_CANDIDATE: 'w tym ruchu nie ma teraz dozwolonego ćwiczenia',
   DOMS_HIGH: 'masz dziś mocne zakwasy w tej partii',
   RECOVERING: 'ta partia pracowała wczoraj i się regeneruje',

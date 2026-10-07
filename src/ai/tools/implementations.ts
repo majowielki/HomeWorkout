@@ -1,6 +1,7 @@
 import { exerciseTrend } from '@/domain/coach/exerciseTrend';
 import { fold } from '@/domain/coach/text';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
+import { DAY_REASONS, type DayReason, SKIP_REASONS, type SkipReason } from '@/domain/plan/reasons';
 import type { SessionPlan } from '@/domain/plan/types';
 import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
@@ -14,6 +15,19 @@ import {
 } from '../contract/chatTools';
 import { bodySummary, volumeWeek } from '../context/derive';
 import type { CoachSource, SourceSet } from '../context/source';
+
+/*
+ * The codes the chat contract v2 knows. Codes that come from a request
+ * (AVOIDED_BY_REQUEST, LIGHTER_DAY_REQUESTED) join it with contract v3,
+ * stage E7; until then they stay on the phone.
+ */
+function inContractDay(code: DayReason): code is (typeof DAY_REASONS)[number] {
+  return (DAY_REASONS as readonly string[]).includes(code);
+}
+
+function inContractSkip(code: SkipReason): code is (typeof SKIP_REASONS)[number] {
+  return (SKIP_REASONS as readonly string[]).includes(code);
+}
 
 /**
  * What the tools need from the outside: rows, in domain terms. The phone
@@ -181,7 +195,7 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
       source: found.source,
       blockIndex: plan.blockIndex,
       phase: plan.phase,
-      dayReasons: plan.dayReasons,
+      dayReasons: plan.dayReasons.filter(inContractDay),
       signals: plan.signals,
       bike: { minutes: plan.bike.minutes, reasons: plan.bike.reasons },
       exercises: plan.exercises.slice(0, TOOL_LIMITS.planExercisesShown).map((e) => ({
@@ -190,11 +204,16 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
         sets: e.sets,
         reasons: e.reasons,
       })),
-      skipped: plan.skipped.slice(0, TOOL_LIMITS.planSkippedShown).map((s) => ({
-        movement: movement(s.slotId),
-        exercise: s.exerciseId === null ? null : ref(s.exerciseId),
-        reason: s.reason,
-      })),
+      skipped: plan.skipped
+        .flatMap(({ slotId, exerciseId, reason }) =>
+          inContractSkip(reason) ? [{ slotId, exerciseId, reason }] : [],
+        )
+        .slice(0, TOOL_LIMITS.planSkippedShown)
+        .map((s) => ({
+          movement: movement(s.slotId),
+          exercise: s.exerciseId === null ? null : ref(s.exerciseId),
+          reason: s.reason,
+        })),
     };
   },
 };
