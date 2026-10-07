@@ -5,7 +5,6 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { ymoveMedia } from '@/assets/ymove-media';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
@@ -25,13 +24,11 @@ import {
   SetFields,
   type SetFieldValues,
   toSavedSet,
+  usesBand,
 } from './SetFields';
 import { Stopwatch } from './Stopwatch';
 
 export type { SavedSetData } from './SetFields';
-
-/** What the active session receives: the set plus whether it was a warm-up. */
-export type LoggedSetData = SavedSetData & { isWarmup: boolean };
 
 export interface PrefillData {
   reps: number | null;
@@ -51,11 +48,9 @@ type Props = {
    * sets, and a substitute, prefill from the last logged set as before.
    */
   planned?: PlannedExercise;
-  /** Start with the warm-up toggle on (bands, SPEC §5.6). */
-  defaultWarmup?: boolean;
   setNumber: number;
   totalSets: number;
-  onSave: (data: LoggedSetData) => void;
+  onSave: (data: SavedSetData) => void;
   saving?: boolean;
   calibrations?: BandCalibrationMap;
   /** Opens the exercise's full description; the link only shows next to a clip. */
@@ -134,7 +129,6 @@ function SetLoggerFields({
   onSave,
   saving,
   calibrations,
-  defaultWarmup,
   onShowDetails,
   supersetWith,
 }: Props & { prefill: PrefillData | null }) {
@@ -146,15 +140,13 @@ function SetLoggerFields({
     bandId: prefill?.bandId ?? BANDS[0]!.id,
     position: prefill?.anchorPosition ?? 1,
   }));
-  // A warm-up only makes sense before the first working set of a block —
-  // for bands it is what SPEC §5.6 requires (Mullins effect), for the knee
-  // it is plain sense. Off by default so the common path stays one tap.
-  const warmupAvailable = setNumber === 1;
-  const [isWarmup, setIsWarmup] = useState(Boolean(defaultWarmup) && warmupAvailable);
+  // A band is stiffer for its first few stretches (Mullins effect, SPEC
+  // §5.6): a cue before the first set instead of a logged warm-up set.
+  const bandPrestretch = setNumber === 1 && usesBand(exercise);
 
   const handleSave = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSave({ ...toSavedSet(exercise, values, calibrations), isWarmup });
+    onSave(toSavedSet(exercise, values, calibrations));
   };
 
   const hasClip = ymoveMedia[exercise.id] !== undefined;
@@ -235,19 +227,10 @@ function SetLoggerFields({
         </View>
       ) : null}
 
-      {warmupAvailable ? (
-        <View className="items-center gap-1">
-          <Chip
-            label={pl.workout.session.warmupSet}
-            selected={isWarmup}
-            onPress={() => setIsWarmup((v) => !v)}
-          />
-          {isWarmup ? (
-            <Text variant="muted" className="text-center text-xs">
-              {pl.workout.session.warmupSetHint}
-            </Text>
-          ) : null}
-        </View>
+      {bandPrestretch ? (
+        <Text variant="muted" className="text-sm leading-5">
+          {pl.workout.session.bandPrestretch}
+        </Text>
       ) : null}
 
       {isTimed(exercise) ? (
@@ -264,13 +247,7 @@ function SetLoggerFields({
         calibrations={calibrations}
       />
 
-      <Button
-        label={isWarmup ? pl.workout.session.saveWarmupSet : pl.workout.session.saveSet}
-        size="lg"
-        variant={isWarmup ? 'secondary' : 'default'}
-        onPress={handleSave}
-        disabled={saving}
-      />
+      <Button label={pl.workout.session.saveSet} size="lg" onPress={handleSave} disabled={saving} />
     </ScrollView>
   );
 }

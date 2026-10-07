@@ -136,18 +136,16 @@ describe('SetLogger', () => {
       bandId: null,
       anchorPosition: null,
       estimatedLoadKg: null,
-      isWarmup: false,
     });
   });
 
-  it('offers no warm-up toggle past the first set of a block', async () => {
+  it('has no warm-up set toggle (SPEC v1.3)', async () => {
     mockedLastSet.mockResolvedValue(null);
-
     await render(
       <SetLogger
         exercise={exercise({})}
         block={block}
-        setNumber={2}
+        setNumber={1}
         totalSets={2}
         onSave={jest.fn()}
       />,
@@ -156,24 +154,25 @@ describe('SetLogger', () => {
     expect(screen.queryByText('Seria rozgrzewkowa')).toBeNull();
   });
 
-  it('flags the save as a warm-up when the toggle is on', async () => {
+  it('asks to pre-stretch a band before its first set only', async () => {
     mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-
-    await render(
+    const band = exercise({ equipment: ['band'], dumbbellMode: undefined });
+    const { rerender } = await render(
+      <SetLogger exercise={band} block={block} setNumber={1} totalSets={2} onSave={jest.fn()} />,
+    );
+    expect(await screen.findByText(/rozciągnij gumę 5–10 razy/)).toBeTruthy();
+    await rerender(
       <SetLogger
-        exercise={exercise({})}
+        key="2"
+        exercise={band}
         block={block}
-        setNumber={1}
+        setNumber={2}
         totalSets={2}
-        onSave={onSave}
+        onSave={jest.fn()}
       />,
     );
-    await screen.findByText('2 kg');
-    await fireEvent.press(screen.getByText('Seria rozgrzewkowa'));
-    await fireEvent.press(await screen.findByText('Zapisz rozgrzewkową'));
-
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ isWarmup: true }));
+    await screen.findByText('Seria zrobiona');
+    expect(screen.queryByText(/rozciągnij gumę/)).toBeNull();
   });
 
   it('prefills from the previous log so a repeat set is one tap', async () => {
@@ -430,7 +429,7 @@ describe('SetLogger', () => {
 
       await fireEvent.press(screen.getByText('Seria zrobiona'));
       expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ reps: 13, weightKg: 8, rir: 2, isWarmup: false }),
+        expect.objectContaining({ reps: 13, weightKg: 8, rir: 2 }),
       );
     });
 
@@ -471,7 +470,7 @@ describe('SetLogger', () => {
         unit: 'sec',
         target: 30,
         load: { kind: 'band', bandId: 'red', position: 2 },
-        warmupSet: true,
+        warmupSet: false,
       };
       const onSave = jest.fn();
       await render(
@@ -483,16 +482,15 @@ describe('SetLogger', () => {
           })}
           block={hold}
           planned={hold}
-          defaultWarmup
           setNumber={1}
           totalSets={2}
           onSave={onSave}
         />,
       );
       expect(await screen.findByText('30 s')).toBeTruthy();
-      await fireEvent.press(screen.getByText('Zapisz rozgrzewkową'));
+      await fireEvent.press(screen.getByText('Seria zrobiona'));
       expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ timeSec: 30, bandId: 'red', anchorPosition: 2, isWarmup: true }),
+        expect.objectContaining({ timeSec: 30, bandId: 'red', anchorPosition: 2 }),
       );
     });
   });

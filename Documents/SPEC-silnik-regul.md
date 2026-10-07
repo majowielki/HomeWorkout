@@ -442,6 +442,10 @@ Powód ostatniego wiersza: precyzja pokazana użytkownikowi sugeruje pewność, 
 → Silnik **wymaga serii rozgrzewkowej z gumą** przed pierwszą serią roboczą danego ćwiczenia.
 Brak rozgrzewki oznacza flagę `WARMUP_MISSING` na serii i wykluczenie jej z porównań progresji.
 
+**v1.3 (2026-10-07):** wyłączone (`PROGRESSION_CONFIG.requireBandWarmup = false`). Zapisywanie serii
+rozgrzewkowych okazało się w użyciu zbędne; zamiast niej ekran serii prosi przed pierwszą serią z gumą
+o 5–10 rozciągnięć bez liczenia. Pierwsza seria robocza liczy się do porównań jak każda inna.
+
 **Histereza** — faza ekscentryczna jest o 5–25% lżejsza niż koncentryczna.
 → `eccentricSeconds.band = 3` (wobec 2 dla hantli). Cue w UI: „opuszczaj wolniej niż podnosisz".
 

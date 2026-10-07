@@ -64,9 +64,10 @@ export function prescribe(input: PrescribeInput, cfg = PROGRESSION_CONFIG): Pres
   const isBand = loadKindOf(exercise) === 'band';
   const deloadRir: [number, number] = [BLOCK_CONFIG.deloadRir[0], BLOCK_CONFIG.deloadRir[1]];
   const intro: [number, number] = input.deload ? deloadRir : [cfg.introRir, cfg.introRir];
-  const base = { unit, range, warmupSet: isBand };
+  const warmup = isBand && cfg.requireBandWarmup;
+  const base = { unit, range, warmupSet: warmup };
 
-  const exposures = exposuresOf(exercise.id, input.sessions, ladder, unit, isBand);
+  const exposures = exposuresOf(exercise.id, input.sessions, ladder, unit, warmup);
   const last = exposures[exposures.length - 1];
   if (!last) {
     return {

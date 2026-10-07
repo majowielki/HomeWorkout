@@ -141,19 +141,19 @@ describe('planDay — the first day', () => {
   const plan = planDay(input());
 
   it('fills the time budget with the muscles most in need, rare ones first', () => {
-    expect(ids(plan)).toEqual(['squat', 'press', 'row', 'curl']);
-    expect(plan.estimatedMinutes).toBe(21);
+    expect(ids(plan)).toEqual(['squat', 'press', 'row', 'curl', 'plank']);
+    expect(plan.estimatedMinutes).toBe(24);
   });
 
   it('pairs lower with upper body and labels the groups', () => {
-    expect(plan.exercises.map((e) => e.label)).toEqual(['A1', 'A2', 'B1', 'C1']);
-    expect(plan.regions).toEqual(['lower', 'push', 'pull', 'arms']);
+    expect(plan.exercises.map((e) => e.label)).toEqual(['A1', 'A2', 'B1', 'C1', 'D1']);
+    expect(plan.regions).toEqual(['lower', 'push', 'pull', 'arms', 'core']);
   });
 
-  it('starts everything light, the band with a warm-up', () => {
+  it('starts everything light, the band without a logged warm-up set (SPEC v1.3)', () => {
     expect(plan.exercises.every((e) => e.reasons.includes('FIRST_EXPOSURE'))).toBe(true);
     expect(plan.exercises.find((e) => e.exerciseId === 'row')).toMatchObject({
-      warmupSet: true,
+      warmupSet: false,
       load: { kind: 'band', bandId: 'red', position: 1 },
     });
     expect(plan.exercises[0]).toMatchObject({
@@ -167,7 +167,7 @@ describe('planDay — the first day', () => {
 
   it('says why each other slot is out', () => {
     expect(skip(plan, 'lunge')).toBe('ALREADY_TODAY');
-    expect(skip(plan, 'core')).toBe('NOT_PICKED');
+    expect(skip(plan, 'core2')).toBe('ALREADY_TODAY');
     expect(skip(plan, 'nocand')).toBe('NO_CANDIDATE');
     expect(plan.skipped.find((s) => s.slotId === 'nocand')?.exerciseId).toBeNull();
   });
