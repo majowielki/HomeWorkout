@@ -94,7 +94,11 @@ function ZoomedMedia({
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         {source !== undefined ? (
-          <LoopingClip source={source} name={name} className="aspect-[9/16] h-full max-w-full" />
+          <LoopingClip
+            source={source}
+            name={name}
+            className="h-full w-full rounded-none bg-black"
+          />
         ) : (
           <ExerciseThumb mediaKey={mediaKey} className="aspect-square w-full" />
         )}
