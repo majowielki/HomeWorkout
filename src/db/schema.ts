@@ -9,6 +9,7 @@ import type {
   Exercise,
   KneeProfile,
   MuscleGroup,
+  Side,
   TemplateBlock,
 } from '@/domain/types';
 
@@ -112,6 +113,12 @@ export const setLogs = sqliteTable(
     /** Null whenever the band has no usable calibration — the normal case
      *  for the green band, not an edge case. */
     estimatedLoadKg: real('estimated_load_kg'),
+    /**
+     * The side of a one-sided set (exercise `sides: 'perSet'`): a set on the
+     * left and one on the right count as one set for the muscle. Null for
+     * two-sided work and for every set logged before sides existed.
+     */
+    side: text('side', { enum: ['left', 'right'] }).$type<Side>(),
     loggedAt: text('logged_at').notNull(),
   },
   (t) => [

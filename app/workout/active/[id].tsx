@@ -28,13 +28,14 @@ import {
 } from '@/domain/session/steps';
 import { warmupMoves } from '@/domain/session/warmup';
 import type { PlannedExercise, SessionPlan } from '@/domain/plan/types';
-import type { Exercise, MedicalProfile } from '@/domain/types';
+import type { Exercise, MedicalProfile, TemplateBlock } from '@/domain/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { describeSet } from '@/features/history/describeSet';
 import { planTitle } from '@/features/plan/format';
 import { type GroupDoneExercise, GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
 import { type SavedSetData, SetLogger } from '@/features/workout/SetLogger';
+import { sessionSides } from '@/features/workout/sessionSides';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
@@ -52,6 +53,8 @@ type Loaded = {
   title: string;
   /** The engine's plan the session was started from; null for a template session. */
   plan: SessionPlan | null;
+  /** What the steps are built from: the plan's exercises or the template's blocks. */
+  blocks: readonly TemplateBlock[];
 };
 
 export default function ActiveSessionScreen() {
@@ -96,10 +99,12 @@ export default function ActiveSessionScreen() {
         return;
       }
 
-      const builtSteps = buildSessionSteps(plan ? plan.exercises : template!.blocks);
+      const profileRow = await getProfile();
+      const knee: MedicalProfile = { knee: profileRow?.kneeProfile ?? null };
+      const blocks = plan ? plan.exercises : template!.blocks;
+      const builtSteps = buildSessionSteps(blocks, { sidesOf: sessionSides(knee) });
       const keys = await getLoggedStepKeys(id);
       const resumeIndex = findResumeIndex(builtSteps, keys);
-      const profileRow = await getProfile();
       const excluded = await getExcludedExerciseIds();
       // A fresh session opens on the general warm-up; the bike is its own
       // task on 'Dziś', done whenever suits the day.
@@ -122,10 +127,11 @@ export default function ActiveSessionScreen() {
         trainingDate: workout.trainingDate,
         title: plan ? planTitle(plan) : template!.name,
         plan,
+        blocks,
       });
       setSteps(builtSteps);
       setLoggedKeys(keys);
-      setProfile({ knee: profileRow?.kneeProfile ?? null });
+      setProfile(knee);
       setExcludedIds(new Set(excluded));
       if (undone && undoneIndex >= 0) {
         setCurrentIndex(undoneIndex);
@@ -165,12 +171,33 @@ export default function ActiveSessionScreen() {
       current !== undefined &&
       current.blockIndex !== step.blockIndex &&
       groupKey(current.block.label) === groupKey(step.block.label);
+    const t = pl.workout.session;
+    const otherSide = current?.blockIndex === step.blockIndex && step.side !== null;
+    const name = exercise?.name ?? step.block.exerciseId;
     return {
       exercise: exercise ?? null,
-      label: `${step.block.label} · ${exercise?.name ?? step.block.exerciseId}`,
-      note: supersetSwitch ? pl.workout.session.supersetNext : null,
+      label: `${step.block.label} · ${name}${step.side ? ` — ${t.side[step.side]}` : ''}`,
+      note: supersetSwitch ? t.supersetNext : otherSide ? t.otherSideNext : null,
     };
   }, [phase, steps, loggedKeys, currentIndex, substitutes, exerciseMap]);
+
+  /**
+   * A swap can change whether the exercise is done one side per set, and so
+   * how many steps its block has. While nothing of the block is logged its
+   * steps are built again for the exercise now done; once a set is logged
+   * the layout stays as it is.
+   */
+  function resplit(blockIndex: number, swaps: Record<number, string>) {
+    if (!loaded) return;
+    const touched = steps.some(
+      (s) => s.blockIndex === blockIndex && loggedKeys.has(stepKey(s.blockIndex, s.setNumber)),
+    );
+    if (touched) return;
+    const next = buildSessionSteps(loaded.blocks, { sidesOf: sessionSides(profile, swaps) });
+    setSteps(next);
+    const first = next.findIndex((s) => s.blockIndex === blockIndex);
+    if (first >= 0) setCurrentIndex(first);
+  }
 
   /** The exercise actually done for a block: today's swap, else the plan's. */
   const exerciseFor = (blockIndex: number) => {
@@ -254,6 +281,7 @@ export default function ActiveSessionScreen() {
         bandId: data.bandId,
         anchorPosition: data.anchorPosition,
         estimatedLoadKg: data.estimatedLoadKg,
+        side: currentStep.side,
       });
       freshKeys = await getLoggedStepKeys(loaded.workoutId);
       setLoggedKeys(freshKeys);
@@ -388,6 +416,10 @@ export default function ActiveSessionScreen() {
           block={currentStep.block}
           planned={loaded.plan ? (currentStep.block as PlannedExercise) : undefined}
           setNumber={currentStep.setNumber}
+          round={currentStep.round}
+          side={currentStep.side}
+          stepOfBlock={currentStep.stepOfBlock}
+          stepsInBlock={currentStep.stepsInBlock}
           supersetWith={supersetWith || undefined}
           restore={
             restored?.key === stepKey(currentStep.blockIndex, currentStep.setNumber)
@@ -446,7 +478,9 @@ export default function ActiveSessionScreen() {
           planned={loaded.plan !== null}
           onSelect={(choice) => {
             if (!currentStep) return;
-            setSubstitutes((prev) => ({ ...prev, [currentStep.blockIndex]: choice.exercise.id }));
+            const swaps = { ...substitutes, [currentStep.blockIndex]: choice.exercise.id };
+            setSubstitutes(swaps);
+            resplit(currentStep.blockIndex, swaps);
             setSubstituteModalOpen(false);
             if (choice.forBlock && choice.slotId) {
               const slotId = choice.slotId;
@@ -459,7 +493,9 @@ export default function ActiveSessionScreen() {
           onRestore={() => {
             if (!currentStep) return;
             const blockIndex = currentStep.blockIndex;
-            setSubstitutes(({ [blockIndex]: _, ...rest }) => rest);
+            const { [blockIndex]: _, ...swaps } = substitutes;
+            setSubstitutes(swaps);
+            resplit(blockIndex, swaps);
             setSubstituteModalOpen(false);
             const slotId = blockSwaps[blockIndex];
             if (slotId) {

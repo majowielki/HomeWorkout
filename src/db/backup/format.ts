@@ -30,7 +30,7 @@ import type {
  * Bump BACKUP_SCHEMA_VERSION whenever a row shape changes and add a step
  * to MIGRATIONS in parse.ts that lifts the previous shape to the new one.
  */
-export const BACKUP_SCHEMA_VERSION = 2;
+export const BACKUP_SCHEMA_VERSION = 3;
 export const BACKUP_APP = 'homeworkout';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -150,6 +150,7 @@ export const setLogRowSchema = z.object({
   bandId: nullableString,
   anchorPosition: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).nullable(),
   estimatedLoadKg: nullableNumber,
+  side: z.enum(['left', 'right']).nullable(),
   loggedAt: instant,
 }) satisfies z.ZodType<typeof setLogs.$inferSelect>;
 

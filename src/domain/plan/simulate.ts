@@ -91,7 +91,7 @@ export function simulate(opts: SimulationOptions): SimulatedDay[] {
         rides,
         daily,
       });
-      sessions.push({ date, sets: perform(plan, athlete) });
+      sessions.push({ date, sets: perform(plan, athlete, opts.catalog) });
       rides.push({
         date,
         minutes: plan.bike.minutes,
@@ -112,7 +112,12 @@ export function simulate(opts: SimulationOptions): SimulatedDay[] {
   return out;
 }
 
-function perform(plan: SessionPlan, athlete: Athlete): HistorySet[] {
+/** The plan done as written; an exercise done one side per set logs each set twice, left and right. */
+function perform(
+  plan: SessionPlan,
+  athlete: Athlete,
+  catalog: Readonly<Record<string, Exercise>>,
+): HistorySet[] {
   const sets: HistorySet[] = [];
   for (const p of plan.exercises) {
     const base = { exerciseId: p.exerciseId, load: p.load };
@@ -120,8 +125,11 @@ function perform(plan: SessionPlan, athlete: Athlete): HistorySet[] {
       p.unit === 'sec'
         ? { reps: null, timeSec: athlete.amount(p, n) }
         : { reps: athlete.amount(p, n), timeSec: null };
+    const sides = catalog[p.exerciseId]?.sides === 'perSet' ? (['left', 'right'] as const) : [null];
     for (let n = 1; n <= p.sets; n += 1) {
-      sets.push({ ...base, ...amount(n), isWarmup: false, rir: athlete.rir(p) });
+      for (const side of sides) {
+        sets.push({ ...base, ...amount(n), isWarmup: false, rir: athlete.rir(p), side });
+      }
     }
   }
   return sets;
@@ -143,6 +151,7 @@ function volumeOn(
         date: s.date,
         isWarmup: set.isWarmup,
         rir: set.rir,
+        side: set.side ?? null,
       })),
     ),
     exercises,

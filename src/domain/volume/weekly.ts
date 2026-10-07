@@ -1,7 +1,7 @@
 import { MUSCLE_GROUPS, type VolumeStatus } from '../coach/vocabulary';
 import { TRAINING_CONFIG } from '../config/training';
 import { daysBetween } from '../time/trainingDate';
-import type { MovementPattern, MuscleGroup } from '../types';
+import type { MovementPattern, MuscleGroup, Side } from '../types';
 
 export interface VolumeSet {
   exerciseId: string;
@@ -9,6 +9,8 @@ export interface VolumeSet {
   date: string;
   isWarmup: boolean;
   rir: number | null;
+  /** A set on one side: the left and the right one together are one set for the muscle. */
+  side?: Side | null;
 }
 
 /** What counting volume reads from the config; a caller may count direct sets only. */
@@ -41,7 +43,8 @@ export function countsAsVolume(
  * (inclusive). SPEC §4.2: a primary muscle earns a full set, a secondary
  * one half; warm-ups do not count; a set with no recorded RIR counts,
  * because skipping the field is not the same as an easy set; mobility and
- * cardio do not count at all.
+ * cardio do not count at all. A one-sided set counts half: one set on
+ * the left and one on the right are one set for the muscle.
  */
 export function weeklyVolume(
   sets: readonly VolumeSet[],
@@ -57,8 +60,11 @@ export function weeklyVolume(
     if (set.isWarmup || (set.rir !== null && set.rir > cfg.workingSetMaxRir)) continue;
     const exercise = exercises[set.exerciseId];
     if (!exercise || !countsAsVolume(exercise, cfg)) continue;
-    for (const muscle of exercise.primaryMuscles) out[muscle] += 1;
-    for (const muscle of exercise.secondaryMuscles) out[muscle] += cfg.secondaryMuscleWeight;
+    const weight = set.side ? 0.5 : 1;
+    for (const muscle of exercise.primaryMuscles) out[muscle] += weight;
+    for (const muscle of exercise.secondaryMuscles) {
+      out[muscle] += weight * cfg.secondaryMuscleWeight;
+    }
   }
   return out;
 }

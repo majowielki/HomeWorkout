@@ -80,6 +80,7 @@ export async function loadPlannerSource(now: Date = new Date()): Promise<Planner
       timeSec: set.timeSec,
       rir: set.rir,
       load: loadOfSet(set),
+      side: set.side,
     });
   }
 

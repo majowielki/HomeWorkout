@@ -17,6 +17,10 @@ describe('exerciseSeconds', () => {
   it('doubles the work of one-legged exercises', () => {
     expect(exerciseSeconds(planned, { stanceMechanics: 'UnilateralSupported' })).toBe(370);
     expect(exerciseSeconds(planned, { stanceMechanics: 'UnilateralUnsupported' })).toBe(370);
+    // One side per set: every planned set is two, each with its rest.
+    expect(
+      exerciseSeconds(planned, { stanceMechanics: 'UnilateralSupported', sides: 'perSet' }),
+    ).toBe(2 * 290 - 30);
   });
 
   it('counts a hold in seconds and a band warm-up', () => {

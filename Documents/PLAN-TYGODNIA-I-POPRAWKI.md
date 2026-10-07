@@ -434,13 +434,34 @@ naprzemienne wyciskanie nad głowę, wyciskanie jednorącz z podłogi (naprzemie
 
 **Wykrok w tył** zostaje na zmianę w serii (tak jak teraz) — bez odpowiedzi przyjmuję stan obecny.
 
-## Dodatek B — audyt opisów (wypełniany w Q2)
+## Dodatek B — audyt opisów (zrobiony 2026-10-07)
 
-| Ćwiczenie | Klip pokazuje | Tekst YMove | Nasza pozycja | Poprawka |
-|---|---|---|---|---|
-| `y-raises` | leżąc | „Stań prosto…” | `Bilateral` (stojąc) | własne `steps`, pozycja do weryfikacji |
-| `side-plank` | podpór bokiem | — | `Prone` | pozycja |
-| … | | | | |
+Przejrzane wszystkie 130 klipów (klatka z każdego obok naszej nazwy, pozycji i pierwszego kroku), potem
+podejrzane w powiększeniu, w kilku momentach ruchu.
+
+**Poprawione dane** (`data/exercises.json` v5; nasze kroki w polu `steps` mają pierwszeństwo przed
+tekstem YMove, a wtedy znikają też jego „wskazówki”):
+
+| Ćwiczenie | Klip pokazuje | Było | Teraz |
+|---|---|---|---|
+| `y-raises`, `t-raises`, `w-raises` | leżenie przodem na macie, bez hantli | „Stań prosto…”, `Bilateral` | nazwa „… w leżeniu przodem”, `Prone`, własne kroki (najpierw bez hantli, potem lekkie) |
+| `db-reverse-flyes` | siad na brzegu ławki, tułów pochylony | „Stań w rozkroku…” | `Seated`, kroki na siedząco (krzesło / kanapa) |
+| `kneeling-band-face-pull`, `kneeling-shoulder-cars` | klęk jednonóż | „Uklęknij… biodra nad kolanami” | kroki w klęku jednonóż; krążenia barkiem — seria na jeden bark |
+| `db-overhead-triceps-extension` | siad | `Bilateral` | `Seated` (tekst już mówił „usiądź”) |
+
+**Ukryte klipy** (`hideClip`): klip pokazuje inne ćwiczenie niż nasze, więc aplikacja pokazuje zdjęcie
+i nasze wskazówki:
+
+| Ćwiczenie | Dlaczego |
+|---|---|
+| `split-squat` | klip to przysiad bułgarski (tylna stopa na ławce) — większe obciążenie kolana niż nasz wariant |
+| `db-glute-bridge` | klip to hip thrust z oparciem o ławkę, nie mostek na podłodze (hip thrust ma własny klip) |
+| `dumbbell-external-rotation` | klip to rotacja na stojąco; nasz opis — w leżeniu bokiem (stojąc grawitacja prawie nie obciąża rotatorów) |
+| `plank` | klip — deska na dłoniach; nasz opis — na przedramionach |
+| `back-extension-hold` | klip na ławce rzymskiej, której nie ma w sprzęcie |
+
+Do Twojej decyzji: jeśli wolisz wariant z klipu (np. deskę na dłoniach), wystarczy zmienić opis
+i zdjąć `hideClip`.
 
 ## Dodatek C — prompt do Gemini Deep Research (opcjonalny)
 

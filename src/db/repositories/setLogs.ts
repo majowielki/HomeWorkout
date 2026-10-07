@@ -3,7 +3,7 @@ import { randomUUID } from 'expo-crypto';
 import { and, desc, eq } from 'drizzle-orm';
 
 import { stepKey } from '@/domain/session/steps';
-import type { AnchorPosition, DumbbellMode } from '@/domain/types';
+import type { AnchorPosition, DumbbellMode, Side } from '@/domain/types';
 
 import { db } from '../client';
 import { setLogs } from '../schema';
@@ -23,6 +23,8 @@ export interface LogSetInput {
   bandId?: string | null;
   anchorPosition?: AnchorPosition | null;
   estimatedLoadKg?: number | null;
+  /** The side of a one-sided set; null for two-sided work. */
+  side?: Side | null;
 }
 
 export async function logSet(input: LogSetInput): Promise<string> {
@@ -42,6 +44,7 @@ export async function logSet(input: LogSetInput): Promise<string> {
     bandId: input.bandId ?? null,
     anchorPosition: input.anchorPosition ?? null,
     estimatedLoadKg: input.estimatedLoadKg ?? null,
+    side: input.side ?? null,
     loggedAt: new Date().toISOString(),
   });
   // Wear counter for the recalibration nudge. Edits and deletes in history

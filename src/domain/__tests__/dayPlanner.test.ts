@@ -145,8 +145,8 @@ describe('planDay — the first day', () => {
     expect(plan.estimatedMinutes).toBe(24);
   });
 
-  it('pairs lower with upper body and labels the groups', () => {
-    expect(plan.exercises.map((e) => e.label)).toEqual(['A1', 'A2', 'B1', 'C1', 'D1']);
+  it('pairs lower with upper body and labels the groups, leaving no exercise alone', () => {
+    expect(plan.exercises.map((e) => e.label)).toEqual(['A1', 'A2', 'B1', 'B2', 'B3']);
     expect(plan.regions).toEqual(['lower', 'push', 'pull', 'arms', 'core']);
   });
 
@@ -320,8 +320,9 @@ describe('planDay — a short day is topped up', () => {
   it('with light core practice at RIR 5, then mobility', () => {
     const plan = planDay(input({ sessions: yesterday }));
     expect(ids(plan)).toEqual(['plank', 'deadbug', 'catcow']);
+    // Three loners: the first two pair up, the third joins them.
     expect(plan.exercises.find((e) => e.exerciseId === 'deadbug')).toMatchObject({
-      label: 'B1',
+      label: 'A2',
       targetRirMin: 5,
       targetRirMax: 5,
       target: 8,
@@ -329,7 +330,7 @@ describe('planDay — a short day is topped up', () => {
       reasons: ['LIGHT_FILL'],
     });
     expect(plan.exercises.find((e) => e.exerciseId === 'catcow')).toMatchObject({
-      label: 'C1',
+      label: 'A3',
       target: 6,
       reasons: [],
       load: { kind: 'bodyweight' },
@@ -410,15 +411,16 @@ describe('planDay — ordering and validation', () => {
       'A2:press',
       'B1:split',
       'B2:row',
-      'C1:curl',
-      'D1:plank',
-      'D2:deadbug',
+      // A lone accessory joins the superset before it rather than run alone.
+      'B3:curl',
+      'C1:plank',
+      'C2:deadbug',
     ]);
   });
 
-  it('keeps two upper-body compounds apart', () => {
+  it('does not pair two upper-body compounds as lower + upper, but alternates them rather than repeat one', () => {
     const plan = planDay(input({ sessions: [session(1, [set('squat')])] }));
-    expect(plan.exercises.slice(0, 2).map((e) => e.label)).toEqual(['A1', 'B1']);
+    expect(plan.exercises.slice(0, 2).map((e) => e.label)).toEqual(['A1', 'A2']);
   });
 
   it('reports what validatePlan removed', () => {

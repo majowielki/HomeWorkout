@@ -32,6 +32,8 @@ export interface SourceSet {
   dumbbellMode: DumbbellMode | null;
   bandId: string | null;
   anchorPosition: number | null;
+  /** One side of a one-sided exercise; absent or null for two-sided work. */
+  side?: 'left' | 'right' | null;
   loggedAt: string;
 }
 

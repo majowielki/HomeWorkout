@@ -77,7 +77,7 @@ describe('buildSessionSteps', () => {
     const a1 = block({ label: 'A1', exerciseId: 'squat', sets: 1 });
     const a2 = block({ label: 'A2', exerciseId: 'row', sets: 1 });
     const steps = buildSessionSteps([a1, a2]);
-    expect(steps[0]!.next).toEqual({ block: a2, setNumber: 1 });
+    expect(steps[0]!.next).toEqual({ block: a2, setNumber: 1, side: null });
     expect(steps[1]!.next).toBeNull();
   });
 
@@ -90,6 +90,46 @@ describe('buildSessionSteps', () => {
     // but the grouping helper must not throw on a malformed one.
     const oddLabel = block({ label: '1', exerciseId: 'solo', sets: 1 });
     expect(buildSessionSteps([oddLabel]).map((s) => s.block.exerciseId)).toEqual(['solo']);
+  });
+
+  it('moves another exercise in between rather than repeat one back to back', () => {
+    const a1 = block({ label: 'A1', exerciseId: 'squat', sets: 3 });
+    const a2 = block({ label: 'A2', exerciseId: 'row', sets: 1 });
+    const b1 = block({ label: 'B1', exerciseId: 'plank', sets: 2 });
+    const steps = buildSessionSteps([a1, a2, b1]);
+    expect(steps.map((s) => [s.block.exerciseId, s.setNumber])).toEqual([
+      ['squat', 1],
+      ['row', 1],
+      ['squat', 2],
+      ['plank', 1],
+      ['squat', 3],
+      ['plank', 2],
+    ]);
+  });
+
+  it('splits a one-sided set into its two sides, in the order asked for, between other work', () => {
+    const a1 = block({ label: 'A1', exerciseId: 'side-plank', sets: 2 });
+    const a2 = block({ label: 'A2', exerciseId: 'dead-bug', sets: 2 });
+    const steps = buildSessionSteps([a1, a2], {
+      sidesOf: (b) => (b.exerciseId === 'side-plank' ? ['right', 'left'] : null),
+    });
+    expect(steps.map((s) => [s.block.exerciseId, s.round, s.side, s.setNumber])).toEqual([
+      ['side-plank', 1, 'right', 1],
+      ['dead-bug', 1, null, 1],
+      ['side-plank', 1, 'left', 2],
+      ['dead-bug', 2, null, 2],
+      ['side-plank', 2, 'right', 3],
+      ['side-plank', 2, 'left', 4],
+    ]);
+    const plank = steps.filter((s) => s.block.exerciseId === 'side-plank');
+    expect(plank.map((s) => [s.stepOfBlock, s.stepsInBlock, s.isLastSetOfBlock])).toEqual([
+      [0, 4, false],
+      [1, 4, false],
+      [2, 4, false],
+      [3, 4, true],
+    ]);
+    expect(steps[0]!.next).toEqual({ block: a2, setNumber: 1, side: null });
+    expect(steps[1]!.next).toEqual({ block: a1, setNumber: 2, side: 'left' });
   });
 
   it('preserves blockIndex as the position in the original blocks array', () => {

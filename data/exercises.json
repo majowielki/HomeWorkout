@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "exercises": [
     {
       "id": "goblet-squat",
@@ -229,7 +229,9 @@
         "Tylne kolano zatrzymuje się tuż nad podłogą.",
         "Dostępne dopiero po akceptacji fizjoterapeuty."
       ],
-      "kneeCue": "Przednie kolano stabilne nad stopą — przy zmęczeniu skończ serię wcześniej, zanim zacznie uciekać."
+      "kneeCue": "Przednie kolano stabilne nad stopą — przy zmęczeniu skończ serię wcześniej, zanim zacznie uciekać.",
+      "sides": "perSet",
+      "hideClip": true
     },
     {
       "id": "reverse-lunge",
@@ -255,7 +257,8 @@
         "Wracasz przez piętę nogi przedniej.",
         "Dostępne dopiero po akceptacji fizjoterapeuty."
       ],
-      "kneeCue": "Krok w tył wymaga stabilizacji stojącej nogi — zacznij bez obciążenia, ręka na ścianie."
+      "kneeCue": "Krok w tył wymaga stabilizacji stojącej nogi — zacznij bez obciążenia, ręka na ścianie.",
+      "sides": "alternating"
     },
     {
       "id": "step-up",
@@ -281,7 +284,8 @@
         "Schodzisz kontrolowanie, 2–3 sekundy.",
         "Dostępne dopiero po akceptacji fizjoterapeuty."
       ],
-      "kneeCue": "Cała stopa na stopniu, kolano prowadzone prosto nad nią przez całą fazę wejścia."
+      "kneeCue": "Cała stopa na stopniu, kolano prowadzone prosto nad nią przez całą fazę wejścia.",
+      "sides": "perSet"
     },
     {
       "id": "lateral-lunge",
@@ -307,7 +311,8 @@
         "W katalogu wyłącznie dla kompletności taksonomii.",
         "Zamienniki: przysiad goblet lub z gumą."
       ],
-      "kneeCue": "WYKLUCZONE: wykrok boczny wywołuje moment szpotawy/koślawy, którego brak więzadeł pobocznych nie zatrzyma."
+      "kneeCue": "WYKLUCZONE: wykrok boczny wywołuje moment szpotawy/koślawy, którego brak więzadeł pobocznych nie zatrzyma.",
+      "sides": "perSet"
     },
     {
       "id": "band-leg-extension",
@@ -440,7 +445,8 @@
         "Dla profilu bez więzadeł pobocznych ćwiczenie jest wykluczone przez filtr.",
         "Zamiennik: RDL obunóż."
       ],
-      "kneeCue": "WYKLUCZONE: jednonóż bez podparcia — brak pasywnych stabilizatorów bocznych czyni ten wariant niebezpiecznym."
+      "kneeCue": "WYKLUCZONE: jednonóż bez podparcia — brak pasywnych stabilizatorów bocznych czyni ten wariant niebezpiecznym.",
+      "sides": "perSet"
     },
     {
       "id": "glute-bridge",
@@ -644,7 +650,8 @@
         "Biodra stoją poziomo — bez opadania i skręcania na boki.",
         "Wolno, bez pośpiechu w marszu."
       ],
-      "kneeCue": "Biodra poziomo — unoszone kolano nie pociąga miednicy w bok."
+      "kneeCue": "Biodra poziomo — unoszone kolano nie pociąga miednicy w bok.",
+      "sides": "alternating"
     },
     {
       "id": "db-glute-bridge",
@@ -670,7 +677,8 @@
         "Unosisz biodra przez ściśnięcie pośladków, nie przez wygięcie lędźwi.",
         "Na górze linia prosta bark–kolano; zatrzymanie 1–2 s."
       ],
-      "kneeCue": "Kolana nad stopami przez cały ruch — bez zapadania do środka na górze."
+      "kneeCue": "Kolana nad stopami przez cały ruch — bez zapadania do środka na górze.",
+      "hideClip": true
     },
     {
       "id": "shoulder-bridge",
@@ -695,7 +703,8 @@
         "Biodra nie opadają, stopa podporowa dociska równo.",
         "Za trudno: pomiń ruch nogi i tylko trzymaj mostek."
       ],
-      "kneeCue": "Kolano nogi podporowej nad stopą; biodra poziomo, bez skrętu."
+      "kneeCue": "Kolano nogi podporowej nad stopą; biodra poziomo, bez skrętu.",
+      "sides": "perSet"
     },
     {
       "id": "band-hip-extension",
@@ -720,7 +729,8 @@
         "Bez wyginania lędźwi — ruch tylko w biodrze.",
         "Dostępne dopiero po akceptacji fizjoterapeuty (stanie na jednej nodze)."
       ],
-      "kneeCue": "Noga stojąca lekko ugięta, kolano stabilne — podparcie rękami odciąża stabilizację boczną."
+      "kneeCue": "Noga stojąca lekko ugięta, kolano stabilne — podparcie rękami odciąża stabilizację boczną.",
+      "sides": "perSet"
     },
     {
       "id": "db-floor-press",
@@ -1063,7 +1073,8 @@
         "Jeden hantel = drabinka do 18 kg; to Twoje najcięższe ciągnięcie.",
         "Łokieć blisko tułowia, hantel do biodra.",
         "Bez rotacji tułowia — biodra równolegle do podłogi."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "band-face-pull",
@@ -1167,7 +1178,7 @@
       "movementPattern": "Isolation",
       "planesOfMotion": ["Transverse"],
       "isClosedKineticChain": false,
-      "stanceMechanics": "Bilateral",
+      "stanceMechanics": "Seated",
       "forceProfile": "ConcentricEccentric",
       "loadsKnee": false,
       "provokesValgusVarus": false,
@@ -1180,10 +1191,17 @@
       "substituteIds": ["band-pull-apart", "band-face-pull"],
       "media": "db-reverse-flyes",
       "cues": [
-        "Pozycja zawiasu, tułów blisko poziomu, plecy proste.",
+        "Tułów pochylony nad udami, plecy proste.",
         "Ramiona lekko ugięte, unosisz na boki do linii tułowia.",
         "Bardzo lekki ciężar — 2–4 kg wystarczy.",
         "Zatrzymanie na górze, wolny powrót."
+      ],
+      "steps": [
+        "Usiądź na brzegu krzesła lub kanapy, stopy płasko, hantle przy kostkach, dłonie do siebie.",
+        "Pochyl tułów nad udami, plecy proste, szyja w linii kręgosłupa.",
+        "Łokcie lekko ugięte — unieś hantle szerokim łukiem na boki, aż ramiona będą na linii barków.",
+        "Na górze ściągnij łopatki.",
+        "Powoli opuść hantle, z kontrolą."
       ]
     },
     {
@@ -1267,7 +1285,7 @@
       "movementPattern": "Isolation",
       "planesOfMotion": ["Sagittal"],
       "isClosedKineticChain": false,
-      "stanceMechanics": "Bilateral",
+      "stanceMechanics": "Seated",
       "forceProfile": "ConcentricEccentric",
       "loadsKnee": false,
       "provokesValgusVarus": false,
@@ -1531,7 +1549,8 @@
         "Pośladki napięte, miednica podwinięta — bez wygięcia lędźwi.",
         "Wzrok w podłogę, szyja w linii kręgosłupa.",
         "Jakość ponad czas: 30 s idealnie > 90 s z opadającymi biodrami."
-      ]
+      ],
+      "hideClip": true
     },
     {
       "id": "side-plank",
@@ -1554,8 +1573,9 @@
         "Łokieć pod barkiem, stopy jedna na drugiej lub jedna przed drugą.",
         "Biodra wysoko — ciało w jednej linii.",
         "Regresja: kolana ugięte, podparcie na kolanie.",
-        "Oba boki, ten sam czas."
-      ]
+        "Seria na jeden bok, następna na drugi — ten sam czas."
+      ],
+      "sides": "perSet"
     },
     {
       "id": "dead-bug",
@@ -1603,7 +1623,8 @@
         "Wyciągasz przeciwległą rękę i nogę do poziomu, nie wyżej.",
         "Miednica nie rotuje — wyobraź sobie szklankę wody na krzyżu.",
         "Zatrzymanie 2 s, powolna zmiana strony."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "reverse-crunch",
@@ -1771,7 +1792,8 @@
         "Łokieć do przeciwnego kolana, druga noga prostuje się.",
         "Skręt z tułowia, nie rozpędem; płynne „pedałowanie\".",
         "Lędźwie dociśnięte do podłogi przez cały czas."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "reverse-crunch-pulse",
@@ -1964,7 +1986,8 @@
         "Opuszczasz jedną rękę za głowę i prostujesz przeciwną nogę.",
         "Lędźwie dociśnięte do maty — to jest cały sens.",
         "Schodzisz tylko tak nisko, jak utrzymasz stabilny brzuch."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "reverse-plank",
@@ -2012,7 +2035,8 @@
         "Unosisz jedną dłoń i dotykasz przeciwnego barku.",
         "Biodra stoją nieruchomo — bez kołysania na boki.",
         "Wolno i kontrolowanie; szersze stopy ułatwiają."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "oblique-crunch-tabletop",
@@ -2061,7 +2085,8 @@
         "Skręcasz tułów i przenosisz ciężar do jednego biodra, potem do drugiego.",
         "Skręt z talii, nie samymi rękami; klatka w górze.",
         "Płynnie, bez wymachiwania hantlem; trudniej: stopy w powietrzu."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "db-plank-pull-through",
@@ -2138,7 +2163,8 @@
         "Dla profilu bez więzadeł pobocznych ćwiczenie jest wykluczone przez filtr.",
         "Zamiennik na antyzgięcie boczne: deska bokiem (w leżeniu, bez obciążenia kolana)."
       ],
-      "kneeCue": "WYKLUCZONE: offset ciężaru generuje moment szpotawy/koślawy na kolanie przy każdym kroku."
+      "kneeCue": "WYKLUCZONE: offset ciężaru generuje moment szpotawy/koślawy na kolanie przy każdym kroku.",
+      "sides": "perSet"
     },
     {
       "id": "cat-cow",
@@ -2185,8 +2211,9 @@
         "Leżąc na boku, kolana ugięte pod kątem 90°, ręce razem przed sobą.",
         "Górna ręka otwiera się łukiem na drugą stronę, wzrok podąża za dłonią.",
         "Kolana zostają razem na podłodze — rotacja z odcinka piersiowego, nie z lędźwi.",
-        "8 powtórzeń na stronę, wolno."
-      ]
+        "8 powtórzeń w serii, wolno; bok zmieniasz co serię."
+      ],
+      "sides": "perSet"
     },
     {
       "id": "supine-figure-four",
@@ -2209,8 +2236,9 @@
         "Leżąc, kostka jednej nogi na kolanie drugiej.",
         "Chwytasz udo dolnej nogi i przyciągasz do klatki.",
         "Rozciąganie w pośladku, bez bólu w kolanie — jeśli jest, zmniejsz zakres.",
-        "30–45 s na stronę, po treningu."
-      ]
+        "30–45 s w serii, po treningu; nogę zmieniasz co serię."
+      ],
+      "sides": "perSet"
     },
     {
       "id": "stationary-bike",
@@ -2306,7 +2334,14 @@
         "Nie wyginaj lędźwi ani nie unoś barków.",
         "Nie pozwól gumie gwałtownie odciągnąć rąk."
       ],
-      "kneeCue": "Klęk na miękkiej macie; jeśli ucisk kolana przeszkadza, wybierz face pull stojąc."
+      "kneeCue": "Klęk na miękkiej macie; jeśli ucisk kolana przeszkadza, wybierz face pull stojąc.",
+      "steps": [
+        "Uklęknij na jedno kolano na macie, druga stopa płasko z przodu, tułów pionowo.",
+        "Chwyć gumę zaczepioną na wysokości głowy, ramiona wyprostowane przed sobą.",
+        "Napnij brzuch i przyciągnij gumę do twarzy, prowadząc łokcie wysoko na boki i w tył.",
+        "Na końcu ruchu ściągnij łopatki.",
+        "Powoli wyprostuj ramiona z kontrolą."
+      ]
     },
     {
       "id": "band-shoulder-internal-rotation",
@@ -2352,7 +2387,8 @@
         "Trzymaj łokieć przy żebrach.",
         "Poruszaj barkiem, bez skręcania tułowia.",
         "Kontroluj powrót, bez puszczania gumy."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "standing-band-biceps-curl",
@@ -2471,7 +2507,8 @@
         "Napnij pośladek na górze każdego ruchu.",
         "Kontroluj tempo, bez zamachu."
       ],
-      "kneeCue": "Kolano nogi podporowej nad stopą, biodra poziomo; przy utracie kontroli wybierz mostek obunóż."
+      "kneeCue": "Kolano nogi podporowej nad stopą, biodra poziomo; przy utracie kontroli wybierz mostek obunóż.",
+      "sides": "perSet"
     },
     {
       "id": "cuban-press",
@@ -2521,7 +2558,8 @@
         "Żebra w dół, bez wyginania lędźwi.",
         "Praca jednego ramienia wymaga stabilizacji tułowia.",
         "Kończ wyciskanie z bicepsem blisko ucha."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "dumbbell-scaption",
@@ -2575,11 +2613,11 @@
     },
     {
       "id": "y-raises",
-      "name": "Wznosy hantli w kształcie Y",
+      "name": "Wznosy ramion w kształcie Y w leżeniu przodem",
       "movementPattern": "Isolation",
       "planesOfMotion": ["Frontal", "Sagittal"],
       "isClosedKineticChain": false,
-      "stanceMechanics": "Bilateral",
+      "stanceMechanics": "Prone",
       "forceProfile": "ConcentricEccentric",
       "loadsKnee": false,
       "provokesValgusVarus": false,
@@ -2596,15 +2634,22 @@
         "Nie unoś barków do uszu.",
         "Lekki ciężar i kontrolowane tempo.",
         "Neutralne plecy, napięty brzuch."
+      ],
+      "steps": [
+        "Połóż się na brzuchu na macie, nogi proste, czoło na zwiniętym ręczniku.",
+        "Wyciągnij ręce przed siebie i lekko na boki, w kształt litery Y, kciuki w górę.",
+        "Ściągnij łopatki w dół i do siebie, potem unieś ręce kilka centymetrów nad matę.",
+        "Zatrzymaj się na 1–2 s i powoli opuść.",
+        "Zacznij bez hantli; lekkie hantle dopiero, gdy ruch jest pewny."
       ]
     },
     {
       "id": "t-raises",
-      "name": "Wznosy hantli w kształcie T",
+      "name": "Wznosy ramion w kształcie T w leżeniu przodem",
       "movementPattern": "Isolation",
       "planesOfMotion": ["Frontal"],
       "isClosedKineticChain": false,
-      "stanceMechanics": "Bilateral",
+      "stanceMechanics": "Prone",
       "forceProfile": "ConcentricEccentric",
       "loadsKnee": false,
       "provokesValgusVarus": false,
@@ -2620,16 +2665,23 @@
         "Łokcie lekko ugięte.",
         "Bez kołysania i zamachu.",
         "Nie unoś ramion powyżej barków.",
-        "Trzymaj pionowy tułów i napięty brzuch."
+        "Czoło przy macie, szyja w linii kręgosłupa."
+      ],
+      "steps": [
+        "Połóż się na brzuchu na macie, nogi proste, czoło na zwiniętym ręczniku.",
+        "Rozłóż ręce na boki na wysokości barków, w kształt litery T, kciuki w górę.",
+        "Ściągnij łopatki w dół i do siebie, potem unieś ręce kilka centymetrów nad matę.",
+        "Zatrzymaj się na 1–2 s i powoli opuść.",
+        "Zacznij bez hantli; lekkie hantle dopiero, gdy ruch jest pewny."
       ]
     },
     {
       "id": "w-raises",
-      "name": "Wznosy hantli w kształcie W",
+      "name": "Wznosy ramion w kształcie W w leżeniu przodem",
       "movementPattern": "Isolation",
       "planesOfMotion": ["Frontal", "Transverse"],
       "isClosedKineticChain": false,
-      "stanceMechanics": "Bilateral",
+      "stanceMechanics": "Prone",
       "forceProfile": "ConcentricEccentric",
       "loadsKnee": false,
       "provokesValgusVarus": false,
@@ -2645,6 +2697,13 @@
         "Barki opuszczone, daleko od uszu.",
         "Bez kołysania i zamachu.",
         "Utrzymuj lekkie ugięcie łokci."
+      ],
+      "steps": [
+        "Połóż się na brzuchu na macie, nogi proste, czoło na zwiniętym ręczniku.",
+        "Ugnij łokcie i ułóż ręce przy bokach głowy, w kształt litery W, kciuki w górę.",
+        "Ściągnij łopatki w dół i do siebie, potem unieś ręce kilka centymetrów nad matę.",
+        "Zatrzymaj się na 1–2 s i powoli opuść.",
+        "Zacznij bez hantli; lekkie hantle dopiero, gdy ruch jest pewny."
       ]
     },
     {
@@ -2671,7 +2730,9 @@
         "Ruch powolny i kontrolowany; celem jest praca rotatorów, nie duży ciężar.",
         "Przerwij przy bólu w barku.",
         "Czuj pracę z tyłu barku, bez zamachu."
-      ]
+      ],
+      "sides": "perSet",
+      "hideClip": true
     },
     {
       "id": "one-arm-dumbbell-floor-press-alternating",
@@ -2697,7 +2758,8 @@
         "Nie odbijaj ramienia od podłogi; dotknij lekko i wyciśnij.",
         "Napnij brzuch i nie wyginaj nadmiernie lędźwi.",
         "Skup się na pracy klatki w dolnej pozycji."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "zottman-curl",
@@ -2747,7 +2809,8 @@
         "Nie blokuj łokcia na dole.",
         "Wydech przy unoszeniu, wdech przy opuszczaniu.",
         "Dobierz ciężar pozwalający zachować technikę."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "dumbbell-tricep-kickback",
@@ -2772,7 +2835,8 @@
         "Ruch tylko w łokciu, bez zamachu.",
         "Neutralne plecy i napięty brzuch.",
         "Na górze wyprostuj łokieć i napnij triceps."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "dumbbell-wrist-curls",
@@ -2844,7 +2908,8 @@
         "Lędźwie pozostają przy macie.",
         "Barki uniesione przez całą serię.",
         "Unieś prostowaną nogę wyżej, jeśli plecy się wyginają."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "pilates-roll-up",
@@ -3054,7 +3119,8 @@
         "Napnij pośladki dla podparcia lędźwi.",
         "Oddychaj spokojnie podczas utrzymania.",
         "Bez szarpania i odbijania."
-      ]
+      ],
+      "hideClip": true
     },
     {
       "id": "pilates-swan",
@@ -3123,7 +3189,8 @@
         "Biodra równo i nieruchomo; pracuje górna część pleców.",
         "Obracaj się tylko do zakresu bez przenoszenia ciężaru w bok.",
         "Wydech przy rotacji w górę."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "thread-the-needle",
@@ -3264,7 +3331,8 @@
         "Napnij pośladki i brzuch.",
         "Poruszaj się z kontrolą, bez wymachiwania.",
         "Wydłużaj kończyny, sięgając palcami dłoni i stóp."
-      ]
+      ],
+      "sides": "alternating"
     },
     {
       "id": "knees-to-chest-stretch",
@@ -3310,7 +3378,8 @@
         "Czuj pracę z boku biodra, nie z przodu.",
         "Miednica nieruchoma, otwierasz górną nogę w biodrze.",
         "Przerwij przy ostrym bólu biodra."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "side-lying-leg-lifts",
@@ -3333,7 +3402,8 @@
         "Nie zapadaj się w talii.",
         "Unoś nogę z biodra, bez odchylania tułowia w tył.",
         "Powoli w obu kierunkach."
-      ]
+      ],
+      "sides": "perSet"
     },
     {
       "id": "single-leg-glute-bridge-straight-leg",
@@ -3382,7 +3452,8 @@
         "Tylna noga pozostaje prosta.",
         "Bez sprężynowania; utrzymuj pozycję spokojnie."
       ],
-      "kneeCue": "Przednie kolano nad stopą, podparcie dłońmi o ścianę; ćwiczenie zgodnie z ustawieniem zgody fizjoterapeuty."
+      "kneeCue": "Przednie kolano nad stopą, podparcie dłońmi o ścianę; ćwiczenie zgodnie z ustawieniem zgody fizjoterapeuty.",
+      "sides": "perSet"
     },
     {
       "id": "seated-forward-fold",
@@ -3430,7 +3501,15 @@
         "Pracuj w pełnym dostępnym zakresie barku.",
         "Brzuch napięty przez cały ruch."
       ],
-      "kneeCue": "Klęk na miękkiej macie; jeśli ucisk kolan przeszkadza, wybierz rozciąganie barku stojąc."
+      "kneeCue": "Klęk na miękkiej macie; jeśli ucisk kolan przeszkadza, wybierz rozciąganie barku stojąc.",
+      "sides": "perSet",
+      "steps": [
+        "Uklęknij na jedno kolano na macie, druga stopa płasko z przodu, tułów pionowo.",
+        "Napnij brzuch, ramiona swobodnie przy bokach.",
+        "Powoli unieś jedno ramię do przodu i w górę, kreśląc jak największy, kontrolowany okrąg.",
+        "Prowadź je nad głową i za tułowiem, bez skręcania tułowia.",
+        "Opuść ramię do początku; w następnej serii drugi bark."
+      ]
     },
     {
       "id": "cross-body-shoulder-stretch-standing",

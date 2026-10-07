@@ -55,8 +55,10 @@ export default function ExerciseDetailScreen() {
   const b = pl.exercises.biomechanics;
   const clip = ymoveMedia[exercise.id];
   const info = clip?.info;
-  const steps = info?.pl?.instructions ?? info?.instructions ?? [];
-  const tips = info?.pl?.importantPoints ?? info?.importantPoints ?? [];
+  // Our own steps win: the provider's text sometimes describes another variant than its clip.
+  const steps = exercise.steps ?? info?.pl?.instructions ?? info?.instructions ?? [];
+  // The provider's tips belong to its own description; with our steps they go too.
+  const tips = exercise.steps ? [] : (info?.pl?.importantPoints ?? info?.importantPoints ?? []);
   const typeBadges = (info?.exerciseType ?? [])
     .map((t) => pl.labels.exerciseType[t])
     .filter((label): label is string => label !== undefined);
