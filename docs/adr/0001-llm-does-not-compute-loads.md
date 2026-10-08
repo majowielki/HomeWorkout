@@ -33,6 +33,11 @@ plausible number.
    after they accept it. No path from a model's answer to a stored plan
    bypasses that (an architectural test will pin it when plans exist).
 
+   _Amended 2026-10-08 by [ADR 0006](0006-the-coach-composes-days-from-the-engines-options.md):_
+   the model may now compose days from the engine's options, with the person's
+   consent; points 1 and 2 stand, and the architectural test exists
+   (`src/__tests__/architecture.test.ts`).
+
 ## Alternatives considered
 
 - **Let the model propose loads inside clamps** (±X% of last time). The
@@ -45,7 +50,8 @@ plausible number.
 ## Consequences
 
 - The model cannot help with progression. That is the point; the rules
-  engine owns it and is exhaustively tested (100% coverage gate).
+  engine owns it and is exhaustively tested (100% coverage gate). It can
+  help shape which movements a day holds (ADR 0006), never how heavy.
 - If the model is ever allowed to choose exercises (F5), `exerciseId` is
   a `z.enum` of the ids that passed `screenExercise`, so it cannot name an
   excluded one, and `validatePlan` still checks.
