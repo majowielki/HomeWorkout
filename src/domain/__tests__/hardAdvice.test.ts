@@ -146,6 +146,13 @@ describe('the order of findings and what must be confirmed', () => {
     expect(sortChecks([second, first])).toEqual([second, first]);
   });
 
+  it('orders two failures of the same class by code whichever way round they come', () => {
+    const day = finding('DAY_MAX_EXCEEDED', 'fail');
+    const week = finding('WEEK_MAX_EXCEEDED', 'fail');
+    expect(sortChecks([day, week])).toEqual([day, week]);
+    expect(sortChecks([week, day])).toEqual([day, week]);
+  });
+
   it('does not put a failing info finding among the failures', () => {
     const info = finding('WEEK_MIN_HELPED', 'fail');
     const advice = finding('RECOVERING', 'fail');
