@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 
-import { VOICE_ACTIONS } from '../../../domain/voice/commands';
+import { VOICE_INTENT_ACTIONS } from '../../contract/voiceIntent';
 import {
   ACTION_MEANINGS,
   buildVoiceIntentPrompt,
@@ -35,7 +35,7 @@ describe('voice-intent/v1', () => {
   });
 
   it('describes every action', () => {
-    for (const id of VOICE_ACTIONS) expect(ACTION_MEANINGS[id].length).toBeGreaterThan(10);
+    for (const id of VOICE_INTENT_ACTIONS) expect(ACTION_MEANINGS[id].length).toBeGreaterThan(10);
   });
 
   it('quotes heard text so it cannot close or open a tag', () => {

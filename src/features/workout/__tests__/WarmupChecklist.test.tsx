@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { createRef } from 'react';
 
 import { getWarmupView, setWarmupView } from '@/lib/warmupView';
 
-import { WarmupChecklist } from '../WarmupChecklist';
+import { WarmupChecklist, type WarmupHandle } from '../WarmupChecklist';
 
 jest.mock('@/lib/warmupView', () => ({
   getWarmupView: jest.fn(() => 'list'),
@@ -82,5 +83,60 @@ describe('WarmupChecklist', () => {
     expect(
       screen.getByRole('checkbox', { name: 'Koci grzbiet' }).props.accessibilityState.checked,
     ).toBe(true);
+  });
+});
+
+describe('WarmupChecklist by voice', () => {
+  const checked = (name: RegExp) =>
+    screen.getByRole('checkbox', { name }).props.accessibilityState.checked as boolean;
+
+  it('in the list, ticks the next unticked move, takes it back, and ends after the last', async () => {
+    jest.mocked(getWarmupView).mockReturnValue('list');
+    const onDone = jest.fn();
+    const ref = createRef<WarmupHandle>();
+    await render(<WarmupChecklist ref={ref} moves={['arm-circles', 'cat-cow']} onDone={onDone} />);
+
+    let step!: ReturnType<WarmupHandle['next']>;
+    await act(async () => {
+      step = ref.current!.next();
+    });
+    expect(step).toEqual({ kind: 'ticked', id: 'arm-circles', index: 0 });
+    expect(checked(/Krążenia ramion/)).toBe(true);
+
+    await act(async () => ref.current!.untick(step as Extract<typeof step, { kind: 'ticked' }>));
+    expect(checked(/Krążenia ramion/)).toBe(false);
+
+    await act(async () => void ref.current!.next());
+    await act(async () => void ref.current!.next());
+    await act(async () => {
+      step = ref.current!.next();
+    });
+    expect(step).toEqual({ kind: 'finished' });
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it('in the cards, does what "Zrobione, dalej" does', async () => {
+    jest.mocked(getWarmupView).mockReturnValue('cards');
+    const onDone = jest.fn();
+    const ref = createRef<WarmupHandle>();
+    await render(<WarmupChecklist ref={ref} moves={['arm-circles', 'cat-cow']} onDone={onDone} />);
+    await layOutCards();
+
+    let step!: ReturnType<WarmupHandle['next']>;
+    await act(async () => {
+      step = ref.current!.next();
+    });
+    expect(step).toEqual({ kind: 'ticked', id: 'arm-circles', index: 0 });
+    expect(screen.getByText('2 z 2')).toBeTruthy();
+
+    await act(async () => ref.current!.untick(step as Extract<typeof step, { kind: 'ticked' }>));
+    expect(screen.getByText('1 z 2')).toBeTruthy();
+
+    await act(async () => void ref.current!.next());
+    await act(async () => {
+      step = ref.current!.next();
+    });
+    expect(step).toEqual({ kind: 'finished' });
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 });

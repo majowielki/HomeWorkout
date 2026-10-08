@@ -558,6 +558,8 @@ export function useActiveSession(
     supersetWith,
     unloggedCount,
     warmupDone: () => setPhase('logging'),
+    /** "Cofnij" after the warm-up was ended by voice. */
+    backToWarmup: () => setPhase('warmup'),
     skipped,
     saveSet,
     restDone,
