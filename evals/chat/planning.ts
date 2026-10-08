@@ -4,17 +4,19 @@ import { slotCatalogueSchema } from '@data/slots.schema';
 import type { CoachSource } from '@/ai/context/source';
 import type { ToolEnvironment } from '@/ai/tools/implementations';
 import { planToday } from '@/domain/plan/today';
-import { extraSessionOptions, planCustom } from '@/domain/plan/extra';
+import { planCustom, slotsForFocus } from '@/domain/plan/extra';
 import { syncWeek } from '@/domain/plan/weekSync';
 import type { HistorySession } from '@/domain/progression/history';
 import { loadOfSet } from '@/domain/progression/load';
 import type { Exercise } from '@/domain/types';
 import { addDays } from '@/domain/time/trainingDate';
 import {
+  describeDayOptions,
   previewPlanChange,
+  proposeDayPreview,
   summarizePlan,
-  validatePlanIntent,
   validateExtraQuestion,
+  validatePlanIntent,
 } from '@/features/plan/coachPreview';
 import type { PlanningSnapshot } from '@/features/plan/planningSnapshot';
 
@@ -22,7 +24,7 @@ import type { PlanningSnapshot } from '@/features/plan/planningSnapshot';
 export function syntheticPlanningTools(
   source: CoachSource,
   question: string,
-): Pick<ToolEnvironment, 'week' | 'proposeChange' | 'proposeExtra'> {
+): Pick<ToolEnvironment, 'week' | 'proposeChange' | 'proposeExtra' | 'dayOptions' | 'proposeDay'> {
   const catalog: Record<string, Exercise> = Object.fromEntries(
     (exercisesJson.exercises as Exercise[]).map((e) => [
       e.id,
@@ -105,14 +107,7 @@ export function syntheticPlanningTools(
       const invalid = validateExtraQuestion(question);
       if (invalid) return invalid;
       if (!s.input.trainedDates.has(source.asOf)) return { error: 'finish_first' };
-      const selected = extraSessionOptions(planner)
-        .filter(
-          (o) =>
-            o.item &&
-            catalog[o.item.exerciseId]!.primaryMuscles.some((m) => focusMuscles.includes(m)),
-        )
-        .map((o) => o.slotId);
-      const plan = planCustom(planner, selected);
+      const plan = planCustom(planner, slotsForFocus(planner, focusMuscles));
       return plan.exercises.length
         ? {
             kind: 'extra',
@@ -122,6 +117,13 @@ export function syntheticPlanningTools(
             day: summarizePlan(s, source.asOf, plan),
           }
         : { error: 'no_plan' };
+    },
+    async dayOptions({ daysAhead }) {
+      return describeDayOptions(s, daysAhead);
+    },
+    async proposeDay(intent) {
+      const result = proposeDayPreview(s, intent, question, 'eval-day-proposal');
+      return 'error' in result ? result.error : result.preview.summary;
     },
   };
 }

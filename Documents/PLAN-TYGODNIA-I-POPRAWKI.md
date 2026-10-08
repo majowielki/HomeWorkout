@@ -666,3 +666,12 @@ z ekranem w `features/startup` i regułą lint dla `src/db`, nazwane stałe czas
 widzianych przez model się nie zmienił; Worker nie wymaga ponownego wdrożenia z tego powodu.
 Nie sprawdzono jeszcze na emulatorze ani telefonie — przed instalacją przejść sesję treningową,
 cofnięcie serii, zamianę ćwiczenia i dodatkową sesję z czatu.
+
+**Etap E8 — trener układa dni (2026-10-08, ADR 0006), stan:** zmergowane: podział testu SQLite
+na 15+ nazwanych przypadków; historia per sesja (`firstOfEachDay`, `byTrainingDay`, SPEC §11.8);
+testy architektury ADR 0001 (`src/__tests__/architecture.test.ts`); ADR 0006; `compose_day`
+(migracja 0008, backup v5), `getDayOptions` + `proposeDayPlan`, kontrakt v4, prompt `chat/v4`
+(szkic), karta „Ułożony dzień”, 3 przypadki ewaluacji. `npm run verify` 2167 testów, Worker 121.
+**Zostało:** w kalendarzu pokazać dzień ułożony z trenerem i przycisk „Przywróć plan silnika”
+(odwołanie `compose_day`); README (sekcja AI); test na emulatorze; ewaluacja na prawdziwym modelu;
+wdrożenie APK + Worker v4 razem (Worker v4 odrzuca klienta v3).

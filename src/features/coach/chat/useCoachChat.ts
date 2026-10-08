@@ -3,9 +3,17 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { runTurn, type TurnDeps, type TurnOutcome } from '@/ai/chat/runTurn';
 import type { Exchange } from '@/ai/chat/history';
 import type { ChatFacts } from '@/ai/contract/chat';
+import type { ToolName } from '@/ai/contract/chatTools';
 
 import { chatReducer, initialChatState, isBusy } from './state';
 import type { ProposalStatus, ProposalView } from './proposals';
+
+/** The tools whose result may carry a card for the person to apply. */
+const PROPOSAL_TOOLS: ReadonlySet<ToolName> = new Set([
+  'proposePlanChange',
+  'proposeExtraSession',
+  'proposeDayPlan',
+]);
 
 interface Options {
   /** Null until the weekly context is built; nothing can be asked before. */
@@ -92,9 +100,8 @@ export function useCoachChat({
         for (const message of outcome.messages) {
           if (message.role !== 'tool') continue;
           for (const result of message.results) {
-            if (result.name !== 'proposePlanChange' && result.name !== 'proposeExtraSession')
-              continue;
-            const output = result.output as { proposalId?: string };
+            if (!PROPOSAL_TOOLS.has(result.name)) continue;
+            const output = result.output as { proposalId?: string | null };
             const proposal = output.proposalId ? resolveProposal?.(output.proposalId) : null;
             if (proposal && !proposals.some((p) => p.id === proposal.id)) proposals.push(proposal);
           }

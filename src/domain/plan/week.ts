@@ -17,7 +17,9 @@ import type { Ride } from '../progression/bike';
 import type { HistorySession } from '../progression/history';
 import type { BandCalibrationMap, Exercise, MuscleGroup } from '../types';
 import { advanceBlock } from './block';
+import { composeDay, type DayOption, dayOptions } from './compose';
 import {
+  composedOn,
   dateRange,
   isTrainingDay,
   type PlanConstraint,
@@ -58,6 +60,8 @@ export interface WeekInput {
   week?: TrainingWeek;
   /** Days chosen earlier, by date; each stays while it still passes `checkSelection`. */
   kept?: Readonly<Record<string, DaySelection>>;
+  /** A date whose options for composing the day (ADR 0006) the caller wants. */
+  optionsFor?: string;
 }
 
 export interface WeekDay {
@@ -74,6 +78,10 @@ export interface WeekDay {
   violations: SelectionViolation[];
   /** What happens to the block that day (rotation, deload). */
   events: BlockEvent[];
+  /** The day's movements were composed with the coach (a `compose_day` request). */
+  composed: boolean;
+  /** The movements the coach may compose the day from; only for `optionsFor`. */
+  options?: DayOption[];
 }
 
 export interface WeekPlan {
@@ -121,6 +129,7 @@ export function planWeek(
         status: stored ? 'changed' : 'new',
         violations: stored ? [{ slotId: null, code: 'REST_DAY' }] : [],
         events: advance.events,
+        composed: false,
       });
       continue;
     }
@@ -137,8 +146,22 @@ export function planWeek(
       calibrations: input.calibrations,
       constraints,
     };
-    const violations = stored ? checkSelection(stored, day, dayCfg, training) : [];
-    const selection = stored && violations.length === 0 ? stored : selectDay(day, dayCfg, training);
+    // A composed day comes first; what the engine could not take is reported, and an
+    // empty composition gives the day back to the engine (ADR 0006).
+    const items = composedOn(constraints, date);
+    const composition = items ? composeDay(day, items) : null;
+    const composedSelection =
+      composition && composition.selection.items.length > 0 ? composition.selection : null;
+    const violations = composition
+      ? composition.conflicts.map((c) => ({ slotId: c.slotId, code: c.reason }))
+      : stored
+        ? checkSelection(stored, day, dayCfg, training)
+        : [];
+    const selection =
+      composedSelection ??
+      (!composition && stored && violations.length === 0
+        ? stored
+        : selectDay(day, dayCfg, training));
     const forecast = buildDay(selection, day, dayCfg, training);
     days.push({
       date,
@@ -148,6 +171,8 @@ export function planWeek(
       status: !stored ? 'new' : violations.length > 0 ? 'changed' : 'kept',
       violations,
       events: advance.events,
+      composed: composedSelection !== null,
+      ...(input.optionsFor === date ? { options: dayOptions(day) } : {}),
     });
 
     sessions.push({ date, sets: perform(forecast, FOLLOWS_THE_PLAN, catalog) });

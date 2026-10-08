@@ -22,6 +22,7 @@ function toConstraint(r: ConstraintRow): PlanConstraint {
     reason: r.reason,
     source: r.source,
     note: r.note,
+    ...(r.items ? { items: r.items } : {}),
   };
 }
 
@@ -36,6 +37,7 @@ function constraintRow(c: Omit<PlanConstraint, 'id'>, createdAt: string) {
     reason: c.reason,
     source: c.source,
     note: c.note,
+    items: c.items ? [...c.items] : null,
     createdAt,
     revokedAt: null,
   };
@@ -116,7 +118,10 @@ function writeWeek(tx: Tx, write: WeekWrite, at: string, generationId: string): 
   }
 }
 
-/** Consent boundary: restrictions, block and reviewed week succeed or roll back together. */
+/**
+ * Consent boundary: restrictions, block and reviewed week succeed or roll back together.
+ * `replaced` are earlier requests the accepted one supersedes (a day composed again).
+ */
 export async function saveCoachWeek(
   proposalId: string,
   constraints: readonly PlanConstraint[],
@@ -125,6 +130,7 @@ export async function saveCoachWeek(
   advance: BlockAdvance,
   asOf: string,
   now: Date = new Date(),
+  replaced: readonly string[] = [],
 ): Promise<void> {
   db.transaction((tx) => {
     if (
@@ -136,6 +142,11 @@ export async function saveCoachWeek(
     )
       return;
     const at = now.toISOString();
+    if (replaced.length > 0)
+      tx.update(planConstraints)
+        .set({ revokedAt: at })
+        .where(inArray(planConstraints.id, [...replaced]))
+        .run();
     for (const c of constraints) {
       tx.insert(planConstraints)
         .values(constraintRow({ ...c, source: 'coach' }, at))

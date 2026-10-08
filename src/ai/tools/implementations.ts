@@ -60,6 +60,12 @@ export interface ToolEnvironment {
   proposeExtra?(
     input: ToolInput<'proposeExtraSession'>,
   ): Promise<ToolOutput<'proposeExtraSession'> | ToolError>;
+  /** The engine's options for composing one day (ADR 0006). */
+  dayOptions?(input: ToolInput<'getDayOptions'>): Promise<ToolOutput<'getDayOptions'> | ToolError>;
+  /** A preview of days composed from those options; nothing is stored. */
+  proposeDay?(
+    input: ToolInput<'proposeDayPlan'>,
+  ): Promise<ToolOutput<'proposeDayPlan'> | ToolError>;
 }
 
 type Result<N extends ToolName> = ToolOutput<N> | ToolError;
@@ -94,6 +100,12 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
   async proposeExtraSession(input, env) {
     return env.proposeExtra ? env.proposeExtra(input) : { error: 'failed' };
+  },
+  async getDayOptions(input, env) {
+    return env.dayOptions ? env.dayOptions(input) : { error: 'failed' };
+  },
+  async proposeDayPlan(input, env) {
+    return env.proposeDay ? env.proposeDay(input) : { error: 'failed' };
   },
   async getRecentSessions({ count }, env) {
     const source = await env.load(RECENT_WINDOW_DAYS);

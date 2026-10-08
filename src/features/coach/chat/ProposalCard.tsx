@@ -5,7 +5,39 @@ import { Text } from '@/components/ui/text';
 import { planTitle } from '@/features/plan/format';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
-import type { ProposalStatus, ProposalView } from './proposals';
+import type { ProposalStatus, ProposalSummary, ProposalView } from './proposals';
+
+type Changes = Extract<ProposalSummary, { kind: 'plan' | 'compose' }>['changes'];
+type Day = Changes[number]['after'];
+
+const dayTitle = (day: Day) => (day.rest ? pl.plan.banner.rest : planTitle(day));
+const exercisesOf = (day: Day) =>
+  day.exercises
+    .map((e) => `${e.exercise.name} (${pl.calendar.sets(e.sets, e.perSide)})`)
+    .join(', ') || pl.plan.banner.rest;
+
+/** Each day that differs: what the engine planned before, and what it will plan. */
+function ChangesList({ changes }: { changes: Changes }) {
+  const t = pl.coach.chat.proposal;
+  if (!changes.length) return <Text variant="muted">{t.noChanges}</Text>;
+  return (
+    <>
+      {changes.map(({ before, after }) => (
+        <View key={after.date} className="gap-1 rounded-2xl bg-secondary p-3">
+          <Text className="font-display-semibold">
+            {formatDate(after.date)} · {dayTitle(before)} → {dayTitle(after)}
+          </Text>
+          <Text variant="muted">
+            {t.before}: {exercisesOf(before)}
+          </Text>
+          <Text>
+            {t.after}: {exercisesOf(after)}
+          </Text>
+        </View>
+      ))}
+    </>
+  );
+}
 
 type Props = {
   proposal: ProposalView;
@@ -18,11 +50,10 @@ type Props = {
 export function ProposalCard({ proposal, status, busy, onApply, onReject }: Props) {
   const t = pl.coach.chat.proposal;
   const summary = proposal.summary;
-  const dayTitle = (day: { rest: boolean; regions: Parameters<typeof planTitle>[0]['regions'] }) =>
-    day.rest ? pl.plan.banner.rest : planTitle(day);
+  const title = { plan: t.plan, extra: pl.extra.title, compose: t.compose }[summary.kind];
   return (
     <Card className="gap-3 border-primary">
-      <Text variant="eyebrow">{summary.kind === 'plan' ? t.plan : pl.extra.title}</Text>
+      <Text variant="eyebrow">{title}</Text>
       {proposal.note ? <Text>{proposal.note}</Text> : null}
       {summary.kind === 'plan' ? (
         <>
@@ -39,29 +70,27 @@ export function ProposalCard({ proposal, status, busy, onApply, onReject }: Prop
               </Text>
             </View>
           ))}
-          {summary.changes.length ? (
-            summary.changes.map(({ before, after }) => (
-              <View key={after.date} className="gap-1 rounded-2xl bg-secondary p-3">
+          <ChangesList changes={summary.changes} />
+        </>
+      ) : summary.kind === 'compose' ? (
+        <>
+          <Text variant="muted">{t.composeHint}</Text>
+          <ChangesList changes={summary.changes} />
+          {summary.days
+            .filter((d) => d.conflicts.length > 0)
+            .map((d) => (
+              <View key={d.date} className="gap-1">
                 <Text className="font-display-semibold">
-                  {formatDate(after.date)} · {dayTitle(before)} → {dayTitle(after)}
+                  {formatDate(d.date)} · {t.conflictsTitle}
                 </Text>
-                <Text variant="muted">
-                  {t.before}:{' '}
-                  {before.exercises
-                    .map((e) => `${e.exercise.name} (${pl.calendar.sets(e.sets, e.perSide)})`)
-                    .join(', ') || pl.plan.banner.rest}
-                </Text>
-                <Text>
-                  {t.after}:{' '}
-                  {after.exercises
-                    .map((e) => `${e.exercise.name} (${pl.calendar.sets(e.sets, e.perSide)})`)
-                    .join(', ') || pl.plan.banner.rest}
-                </Text>
+                {d.conflicts.map((c) => (
+                  <Text key={c.movement} variant="muted">
+                    {c.movement} ·{' '}
+                    {c.reason === 'REST_DAY' ? pl.plan.banner.rest : pl.plan.skip[c.reason]}
+                  </Text>
+                ))}
               </View>
-            ))
-          ) : (
-            <Text variant="muted">{t.noChanges}</Text>
-          )}
+            ))}
         </>
       ) : (
         <>
