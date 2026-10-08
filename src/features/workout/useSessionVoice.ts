@@ -1,0 +1,115 @@
+import { type RefObject, useEffect, useRef } from 'react';
+
+import type { VoiceActionId, VoiceCommand } from '@/domain/voice/commands';
+import type { Exercise } from '@/domain/types';
+import type { VoiceFeedback } from '@/features/voice/VoiceBar';
+import { pl } from '@/strings/pl';
+
+import { isTimed } from './SetFields';
+import type { SetLoggerHandle } from './SetLogger';
+import type { useActiveSession } from './useActiveSession';
+
+type Session = ReturnType<typeof useActiveSession>;
+
+interface Options {
+  session: Session;
+  /** The set screen, while it is on. */
+  logger: RefObject<SetLoggerHandle | null>;
+  /** The exercise on the set screen; a timed one has a stopwatch. */
+  exercise: Exercise | undefined;
+  stopwatchRunning: boolean;
+  /** Skipping the last exercise ends the workout: the same question as "Zakończ trening". */
+  confirmFinish: () => void;
+}
+
+/** What each screen of the session lets a voice command do. */
+export function availableActions(
+  phase: Session['phase'],
+  timed: boolean,
+  stopwatchRunning: boolean,
+): VoiceActionId[] {
+  switch (phase) {
+    case 'logging':
+      return [
+        ...(timed ? [stopwatchRunning ? 'stopwatch_stop' : ('stopwatch_start' as const)] : []),
+        'set_done',
+        'skip_exercise',
+      ] as VoiceActionId[];
+    case 'resting':
+      return ['rest_end', 'rest_extend', 'skip_exercise'];
+    case 'groupDone':
+      return ['rest_end', 'skip_exercise'];
+    default:
+      return [];
+  }
+}
+
+/**
+ * Voice commands on the session screen. Every command does what its button
+ * does, and comes back with a line saying so and a way to take it back:
+ * a logged set is taken back like "Cofnij serię", a rest cut short comes
+ * back with the time it had, a skip reopens the exercise.
+ */
+export function useSessionVoice({
+  session,
+  logger,
+  exercise,
+  stopwatchRunning,
+  confirmFinish,
+}: Options) {
+  // "Cofnij" runs later, after the session has moved on: it must act on the
+  // session as it is then, not as it was when the command ran.
+  const latest = useRef(session);
+  useEffect(() => {
+    latest.current = session;
+  });
+
+  const available = availableActions(
+    session.phase,
+    exercise !== undefined && isTimed(exercise),
+    stopwatchRunning,
+  );
+  const t = pl.voice.done;
+
+  function run(command: VoiceCommand): VoiceFeedback | null {
+    if (!available.includes(command.action)) return null;
+    switch (command.action) {
+      case 'stopwatch_start':
+        if (!logger.current?.startStopwatch()) return null;
+        return { text: t.stopwatchStart, undo: () => logger.current?.revertStopwatch() };
+      case 'stopwatch_stop': {
+        const seconds = logger.current?.stopStopwatch() ?? null;
+        if (seconds === null) return null;
+        return { text: t.stopwatchStop(seconds), undo: () => logger.current?.revertStopwatch() };
+      }
+      case 'set_done':
+        if (!logger.current?.save()) return null;
+        return { text: t.setDone, undo: () => void latest.current.undo() };
+      case 'rest_end': {
+        const ended = session.endRest();
+        if (!ended) return null;
+        return { text: t.restEnd, undo: () => latest.current.resumeRest(ended) };
+      }
+      case 'rest_extend':
+        if (!session.extendRest(command.seconds)) return null;
+        return {
+          text: t.restExtend(command.seconds),
+          undo: () => latest.current.extendRest(-command.seconds),
+        };
+      case 'skip_exercise': {
+        const outcome = session.skipExercise();
+        if (outcome.kind === 'last') {
+          confirmFinish();
+          return { text: pl.workout.session.finishConfirmTitle };
+        }
+        if (outcome.kind === 'none') return null;
+        return {
+          text: t.skipped(outcome.name),
+          undo: () => latest.current.unskip(outcome.blockIndex),
+        };
+      }
+    }
+  }
+
+  return { available, run };
+}

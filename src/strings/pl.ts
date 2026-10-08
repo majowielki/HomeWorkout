@@ -3,6 +3,8 @@ import type { ToolName } from '@/ai/contract/chatTools';
 import type { SignalCode } from '@/domain/coach/vocabulary';
 import type { ExclusionCode } from '@/domain/exercises/screen';
 import type { WarmupMoveId } from '@/domain/session/warmup';
+import type { VoiceActionId } from '@/domain/voice/commands';
+import type { RecognitionMode } from '@/features/voice/recognizer';
 import type {
   BikeReason,
   BlockEvent,
@@ -308,6 +310,11 @@ export const pl = {
       finishConfirmBody: (left: number) =>
         `Do zrobienia zostało: ${left} ${left === 1 ? 'seria' : left % 10 >= 2 && left % 10 <= 4 && (left % 100 < 10 || left % 100 >= 20) ? 'serie' : 'serii'}. To, co już zapisane, zostaje w historii.`,
       finishConfirm: 'Zakończ',
+      skipShort: 'Pomiń',
+      skipExercise: 'Pomiń ćwiczenie',
+      skipConfirmTitle: (name: string) => `Pominąć: ${name}?`,
+      skipConfirmBody:
+        'Niezrobione serie tego ćwiczenia zostaną dziś puste. Wrócisz do niego z „Postęp sesji”.',
       supersetWith: (names: string) =>
         `Superseria z: ${names}. Robisz je na zmianę, po jednej serii, aż skończysz wszystkie.`,
       supersetNext: 'Superseria: teraz drugie ćwiczenie z pary',
@@ -380,6 +387,55 @@ export const pl = {
       finish: 'Zakończ trening',
       backToSession: 'Wróć do treningu',
       backUndoHint: 'Ostatnia seria wróci do poprawki.',
+    },
+  },
+  voice: {
+    mic: 'Polecenie głosowe',
+    micStop: 'Przestań słuchać',
+    listening: 'Słucham…',
+    hint: (phrases: string) => `Dotknij i powiedz: ${phrases}`,
+    phrase: {
+      stopwatch_start: 'start',
+      stopwatch_stop: 'stop',
+      set_done: 'seria zrobiona',
+      rest_end: 'koniec przerwy',
+      rest_extend: '+30 sekund',
+      skip_exercise: 'pomiń ćwiczenie',
+    } satisfies Record<VoiceActionId, string>,
+    done: {
+      stopwatchStart: 'Stoper ruszył',
+      stopwatchStop: (sec: number) => `Stoper zatrzymany: ${sec} s`,
+      setDone: 'Seria zapisana',
+      restEnd: 'Koniec przerwy',
+      restExtend: (sec: number) => `Przerwa +${sec} s`,
+      skipped: (name: string) => `Pominięte: ${name}`,
+    },
+    undo: 'Cofnij',
+    notUnderstood: (text: string) => `Nie rozumiem: „${text}”.`,
+    ambiguous: (options: string) => `Powiedz dokładniej: ${options}.`,
+    notNow: 'Teraz nie ma czego tym poleceniem zrobić.',
+    noSpeech: 'Nic nie usłyszałem. Dotknij mikrofonu i powiedz polecenie.',
+    denied: 'Brak dostępu do mikrofonu. Włącz go w ustawieniach telefonu.',
+    unavailable: 'Ten telefon nie ma usługi rozpoznawania mowy.',
+    network:
+      'Rozpoznawanie mowy potrzebuje internetu albo polskiego pakietu offline (Ustawienia → Polecenia głosowe).',
+    failed: 'Rozpoznawanie mowy przerwało się. Spróbuj jeszcze raz.',
+    settings: {
+      section: 'Polecenia głosowe',
+      toggle: 'Mikrofon w trakcie treningu',
+      toggleHint:
+        'Dotknij mikrofonu i powiedz: start, stop, seria zrobiona, koniec przerwy, +30 sekund, pomiń ćwiczenie. Polecenia rozpoznaje aplikacja według stałej listy słów; każde da się cofnąć.',
+      mode: {
+        on_device: 'Mowa rozpoznawana na telefonie (polski pakiet offline jest zainstalowany).',
+        system:
+          'Mowa rozpoznawana przez usługę Google w telefonie. Bez polskiego pakietu offline nagranie polecenia może trafić na serwery Google.',
+        unavailable: 'Ten telefon nie ma usługi rozpoznawania mowy.',
+      } satisfies Record<RecognitionMode, string>,
+      download: 'Pobierz polski pakiet offline',
+      downloadStarted:
+        'Pobieranie zlecone. Gdy się skończy, mowa będzie rozpoznawana na telefonie.',
+      downloadFailed:
+        'Nie udało się zlecić pobierania. Pakiet pobierzesz też w ustawieniach Google → Rozpoznawanie mowy.',
     },
   },
   extra: {

@@ -74,7 +74,10 @@ function setup(logged: string[] = []) {
     getCurrentBlock: jest.fn().mockResolvedValue({ id: 'block', state: {} as never }),
     setBlockSelection: jest.fn().mockResolvedValue(undefined),
     startRest: jest.fn().mockResolvedValue(undefined),
+    extendRest: jest.fn().mockResolvedValue(undefined),
     stopRest: jest.fn().mockResolvedValue(undefined),
+    restEndsAt: jest.fn(() => null),
+    now: () => 1_000_000,
     alert: jest.fn(),
   };
   return { deps, keys };
@@ -224,4 +227,133 @@ it('excludes an exercise at once and reports a failed save', async () => {
   expect(result.current.excludedIds.has('row')).toBe(true);
   expect(deps.alert).toHaveBeenCalledWith(pl.common.error);
   warn.mockRestore();
+});
+
+describe('voice actions', () => {
+  it('skips the exercise on screen and finishes when only skipped sets are left', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+
+    let outcome: ReturnType<typeof result.current.skipExercise> | undefined;
+    await act(async () => {
+      outcome = result.current.skipExercise();
+    });
+    expect(outcome).toEqual({ kind: 'skipped', blockIndex: 0, name: 'Przysiad' });
+    expect(result.current.phase).toBe('logging');
+    expect(result.current.currentStep?.block.label).toBe('B1');
+
+    // B1 was the only thing left: logging it ends the workout.
+    await act(async () => result.current.saveSet(data));
+    expect(mockReplace).toHaveBeenCalledWith({
+      pathname: '/workout/summary/[id]',
+      params: { id: 'w', back: 'undo' },
+    });
+  });
+
+  it('during a rest skips the exercise coming up', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.saveSet(data));
+    expect(result.current.upcoming?.label).toBe('B1 · Wiosłowanie');
+
+    await act(async () => {
+      result.current.skipExercise();
+    });
+    expect(deps.stopRest).toHaveBeenCalled();
+    expect(result.current.phase).toBe('logging');
+    expect(result.current.currentStep?.block.label).toBe('A1');
+    expect(result.current.currentStep?.setNumber).toBe(2);
+  });
+
+  it('does not skip the last thing left, and does nothing outside a set or rest', async () => {
+    const { deps } = setup(['0:1', '0:2']);
+    const { result } = await open(deps);
+    expect(result.current.currentStep?.block.label).toBe('B1');
+    let outcome: ReturnType<typeof result.current.skipExercise> | undefined;
+    await act(async () => {
+      outcome = result.current.skipExercise();
+    });
+    expect(outcome).toEqual({ kind: 'last' });
+    expect(result.current.skipped.size).toBe(0);
+
+    const fresh = await open(setup().deps);
+    expect(fresh.result.current.phase).toBe('warmup');
+    expect(fresh.result.current.skipExercise()).toEqual({ kind: 'none' });
+  });
+
+  it('takes a skip back, and a jump onto a skipped exercise takes it back too', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => {
+      result.current.skipExercise();
+    });
+    await act(async () => result.current.unskip(0));
+    expect(result.current.skipped.size).toBe(0);
+    expect(result.current.currentStep?.block.label).toBe('A1');
+    expect(result.current.phase).toBe('logging');
+
+    await act(async () => {
+      result.current.skipExercise();
+    });
+    expect(result.current.skipped.has(0)).toBe(true);
+    await act(async () => result.current.jump(2));
+    expect(result.current.skipped.size).toBe(0);
+    expect(result.current.currentStep?.setNumber).toBe(2);
+  });
+
+  it('ends a rest early and puts it back with the time it had left', async () => {
+    const { deps } = setup();
+    (deps.restEndsAt as jest.Mock).mockReturnValue(1_040_000);
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.saveSet(data));
+
+    let ended: ReturnType<typeof result.current.endRest> = null;
+    await act(async () => {
+      ended = result.current.endRest();
+    });
+    expect(ended).toEqual({ phase: 'resting', index: 0, remainingMs: 40_000 });
+    expect(result.current.phase).toBe('logging');
+    expect(result.current.currentStep?.block.label).toBe('B1');
+
+    (deps.startRest as jest.Mock).mockClear();
+    await act(async () => result.current.resumeRest(ended!));
+    expect(deps.startRest).toHaveBeenCalledWith(40, pl.workout.session.restNotificationBody);
+    expect(result.current.phase).toBe('resting');
+    expect(result.current.currentIndex).toBe(0);
+  });
+
+  it('a rest that had run out comes back as the next set; the done card comes back as itself', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () =>
+      result.current.resumeRest({ phase: 'resting', index: 0, remainingMs: 0 }),
+    );
+    expect(result.current.phase).toBe('logging');
+    expect(result.current.currentIndex).toBe(0);
+    await act(async () =>
+      result.current.resumeRest({ phase: 'groupDone', index: 1, remainingMs: 0 }),
+    );
+    expect(result.current.phase).toBe('groupDone');
+    let ended: ReturnType<typeof result.current.endRest> = null;
+    await act(async () => {
+      ended = result.current.endRest();
+    });
+    expect(ended).toEqual({ phase: 'groupDone', index: 1, remainingMs: 0 });
+  });
+
+  it('extends only a running rest', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    expect(result.current.extendRest(30)).toBe(false);
+    expect(result.current.endRest()).toBeNull();
+    await act(async () => result.current.saveSet(data));
+    expect(result.current.extendRest(30)).toBe(true);
+    expect(deps.extendRest).toHaveBeenCalledWith(30, pl.workout.session.restNotificationBody);
+  });
 });

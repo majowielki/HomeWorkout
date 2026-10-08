@@ -12,13 +12,16 @@ import type { PlannedExercise } from '@/domain/plan/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
-import { SetLogger } from '@/features/workout/SetLogger';
+import { VoiceBar } from '@/features/voice/VoiceBar';
+import { SetLogger, type SetLoggerHandle } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useActiveSession } from '@/features/workout/useActiveSession';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
+import { useSessionVoice } from '@/features/workout/useSessionVoice';
 import { WarmupChecklist } from '@/features/workout/WarmupChecklist';
 import { useLandscapeAllowed } from '@/lib/useLandscapeAllowed';
+import { getVoiceEnabled } from '@/lib/voiceSettings';
 import { pl } from '@/strings/pl';
 
 /** The active session. What it does lives in useActiveSession; this draws it. */
@@ -31,7 +34,10 @@ export default function ActiveSessionScreen() {
   const exerciseMap = useExerciseMap();
   const calibrations = useBandCalibrations();
   const sheetRef = useRef<BottomSheetType>(null);
+  const loggerRef = useRef<SetLoggerHandle>(null);
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
+  const [stopwatchRunning, setStopwatchRunning] = useState(false);
+  const [voiceEnabled] = useState(getVoiceEnabled);
   const session = useActiveSession(id, exerciseMap);
   const {
     phase,
@@ -54,6 +60,29 @@ export default function ActiveSessionScreen() {
     Alert.alert(t.finishConfirmTitle, t.finishConfirmBody(session.unloggedCount), [
       { text: pl.common.cancel, style: 'cancel' },
       { text: t.finishConfirm, style: 'destructive', onPress: () => session.finish('resume') },
+    ]);
+  }
+
+  const voice = useSessionVoice({
+    session,
+    logger: loggerRef,
+    exercise: effectiveExercise,
+    stopwatchRunning,
+    confirmFinish,
+  });
+
+  /** The button asks first; by voice the bar offers "Cofnij" instead. */
+  function confirmSkip() {
+    const t = pl.workout.session;
+    Alert.alert(t.skipConfirmTitle(effectiveExercise?.name ?? ''), t.skipConfirmBody, [
+      { text: pl.common.cancel, style: 'cancel' },
+      {
+        text: t.skipExercise,
+        style: 'destructive',
+        onPress: () => {
+          if (session.skipExercise().kind === 'last') confirmFinish();
+        },
+      },
     ]);
   }
 
@@ -119,6 +148,8 @@ export default function ActiveSessionScreen() {
 
       {phase === 'logging' && currentStep && effectiveExercise ? (
         <SetLogger
+          ref={loggerRef}
+          onStopwatchChange={setStopwatchRunning}
           key={`${currentIndex}-${effectiveExercise.id}`}
           exercise={effectiveExercise}
           block={currentStep.block}
@@ -145,7 +176,7 @@ export default function ActiveSessionScreen() {
       ) : null}
 
       {phase === 'logging' && templateExercise ? (
-        <View className="flex-row justify-center gap-6 border-t border-border py-3">
+        <View className="flex-row justify-center gap-5 border-t border-border py-3">
           <Pressable
             className="flex-row items-center gap-1.5"
             onPress={() => sheetRef.current?.snapToIndex(0)}
@@ -158,7 +189,14 @@ export default function ActiveSessionScreen() {
               <Text variant="muted">{pl.workout.session.substituteTitle}</Text>
             </Pressable>
           ) : null}
+          <Pressable onPress={confirmSkip} accessibilityLabel={pl.workout.session.skipExercise}>
+            <Text variant="muted">{pl.workout.session.skipShort}</Text>
+          </Pressable>
         </View>
+      ) : null}
+
+      {voiceEnabled && voice.available.length > 0 ? (
+        <VoiceBar available={voice.available} run={voice.run} />
       ) : null}
 
       <SessionProgressSheet

@@ -30,3 +30,42 @@ jest.mock('expo-video', () => ({
 // `findBy*` fail spuriously. 5 s is generous but only ever waited when
 // something is actually wrong.
 configure({ asyncUtilTimeout: 5000 });
+
+// Speech recognition is a native module. The mock records what the app asks
+// of it and lets a suite play the recogniser's events with `__emit`.
+jest.mock('expo-speech-recognition', () => {
+  /* eslint-disable @typescript-eslint/no-require-imports -- jest.mock factories are hoisted above imports */
+  const { useEffect, useRef } = require('react') as typeof import('react');
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const listeners = new Map<string, Set<(event: unknown) => void>>();
+  const ExpoSpeechRecognitionModule = {
+    start: jest.fn(),
+    stop: jest.fn(),
+    abort: jest.fn(),
+    requestPermissionsAsync: jest.fn(async () => ({ granted: true })),
+    isRecognitionAvailable: jest.fn(() => true),
+    supportsOnDeviceRecognition: jest.fn(() => false),
+    getSupportedLocales: jest.fn(async () => ({ locales: [], installedLocales: [] })),
+    androidTriggerOfflineModelDownload: jest.fn(async () => ({
+      status: 'opened_dialog',
+      message: '',
+    })),
+    __emit(name: string, event: unknown = null) {
+      listeners.get(name)?.forEach((listener) => listener(event));
+    },
+  };
+  function useSpeechRecognitionEvent(name: string, listener: (event: unknown) => void) {
+    const latest = useRef(listener);
+    latest.current = listener;
+    useEffect(() => {
+      const callback = (event: unknown) => latest.current(event);
+      const set = listeners.get(name) ?? new Set();
+      set.add(callback);
+      listeners.set(name, set);
+      return () => {
+        set.delete(callback);
+      };
+    }, [name]);
+  }
+  return { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent };
+});
