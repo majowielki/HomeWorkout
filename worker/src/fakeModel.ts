@@ -102,50 +102,70 @@ export function fakeModel() {
       const afterTool = options.prompt[options.prompt.length - 1]?.role === 'tool';
       const asksAboutPlan = /plan/i.test(JSON.stringify(lastUserMessage(options.prompt)));
       const question = fold(JSON.stringify(lastUserMessage(options.prompt)));
-      const request = /dodatkow/.test(question)
+      const daysAhead = /pojutrze/.test(question) ? 2 : /jutro/.test(question) ? 1 : 0;
+      const request = /uloz/.test(question)
         ? {
-            name: 'proposeExtraSession',
-            input: { focusMuscles: /klatk/.test(question) ? ['chest'] : ['calves'] },
-          }
-        : /zakwas/.test(question) && /pomin|przelicz|zmien/.test(question)
-          ? {
-              name: 'proposePlanChange',
-              input: {
-                constraints: [
-                  {
-                    kind: 'avoid_muscle',
-                    muscles: ['quads', 'hamstrings', 'glutes', 'calves'],
-                    fromDaysAhead: 0,
-                    days: 2,
-                    reason: 'doms',
-                    domsLevel: 4,
-                  },
-                ],
-                note: 'Silne zakwasy nóg.',
-              },
-            }
-          : /woln/.test(question)
-            ? {
-                name: 'proposePlanChange',
-                input: {
-                  constraints: [
-                    {
-                      kind: 'rest_day',
-                      muscles: [],
-                      fromDaysAhead: /pojutrze/.test(question) ? 2 : /jutro/.test(question) ? 1 : 0,
-                      days: 1,
-                      reason: 'busy',
-                    },
+            name: 'proposeDayPlan',
+            input: {
+              days: [
+                {
+                  daysAhead,
+                  slots: [
+                    { slotId: 'push-horizontal' },
+                    { slotId: 'pull-horizontal' },
+                    { slotId: 'push-vertical', sets: 1 },
                   ],
-                  note: 'Dzień wolny na prośbę.',
                 },
+              ],
+              note: 'Góra ciała na prośbę.',
+            },
+          }
+        : /opcj/.test(question)
+          ? { name: 'getDayOptions', input: { daysAhead } }
+          : /dodatkow/.test(question)
+            ? {
+                name: 'proposeExtraSession',
+                input: { focusMuscles: /klatk/.test(question) ? ['chest'] : ['calves'] },
               }
-            : /tygod|tydzien/.test(question) && asksAboutPlan
-              ? { name: 'getWeekPlan', input: {} }
-              : {
-                  name: asksAboutPlan ? 'getPlanExplanation' : 'getWeeklyVolume',
-                  input: asksAboutPlan ? { daysAgo: 0 } : { weeksAgo: 0 },
-                };
+            : /zakwas/.test(question) && /pomin|przelicz|zmien/.test(question)
+              ? {
+                  name: 'proposePlanChange',
+                  input: {
+                    constraints: [
+                      {
+                        kind: 'avoid_muscle',
+                        muscles: ['quads', 'hamstrings', 'glutes', 'calves'],
+                        fromDaysAhead: 0,
+                        days: 2,
+                        reason: 'doms',
+                        domsLevel: 4,
+                      },
+                    ],
+                    note: 'Silne zakwasy nóg.',
+                  },
+                }
+              : /woln/.test(question)
+                ? {
+                    name: 'proposePlanChange',
+                    input: {
+                      constraints: [
+                        {
+                          kind: 'rest_day',
+                          muscles: [],
+                          fromDaysAhead: daysAhead,
+                          days: 1,
+                          reason: 'busy',
+                        },
+                      ],
+                      note: 'Dzień wolny na prośbę.',
+                    },
+                  }
+                : /tygod|tydzien/.test(question) && asksAboutPlan
+                  ? { name: 'getWeekPlan', input: {} }
+                  : {
+                      name: asksAboutPlan ? 'getPlanExplanation' : 'getWeeklyVolume',
+                      input: asksAboutPlan ? { daysAgo: 0 } : { weeksAgo: 0 },
+                    };
       const parts: Part[] = afterTool
         ? [
             { type: 'text-start', id: 't1' },
