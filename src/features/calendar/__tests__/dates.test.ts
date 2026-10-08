@@ -1,4 +1,4 @@
-import { monthGrid, monthLabel, shiftMonth } from '../dates';
+import { gridRange, monthGrid, monthLabel, shiftMonth } from '../dates';
 
 describe('calendar dates', () => {
   it('keeps a fixed Monday-first grid across a year boundary', () => {
@@ -7,6 +7,7 @@ describe('calendar dates', () => {
     expect(grid[0]).toBe('2026-12-28');
     expect(grid[41]).toBe('2027-02-07');
     expect(new Set(grid).size).toBe(42);
+    expect(gridRange('2027-01')).toEqual({ from: '2026-12-28', until: '2027-02-07' });
   });
   it('includes leap day and keeps dates continuous across daylight saving', () => {
     expect(monthGrid('2028-02')).toContain('2028-02-29');

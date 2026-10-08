@@ -25,6 +25,25 @@ export const CONSTRAINT_REASONS = ['doms', 'pain', 'busy', 'other'] as const;
 
 export type ConstraintReason = (typeof CONSTRAINT_REASONS)[number];
 
+/**
+ * What the coach may propose, with the person's consent: never a forced
+ * training day, and never a sore muscle — pain is the person's own report
+ * (the form asks the questions a model cannot).
+ */
+export const COACH_CONSTRAINT_KINDS = [
+  'avoid_muscle',
+  'rest_day',
+  'lighter_day',
+] as const satisfies readonly ConstraintKind[];
+
+export const COACH_CONSTRAINT_REASONS = [
+  'doms',
+  'busy',
+  'other',
+] as const satisfies readonly ConstraintReason[];
+
+export type CoachConstraintReason = (typeof COACH_CONSTRAINT_REASONS)[number];
+
 export interface PlanConstraint {
   id: string;
   kind: ConstraintKind;
@@ -127,4 +146,49 @@ export function scaledConfig(
 /** The dates from `from` for `days` days. */
 export function dateRange(from: string, days: number): string[] {
   return Array.from({ length: days }, (_, i) => addDays(from, i));
+}
+
+/** What a calendar choice for one day changes: requests taken back, and requests added. */
+export interface DayOverride {
+  revoke: string[];
+  add: Omit<PlanConstraint, 'id'>[];
+}
+
+/**
+ * "Dzień wolny" / "Jednak trenuję" for one date (PLAN-TYGODNIA appendix E, E4
+ * and E7). The person's earlier choice for that day is replaced. Choosing to
+ * train also takes that one day out of an accepted coach request for rest,
+ * keeping the rest of its range; muscle restrictions are never touched.
+ */
+export function overrideDay(
+  active: readonly PlanConstraint[],
+  date: string,
+  train: boolean,
+): DayOverride {
+  const revoke: string[] = [];
+  const add: Omit<PlanConstraint, 'id'>[] = [];
+  for (const { id, ...c } of constraintsOn(active, date)) {
+    if (train && c.source === 'coach' && c.kind === 'rest_day') {
+      revoke.push(id);
+      if (c.from < date) add.push({ ...c, until: addDays(date, -1) });
+      if (date < c.until) add.push({ ...c, from: addDays(date, 1) });
+    } else if (
+      c.source === 'user' &&
+      (c.kind === 'rest_day' || c.kind === 'train_day') &&
+      c.from === date &&
+      c.until === date
+    ) {
+      revoke.push(id);
+    }
+  }
+  add.push({
+    kind: train ? 'train_day' : 'rest_day',
+    muscles: [],
+    from: date,
+    until: date,
+    reason: train ? 'other' : 'busy',
+    source: 'user',
+    note: null,
+  });
+  return { revoke, add };
 }

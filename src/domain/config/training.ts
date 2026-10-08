@@ -224,6 +224,24 @@ export const PLANNER_CONFIG = {
 
 export type PlannerConfig = Tunable<typeof PLANNER_CONFIG>;
 
+/**
+ * The rolling week (SPEC §11) and the requests it takes (PLAN-TYGODNIA §3.6,
+ * appendix D): the numbers the engine, the calendar, the chat contract and
+ * the soreness form must agree on.
+ */
+export const WEEK_CONFIG = {
+  /** Days planned from today, today included. */
+  horizonDays: 7,
+  /** How far back stored days, requests and trained dates are read to bring the week up to date. */
+  lookBackDays: 14,
+  /** Stored days read ahead of today: wider than the horizon, so rows written under a later clock are still seen. */
+  lookAheadDays: 13,
+  /** A request — a soreness report or the coach's — lasts from 1 to this many days. */
+  requestMaxDays: 3,
+  /** The default length of a restriction: strong DOMS, and a sore muscle (a suspected strain). */
+  requestDefaultDays: { strongDoms: 2, musclePain: 3 },
+} as const;
+
 /** The daily ride, SPEC §7 v1.2. */
 export const BIKE_CONFIG = {
   minutes: { min: 10, max: 20 },

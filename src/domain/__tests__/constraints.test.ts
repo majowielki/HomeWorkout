@@ -6,6 +6,7 @@ import {
   isAvoided,
   isLighterDay,
   isTrainingDay,
+  overrideDay,
   type PlanConstraint,
   scaledConfig,
   TRAIN_DAILY,
@@ -87,5 +88,101 @@ describe('constraints', () => {
 
   it('lists the dates of a range', () => {
     expect(dateRange('2026-10-30', 3)).toEqual(['2026-10-30', '2026-10-31', '2026-11-01']);
+  });
+});
+
+describe('overriding one calendar day', () => {
+  const coachRest = (id: string, from: string, until: string): PlanConstraint => ({
+    id,
+    kind: 'rest_day',
+    muscles: [],
+    from,
+    until,
+    reason: 'busy',
+    source: 'coach',
+    note: 'Wyjazd',
+  });
+  const userDay = (id: string, kind: 'rest_day' | 'train_day', date: string): PlanConstraint => ({
+    id,
+    kind,
+    muscles: [],
+    from: date,
+    until: date,
+    reason: kind === 'rest_day' ? 'busy' : 'other',
+    source: 'user',
+    note: null,
+  });
+  const userChoice = (date: string, train: boolean) => ({
+    kind: train ? 'train_day' : 'rest_day',
+    muscles: [],
+    from: date,
+    until: date,
+    reason: train ? 'other' : 'busy',
+    source: 'user',
+    note: null,
+  });
+
+  it('adds a rest day and replaces an earlier choice for that day only', () => {
+    const active = [
+      userDay('t', 'train_day', '2026-10-08'),
+      userDay('o', 'rest_day', '2026-10-09'),
+    ];
+    expect(overrideDay(active, '2026-10-08', false)).toEqual({
+      revoke: ['t'],
+      add: [userChoice('2026-10-08', false)],
+    });
+  });
+
+  it('keeps a coach rest request when the person also rests', () => {
+    expect(overrideDay([coachRest('c', '2026-10-07', '2026-10-09')], '2026-10-08', false)).toEqual({
+      revoke: [],
+      add: [userChoice('2026-10-08', false)],
+    });
+  });
+
+  it('takes one day out of a coach rest request, keeping the days around it', () => {
+    const { revoke, add } = overrideDay(
+      [coachRest('c', '2026-10-07', '2026-10-09')],
+      '2026-10-08',
+      true,
+    );
+    expect(revoke).toEqual(['c']);
+    expect(add).toEqual([
+      expect.objectContaining({ source: 'coach', from: '2026-10-07', until: '2026-10-07' }),
+      expect.objectContaining({ source: 'coach', from: '2026-10-09', until: '2026-10-09' }),
+      userChoice('2026-10-08', true),
+    ]);
+  });
+
+  it.each([
+    ['first day', '2026-10-08', '2026-10-10', [['2026-10-09', '2026-10-10']]],
+    ['last day', '2026-10-06', '2026-10-08', [['2026-10-06', '2026-10-07']]],
+    ['single day', '2026-10-08', '2026-10-08', []],
+  ])('trims a coach request at its %s', (_, from, until, kept) => {
+    const { add } = overrideDay([coachRest('c', from, until)], '2026-10-08', true);
+    expect(add.filter((c) => c.source === 'coach').map((c) => [c.from, c.until])).toEqual(kept);
+  });
+
+  it('handles overlapping requests and never touches muscle restrictions or other dates', () => {
+    const sore: PlanConstraint = {
+      ...coachRest('m', '2026-10-08', '2026-10-09'),
+      kind: 'avoid_muscle',
+      muscles: ['quads'],
+      reason: 'pain',
+      source: 'user',
+    };
+    const { revoke } = overrideDay(
+      [
+        coachRest('a', '2026-10-07', '2026-10-08'),
+        coachRest('b', '2026-10-08', '2026-10-10'),
+        coachRest('later', '2026-10-12', '2026-10-13'),
+        userDay('r', 'rest_day', '2026-10-08'),
+        { ...userDay('range', 'rest_day', '2026-10-08'), until: '2026-10-09' },
+        sore,
+      ],
+      '2026-10-08',
+      true,
+    );
+    expect(revoke).toEqual(['a', 'b', 'r']);
   });
 });

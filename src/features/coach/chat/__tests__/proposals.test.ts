@@ -11,8 +11,8 @@ jest.mock('@/db/repositories/weekPlan', () => ({ saveCoachWeek: jest.fn() }));
 jest.mock('@/db/repositories/trainingBlocks', () => ({}));
 jest.mock('@/db/repositories/workouts', () => ({ findInProgressWorkout: jest.fn() }));
 jest.mock('@/features/extra/actions', () => ({
+  ...jest.requireActual('@/features/extra/actions'),
   startExtraSession: jest.fn(),
-  ExtraSessionChangedError: class ExtraSessionChangedError extends Error {},
 }));
 
 function setup(done = false) {

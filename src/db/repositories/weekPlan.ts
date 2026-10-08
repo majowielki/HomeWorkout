@@ -2,14 +2,44 @@ import { randomUUID } from 'expo-crypto';
 
 import { and, desc, eq, gte, inArray, isNull, lte, ne } from 'drizzle-orm';
 
-import type { PlanConstraint } from '@/domain/plan/constraints';
+import { overrideDay, type PlanConstraint } from '@/domain/plan/constraints';
 import type { BlockAdvance } from '@/domain/plan/block';
-import { addDays } from '@/domain/time/trainingDate';
 import type { StoredDay, StoredDayChange, SyncTrigger } from '@/domain/plan/weekSync';
 
 import { db } from '../client';
 import { planConstraints, plannedDays, planGenerations, workouts } from '../schema';
 import { type StoredBlock, writeBlockAdvance } from './trainingBlocks';
+
+type ConstraintRow = typeof planConstraints.$inferSelect;
+
+function toConstraint(r: ConstraintRow): PlanConstraint {
+  return {
+    id: r.id,
+    kind: r.kind,
+    muscles: r.muscles,
+    from: r.fromDate,
+    until: r.untilDate,
+    reason: r.reason,
+    source: r.source,
+    note: r.note,
+  };
+}
+
+/** A request as a new row, in force until taken back. */
+function constraintRow(c: Omit<PlanConstraint, 'id'>, createdAt: string) {
+  return {
+    id: randomUUID(),
+    kind: c.kind,
+    muscles: c.muscles,
+    fromDate: c.from,
+    untilDate: c.until,
+    reason: c.reason,
+    source: c.source,
+    note: c.note,
+    createdAt,
+    revokedAt: null,
+  };
+}
 
 /** The stored days between two dates, inclusive, oldest first. */
 export async function getPlannedDays(from: string, to: string): Promise<StoredDay[]> {
@@ -113,18 +143,7 @@ export async function saveCoachWeek(
     const at = now.toISOString();
     for (const c of constraints) {
       tx.insert(planConstraints)
-        .values({
-          id: randomUUID(),
-          kind: c.kind,
-          muscles: c.muscles,
-          fromDate: c.from,
-          untilDate: c.until,
-          reason: c.reason,
-          source: 'coach',
-          note: c.note,
-          createdAt: at,
-          revokedAt: null,
-        })
+        .values(constraintRow({ ...c, source: 'coach' }, at))
         .run();
     }
     writeBlockAdvance(tx, current, advance, asOf, now);
@@ -189,36 +208,16 @@ export async function getActiveConstraints(from: string): Promise<PlanConstraint
     .select()
     .from(planConstraints)
     .where(and(isNull(planConstraints.revokedAt), gte(planConstraints.untilDate, from)));
-  return rows.map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    muscles: r.muscles,
-    from: r.fromDate,
-    until: r.untilDate,
-    reason: r.reason,
-    source: r.source,
-    note: r.note,
-  }));
+  return rows.map(toConstraint);
 }
 
 export async function addConstraint(
   c: Omit<PlanConstraint, 'id'>,
   now: Date = new Date(),
 ): Promise<string> {
-  const id = randomUUID();
-  await db.insert(planConstraints).values({
-    id,
-    kind: c.kind,
-    muscles: c.muscles,
-    fromDate: c.from,
-    untilDate: c.until,
-    reason: c.reason,
-    source: c.source,
-    note: c.note,
-    createdAt: now.toISOString(),
-    revokedAt: null,
-  });
-  return id;
+  const row = constraintRow(c, now.toISOString());
+  await db.insert(planConstraints).values(row);
+  return row.id;
 }
 
 export async function revokeConstraints(ids: string[], now: Date = new Date()): Promise<void> {
@@ -229,7 +228,7 @@ export async function revokeConstraints(ids: string[], now: Date = new Date()): 
     .where(inArray(planConstraints.id, ids));
 }
 
-/** Replaces a calendar day's override atomically; leaves muscle restrictions intact. */
+/** Replaces a calendar day's override atomically (domain/plan/constraints overrideDay). */
 export async function setDayTraining(
   date: string,
   train: boolean,
@@ -237,72 +236,25 @@ export async function setDayTraining(
 ): Promise<void> {
   const at = now.toISOString();
   db.transaction((tx) => {
-    // An explicit calendar choice can take back one day of an accepted
-    // coach rest request while preserving the rest of its date range.
-    if (train) {
-      const requests = tx
-        .select()
-        .from(planConstraints)
-        .where(
-          and(
-            eq(planConstraints.source, 'coach'),
-            eq(planConstraints.kind, 'rest_day'),
-            lte(planConstraints.fromDate, date),
-            gte(planConstraints.untilDate, date),
-            isNull(planConstraints.revokedAt),
-          ),
-        )
-        .all();
-      for (const c of requests) {
-        tx.update(planConstraints).set({ revokedAt: at }).where(eq(planConstraints.id, c.id)).run();
-        if (c.fromDate < date)
-          tx.insert(planConstraints)
-            .values({
-              ...c,
-              id: randomUUID(),
-              untilDate: addDays(date, -1),
-              createdAt: at,
-              revokedAt: null,
-            })
-            .run();
-        if (date < c.untilDate)
-          tx.insert(planConstraints)
-            .values({
-              ...c,
-              id: randomUUID(),
-              fromDate: addDays(date, 1),
-              createdAt: at,
-              revokedAt: null,
-            })
-            .run();
-      }
-    }
-    tx.update(planConstraints)
-      .set({ revokedAt: at })
+    const active = tx
+      .select()
+      .from(planConstraints)
       .where(
         and(
-          eq(planConstraints.fromDate, date),
-          eq(planConstraints.untilDate, date),
-          eq(planConstraints.source, 'user'),
-          inArray(planConstraints.kind, ['rest_day', 'train_day']),
           isNull(planConstraints.revokedAt),
+          lte(planConstraints.fromDate, date),
+          gte(planConstraints.untilDate, date),
         ),
       )
-      .run();
-    tx.insert(planConstraints)
-      .values({
-        id: randomUUID(),
-        kind: train ? 'train_day' : 'rest_day',
-        muscles: [],
-        fromDate: date,
-        untilDate: date,
-        reason: train ? 'other' : 'busy',
-        source: 'user',
-        note: null,
-        createdAt: at,
-        revokedAt: null,
-      })
-      .run();
+      .all()
+      .map(toConstraint);
+    const { revoke, add } = overrideDay(active, date, train);
+    if (revoke.length > 0)
+      tx.update(planConstraints)
+        .set({ revokedAt: at })
+        .where(inArray(planConstraints.id, revoke))
+        .run();
+    for (const c of add) tx.insert(planConstraints).values(constraintRow(c, at)).run();
   });
 }
 

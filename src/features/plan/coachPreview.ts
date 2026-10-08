@@ -1,11 +1,17 @@
 import { gateUserText } from '@/ai/chat/gate';
-import { detectTextSignal } from '@/domain/coach/medicalSignal';
-import { fold } from '@/domain/coach/text';
+import {
+  avoidNeedsClarification,
+  notePrescribes,
+  requestFits,
+  sorenessBlocksExtraWork,
+} from '@/domain/coach/intentGuards';
+import { WEEK_CONFIG } from '@/domain/config/training';
 import { checkReply } from '@/domain/coach/outputGuards';
 import { cleanText } from '@/ai/context/redact';
 import {
   PLAN_DAY_REASONS,
   PLAN_SKIP_REASONS,
+  TOOL_LIMITS,
   type ToolError,
   type ToolInput,
   type ToolOutput,
@@ -14,6 +20,8 @@ import type { SessionPlan } from '@/domain/plan/types';
 import { syncWeek } from '@/domain/plan/weekSync';
 import { addDays } from '@/domain/time/trainingDate';
 import type { PlanningSnapshot } from './planningSnapshot';
+
+/** One day as the chat's plan tools describe it: choices and reasons, never a load. */
 export function summarizePlan(
   s: PlanningSnapshot,
   date: string,
@@ -33,7 +41,7 @@ export function summarizePlan(
     dayReasons: (plan?.dayReasons ?? []).filter((r) =>
       (PLAN_DAY_REASONS as readonly string[]).includes(r),
     ),
-    exercises: (plan?.exercises ?? []).map((e) => ({
+    exercises: (plan?.exercises ?? []).slice(0, TOOL_LIMITS.planExercisesShown).map((e) => ({
       exercise: ref(e.exerciseId),
       sets: e.sets,
       perSide: s.source.catalog[e.exerciseId]?.sides === 'perSet',
@@ -41,6 +49,7 @@ export function summarizePlan(
     })),
     skipped: (plan?.skipped ?? [])
       .filter((e) => (PLAN_SKIP_REASONS as readonly string[]).includes(e.reason))
+      .slice(0, TOOL_LIMITS.planSkippedShown)
       .map((e) => ({ movement: movement(e.slotId), reason: e.reason })),
   };
 }
@@ -85,7 +94,7 @@ export function previewPlanChange(
       muscles,
       from,
       until,
-      reason: reason as 'doms' | 'busy' | 'other',
+      reason,
     })),
     changes,
   };
@@ -100,33 +109,11 @@ export function validatePlanIntent(
     return { error: 'invalid_input' };
   if (checkReply(cleanText(input.note), { sparse: false }).length > 0)
     return { error: 'invalid_input' };
-  // This is a neutral request label, not another channel for a prescription.
-  if (
-    /\bkg\b|kilogram|\brir\b|powtorzen|powtorz|\bseri[aei]\b|\bgum[aeiy]\b|hantl/.test(
-      fold(input.note),
-    )
-  )
-    return { error: 'invalid_input' };
+  // The note is a neutral request label, not another channel for a prescription.
+  if (notePrescribes(input.note)) return { error: 'invalid_input' };
   for (const c of input.constraints) {
-    if (
-      c.fromDaysAhead + c.days > 7 ||
-      (c.kind === 'avoid_muscle' ? c.muscles.length === 0 : c.muscles.length !== 0)
-    )
-      return { error: 'invalid_input' };
-    if (
-      c.kind === 'avoid_muscle' &&
-      (c.reason === 'doms' || detectTextSignal(question) === 'soreness')
-    ) {
-      if (
-        c.reason !== 'doms' ||
-        (c.domsLevel ?? 0) < 4 ||
-        !/zakwas|doms/.test(fold(question)) ||
-        /nie\s+(?:zakwas|doms)/.test(fold(question)) ||
-        /lekk|lagod|[123]\s*\/\s*5|nie\s+(?:siln|mocn)/.test(fold(question)) ||
-        !/siln|mocn|duze|[45]\s*\/\s*5/.test(fold(question))
-      )
-        return { error: 'clarification_required' };
-    }
+    if (!requestFits(c, WEEK_CONFIG.horizonDays)) return { error: 'invalid_input' };
+    if (avoidNeedsClarification(c, question)) return { error: 'clarification_required' };
   }
   return null;
 }
@@ -135,11 +122,6 @@ export function validatePlanIntent(
 export function validateExtraQuestion(question: string): ToolError | null {
   const gate = gateUserText(question);
   if (gate.kind !== 'pass') return { error: 'invalid_input' };
-  const text = fold(gate.text);
-  if (
-    detectTextSignal(gate.text) === 'soreness' &&
-    (/siln|mocn|duze|[45]\s*\/\s*5/.test(text) || !/lekk|lagod|[123]\s*\/\s*5/.test(text))
-  )
-    return { error: 'clarification_required' };
+  if (sorenessBlocksExtraWork(gate.text)) return { error: 'clarification_required' };
   return null;
 }

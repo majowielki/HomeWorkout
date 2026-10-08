@@ -1,6 +1,8 @@
 import {
   assessReport,
+  defaultReportDays,
   emptyReport,
+  REPORT_DAY_CHOICES,
   REPORT_KINDS,
   type SorenessReport,
 } from '../plan/sorenessReport';
@@ -18,6 +20,12 @@ const answered: SorenessReport['pain'] = {
 };
 
 describe('soreness reports', () => {
+  it('offers one to three days, two by default and three for a sore muscle', () => {
+    expect(REPORT_DAY_CHOICES).toEqual([1, 2, 3]);
+    expect(emptyReport().days).toBe(2);
+    expect(defaultReportDays('strong_doms')).toBe(2);
+    expect(defaultReportDays('muscle_pain')).toBe(3);
+  });
   it.each([...REPORT_KINDS, null])(
     'routes red flags to consultation, even with kind %s and an incomplete form',
     (kind) => {

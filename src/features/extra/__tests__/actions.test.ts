@@ -1,7 +1,7 @@
 import { loadPlannerSource } from '@/db/repositories/plannerSource';
 import { getDayBoundaryHour, getTrainingWeek } from '@/db/repositories/profile';
 import { getCurrentBlock } from '@/db/repositories/trainingBlocks';
-import { getActiveConstraints, getTrainedDates } from '@/db/repositories/weekPlan';
+import { getActiveConstraints, getPlannedDays, getTrainedDates } from '@/db/repositories/weekPlan';
 import { findInProgressWorkout, startExtraWorkout } from '@/db/repositories/workouts';
 import { planCustom } from '@/domain/plan/extra';
 import { extraInput } from '@/domain/__tests__/extraFixtures';
@@ -15,6 +15,7 @@ jest.mock('@/db/repositories/profile', () => ({
 jest.mock('@/db/repositories/trainingBlocks', () => ({ getCurrentBlock: jest.fn() }));
 jest.mock('@/db/repositories/weekPlan', () => ({
   getActiveConstraints: jest.fn(),
+  getPlannedDays: jest.fn(),
   getTrainedDates: jest.fn(),
 }));
 jest.mock('@/db/repositories/workouts', () => ({
@@ -47,6 +48,7 @@ beforeEach(() => {
   });
   jest.mocked(getCurrentBlock).mockResolvedValue({ id: 'b', state: input.block });
   jest.mocked(getActiveConstraints).mockResolvedValue([]);
+  jest.mocked(getPlannedDays).mockResolvedValue([]);
   jest.mocked(getTrainingWeek).mockResolvedValue({ restWeekdays: [] });
   jest.mocked(getTrainedDates).mockResolvedValue(new Set(['2026-10-08']));
   jest.mocked(findInProgressWorkout).mockResolvedValue(null);

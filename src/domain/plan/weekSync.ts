@@ -8,7 +8,12 @@
  * request (recalculate, a new request, the coach), plans from scratch.
  */
 
-import { PLANNER_CONFIG, type PlannerConfig, TRAINING_CONFIG } from '../config/training';
+import {
+  PLANNER_CONFIG,
+  type PlannerConfig,
+  TRAINING_CONFIG,
+  WEEK_CONFIG,
+} from '../config/training';
 import { addDays, daysBetween } from '../time/trainingDate';
 import type { DaySelection, SessionPlan, SlotRegion, ViolationCode } from './types';
 import { planWeek, type WeekInput, type WeekPlan } from './week';
@@ -78,7 +83,7 @@ export function syncWeek(
   training = TRAINING_CONFIG,
 ): SyncResult {
   const { asOf, stored, trainedDates } = input;
-  const horizon = input.horizonDays ?? 7;
+  const horizon = input.horizonDays ?? WEEK_CONFIG.horizonDays;
   const byDate = new Map(stored.map((d) => [d.date, d]));
 
   const statusUpdates: SyncResult['statusUpdates'] = [];

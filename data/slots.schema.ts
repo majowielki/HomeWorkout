@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { Slot } from '../src/domain/plan/types';
+import { type Slot, SLOT_REGIONS } from '../src/domain/plan/types';
 
 const range = (min: number, max: number) =>
   z
@@ -13,7 +13,7 @@ export const slotSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   name: z.string().min(1),
   kind: z.enum(['compound', 'accessory', 'core', 'filler']),
-  region: z.enum(['lower', 'push', 'pull', 'shoulders', 'arms', 'core', 'mobility']),
+  region: z.enum(SLOT_REGIONS),
   exerciseIds: z.array(z.string().min(1)).min(1),
   repRange: range(1, 30).optional(),
   timeRange: range(5, 300).optional(),
