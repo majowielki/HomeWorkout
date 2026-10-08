@@ -11,6 +11,8 @@ export const MAX_BODY_BYTES = 64 * 1024;
 export const GENERATION_TIMEOUT_MS = 25_000;
 /** A chat step streams, so it is allowed longer; the person can cancel any time before. */
 export const CHAT_TIMEOUT_MS = 45_000;
+/** A voice command is waited for mid-set; past this, "say it again" is the better answer. */
+export const VOICE_TIMEOUT_MS = 8_000;
 
 export const STATUS: Record<ApiError['kind'], number> = {
   unauthorized: 401,
@@ -31,6 +33,7 @@ export interface Deps {
   now: () => Date;
   timeoutMs: number;
   chatTimeoutMs: number;
+  voiceTimeoutMs: number;
 }
 
 export function json(body: unknown, status: number, headers: Record<string, string> = {}) {

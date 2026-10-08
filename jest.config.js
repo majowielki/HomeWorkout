@@ -25,6 +25,7 @@ module.exports = {
     'src/ai/chat/**/*.ts',
     'src/ai/tools/**/*.ts',
     'src/ai/prompts/**/*.ts',
+    'src/ai/voice/**/*.ts',
     '!**/__tests__/**',
   ],
   // The rules engine decides real training loads; it is the one place

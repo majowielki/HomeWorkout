@@ -83,6 +83,17 @@ function lastUserMessage(prompt: readonly { role: string; content?: unknown }[])
   return [...prompt].reverse().find((m) => m.role === 'user')?.content ?? null;
 }
 
+/**
+ * The voice fallback: a phrase with the word "atrapa" in it picks the first
+ * action offered, anything else is `unknown`. Obviously fake, and enough
+ * to see both paths on the phone.
+ */
+function voiceAnswer(prompt: string) {
+  // The prompt arrives JSON-encoded: its line breaks are the two characters \n.
+  const first = /<available_actions>(?:\\n|\n)- ([a-z_]+):/.exec(prompt)?.[1];
+  return { action: /atrapa/i.test(prompt) && first ? first : 'unknown' };
+}
+
 export function fakeModel() {
   const summary = {
     headline: 'To odpowiedź atrapy, nie modelu.',
@@ -92,11 +103,15 @@ export function fakeModel() {
   };
   return new MockLanguageModelV4({
     modelId: 'fake-coach',
-    doGenerate: {
-      content: [{ type: 'text', text: JSON.stringify(summary) }],
-      finishReason: { unified: 'stop', raw: 'stop' },
-      usage: usage(1200, 80),
-      warnings: [],
+    doGenerate: async (options) => {
+      const text = JSON.stringify(options.prompt);
+      const voice = /<available_actions>/.test(text);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(voice ? voiceAnswer(text) : summary) }],
+        finishReason: { unified: 'stop', raw: 'stop' },
+        usage: voice ? usage(400, 5) : usage(1200, 80),
+        warnings: [],
+      };
     },
     doStream: async (options) => {
       const afterTool = options.prompt[options.prompt.length - 1]?.role === 'tool';

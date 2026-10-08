@@ -225,7 +225,7 @@ export const aiExchanges = sqliteTable(
   {
     id: text('id').primaryKey(),
     kind: text('kind', {
-      enum: ['weekly_summary', 'week_intent', 'day_adjustment', 'chat'],
+      enum: ['weekly_summary', 'week_intent', 'day_adjustment', 'chat', 'voice_intent'],
     }).notNull(),
     requestId: text('request_id').notNull(),
     createdAt: text('created_at').notNull(),

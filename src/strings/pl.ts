@@ -412,6 +412,9 @@ export const pl = {
     },
     undo: 'Cofnij',
     notUnderstood: (text: string) => `Nie rozumiem: „${text}”.`,
+    asking: 'Nie znam tego polecenia, pytam AI…',
+    byAi: (text: string) => `${text} (rozpoznało AI)`,
+    aiFailed: (text: string) => `Nie rozumiem: „${text}”. AI też nie odpowiedziało.`,
     ambiguous: (options: string) => `Powiedz dokładniej: ${options}.`,
     notNow: 'Teraz nie ma czego tym poleceniem zrobić.',
     noSpeech: 'Nic nie usłyszałem. Dotknij mikrofonu i powiedz polecenie.',
@@ -425,6 +428,8 @@ export const pl = {
       toggle: 'Mikrofon w trakcie treningu',
       toggleHint:
         'Dotknij mikrofonu i powiedz: start, stop, seria zrobiona, koniec przerwy, +30 sekund, pomiń ćwiczenie. Polecenia rozpoznaje aplikacja według stałej listy słów; każde da się cofnąć.',
+      aiHint:
+        'Gdy fraza jest spoza listy, a Trener AI jest włączony, sam tekst polecenia (bez nagrania) trafia na Twój serwer, a model wybiera jedno z poleceń dostępnych na ekranie albo odpowiada, że nie wie. Zdania o bólu nie wychodzą z telefonu.',
       mode: {
         on_device: 'Mowa rozpoznawana na telefonie (polski pakiet offline jest zainstalowany).',
         system:

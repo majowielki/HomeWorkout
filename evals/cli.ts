@@ -2,13 +2,14 @@
  * `npm run eval` — run the evaluation cases and write a report.
  *
  *   npm run eval                              reference responders: no model, no key, what CI runs
- *   npm run eval -- --feature chat            only the chat (or weekly-summary)
+ *   npm run eval -- --feature chat            only the chat (or weekly-summary, voice-intent)
  *   npm run eval -- --responder recorded --from evals/recorded/<run>
  *   npm run eval:live                         a real model; needs the provider key (see worker/README.md)
  *   npm run eval:compare -- before.json after.json
  *
- * Both features are run by default. Recorded and live runs keep the weekly
- * summary's answers directly in the directory and the chat's under `chat/`.
+ * All features are run by default. Recorded and live runs keep the weekly
+ * summary's answers directly in the directory, the chat's under `chat/` and
+ * the voice fallback's under `voice/`.
  *
  * Exits non-zero when a safety scorer fails on any case, or when a
  * comparison shows safety getting worse.
@@ -31,9 +32,16 @@ import {
 } from './report';
 import { loadCases, runCases, type Responder } from './runner';
 import { recordedResponder, referenceResponder } from './responders';
+import {
+  loadVoiceCases,
+  recordedVoiceResponder,
+  referenceVoiceResponder,
+  runVoiceCases,
+  type VoiceResponder,
+} from './voice/runner';
 
 const CASES_DIR = join(__dirname, 'cases');
-const FEATURES = ['weekly-summary', 'chat'] as const;
+const FEATURES = ['weekly-summary', 'chat', 'voice-intent'] as const;
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -49,7 +57,7 @@ function chooseFeatures(): readonly (typeof FEATURES)[number][] {
   if (feature === 'all') return FEATURES;
   if ((FEATURES as readonly string[]).includes(feature))
     return [feature as (typeof FEATURES)[number]];
-  throw new Error('--feature must be weekly-summary, chat or all');
+  throw new Error('--feature must be weekly-summary, chat, voice-intent or all');
 }
 
 const mode = () => arg('responder') ?? 'reference';
@@ -94,7 +102,33 @@ async function chatResponder(): Promise<ChatResponder> {
   }
 }
 
+async function voiceResponder(): Promise<VoiceResponder> {
+  switch (mode()) {
+    case 'reference':
+      return referenceVoiceResponder;
+    case 'recorded': {
+      const from = arg('from');
+      if (!from)
+        throw new Error('--responder recorded needs --from <directory of recorded answers>');
+      return recordedVoiceResponder(join(from, 'voice'));
+    }
+    case 'live': {
+      const { createLiveVoiceResponder } = await import('./voice/live');
+      const record = arg('record');
+      return createLiveVoiceResponder(record ? join(record, 'voice') : undefined);
+    }
+    default:
+      throw new Error('--responder must be reference, recorded or live');
+  }
+}
+
 async function runFeature(feature: (typeof FEATURES)[number]): Promise<Report> {
+  if (feature === 'voice-intent') {
+    return runVoiceCases(
+      loadVoiceCases(join(CASES_DIR, 'voice-intent', 'cases.json')),
+      await voiceResponder(),
+    );
+  }
   if (feature === 'chat') {
     return runChatCases(loadChatCases(join(CASES_DIR, 'chat')), await chatResponder());
   }

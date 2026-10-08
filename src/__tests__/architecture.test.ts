@@ -10,6 +10,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { CHAT_TOOLS, TOOL_NAMES } from '@/ai/contract/chatTools';
+import { voiceIntentOutputShape } from '@/ai/contract/voiceIntent';
 import { weeklySummarySchema } from '@/ai/contract/weeklySummary';
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -41,6 +42,8 @@ describe('ADR 0001: what a model writes has no field for a load', () => {
   const written: [string, z.ZodType][] = [
     ...TOOL_NAMES.map((name): [string, z.ZodType] => [`${name} input`, CHAT_TOOLS[name].input]),
     ['weekly summary', weeklySummarySchema],
+    // Not even the seconds of "+N s": the phone reads those from the phrase.
+    ['voice intent', voiceIntentOutputShape],
   ];
 
   it.each(written)('%s', (_, schema) => {
