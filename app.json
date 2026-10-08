@@ -16,7 +16,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "pl.majewski.homeworkout",
+      "package": "com.homeworkout",
       "permissions": ["POST_NOTIFICATIONS", "VIBRATE"]
     },
     "web": {

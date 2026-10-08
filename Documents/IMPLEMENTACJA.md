@@ -472,7 +472,7 @@ export const db = drizzle(sqlite, { schema });
 {
   "expo": {
     "name": "HomeWorkout", "slug": "homeworkout", "scheme": "homeworkout",
-    "android": { "package": "pl.majewski.homeworkout", "permissions": ["POST_NOTIFICATIONS", "VIBRATE"] },
+    "android": { "package": "com.homeworkout", "permissions": ["POST_NOTIFICATIONS", "VIBRATE"] },
     "plugins": ["expo-router", "expo-sqlite", "expo-notifications", "expo-font"],
     "experiments": { "typedRoutes": true }
   }

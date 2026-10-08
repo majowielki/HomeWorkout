@@ -16,7 +16,7 @@ import { extraSessionOptions, planCustom } from '@/domain/plan/extra';
 import type { SessionPlan } from '@/domain/plan/types';
 import { syncWeek, type SyncResult } from '@/domain/plan/weekSync';
 import { addDays, trainingDate } from '@/domain/time/trainingDate';
-import { startExtraSession } from '@/features/extra/actions';
+import { ExtraSessionChangedError, startExtraSession } from '@/features/extra/actions';
 import { withPlanningLock } from '@/features/plan/computeToday';
 import { loadPlanningSnapshot, planningSnapshotKey } from '@/features/plan/planningSnapshot';
 
@@ -186,7 +186,14 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
           )
             throw new ProposalChangedError();
           if (draft.kind === 'extra') {
-            const workoutId = await deps.start(draft.slotIds, draft.plan, { proposalId: id });
+            let workoutId: string;
+            try {
+              workoutId = await deps.start(draft.slotIds, draft.plan, { proposalId: id });
+            } catch (error) {
+              // The live recipe no longer matches the preview: the same card cannot succeed again.
+              if (error instanceof ExtraSessionChangedError) throw new ProposalChangedError();
+              throw error;
+            }
             drafts.delete(id);
             return { workoutId };
           }

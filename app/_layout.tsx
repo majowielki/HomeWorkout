@@ -7,14 +7,47 @@ import {
   SpaceGrotesk_700Bold,
   useFonts,
 } from '@expo-google-fonts/space-grotesk';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import {
+  DarkTheme,
+  DefaultTheme,
+  type ErrorBoundaryProps,
+  Stack,
+  ThemeProvider,
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
 import { DatabaseProvider } from '@/db/provider';
 import { fonts, useIsDark, useThemeColors } from '@/lib/theme';
+import { pl } from '@/strings/pl';
+
+/**
+ * A render error anywhere below that has no boundary of its own lands here
+ * instead of closing the app. Logged sets are already in SQLite, so "try
+ * again" re-renders from the database and a session resumes where it was.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const colors = useThemeColors();
+  return (
+    <View
+      style={{ backgroundColor: colors.background }}
+      className="flex-1 items-center justify-center gap-3 p-6"
+    >
+      <Text variant="heading">{pl.common.crash.title}</Text>
+      <Text variant="muted" className="text-center">
+        {pl.common.crash.body}
+      </Text>
+      <Text variant="muted" className="text-center text-xs">
+        {error.message}
+      </Text>
+      <Button label={pl.common.crash.retry} onPress={() => void retry()} />
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const isDark = useIsDark();

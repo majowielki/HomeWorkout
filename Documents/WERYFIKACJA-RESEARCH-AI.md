@@ -232,7 +232,7 @@ Ciekawe jako opcja rozszerzenia (Expo Module w Kotlinie to mocny punkt portfolio
 
 ## 5. Uboczne ustalenie
 
-Folder `android/` (w `.gitignore`) jest nieaktualny względem `app.json`: ma pakiet `com.homeworkout` zamiast `pl.majewski.homeworkout` i nie ma schematu `homeworkout://`. Linki głębokie przez schemat nie działają w lokalnym buildzie. Naprawa: `npx expo prebuild --clean` (zmienia identyfikator pakietu — na urządzeniu zainstaluje się obok starej wersji).
+Folder `android/` (w `.gitignore`) jest nieaktualny względem `app.json`: ma pakiet `com.homeworkout` zamiast `pl.majewski.homeworkout` i nie ma schematu `homeworkout://`. Linki głębokie przez schemat nie działają w lokalnym buildzie. Naprawa: `npx expo prebuild --clean` (zmienia identyfikator pakietu — na urządzeniu zainstaluje się obok starej wersji). *Od 2026-10-08 `app.json` też ma `com.homeworkout`, więc prebuild nie zmienia już pakietu.*
 
 ---
 

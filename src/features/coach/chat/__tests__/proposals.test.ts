@@ -2,6 +2,7 @@ import { createProposalController, ProposalChangedError, type ProposalDeps } fro
 import { CHAT_TOOLS } from '@/ai/contract/chatTools';
 import { executeTool } from '@/ai/tools/execute';
 import { planCustom } from '@/domain/plan/extra';
+import { ExtraSessionChangedError } from '@/features/extra/actions';
 import { proposalSnapshot, restIntent } from './proposalFixtures';
 
 jest.mock('@/db/repositories/plannerSource', () => ({}));
@@ -9,7 +10,10 @@ jest.mock('@/db/repositories/profile', () => ({ getDayBoundaryHour: jest.fn() })
 jest.mock('@/db/repositories/weekPlan', () => ({ saveCoachWeek: jest.fn() }));
 jest.mock('@/db/repositories/trainingBlocks', () => ({}));
 jest.mock('@/db/repositories/workouts', () => ({ findInProgressWorkout: jest.fn() }));
-jest.mock('@/features/extra/actions', () => ({ startExtraSession: jest.fn() }));
+jest.mock('@/features/extra/actions', () => ({
+  startExtraSession: jest.fn(),
+  ExtraSessionChangedError: class ExtraSessionChangedError extends Error {},
+}));
 
 function setup(done = false) {
   const s = proposalSnapshot(done);
@@ -223,6 +227,15 @@ it('previews an extra session and starts only after applying', async () => {
     proposalId: 'proposal-1',
   });
   expect(deps.save).not.toHaveBeenCalled();
+});
+it('reports a changed extra recipe at start as stale, and a failed write as a failure', async () => {
+  const { controller, deps } = setup(true);
+  controller.beginTurn('Chcę dodatkowy trening klatki.');
+  await controller.tools.proposeExtra!({ focusMuscles: ['chest'] });
+  jest.mocked(deps.start).mockRejectedValueOnce(new Error('disk full'));
+  await expect(controller.apply('proposal-1')).rejects.toThrow('disk full');
+  jest.mocked(deps.start).mockRejectedValueOnce(new ExtraSessionChangedError());
+  await expect(controller.apply('proposal-1')).rejects.toBeInstanceOf(ProposalChangedError);
 });
 it.each(['not-done', 'rest', 'active', 'medical', 'no-room'])(
   'offers no extra session when unavailable: %s',
