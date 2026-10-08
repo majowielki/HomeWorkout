@@ -1,6 +1,6 @@
 import { TRAINING_CONFIG } from '../config/training';
 import { checkSelection } from '../plan/dayPlanner';
-import { extraSessionOptions, planCustom, selectCustom } from '../plan/extra';
+import { extraSessionOptions, planCustom, selectCustom, slotsForFocus } from '../plan/extra';
 import { addDays } from '../time/trainingDate';
 import type { HistorySet } from '../progression/history';
 import { extraInput } from './extraFixtures';
@@ -26,6 +26,15 @@ const request = {
 };
 
 describe('extra sessions', () => {
+  it('finds the available slots that train the requested muscles as a primary', () => {
+    const input = extraInput();
+    expect(slotsForFocus(input, ['chest'])).toEqual(['push']);
+    expect(slotsForFocus(input, ['chest', 'back'])).toEqual(['push', 'pull']);
+    expect(slotsForFocus(input, ['calves'])).toEqual([]);
+    // A slot with nothing available is not offered, whatever it trains.
+    const avoided = extraInput({ constraints: [{ ...request, muscles: ['chest'] }] });
+    expect(slotsForFocus(avoided, ['chest'])).toEqual([]);
+  });
   it('selects only requested working slots, once each, without light or mobility fill', () => {
     const input = extraInput();
     const selection = selectCustom(input, ['push', 'push', 'mobility', 'unknown']);

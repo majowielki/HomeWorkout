@@ -1,6 +1,7 @@
 import { PLANNER_CONFIG } from '../config/training';
 import { buildDay, type PlannerInput, selectDay } from './dayPlanner';
 import { isEligible } from './eligibility';
+import type { MuscleGroup } from '../types';
 import type { DaySelection } from './types';
 
 /** Only requested working slots; no automatic light practice or mobility. */
@@ -39,6 +40,20 @@ export function extraSessionOptions(input: PlannerInput) {
         reason: selection.skipped[0]?.reason ?? null,
       };
     });
+}
+
+/**
+ * The available slots whose exercise trains one of these muscles as a
+ * primary — what "an extra session for the chest" means to the planner.
+ */
+export function slotsForFocus(input: PlannerInput, muscles: readonly MuscleGroup[]): string[] {
+  return extraSessionOptions(input).flatMap((option) =>
+    // An option's item always comes from the catalogue it was selected from.
+    option.item &&
+    input.catalog[option.item.exerciseId]!.primaryMuscles.some((m) => muscles.includes(m))
+      ? [option.slotId]
+      : [],
+  );
 }
 
 /** Loads from actual logs, ordered and validated exactly like the main session. */

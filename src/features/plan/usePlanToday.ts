@@ -68,5 +68,13 @@ export function usePlanToday() {
     [load],
   );
 
-  return { state, starting, start, reload: () => load(undefined), recalculate, dismissBanner };
+  return {
+    state,
+    starting,
+    start,
+    /** Recompute now; with a request, plan again from it (a changed day, a new restriction). */
+    reload: (request?: Parameters<typeof computeToday>[0]['request']) => load(request),
+    recalculate,
+    dismissBanner,
+  };
 }

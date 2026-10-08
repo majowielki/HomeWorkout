@@ -17,6 +17,7 @@ import type { Exercise } from '@/domain/types';
 import { planTitle } from '@/features/plan/format';
 import { QuickCardioForm } from '@/features/workout/QuickCardioForm';
 import { formatDate } from '@/lib/format';
+import { calendarDay } from './dayView';
 import { useThemeColors } from '@/lib/theme';
 import { pl } from '@/strings/pl';
 
@@ -75,17 +76,12 @@ export function CalendarDaySheet(props: Props) {
     ),
     [],
   );
-  const day = data.days.find((d) => d.date === date);
-  const sessions = data.sessions.filter((s) => s.workout.trainingDate === date);
-  const rides = data.rides.filter((r) => r.trainingDate === date);
-  const diary = data.diary.find((d) => d.date === date);
-  const completed = sessions.some((s) => s.workout.status === 'completed');
-  const plan = date === asOf ? todayPlan : day?.forecast;
-  const editable =
-    date !== null &&
-    date >= asOf &&
-    !completed &&
-    !sessions.some((s) => s.workout.status === 'in_progress');
+  const { day, sessions, rides, diary, completed, plan, editable } = calendarDay(
+    data,
+    date,
+    asOf,
+    todayPlan,
+  );
   return (
     <BottomSheet
       ref={ref}

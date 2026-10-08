@@ -1,4 +1,5 @@
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
+import { WEEK_CONFIG } from '../config/training';
 import { addDays } from '../time/trainingDate';
 import type { MuscleGroup } from '../types';
 import type { PlanConstraint } from './constraints';
@@ -24,8 +25,21 @@ export function emptyReport(): SorenessReport {
     muscles: [],
     redFlags: null,
     pain: { onset: null, location: null, movement: null },
-    days: 2,
+    days: WEEK_CONFIG.requestDefaultDays.strongDoms,
   };
+}
+
+/** The lengths a restriction may be given, in days. */
+export const REPORT_DAY_CHOICES: readonly number[] = Array.from(
+  { length: WEEK_CONFIG.requestMaxDays },
+  (_, i) => i + 1,
+);
+
+/** How long a restriction lasts unless the person picks another length. */
+export function defaultReportDays(kind: ReportKind): number {
+  return kind === 'muscle_pain'
+    ? WEEK_CONFIG.requestDefaultDays.musclePain
+    : WEEK_CONFIG.requestDefaultDays.strongDoms;
 }
 
 export type ReportDecision =
@@ -57,7 +71,11 @@ export function assessReport(report: SorenessReport, asOf: string): ReportDecisi
   ) {
     return { kind: 'incomplete', field: 'pain' };
   }
-  if (!Number.isInteger(report.days) || report.days < 1 || report.days > 3) {
+  if (
+    !Number.isInteger(report.days) ||
+    report.days < 1 ||
+    report.days > WEEK_CONFIG.requestMaxDays
+  ) {
     return { kind: 'incomplete', field: 'days' };
   }
   return {

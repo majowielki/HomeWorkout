@@ -1,25 +1,34 @@
-import { loadPlannerSource } from '@/db/repositories/plannerSource';
+import { loadPlannerSource, type PlannerSource } from '@/db/repositories/plannerSource';
 import { getTrainingWeek } from '@/db/repositories/profile';
-import { getCurrentBlock } from '@/db/repositories/trainingBlocks';
+import { getCurrentBlock, type StoredBlock } from '@/db/repositories/trainingBlocks';
 import { getActiveConstraints, getPlannedDays, getTrainedDates } from '@/db/repositories/weekPlan';
 import { fatigueSignals } from '@/domain/autoregulation/fatigue';
+import { WEEK_CONFIG } from '@/domain/config/training';
 import { advanceBlock } from '@/domain/plan/block';
+import type { PlanConstraint, TrainingWeek } from '@/domain/plan/constraints';
 import { slotByExercise } from '@/domain/plan/eligibility';
-import type { SyncInput } from '@/domain/plan/weekSync';
+import type { Slot } from '@/domain/plan/types';
+import type { StoredDay, SyncInput } from '@/domain/plan/weekSync';
 import { addDays } from '@/domain/time/trainingDate';
 import { SLOTS } from './slots';
 
-/** One read-only snapshot for normal sync and coach previews. Advancing a block here writes nothing. */
-export async function loadPlanningSnapshot() {
-  const source = await loadPlannerSource();
+/** Everything the planner reads from the database, as plain data. */
+export interface PlanningReads {
+  source: PlannerSource;
+  current: StoredBlock | null;
+  constraints: readonly PlanConstraint[];
+  week: TrainingWeek;
+  stored: readonly StoredDay[];
+  trainedDates: ReadonlySet<string>;
+}
+
+/**
+ * The one way the engine's input is assembled — for the week, the extra
+ * session and the coach's previews alike. Advancing a block here writes nothing.
+ */
+export function buildPlanningSnapshot(reads: PlanningReads, slots: readonly Slot[] = SLOTS) {
+  const { source, current, constraints, week, stored, trainedDates } = reads;
   const { asOf, catalog } = source;
-  const [current, constraints, week, stored, trainedDates] = await Promise.all([
-    getCurrentBlock(),
-    getActiveConstraints(addDays(asOf, -14)),
-    getTrainingWeek(),
-    getPlannedDays(addDays(asOf, -14), addDays(asOf, 13)),
-    getTrainedDates(addDays(asOf, -14)),
-  ]);
   const eligibility = { profile: source.profile, excludedIds: new Set(source.excludedIds) };
   const advance = advanceBlock(current?.state ?? null, {
     asOf,
@@ -28,16 +37,16 @@ export async function loadPlanningSnapshot() {
       asOf,
       sessions: source.sessions,
       catalog,
-      slotOf: slotByExercise(SLOTS),
+      slotOf: slotByExercise(slots),
       daily: source.daily,
     }),
-    slots: SLOTS,
+    slots,
     catalog,
     eligibility,
   });
   const input: SyncInput = {
     ...source,
-    slots: SLOTS,
+    slots,
     eligibility,
     block: advance.block,
     constraints,
@@ -48,7 +57,21 @@ export async function loadPlanningSnapshot() {
   return { source, current, advance, input };
 }
 
-export type PlanningSnapshot = Awaited<ReturnType<typeof loadPlanningSnapshot>>;
+export type PlanningSnapshot = ReturnType<typeof buildPlanningSnapshot>;
+
+/** One read-only snapshot of the database for the planner (SPEC §11.5). */
+export async function loadPlanningSnapshot(): Promise<PlanningSnapshot> {
+  const source = await loadPlannerSource();
+  const back = addDays(source.asOf, -WEEK_CONFIG.lookBackDays);
+  const [current, constraints, week, stored, trainedDates] = await Promise.all([
+    getCurrentBlock(),
+    getActiveConstraints(back),
+    getTrainingWeek(),
+    getPlannedDays(back, addDays(source.asOf, WEEK_CONFIG.lookAheadDays)),
+    getTrainedDates(back),
+  ]);
+  return buildPlanningSnapshot({ source, current, constraints, week, stored, trainedDates });
+}
 
 /** Kept on the phone only, so accepting an obsolete preview cannot silently rebuild it. */
 export function planningSnapshotKey(s: PlanningSnapshot): string {

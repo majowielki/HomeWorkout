@@ -8,15 +8,15 @@ import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import { getCalendarRange, type CalendarData } from '@/db/repositories/calendar';
 import { setDayTraining } from '@/db/repositories/weekPlan';
+import { WEEK_CONFIG } from '@/domain/config/training';
 import { addDays } from '@/domain/time/trainingDate';
-import { computeToday } from '@/features/plan/computeToday';
 import { PlanChangeBanner } from '@/features/plan/PlanChangeBanner';
 import { usePlanToday } from '@/features/plan/usePlanToday';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { useSessionOverview } from '@/features/workout/useSessionOverview';
 import { pl } from '@/strings/pl';
 import { CalendarDaySheet } from './CalendarDaySheet';
-import { monthGrid } from './dates';
+import { gridRange } from './dates';
 import { MonthGrid } from './MonthGrid';
 
 export function CalendarScreen() {
@@ -37,9 +37,9 @@ export function CalendarScreen() {
     async (cancelled: () => boolean = () => false) => {
       if (!visibleMonth) return;
       const id = ++requestId.current;
-      const dates = monthGrid(visibleMonth);
+      const { from, until } = gridRange(visibleMonth);
       try {
-        const rows = await getCalendarRange(dates[0]!, dates[41]!);
+        const rows = await getCalendarRange(from, until);
         if (id === requestId.current && !cancelled()) {
           setData(rows);
           setError(false);
@@ -62,8 +62,8 @@ export function CalendarScreen() {
       };
     }, [loadRange, today.state]),
   );
-  async function reload() {
-    await today.reload();
+  async function reload(request?: Parameters<typeof today.reload>[0]) {
+    await today.reload(request);
     await overview.reload();
     await loadRange();
   }
@@ -73,8 +73,8 @@ export function CalendarScreen() {
     setBusy(true);
     try {
       await setDayTraining(date, train);
-      await computeToday({ persist: true, request: { trigger: 'constraint', from: date } });
-      await reload();
+      // The week is planned again from that day, once; a failure there shows the plan's own retry.
+      await reload({ trigger: 'constraint', from: date });
     } catch {
       await today.reload();
       Alert.alert(pl.calendar.saveError);
@@ -131,7 +131,7 @@ export function CalendarScreen() {
             <MonthGrid
               month={visibleMonth}
               asOf={asOf}
-              horizon={addDays(asOf, 6)}
+              horizon={addDays(asOf, WEEK_CONFIG.horizonDays - 1)}
               data={data}
               selected={selected}
               onSelect={setSelected}

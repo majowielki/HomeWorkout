@@ -5,18 +5,21 @@ import {
   validateExtraQuestion,
 } from '@/features/plan/coachPreview';
 import { randomUUID } from 'expo-crypto';
-import { type ToolInput, type ToolOutput } from '@/ai/contract/chatTools';
+import { TOOL_LIMITS, type ToolInput, type ToolOutput } from '@/ai/contract/chatTools';
 import type { ToolEnvironment } from '@/ai/tools/implementations';
 import { getDayBoundaryHour } from '@/db/repositories/profile';
 import { saveCoachWeek } from '@/db/repositories/weekPlan';
 import { findInProgressWorkout } from '@/db/repositories/workouts';
 import { cleanText } from '@/ai/context/redact';
-import { isTrainingDay } from '@/domain/plan/constraints';
-import { extraSessionOptions, planCustom } from '@/domain/plan/extra';
+import { planCustom, slotsForFocus } from '@/domain/plan/extra';
 import type { SessionPlan } from '@/domain/plan/types';
 import { syncWeek, type SyncResult } from '@/domain/plan/weekSync';
 import { addDays, trainingDate } from '@/domain/time/trainingDate';
-import { ExtraSessionChangedError, startExtraSession } from '@/features/extra/actions';
+import {
+  ExtraSessionChangedError,
+  extraSessionState,
+  startExtraSession,
+} from '@/features/extra/actions';
 import { withPlanningLock } from '@/features/plan/computeToday';
 import { loadPlanningSnapshot, planningSnapshotKey } from '@/features/plan/planningSnapshot';
 
@@ -73,7 +76,7 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
       });
       return {
         asOf: s.input.asOf,
-        days: Array.from({ length: 7 }, (_, i) => {
+        days: Array.from({ length: TOOL_LIMITS.planDays }, (_, i) => {
           const date = addDays(s.input.asOf, i);
           const row =
             sync.rows.find((d) => d.date === date) ?? s.input.stored.find((d) => d.date === date);
@@ -122,19 +125,12 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
       const s = await deps.snapshot();
       if (turn !== revision) return { error: 'failed' };
       if (expectedDate !== null && s.input.asOf !== expectedDate) return { error: 'date_changed' };
-      if (!s.input.trainedDates.has(s.input.asOf)) return { error: 'finish_first' };
-      if (!isTrainingDay(s.input.asOf, s.input.week!, s.input.constraints ?? []))
-        return { error: 'rest_day' };
-      const input = { ...s.input, asOf: s.input.asOf, block: s.advance.block };
+      const today = extraSessionState(s);
+      if (!today.done) return { error: 'finish_first' };
+      if (today.rest) return { error: 'rest_day' };
       const focus = [...new Set(intent.focusMuscles)];
-      const slotIds = extraSessionOptions(input)
-        .filter(
-          (o) =>
-            o.item &&
-            input.catalog[o.item.exerciseId]!.primaryMuscles.some((m) => focus.includes(m)),
-        )
-        .map((o) => o.slotId);
-      const plan = planCustom(input, slotIds);
+      const slotIds = slotsForFocus(today.input, focus);
+      const plan = planCustom(today.input, slotIds);
       if (!plan.exercises.length) return { error: 'no_plan' };
       const id = deps.id();
       const summary: ToolOutput<'proposeExtraSession'> = {

@@ -22,7 +22,17 @@ import type {
 
 export type SlotKind = 'compound' | 'accessory' | 'core' | 'filler';
 
-export type SlotRegion = 'lower' | 'push' | 'pull' | 'shoulders' | 'arms' | 'core' | 'mobility';
+export const SLOT_REGIONS = [
+  'lower',
+  'push',
+  'pull',
+  'shoulders',
+  'arms',
+  'core',
+  'mobility',
+] as const;
+
+export type SlotRegion = (typeof SLOT_REGIONS)[number];
 
 /** Where a never-done exercise starts. Guesses, not research — SPEC §5.8. */
 export interface SlotStart {

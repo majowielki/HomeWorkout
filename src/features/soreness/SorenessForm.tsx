@@ -9,7 +9,9 @@ import { Text } from '@/components/ui/text';
 import { MUSCLE_GROUPS } from '@/domain/coach/vocabulary';
 import {
   assessReport,
+  defaultReportDays,
   emptyReport,
+  REPORT_DAY_CHOICES,
   REPORT_KINDS,
   type PainAnswers,
   type ReportKind,
@@ -31,7 +33,7 @@ export function SorenessForm({ asOf, busy, onSubmit }: Props) {
     setReport((r) => ({
       ...r,
       kind,
-      days: kind === 'muscle_pain' ? 3 : 2,
+      days: defaultReportDays(kind),
       pain: emptyReport().pain,
     }));
   }
@@ -167,7 +169,7 @@ export function SorenessForm({ asOf, busy, onSubmit }: Props) {
                 <Text>{report.kind === 'muscle_pain' ? t.painEffect : t.domsEffect}</Text>
                 <Text variant="eyebrow">{t.duration}</Text>
                 <View className="flex-row gap-2">
-                  {[1, 2, 3].map((days) => (
+                  {REPORT_DAY_CHOICES.map((days) => (
                     <Chip
                       key={days}
                       label={t.days(days)}

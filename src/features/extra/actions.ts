@@ -1,50 +1,34 @@
-import { loadPlannerSource } from '@/db/repositories/plannerSource';
-import { getDayBoundaryHour, getTrainingWeek } from '@/db/repositories/profile';
-import { getCurrentBlock } from '@/db/repositories/trainingBlocks';
-import { getActiveConstraints, getTrainedDates } from '@/db/repositories/weekPlan';
+import { getDayBoundaryHour } from '@/db/repositories/profile';
 import { findInProgressWorkout, startExtraWorkout } from '@/db/repositories/workouts';
-import { fatigueSignals } from '@/domain/autoregulation/fatigue';
-import { advanceBlock } from '@/domain/plan/block';
-import { isTrainingDay } from '@/domain/plan/constraints';
+import { isTrainingDay, TRAIN_DAILY } from '@/domain/plan/constraints';
 import { type PlannerInput } from '@/domain/plan/dayPlanner';
-import { slotByExercise } from '@/domain/plan/eligibility';
 import { extraSessionOptions, planCustom, selectCustom } from '@/domain/plan/extra';
 import type { SessionPlan } from '@/domain/plan/types';
 import { trainingDate } from '@/domain/time/trainingDate';
-import { SLOTS } from '@/features/plan/slots';
+import { loadPlanningSnapshot, type PlanningSnapshot } from '@/features/plan/planningSnapshot';
 
-export async function loadExtraSession() {
-  const source = await loadPlannerSource();
-  const [current, constraints, week, trained, inProgress] = await Promise.all([
-    getCurrentBlock(),
-    getActiveConstraints(source.asOf),
-    getTrainingWeek(),
-    getTrainedDates(source.asOf),
-    findInProgressWorkout(),
-  ]);
-  const eligibility = { profile: source.profile, excludedIds: new Set(source.excludedIds) };
-  const { block } = advanceBlock(current?.state ?? null, {
-    asOf: source.asOf,
-    lastSessionDate: source.lastSessionDate,
-    signals: fatigueSignals({
-      asOf: source.asOf,
-      sessions: source.sessions,
-      catalog: source.catalog,
-      slotOf: slotByExercise(SLOTS),
-      daily: source.daily,
-    }),
-    slots: SLOTS,
-    catalog: source.catalog,
-    eligibility,
-  });
-  const input: PlannerInput = { ...source, slots: SLOTS, eligibility, block, constraints };
+/**
+ * What an extra session can be built from today, read from the same snapshot
+ * the week and the coach's previews use — one way of assembling the engine's
+ * input, so a preview and the check at start can only differ when the data did.
+ */
+export function extraSessionState(s: PlanningSnapshot) {
+  const input: PlannerInput = { ...s.input, block: s.advance.block };
+  const { asOf } = input;
   return {
     input,
     options: extraSessionOptions(input),
-    done: trained.has(source.asOf),
-    rest: !isTrainingDay(source.asOf, week, constraints),
-    inProgress,
+    done: s.input.trainedDates.has(asOf),
+    rest: !isTrainingDay(asOf, s.input.week ?? TRAIN_DAILY, s.input.constraints ?? []),
   };
+}
+
+export async function loadExtraSession() {
+  const [snapshot, inProgress] = await Promise.all([
+    loadPlanningSnapshot(),
+    findInProgressWorkout(),
+  ]);
+  return { ...extraSessionState(snapshot), inProgress };
 }
 
 export class ExtraSessionChangedError extends Error {}

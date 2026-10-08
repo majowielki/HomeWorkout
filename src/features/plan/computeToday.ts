@@ -16,7 +16,7 @@ import { type StoredDay, type SyncInput, syncWeek } from '@/domain/plan/weekSync
 import type { MuscleGroup } from '@/domain/types';
 
 import { SLOTS } from './slots';
-import { loadPlanningSnapshot } from './planningSnapshot';
+import { loadPlanningSnapshot, type PlanningSnapshot } from './planningSnapshot';
 
 export type { PlanBanner } from '@/db/repositories/weekPlan';
 
@@ -45,6 +45,25 @@ export interface PlanToday {
   banner: PlanBanner | null;
 }
 
+/** What computeToday reads and writes; the defaults are the database. */
+export interface ComputeDeps {
+  snapshot: () => Promise<PlanningSnapshot>;
+  saveBlockAdvance: typeof saveBlockAdvance;
+  saveWeek: typeof saveWeek;
+  markDays: typeof markDays;
+  refreshForecasts: typeof refreshForecasts;
+  unseenChanges: typeof getUnseenChanges;
+}
+
+const defaultComputeDeps: ComputeDeps = {
+  snapshot: loadPlanningSnapshot,
+  saveBlockAdvance,
+  saveWeek,
+  markDays,
+  refreshForecasts,
+  unseenChanges: getUnseenChanges,
+};
+
 /**
  * Two callers can ask for today's plan at once; writing the week twice in
  * parallel could store a half of each. Every computation waits for the
@@ -69,26 +88,29 @@ export function withPlanningLock<T>(task: () => Promise<T>): Promise<T> {
  * `request` plans from scratch: "Przelicz tydzień", a new request to the
  * planner, the coach's accepted proposal.
  */
-export function computeToday({
-  persist,
-  request,
-}: {
-  persist: boolean;
-  request?: SyncInput['request'];
-}): Promise<PlanToday> {
+export function computeToday(
+  {
+    persist,
+    request,
+  }: {
+    persist: boolean;
+    request?: SyncInput['request'];
+  },
+  deps: ComputeDeps = defaultComputeDeps,
+): Promise<PlanToday> {
   return withPlanningLock(async (): Promise<PlanToday> => {
-    const { source, current, advance, input } = await loadPlanningSnapshot();
+    const { source, current, advance, input } = await deps.snapshot();
     const { asOf, catalog } = source;
     const { trainedDates } = input;
     const blockId = persist
-      ? (await saveBlockAdvance(current, advance, asOf)).id
+      ? (await deps.saveBlockAdvance(current, advance, asOf)).id
       : (current?.id ?? null);
 
     const sync = syncWeek({ ...input, request });
 
     if (persist) {
       if (sync.trigger !== null) {
-        await saveWeek({
+        await deps.saveWeek({
           statusUpdates: sync.statusUpdates,
           rows: sync.rows,
           trigger: sync.trigger,
@@ -96,8 +118,8 @@ export function computeToday({
           changes: sync.changes,
         });
       } else {
-        await markDays(sync.statusUpdates);
-        await refreshForecasts(sync.rows);
+        await deps.markDays(sync.statusUpdates);
+        await deps.refreshForecasts(sync.rows);
       }
     }
 
@@ -122,7 +144,7 @@ export function computeToday({
       recovery: recoveryOutlook(source.sessions, catalog, SLOTS, asOf),
       tomorrow: done ? (first?.forecast ?? null) : null,
       week: sync.rows,
-      banner: persist ? await getUnseenChanges() : null,
+      banner: persist ? await deps.unseenChanges() : null,
     };
   });
 }

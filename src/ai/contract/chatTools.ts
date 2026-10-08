@@ -23,6 +23,9 @@
 import { z } from 'zod';
 
 import { MUSCLE_GROUPS, TREND_VERDICTS } from '../../domain/coach/vocabulary';
+import { WEEK_CONFIG } from '../../domain/config/training';
+import { COACH_CONSTRAINT_KINDS, COACH_CONSTRAINT_REASONS } from '../../domain/plan/constraints';
+import { SLOT_REGIONS } from '../../domain/plan/types';
 import {
   BIKE_REASONS,
   DAY_REASONS,
@@ -63,6 +66,10 @@ export const TOOL_LIMITS = {
   planDaysAgo: { min: 0, max: 13 },
   planExercisesShown: 12,
   planSkippedShown: 20,
+  /** Days of the rolling plan the week tool and a proposal may describe. */
+  planDays: WEEK_CONFIG.horizonDays,
+  /** Requests in one proposal. */
+  proposalConstraints: 3,
 } as const;
 
 const count = z.number().int().nonnegative();
@@ -89,11 +96,15 @@ export const PLAN_SKIP_REASONS = [...SKIP_REASONS, ...REQUEST_SKIP_REASONS] as c
 
 /** Relative dates keep the model from inventing a calendar date. The phone resolves them. */
 export const planIntentSchema = z.strictObject({
-  kind: z.enum(['avoid_muscle', 'rest_day', 'lighter_day']),
+  kind: z.enum(COACH_CONSTRAINT_KINDS),
   muscles: z.array(z.enum(MUSCLE_GROUPS)).max(MUSCLE_GROUPS.length),
-  fromDaysAhead: z.number().int().min(0).max(6),
-  days: z.number().int().min(1).max(3),
-  reason: z.enum(['doms', 'busy', 'other']),
+  fromDaysAhead: z
+    .number()
+    .int()
+    .min(0)
+    .max(TOOL_LIMITS.planDays - 1),
+  days: z.number().int().min(1).max(WEEK_CONFIG.requestMaxDays),
+  reason: z.enum(COACH_CONSTRAINT_REASONS),
   domsLevel: z.number().int().min(1).max(5).optional(),
 });
 
@@ -101,7 +112,7 @@ export const planDaySummarySchema = z.strictObject({
   date: isoDate,
   status: z.enum(['planned', 'done', 'in_progress']),
   rest: z.boolean(),
-  regions: z.array(z.enum(['lower', 'push', 'pull', 'shoulders', 'arms', 'core', 'mobility'])),
+  regions: z.array(z.enum(SLOT_REGIONS)),
   phase: z.enum(['work', 'deload']).nullable(),
   estimatedMinutes: count,
   dayReasons: z.array(z.enum(PLAN_DAY_REASONS)),
@@ -123,21 +134,21 @@ export const planDaySummarySchema = z.strictObject({
 });
 
 const proposalConstraintSchema = z.strictObject({
-  kind: z.enum(['avoid_muscle', 'rest_day', 'lighter_day']),
+  kind: z.enum(COACH_CONSTRAINT_KINDS),
   muscles: z.array(z.enum(MUSCLE_GROUPS)),
   from: isoDate,
   until: isoDate,
-  reason: z.enum(['doms', 'busy', 'other']),
+  reason: z.enum(COACH_CONSTRAINT_REASONS),
 });
 
 export const planProposalSummarySchema = z.strictObject({
   proposalId: z.string().min(1).max(64),
   kind: z.literal('plan'),
   requiresAcceptance: z.literal(true),
-  constraints: z.array(proposalConstraintSchema).min(1).max(3),
+  constraints: z.array(proposalConstraintSchema).min(1).max(TOOL_LIMITS.proposalConstraints),
   changes: z
     .array(z.strictObject({ before: planDaySummarySchema, after: planDaySummarySchema }))
-    .max(7),
+    .max(TOOL_LIMITS.planDays),
 });
 
 export const extraProposalSummarySchema = z.strictObject({
@@ -286,13 +297,16 @@ export const CHAT_TOOLS = {
     description:
       'Read the current rolling seven-day plan, including requested rest and muscle restrictions as reason codes. Loads and repetition targets are omitted. Explain only the engine decisions returned here.',
     input: z.strictObject({}),
-    output: z.strictObject({ asOf: isoDate, days: z.array(planDaySummarySchema).max(7) }),
+    output: z.strictObject({
+      asOf: isoDate,
+      days: z.array(planDaySummarySchema).max(TOOL_LIMITS.planDays),
+    }),
   },
   proposePlanChange: {
     description:
       'Preview a user-requested change through the rules engine, without saving anything. The user must press Apply in a local review card. Offer avoid_muscle only for explicitly strong DOMS (domsLevel 4-5) or a non-medical preference; ask about severity first if unknown. Mild DOMS does not exclude a muscle. No pain, injury, joint symptoms, loads, exercise IDs, or treatment requests. fromDaysAhead 0 means the training date shown in facts. days is 1-3 and the range must end inside the horizon. rest_day and lighter_day have empty muscles. Do not claim the plan has changed.',
     input: z.strictObject({
-      constraints: z.array(planIntentSchema).min(1).max(3),
+      constraints: z.array(planIntentSchema).min(1).max(TOOL_LIMITS.proposalConstraints),
       note: z.string().min(1).max(160),
     }),
     output: planProposalSummarySchema,
