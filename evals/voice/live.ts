@@ -12,6 +12,7 @@ import type { VoiceIntentRequest } from '@/ai/contract/voiceIntent';
 import { VOICE_INTENT_PROMPT_VERSION } from '@/ai/prompts/voiceIntent/v1';
 
 import { liveVoiceResponder, type VoiceResponder } from './runner';
+import { pacedFromEnv } from '../responders/pace';
 
 interface WorkerModel {
   modelFromEnv(env: Record<string, string | undefined>): unknown | null;
@@ -52,12 +53,14 @@ export async function createLiveVoiceResponder(recordTo?: string): Promise<Voice
     AI_GATEWAY_TOKEN: process.env.AI_GATEWAY_TOKEN,
     THINKING_LEVEL: process.env.THINKING_LEVEL,
   };
-  const model = modelFromEnv(env);
-  if (!model) {
+  const provided = modelFromEnv(env);
+  if (!provided) {
     throw new Error(
       'No model: set PROVIDER, MODEL_ID and GOOGLE_GENERATIVE_AI_API_KEY (see worker/README.md).',
     );
   }
+  // Under the provider's per-minute limit, with quota refusals waited out (pace.ts).
+  const model = pacedFromEnv(provided as object);
 
   return liveVoiceResponder({
     recordTo,
