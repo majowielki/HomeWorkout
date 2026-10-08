@@ -15,7 +15,7 @@ export type Outcome =
  * that eventually does (AI-INTEGRACJA §4.9).
  */
 export interface LogRecord {
-  event: 'weekly_summary' | 'chat';
+  event: 'weekly_summary' | 'chat' | 'voice_intent';
   requestId: string | null;
   contractVersion: number;
   promptVersion: string | null;

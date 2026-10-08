@@ -441,6 +441,7 @@ użytkownik.
 | A2 — ewaluacja | ✅ kod 2026-10-02 · ⏳ żywy model | `feat/ai-evals` | scorery, runner, raporty, porównanie, szkielet sędziego, CI w trybie odtwarzania; nie oceniono żadnego prawdziwego modelu (brak klucza), sędzia nieskalibrowany |
 | A3 — planowanie F2/F3 | ⛔ | | czeka na M7 (w toku od 2026-10-02; bramka „dwa tygodnie używania" świadomie pominięta, IMPLEMENTACJA §0.1) |
 | A4 — rozmowa F4 | ✅ kod 2026-10-02 · ✅ próba na żywo 3 pytań · ⏳ ewaluacja na żywo · ✅ `getPlanExplanation` (2026-10-02, `feat/ai-plan-explanation`) | `feat/ai-chat` | pętla narzędzi na telefonie, streaming, anulowanie, ekran rozmowy, 18 przypadków ewaluacyjnych; sprawdzone na emulatorze z atrapą modelu. DoD „czemu dziś nie ma przysiadów” czeka na M7, bo narzędzie wyjaśniające plan wymaga silnika |
+| Głos — zapas AI (kontrakt v5) | ✅ kod 2026-10-08 · ⏳ wdrożenie · ⏳ ewaluacja na żywo | `feat/voice-ai` | `POST /v1/voice-intent`: model wybiera jedną z akcji na ekranie albo `unknown`, bez liczb; bramka tekstu na telefonie; 30 przypadków ewaluacji, wzorzec „nigdy nie zgaduje”. Szczegóły w `Documents/GLOS.md` |
 | A5 — opcjonalnie | — | | |
 
 ### Wynik A0 (2026-10-01)

@@ -1,15 +1,23 @@
 import { isAuthorized } from './auth';
 import type { Env } from './env';
-import { CHAT_TIMEOUT_MS, type Deps, GENERATION_TIMEOUT_MS, json, MAX_BODY_BYTES } from './http';
+import {
+  CHAT_TIMEOUT_MS,
+  type Deps,
+  GENERATION_TIMEOUT_MS,
+  json,
+  MAX_BODY_BYTES,
+  VOICE_TIMEOUT_MS,
+} from './http';
 import { modelFromEnv } from './model';
 import { handleChat } from './chatRoute';
 import { handleWeeklySummary } from './summaryRoute';
+import { handleVoiceIntent } from './voiceRoute';
 
 export type { Env } from './env';
-export { CHAT_TIMEOUT_MS, GENERATION_TIMEOUT_MS, MAX_BODY_BYTES };
+export { CHAT_TIMEOUT_MS, GENERATION_TIMEOUT_MS, MAX_BODY_BYTES, VOICE_TIMEOUT_MS };
 export type { Deps };
 
-const ROUTES = new Set(['/v1/weekly-summary', '/v1/chat']);
+const ROUTES = new Set(['/v1/weekly-summary', '/v1/chat', '/v1/voice-intent']);
 
 /**
  * The Worker, with its dependencies injectable. Tests pass a mock model and
@@ -27,6 +35,7 @@ export function createHandler(overrides: Partial<Deps> = {}): ExportedHandler<En
     now: () => new Date(),
     timeoutMs: GENERATION_TIMEOUT_MS,
     chatTimeoutMs: CHAT_TIMEOUT_MS,
+    voiceTimeoutMs: VOICE_TIMEOUT_MS,
     ...overrides,
   };
 
@@ -38,9 +47,9 @@ export function createHandler(overrides: Partial<Deps> = {}): ExportedHandler<En
         return json({ kind: 'not_found' }, 404);
       }
       if (!isAuthorized(request, env.APP_SECRET)) return json({ kind: 'unauthorized' }, 401);
-      return pathname === '/v1/chat'
-        ? handleChat(request, env, deps, ctx, started)
-        : handleWeeklySummary(request, env, deps, started);
+      if (pathname === '/v1/chat') return handleChat(request, env, deps, ctx, started);
+      if (pathname === '/v1/voice-intent') return handleVoiceIntent(request, env, deps, started);
+      return handleWeeklySummary(request, env, deps, started);
     },
   } satisfies ExportedHandler<Env>;
 }

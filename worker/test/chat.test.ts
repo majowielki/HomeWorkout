@@ -324,11 +324,11 @@ describe('what is refused before the model is asked', () => {
       got: CONTRACT_VERSION + 1,
     });
   });
-  it('rejects the previously deployed v3 client before calling the provider', async () => {
+  it('rejects the previously deployed v4 client before calling the provider', async () => {
     const model = never();
-    const result = await run(model, { ...chatBody([ask()]), contractVersion: 3 });
+    const result = await run(model, { ...chatBody([ask()]), contractVersion: 4 });
     expect(result.status).toBe(409);
-    expect(result.json).toEqual({ kind: 'contract_mismatch', expected: 4, got: 3 });
+    expect(result.json).toEqual({ kind: 'contract_mismatch', expected: 5, got: 4 });
     expect(model.doStreamCalls).toHaveLength(0);
   });
 

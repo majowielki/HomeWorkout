@@ -116,6 +116,31 @@ allowed round (no question has needed four rounds), and that a cancel closes the
 provider's HTTP stream. Written to the SDK's documented behaviour, tested against
 a mock model in workerd.
 
+## The voice fallback: `POST /v1/voice-intent`
+
+A spoken command the phone's word list did not understand, and the actions the
+screen offers at that moment; one of those actions, or `unknown`, back
+([`Documents/GLOS.md`](../Documents/GLOS.md), Polish). The phone has already
+put the phrase through its text gate: a sentence about pain never gets here.
+
+```
+  1. route, authenticate   as above
+  2. rate limit            CHAT_LIMITER, shared with the chat: both are short and interactive
+  3. read, validate        size, JSON, contractVersion, then the schema: at most 120 characters of
+                           heard text, up to three other guesses, 1-6 distinct known actions
+  4. budget                as above
+  5. generate              generateText + Output.object whose enum is built from the offered
+                           actions plus "unknown", temperature 0, output capped at 512 tokens,
+                           8 s limit, ONE attempt (the person is waiting mid-set)
+  6. check                 an answer that does not parse, or names an action not offered,
+                           becomes "unknown" with validationOutcome invalid_output
+```
+
+The answer carries an action name and nothing else. How many seconds "+N s" adds
+is read from the phrase on the phone, so the model never writes a number. The
+log line (`event: voice_intent`) has the same metadata as the other routes and
+never the heard text.
+
 ## Configuration
 
 Plain variables are in [`wrangler.jsonc`](wrangler.jsonc); secrets are set with
@@ -189,7 +214,8 @@ npm run dev                                   # fake model, http://localhost:878
 
 `src/dev.ts` swaps in a fake model that returns a valid, obviously fake summary. For the chat it asks for one
 tool on the first step, then streams a short answer a word at a time and logs `stream aborted by the Worker`
-when a cancel reaches it, so the whole loop can be watched from the app.
+when a cancel reaches it, so the whole loop can be watched from the app. For the voice fallback it picks the
+first offered action when the phrase contains "atrapa", and answers `unknown` otherwise.
 The deployed entry point (`src/index.ts`) does not import it.
 
 ## Tests
@@ -209,6 +235,8 @@ by Miniflare.
 ```
 src/index.ts         the handler (createHandler: model, clock and timeout are injectable)
 src/weeklySummary.ts generate -> check -> repair loop
+src/voiceIntent.ts   one call: a phrase and the offered actions in, one of them or unknown out
+src/voiceRoute.ts    POST /v1/voice-intent
 src/model.ts         the only file that knows about a provider
 src/auth.ts, budget.ts, log.ts, env.ts
 src/dev.ts, fakeModel.ts      local only

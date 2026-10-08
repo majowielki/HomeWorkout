@@ -5,7 +5,7 @@ import type { CallOutcome } from './coachClient';
 
 /** What gets stored for one call: the columns of `ai_exchanges`, minus the id and the time. */
 export interface ExchangeRecord {
-  kind: 'weekly_summary' | 'chat';
+  kind: 'weekly_summary' | 'chat' | 'voice_intent';
   requestId: string;
   promptVersion: string | null;
   model: string | null;

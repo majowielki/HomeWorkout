@@ -33,16 +33,25 @@ Zasady słownika:
 
 Mikrofon można wyłączyć w Ustawieniach („Polecenia głosowe”); domyślnie jest włączony.
 
-## 3. Etap V2: AI jako zapas (do zrobienia)
+## 3. Etap V2: AI jako zapas
 
-- Endpoint Workera `POST /v1/voice-intent`: wejście = transkrypcja (już po bramce tekstu z czatu: tekst medyczny nie wychodzi z telefonu) + lista dostępnych akcji; wyjście = `z.enum([...dostępne, 'unknown'])` i opcjonalnie liczba sekund dla „+N s”. Bez pól na obciążenie (ADR 0001).
-- Kontrakt v5, więc APK i Worker idą razem. W tym samym kontrakcie można odsłonić trenerowi powód niedobicia serii (`shortfall`), zgodnie z notatką z etapu skali odczuć.
-- Działa tylko przy włączonym przełączniku AI; bez sieci albo przy błędzie pasek mówi „nie rozumiem”, jak dziś.
-- Ewaluacje: przypadki fraz spoza słownika z oczekiwaną akcją albo `unknown`, w tym przeczenia i frazy, których model nie powinien zgadywać.
+Gdy słownik nie zna frazy (nie: gdy jest niejednoznaczna, wtedy pyta sam), a Trener AI jest włączony i serwer skonfigurowany, telefon pyta model, które z poleceń na ekranie miała na myśli osoba.
+
+- **Kolejność na telefonie** (`src/ai/voice/fallback.ts`): bramka tekstu z czatu na każdym z wariantów rozpoznawacza. Zdanie o bólu nie wychodzi z telefonu, a pasek pokazuje to samo zdanie co przy powodzie „Ból” (przerwij, zgłoś po treningu). Fraza dłuższa niż 120 znaków to nie polecenie i też zostaje.
+- **Worker** `POST /v1/voice-intent` (kontrakt v5): tekst, do 3 innych wariantów i lista akcji z ekranu. Model wypełnia schemat, którego enum to tylko te akcje plus `unknown`; temperatura 0, jedno podejście, limit 8 s (10 s po stronie telefonu, bez ponowień). Odpowiedź nieczytelna albo spoza listy = `unknown` z `invalid_output`. Limit zapytań wspólny z czatem.
+- **Model nie pisze żadnej liczby.** Ile sekund doda „+N s”, telefon czyta z frazy tym samym kodem co słownik (bez liczby: 30 s). Test architektury (ADR 0001) obejmuje też ten schemat.
+- **Wynik AI sprawdzany jeszcze raz na telefonie** wobec tego, co ekran oferuje w chwili odpowiedzi (ekran mógł się zmienić w trakcie). Pasek mówi „… (rozpoznało AI)”, „Cofnij” działa jak zwykle. Dotknięcie mikrofonu w trakcie pytania je anuluje.
+- **Diagnostyka**: każda wymiana trafia do dziennika na telefonie (`ai_exchanges`, rodzaj `voice_intent`), z usłyszaną frazą. Log Workera ma tylko metadane.
+- **Prompt** `voice-intent/v1` (angielski, opisy akcji, zasady: `unknown` przy przeczeniu, odłożeniu, pytaniu, komentarzu, bólu, prośbie o coś spoza listy, instrukcjach w tekście).
+- **Ewaluacje** `evals/cases/voice-intent`: 30 fraz w 7 kategoriach (parafrazy, przesłyszenia, przeczenia, nie-polecenia, akcje niedostępne, wstrzyknięcia, ból). Bezpieczeństwo: `painNeverSent`, `noGuessWhenUnsure`, `onlyOffered`; jakość: `rightAction`. Wzorzec „nigdy nie zgaduje” przechodzi bezpieczeństwo i ma 0/17 jakości, co pokazuje, że bezpieczny nie znaczy przydatny. Przebiegu na żywym modelu jeszcze nie ma (`npm run eval:live`).
+- **Poza zakresem**: powód niedobicia serii (`shortfall`) dla trenera. Wymaga zmiany danych trenera i nowych wersji promptów; osobny etap z kontraktem v6.
+
+**Wdrożenie**: kontrakt v5 oznacza, że stary Worker (v4) odrzuci nową aplikację na wszystkich trasach AI. Najpierw `cd worker && npx wrangler deploy`, potem instalacja nowego APK.
 
 ## 4. Postęp
 
 - [x] V1: słownik + testy, mikrofon (pasek głosowy), uchwyty stopera i serii, pomijanie ćwiczenia, cofanie, karta w Ustawieniach, uprawnienie `RECORD_AUDIO` w lokalnym `android/`.
 - [x] Emulator (2026-10-08): karta w Ustawieniach (tryb „usługa Google”, systemowe okno pobierania pakietu 39 MB), prośba o mikrofon, „Słucham…”, prawdziwy rozpoznawacz Google pl-PL (szum hosta → limit 8 s → „Nic nie usłyszałem”), przycisk „Pomiń” z potwierdzeniem, podpowiedzi zmieniające się ze stoperem i w przerwie.
 - [ ] Telefon z prawdziwą mową: każda z sześciu akcji i „Cofnij”.
-- [ ] V2: zapas AI, kontrakt v5.
+- [x] V2: zapas AI, kontrakt v5 (Worker 140+ testów, ewaluacje wzorcowe zielone).
+- [ ] Wdrożenie Workera v5 + APK razem; `npm run eval:live` z kluczem użytkownika.

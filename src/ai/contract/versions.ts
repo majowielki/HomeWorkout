@@ -9,5 +9,6 @@
  * 3 (E7): week reads and plan proposals that require local acceptance.
  * 4 (ADR 0006): composing days from the engine options (getDayOptions, proposeDayPlan),
  *   `composed` on a day summary, the tool error day_done.
+ * 5 (voice): `POST /v1/voice-intent`, the fallback for a spoken command the phone did not understand.
  */
-export const CONTRACT_VERSION = 4;
+export const CONTRACT_VERSION = 5;

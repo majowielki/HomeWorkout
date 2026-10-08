@@ -48,6 +48,9 @@ export function VoiceSettingsCard() {
         <Text variant="muted" className="text-xs">
           {s.toggleHint}
         </Text>
+        <Text variant="muted" className="text-xs">
+          {s.aiHint}
+        </Text>
         {mode ? (
           <Text variant="muted" className="text-xs">
             {s.mode[mode]}

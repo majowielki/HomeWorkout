@@ -12,6 +12,7 @@ import type { PlannedExercise } from '@/domain/plan/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
+import { createAppVoiceFallback } from '@/features/voice/appFallback';
 import { VoiceBar } from '@/features/voice/VoiceBar';
 import { SetLogger, type SetLoggerHandle } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
@@ -38,6 +39,8 @@ export default function ActiveSessionScreen() {
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
   const [voiceEnabled] = useState(getVoiceEnabled);
+  // Read once per session: the AI switch lives in Settings, not on this screen.
+  const [voiceFallback] = useState(createAppVoiceFallback);
   const session = useActiveSession(id, exerciseMap);
   const {
     phase,
@@ -196,7 +199,11 @@ export default function ActiveSessionScreen() {
       ) : null}
 
       {voiceEnabled && voice.available.length > 0 ? (
-        <VoiceBar available={voice.available} run={voice.run} />
+        <VoiceBar
+          available={voice.available}
+          run={voice.run}
+          fallback={voiceFallback ?? undefined}
+        />
       ) : null}
 
       <SessionProgressSheet

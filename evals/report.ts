@@ -26,7 +26,7 @@ const caseReport = z.strictObject({
 export const reportSchema = z.strictObject({
   version: z.literal(1),
   createdAt: z.string(),
-  feature: z.enum(['weekly-summary', 'chat']),
+  feature: z.enum(['weekly-summary', 'chat', 'voice-intent']),
   /** `reference` is the rule-based stand-in; `recorded` and `live` are real model answers. */
   responder: z.enum(['reference', 'recorded', 'live']),
   promptVersion: z.string().nullable(),

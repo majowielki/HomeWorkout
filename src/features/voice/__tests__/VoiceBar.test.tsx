@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
 import type { VoiceActionId } from '@/domain/voice/commands';
+import type { FallbackOutcome } from '@/ai/voice/fallback';
 import { pl } from '@/strings/pl';
 
 import { FINISH_GRACE_MS, MAX_LISTEN_MS } from '../useVoiceInput';
@@ -181,4 +182,68 @@ it('a failure fades back to the hint', async () => {
   } finally {
     jest.useRealTimers();
   }
+});
+
+describe('the AI fallback', () => {
+  it('asks the model about a phrase it does not know, and marks what the model chose', async () => {
+    const run = jest.fn(() => ({ text: 'Koniec przerwy', undo: jest.fn() }));
+    let answer!: (outcome: FallbackOutcome) => void;
+    const fallback = jest.fn(() => new Promise<FallbackOutcome>((resolve) => (answer = resolve)));
+    await render(<VoiceBar available={REST} run={run} fallback={fallback} />);
+    await listen();
+    await act(async () => speech.__emit('result', final('lecę z następną', 'lecę z następnym')));
+    expect(fallback).toHaveBeenCalledWith(
+      ['lecę z następną', 'lecę z następnym'],
+      REST,
+      expect.any(AbortSignal),
+    );
+    expect(screen.getByText(pl.voice.asking)).toBeTruthy();
+
+    await act(async () => answer({ kind: 'command', command: { action: 'rest_end' } }));
+    expect(run).toHaveBeenCalledWith({ action: 'rest_end' });
+    expect(screen.getByText(pl.voice.byAi('Koniec przerwy'))).toBeTruthy();
+    expect(screen.getByText(pl.voice.undo)).toBeTruthy();
+  });
+
+  it.each([
+    [{ kind: 'unknown' } as const, pl.voice.notUnderstood('coś innego')],
+    [{ kind: 'medical' } as const, pl.workout.session.shortfall.painNote],
+    [{ kind: 'failed', failure: 'offline' } as const, pl.voice.aiFailed('coś innego')],
+  ])('says what came of it: %o', async (outcome, text) => {
+    const run = jest.fn();
+    await render(<VoiceBar available={REST} run={run} fallback={async () => outcome} />);
+    await listen();
+    await act(async () => speech.__emit('result', final('coś innego')));
+    expect(run).not.toHaveBeenCalled();
+    expect(screen.getByText(text)).toBeTruthy();
+  });
+
+  it('a command the screen no longer offers is not done', async () => {
+    await render(
+      <VoiceBar
+        available={REST}
+        run={() => null}
+        fallback={async () => ({ kind: 'command', command: { action: 'rest_end' } })}
+      />,
+    );
+    await listen();
+    await act(async () => speech.__emit('result', final('coś innego')));
+    expect(screen.getByText(pl.voice.notNow)).toBeTruthy();
+  });
+
+  it('a tap on the microphone cancels the question', async () => {
+    let signal!: AbortSignal;
+    const fallback = jest.fn((_a: readonly string[], _b: unknown, s: AbortSignal) => {
+      signal = s;
+      return new Promise<FallbackOutcome>((resolve) =>
+        s.addEventListener('abort', () => resolve({ kind: 'aborted' })),
+      );
+    });
+    await render(<VoiceBar available={REST} run={jest.fn()} fallback={fallback} />);
+    await listen();
+    await act(async () => speech.__emit('result', final('coś innego')));
+    await listen();
+    expect(signal.aborted).toBe(true);
+    expect(screen.getByText(pl.voice.listening)).toBeTruthy();
+  });
 });
