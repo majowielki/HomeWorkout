@@ -183,7 +183,7 @@ export default function TodayScreen() {
                 inputClassName="h-14 font-display-semibold text-2xl"
                 value={weightInput}
                 onChangeText={setWeightInput}
-                placeholder="82,5"
+                placeholder={pl.body.weightPlaceholder}
               />
               <Button
                 label={pl.body.weightSave}

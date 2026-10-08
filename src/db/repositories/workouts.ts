@@ -2,22 +2,12 @@ import { randomUUID } from 'expo-crypto';
 
 import { and, count, desc, eq, isNotNull, lt, ne } from 'drizzle-orm';
 
+import { SESSION_CONFIG } from '@/domain/config/training';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
+import { MS_PER_HOUR } from '@/domain/time/trainingDate';
 
 import { db } from '../client';
 import { plannedDays, setLogs, workouts } from '../schema';
-
-export async function startWorkout(templateId: string, trainingDate: string): Promise<string> {
-  const id = randomUUID();
-  await db.insert(workouts).values({
-    id,
-    templateId,
-    trainingDate,
-    startedAt: new Date().toISOString(),
-    status: 'in_progress',
-  });
-  return id;
-}
 
 export async function getWorkout(id: string) {
   const [row] = await db.select().from(workouts).where(eq(workouts.id, id)).limit(1);
@@ -73,7 +63,9 @@ export async function abandonWorkout(id: string): Promise<void> {
  * starting a new one. See SPEC §7.1.
  */
 export async function abandonStaleWorkouts(now: Date = new Date()): Promise<void> {
-  const cutoff = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
+  const cutoff = new Date(
+    now.getTime() - SESSION_CONFIG.staleAfterHours * MS_PER_HOUR,
+  ).toISOString();
   const at = now.toISOString();
   db.transaction((tx) => {
     const stale = and(eq(workouts.status, 'in_progress'), lt(workouts.startedAt, cutoff));

@@ -69,12 +69,3 @@ export function rankSubstitutes(
     .filter((r) => r.score >= cfg.threshold)
     .sort((a, b) => b.score - a.score);
 }
-
-export function bestSubstitute(
-  original: Exercise,
-  candidates: readonly Exercise[],
-  isAllowed: (exercise: Exercise) => boolean,
-  cfg = SUBSTITUTE_CONFIG,
-): Exercise | null {
-  return rankSubstitutes(original, candidates, isAllowed, cfg)[0]?.exercise ?? null;
-}

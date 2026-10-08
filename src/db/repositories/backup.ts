@@ -2,7 +2,7 @@ import { inArray } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 
 import { BACKUP_APP, BACKUP_SCHEMA_VERSION, type BackupFile } from '../backup/format';
-import { db } from '../client';
+import { db, type Tx } from '../client';
 import {
   bands,
   bodyMetrics,
@@ -27,8 +27,6 @@ import { ensureProfile } from './profile';
  * old 999 limit.
  */
 const CHUNK = 50;
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function insertChunked<T extends SQLiteTable>(
   tx: Tx,

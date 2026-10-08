@@ -100,13 +100,3 @@ export async function upsertEstimate(
       .values({ id: randomUUID(), date, weightKg, bodyFatPct, source, loggedAt });
   }
 }
-
-export async function getLatestEstimate(source: Exclude<Source, 'manual'>) {
-  const [row] = await db
-    .select()
-    .from(bodyMetrics)
-    .where(eq(bodyMetrics.source, source))
-    .orderBy(desc(bodyMetrics.date))
-    .limit(1);
-  return row ?? null;
-}

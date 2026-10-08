@@ -5,7 +5,7 @@ import { desc, eq, isNull } from 'drizzle-orm';
 import type { BlockAdvance } from '@/domain/plan/block';
 import type { BlockState } from '@/domain/plan/types';
 
-import { db } from '../client';
+import { db, type Tx } from '../client';
 import { trainingBlocks } from '../schema';
 
 /** The open block as the engine sees it, with the row id to write it back. */
@@ -63,7 +63,7 @@ export async function saveBlockAdvance(
 
 /** Synchronous write, also used inside the atomic acceptance of a coach proposal. */
 export function writeBlockAdvance(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: Tx,
   current: StoredBlock | null,
   advance: BlockAdvance,
   asOf: string,

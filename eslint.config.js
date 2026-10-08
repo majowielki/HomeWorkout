@@ -48,6 +48,28 @@ module.exports = defineConfig([
   },
   {
     /*
+     * The data layer reads and writes; it does not draw, schedule
+     * notifications or know a screen. Startup UI lives in
+     * src/features/startup and takes useDatabaseStartup from here.
+     */
+    files: ['src/db/**/*.{ts,tsx}'],
+    ignores: ['src/db/**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/components/*', '@/features/*', '@/lib/*', '@/stores/*', '@/strings/*'],
+              message: 'src/db must not depend on UI or platform services. Return data instead.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    /*
      * The AI contract and the prompts are bundled twice: into the app and,
      * through a relative import, into the Cloudflare Worker. The Worker has
      * no `@/` alias and no React, so anything beyond zod and the pure domain

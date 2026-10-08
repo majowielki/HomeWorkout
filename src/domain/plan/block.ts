@@ -178,8 +178,3 @@ export function advanceBlock(
     replacedSlots: repaired.replaced,
   };
 }
-
-/** The person swapped an exercise "for the rest of the block". */
-export function withSelection(block: BlockState, slotId: string, exerciseId: string): BlockState {
-  return { ...block, selections: { ...block.selections, [slotId]: exerciseId } };
-}

@@ -1,9 +1,4 @@
-import {
-  bestSubstitute,
-  rankSubstitutes,
-  substituteCandidates,
-  substituteScore,
-} from '../exercises/substitute';
+import { rankSubstitutes, substituteCandidates, substituteScore } from '../exercises/substitute';
 import { byId, exercise } from './fixtures';
 
 const goblet = exercise({
@@ -71,12 +66,5 @@ describe('rankSubstitutes', () => {
   it('skips what is not allowed', () => {
     const noRdl = (e: { id: string }) => e.id !== 'rdl';
     expect(rankSubstitutes(goblet, [rdl, box], noRdl).map((r) => r.exercise.id)).toEqual(['box']);
-  });
-});
-
-describe('bestSubstitute', () => {
-  it('returns the top one, or null rather than a bad one', () => {
-    expect(bestSubstitute(goblet, [split, box], () => true)).toBe(box);
-    expect(bestSubstitute(goblet, [curl], () => true)).toBeNull();
   });
 });

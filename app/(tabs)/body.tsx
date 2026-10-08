@@ -153,7 +153,7 @@ export default function BodyScreen() {
               accessibilityLabel={pl.body.weightInputLabel}
               value={input}
               onChangeText={setInput}
-              placeholder="82,5"
+              placeholder={pl.body.weightPlaceholder}
               className="flex-1"
               inputClassName="h-14 font-display-semibold text-2xl"
             />

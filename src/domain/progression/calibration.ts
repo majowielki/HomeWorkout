@@ -11,6 +11,7 @@
  */
 
 import { BAND_CONFIG } from '../config/training';
+import { MS_PER_DAY } from '../time/trainingDate';
 import type { AnchorPosition, BandCalibration, BandCalibrationPoint } from '../types';
 
 export type CalibrationReason =
@@ -245,6 +246,6 @@ export function needsRecalibration(
 ): boolean {
   if (band.calibratedAt === null) return false;
   if (band.cycleCount >= cfg.recalibrateAfterCycles) return true;
-  const ageDays = (now.getTime() - Date.parse(band.calibratedAt)) / 86_400_000;
+  const ageDays = (now.getTime() - Date.parse(band.calibratedAt)) / MS_PER_DAY;
   return ageDays >= cfg.recalibrateAfterDays;
 }

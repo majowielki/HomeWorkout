@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
-import { desc, eq, notInArray } from 'drizzle-orm';
+import { desc, notInArray } from 'drizzle-orm';
 
 import type { ExchangeRecord } from '@/ai/client/exchange';
 
@@ -56,11 +56,6 @@ export async function recordExchange(
 
 export async function listExchanges(limit = KEEP_EXCHANGES): Promise<AiExchangeRow[]> {
   return db.select().from(aiExchanges).orderBy(desc(aiExchanges.createdAt)).limit(limit);
-}
-
-export async function getExchange(id: string): Promise<AiExchangeRow | null> {
-  const [row] = await db.select().from(aiExchanges).where(eq(aiExchanges.id, id)).limit(1);
-  return row ?? null;
 }
 
 export async function clearExchanges(): Promise<void> {
