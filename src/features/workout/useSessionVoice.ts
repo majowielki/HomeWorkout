@@ -7,6 +7,7 @@ import { pl } from '@/strings/pl';
 
 import { isTimed } from './SetFields';
 import type { SetLoggerHandle } from './SetLogger';
+import type { WarmupHandle } from './WarmupChecklist';
 import type { useActiveSession } from './useActiveSession';
 
 type Session = ReturnType<typeof useActiveSession>;
@@ -15,6 +16,8 @@ interface Options {
   session: Session;
   /** The set screen, while it is on. */
   logger: RefObject<SetLoggerHandle | null>;
+  /** The warm-up, while it is on. */
+  warmup: RefObject<WarmupHandle | null>;
   /** The exercise on the set screen; a timed one has a stopwatch. */
   exercise: Exercise | undefined;
   stopwatchRunning: boolean;
@@ -29,6 +32,8 @@ export function availableActions(
   stopwatchRunning: boolean,
 ): VoiceActionId[] {
   switch (phase) {
+    case 'warmup':
+      return ['warmup_next', 'warmup_finish'];
     case 'logging':
       return [
         ...(timed ? [stopwatchRunning ? 'stopwatch_stop' : ('stopwatch_start' as const)] : []),
@@ -53,6 +58,7 @@ export function availableActions(
 export function useSessionVoice({
   session,
   logger,
+  warmup,
   exercise,
   stopwatchRunning,
   confirmFinish,
@@ -96,6 +102,20 @@ export function useSessionVoice({
           text: t.restExtend(command.seconds),
           undo: () => latest.current.extendRest(-command.seconds),
         };
+      case 'warmup_next': {
+        const step = warmup.current?.next();
+        if (!step) return null;
+        if (step.kind === 'finished') {
+          return { text: t.warmupFinish, undo: () => latest.current.backToWarmup() };
+        }
+        return {
+          text: t.warmupNext(pl.workout.warmup.moves[step.id].name),
+          undo: () => warmup.current?.untick(step),
+        };
+      }
+      case 'warmup_finish':
+        session.warmupDone();
+        return { text: t.warmupFinish, undo: () => latest.current.backToWarmup() };
       case 'skip_exercise': {
         const outcome = session.skipExercise();
         if (outcome.kind === 'last') {

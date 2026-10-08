@@ -15,6 +15,8 @@ export const VOICE_ACTIONS = [
   'rest_end',
   'rest_extend',
   'skip_exercise',
+  'warmup_next',
+  'warmup_finish',
 ] as const;
 
 export type VoiceActionId = (typeof VOICE_ACTIONS)[number];
@@ -105,7 +107,35 @@ const PHRASES: Record<VoiceActionId, readonly string[]> = {
     'jeszcze minut*',
   ],
   skip_exercise: ['pomin cwicz*', 'pomin', 'nastepne cwicz*', 'przeskocz*', 'opusc*'],
+  warmup_next: ['dalej', 'nastepn*', 'zrobion*', 'zrobil*', 'gotow*', 'odhacz*', 'zalicz*'],
+  warmup_finish: [
+    'pomin rozgrzewk*',
+    'koniec rozgrzewki',
+    'gotow* zaczynam*',
+    'zaczynam*',
+    'zaczynamy trening',
+    'start treningu',
+    'pomin',
+  ],
 };
+
+/**
+ * "Hej trener" before a command, as recognisers write it: "hej", "hey" or
+ * "ej", then any form of "trener". Commas and exclamation marks between are
+ * the recogniser's, not the person's.
+ */
+const WAKE = /(?:^|[^\p{L}])(?:hej|hey|ej)[\s,.!:;-]*trener\p{L}*[\s,.!:;-]*/iu;
+
+/**
+ * Splits a phrase at the wake words. `woke` is false when they are not in it;
+ * `rest` is what was said after them, possibly nothing ("hej trener" alone,
+ * the command still to come).
+ */
+export function splitWake(transcript: string): { woke: boolean; rest: string } {
+  const match = WAKE.exec(transcript);
+  if (!match) return { woke: false, rest: '' };
+  return { woke: true, rest: transcript.slice(match.index + match[0].length).trim() };
+}
 
 /** "nie kończ przerwy" must not end it. A negated phrase is left to someone who understands it. */
 const NEGATIONS = new Set(['nie', 'niech', 'czekaj', 'zaczekaj', 'poczekaj']);

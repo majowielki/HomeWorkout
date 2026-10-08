@@ -23,3 +23,30 @@ export function setVoiceEnabled(enabled: boolean): void {
     console.warn('could not save the voice switch', error);
   }
 }
+
+const MODE_KEY = 'voice.mode';
+
+/**
+ * How the microphone listens during a session: a tap for each command, the
+ * microphone left on waiting for "hej trener", or left on for any command.
+ * The last two are only used with on-device recognition (GLOS.md §5).
+ */
+export const VOICE_MODES = ['tap', 'wake', 'continuous'] as const;
+export type VoiceMode = (typeof VOICE_MODES)[number];
+
+export function getVoiceMode(): VoiceMode {
+  try {
+    const stored = Storage.getItemSync(MODE_KEY);
+    return VOICE_MODES.find((m) => m === stored) ?? 'tap';
+  } catch {
+    return 'tap';
+  }
+}
+
+export function setVoiceMode(mode: VoiceMode): void {
+  try {
+    Storage.setItemSync(MODE_KEY, mode);
+  } catch (error) {
+    console.warn('could not save the voice mode', error);
+  }
+}

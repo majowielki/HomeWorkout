@@ -48,10 +48,33 @@ Gdy słownik nie zna frazy (nie: gdy jest niejednoznaczna, wtedy pyta sam), a Tr
 
 **Wdrożenie**: kontrakt v5 oznacza, że stary Worker (v4) odrzuci nową aplikację na wszystkich trasach AI. Najpierw `cd worker && npx wrangler deploy`, potem instalacja nowego APK.
 
+## 5. Rozgrzewka i słuchanie bez rąk (2026-10-08, po pierwszym teście na telefonie)
+
+Uwagi użytkownika: głos także w rozgrzewce; dotykanie mikrofonu przed każdym poleceniem jest uciążliwe, potrzebne słowo aktywujące i tryb ciągły.
+
+**Rozgrzewka:** „dalej”, „następne”, „zrobione”, „gotowe” odhacza ćwiczenie (w kartach: jak „Zrobione, dalej”; na liście: pierwsze nieodhaczone), po ostatnim kończy rozgrzewkę. „Pomiń rozgrzewkę”, „koniec rozgrzewki”, „zaczynamy” zaczyna trening. „Cofnij” zdejmuje odhaczenie albo wraca do rozgrzewki (odhaczenia wtedy znikają; nigdzie nie są zapisywane). Tych poleceń nie zna kontrakt 5, więc nie idą do AI: wdrożony Worker zostaje bez zmian.
+
+**Trzy tryby mikrofonu** (Ustawienia → Polecenia głosowe → „Jak słucha mikrofon”):
+
+| Tryb | Działanie |
+|---|---|
+| Po dotknięciu | jak dotąd: jedno dotknięcie, jedna fraza |
+| „Hej trener” | mikrofon słucha cały trening; reaguje na „hej trener, …” (albo „hej trener”, a potem polecenie w ciągu 6 s). To, co po słowach aktywujących, może pójść do AI jak przy dotknięciu |
+| Cały czas | mikrofon słucha cały trening i reaguje na każde polecenie, którego słownik jest pewny. Wszystko inne pomija po cichu: bez „nie rozumiem”, **bez wysyłania do AI** (to byłyby podsłuchane rozmowy) |
+
+Decyzje użytkownika: słowo „hej trener” (nie samo „hej”: krótkie słowo pada w rozmowie i bywa przesłyszane); tryby bez dotykania **tylko z polskim pakietem offline**. Bez pakietu sesja działa po dotknięciu, a Ustawienia mówią dlaczego.
+
+Technicznie: rozpoznawanie ciągłe Androida 13+ z `requiresOnDeviceRecognition` (bez sygnału dźwiękowego przy starcie), każdy wynik końcowy to jedna wypowiedź. Rozpoznawacz co jakiś czas sam się zatrzymuje; aplikacja startuje go ponownie (0,3 s, przy kolejnych błędach dłużej, do 10 s), chyba że brak uprawnienia albo języka. W tle aplikacji mikrofon jest zwalniany, po powrocie słucha dalej. Dotknięcie mikrofonu wstrzymuje i wznawia.
+
+Do sprawdzenia na telefonie: czy rozpoznawacz offline łapie „hej trener” w hałasie i przy muzyce, ile baterii zużywa godzina słuchania, czy telewizor wyzwala polecenia w trybie „cały czas”.
+
 ## 4. Postęp
 
 - [x] V1: słownik + testy, mikrofon (pasek głosowy), uchwyty stopera i serii, pomijanie ćwiczenia, cofanie, karta w Ustawieniach, uprawnienie `RECORD_AUDIO` w lokalnym `android/`.
 - [x] Emulator (2026-10-08): karta w Ustawieniach (tryb „usługa Google”, systemowe okno pobierania pakietu 39 MB), prośba o mikrofon, „Słucham…”, prawdziwy rozpoznawacz Google pl-PL (szum hosta → limit 8 s → „Nic nie usłyszałem”), przycisk „Pomiń” z potwierdzeniem, podpowiedzi zmieniające się ze stoperem i w przerwie.
 - [ ] Telefon z prawdziwą mową: każda z sześciu akcji i „Cofnij”.
 - [x] V2: zapas AI, kontrakt v5 (Worker 140+ testów, ewaluacje wzorcowe zielone).
-- [ ] Wdrożenie Workera v5 + APK razem; `npm run eval:live` z kluczem użytkownika.
+- [x] Wdrożenie Workera v5 + APK (użytkownik, 2026-10-08).
+- [ ] `npm run eval:live` z kluczem użytkownika.
+- [x] §5: głos w rozgrzewce, tryby „hej trener” i „cały czas” (tylko z pakietem offline).
+- [ ] Telefon: tryby bez dotykania w prawdziwym treningu.

@@ -8,7 +8,7 @@ import { gateUserText } from '../chat/gate';
 import type { ClientFailure } from '../client/coachClient';
 import type { ExchangeRecord } from '../client/exchange';
 import type { VoiceCallOutcome, VoiceIntentCaller } from '../client/voiceIntentClient';
-import { VOICE_LIMITS, type VoiceIntentRequest } from '../contract/voiceIntent';
+import { isIntentAction, VOICE_LIMITS, type VoiceIntentRequest } from '../contract/voiceIntent';
 
 export type FallbackOutcome =
   | { kind: 'command'; command: VoiceCommand }
@@ -52,11 +52,14 @@ export async function askVoiceFallback(
   );
   const [transcript, ...others] = passed;
   if (transcript === undefined || gates[0]?.kind !== 'pass') return { kind: 'unknown' };
+  // Only what the contract lets the model choose from; the warm-up's commands are the phone's alone.
+  const offered = available.filter(isIntentAction);
+  if (offered.length === 0) return { kind: 'unknown' };
 
   const request: Pick<VoiceIntentRequest, 'transcript' | 'alternatives' | 'available'> = {
     transcript,
     alternatives: others.slice(0, VOICE_LIMITS.alternatives),
-    available: [...available],
+    available: offered,
   };
   const outcome = await deps.call(request, { signal });
   const record = toVoiceExchangeRecord(request, outcome);
@@ -69,7 +72,7 @@ export async function askVoiceFallback(
     return { kind: 'failed', failure: 'invalid_output' };
   }
   const action = result.action;
-  if (action === 'unknown' || !available.includes(action)) return { kind: 'unknown' };
+  if (action === 'unknown' || !offered.includes(action)) return { kind: 'unknown' };
   return {
     kind: 'command',
     command:

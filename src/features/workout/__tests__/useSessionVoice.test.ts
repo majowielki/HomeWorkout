@@ -5,6 +5,7 @@ import { pl } from '@/strings/pl';
 
 import type { SetLoggerHandle } from '../SetLogger';
 import type { useActiveSession } from '../useActiveSession';
+import type { WarmupHandle } from '../WarmupChecklist';
 import { availableActions, useSessionVoice } from '../useSessionVoice';
 
 jest.mock('@/db/repositories/setLogs', () => ({}));
@@ -20,6 +21,8 @@ function fakeSession(overrides: Partial<Session>): Session {
     extendRest: jest.fn(() => true),
     skipExercise: jest.fn(() => ({ kind: 'skipped', blockIndex: 1, name: 'Wiosłowanie' })),
     unskip: jest.fn(),
+    warmupDone: jest.fn(),
+    backToWarmup: jest.fn(),
     ...overrides,
   } as unknown as Session;
 }
@@ -33,13 +36,18 @@ function fakeLogger(): SetLoggerHandle {
   };
 }
 
-async function voice(session: Session, options: { timed?: boolean; running?: boolean } = {}) {
+async function voice(
+  session: Session,
+  options: { timed?: boolean; running?: boolean; warmup?: WarmupHandle | null } = {},
+) {
   const logger = { current: fakeLogger() };
+  const warmup = { current: options.warmup ?? null };
   const confirmFinish = jest.fn();
   const { result } = await renderHook(() =>
     useSessionVoice({
       session,
       logger,
+      warmup,
       exercise: exercise({ forceProfile: options.timed ? 'Isometric' : 'ConcentricEccentric' }),
       stopwatchRunning: options.running ?? false,
       confirmFinish,
@@ -67,7 +75,8 @@ describe('availableActions', () => {
       'skip_exercise',
     ]);
     expect(availableActions('groupDone', false, false)).toEqual(['rest_end', 'skip_exercise']);
-    expect(availableActions('warmup', false, false)).toEqual([]);
+    expect(availableActions('warmup', false, false)).toEqual(['warmup_next', 'warmup_finish']);
+    expect(availableActions('loading', false, false)).toEqual([]);
   });
 });
 
@@ -158,5 +167,40 @@ describe('useSessionVoice', () => {
     const { voice: idle, logger: l2 } = await voice(fakeSession({}), { timed: true });
     (l2.startStopwatch as jest.Mock).mockReturnValue(false);
     expect(idle.run({ action: 'stopwatch_start' })).toBeNull();
+  });
+});
+
+describe('the warm-up by voice', () => {
+  it('ticks the next move and takes the tick back', async () => {
+    const step = { kind: 'ticked' as const, id: 'arm-circles' as const, index: 0 };
+    const handle: WarmupHandle = { next: jest.fn(() => step), untick: jest.fn() };
+    const { voice: v } = await voice(fakeSession({ phase: 'warmup' }), { warmup: handle });
+    const done = v.run({ action: 'warmup_next' });
+    expect(done?.text).toBe(pl.voice.done.warmupNext(pl.workout.warmup.moves['arm-circles'].name));
+    done?.undo?.();
+    expect(handle.untick).toHaveBeenCalledWith(step);
+  });
+
+  it('ends the warm-up after the last move, or when asked, and comes back to it', async () => {
+    const session = fakeSession({ phase: 'warmup' });
+    const handle: WarmupHandle = {
+      next: jest.fn(() => ({ kind: 'finished' as const })),
+      untick: jest.fn(),
+    };
+    const { voice: v } = await voice(session, { warmup: handle });
+    const last = v.run({ action: 'warmup_next' });
+    expect(last?.text).toBe(pl.voice.done.warmupFinish);
+    last?.undo?.();
+    expect(session.backToWarmup).toHaveBeenCalledTimes(1);
+
+    const finished = v.run({ action: 'warmup_finish' });
+    expect(session.warmupDone).toHaveBeenCalled();
+    finished?.undo?.();
+    expect(session.backToWarmup).toHaveBeenCalledTimes(2);
+  });
+
+  it('does nothing without the warm-up on screen', async () => {
+    const { voice: v } = await voice(fakeSession({ phase: 'warmup' }));
+    expect(v.run({ action: 'warmup_next' })).toBeNull();
   });
 });

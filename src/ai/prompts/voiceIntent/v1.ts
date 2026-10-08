@@ -9,14 +9,13 @@
  * command at all. The prompt leans towards `unknown`: a wrong action in the
  * middle of a set costs more than saying the command again.
  */
-import type { VoiceActionId } from '../../../domain/voice/commands';
-import type { VoiceIntentRequest } from '../../contract/voiceIntent';
+import type { VoiceIntentActionId, VoiceIntentRequest } from '../../contract/voiceIntent';
 import type { BuiltPrompt } from '../weeklySummary/v1';
 
 export const VOICE_INTENT_PROMPT_VERSION = 'voice-intent/v1';
 
 /** What each action does, in the words the model is given. */
-export const ACTION_MEANINGS: Record<VoiceActionId, string> = {
+export const ACTION_MEANINGS: Record<VoiceIntentActionId, string> = {
   stopwatch_start: 'start the stopwatch that times a hold (for example a plank)',
   stopwatch_stop: 'stop the running stopwatch',
   set_done: 'the set is finished: save it with the numbers on screen',

@@ -1,4 +1,10 @@
-import { matchAlternatives, matchCommand, type VoiceActionId, words } from '../voice/commands';
+import {
+  matchAlternatives,
+  matchCommand,
+  splitWake,
+  type VoiceActionId,
+  words,
+} from '../voice/commands';
 
 /** What each screen of the session offers. */
 const SET_TIMED_IDLE: VoiceActionId[] = ['stopwatch_start', 'set_done', 'skip_exercise'];
@@ -153,4 +159,39 @@ describe('matchAlternatives', () => {
     expect(matchAlternatives(['pomiń', 'bla bla'], REST).kind).toBe('ambiguous');
     expect(matchAlternatives(['bla bla'], REST).kind).toBe('unknown');
   });
+});
+
+describe('the warm-up', () => {
+  const WARMUP: VoiceActionId[] = ['warmup_next', 'warmup_finish'];
+
+  it.each(['dalej', 'następne', 'zrobione', 'gotowe', 'odhacz'])('moves on: %s', (phrase) => {
+    expect(action(phrase, WARMUP)).toBe('warmup_next');
+  });
+
+  it.each(['pomiń rozgrzewkę', 'koniec rozgrzewki', 'gotowe, zaczynamy', 'zaczynamy', 'pomiń'])(
+    'ends it: %s',
+    (phrase) => {
+      expect(action(phrase, WARMUP)).toBe('warmup_finish');
+    },
+  );
+});
+
+describe('splitWake', () => {
+  it.each([
+    ['hej trener, seria zrobiona', 'seria zrobiona'],
+    ['Hej trenerze koniec przerwy', 'koniec przerwy'],
+    ['hey trener: plus 30 sekund', 'plus 30 sekund'],
+    ['no to ej trener pomiń ćwiczenie', 'pomiń ćwiczenie'],
+    ['hej trener', ''],
+    ['Hej, trener!', ''],
+  ])('"%s" wakes, then "%s"', (phrase, rest) => {
+    expect(splitWake(phrase)).toEqual({ woke: true, rest });
+  });
+
+  it.each(['seria zrobiona', 'hej, jak leci', 'trener mówił, że koniec', 'chej trener'])(
+    'not woken by "%s"',
+    (phrase) => {
+      expect(splitWake(phrase)).toEqual({ woke: false, rest: '' });
+    },
+  );
 });

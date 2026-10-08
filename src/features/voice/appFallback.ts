@@ -1,16 +1,11 @@
 import type { ExchangeRecord } from '@/ai/client/exchange';
 import { createVoiceIntentClient } from '@/ai/client/voiceIntentClient';
-import { askVoiceFallback, type FallbackOutcome } from '@/ai/voice/fallback';
+import { askVoiceFallback } from '@/ai/voice/fallback';
 import { recordExchange } from '@/db/repositories/aiExchanges';
-import type { VoiceActionId } from '@/domain/voice/commands';
 import { getAiEnabled } from '@/lib/aiSettings';
 import { coachConfig, newRequestId } from '@/lib/coach';
 
-export type VoiceFallback = (
-  alternatives: readonly string[],
-  available: readonly VoiceActionId[],
-  signal: AbortSignal,
-) => Promise<FallbackOutcome>;
+import type { VoiceFallback } from './useVoiceCommands';
 
 /**
  * The voice fallback, when the AI switch is on and there is a server to ask:

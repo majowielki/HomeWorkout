@@ -5,6 +5,7 @@ import type { ExclusionCode } from '@/domain/exercises/screen';
 import type { WarmupMoveId } from '@/domain/session/warmup';
 import type { VoiceActionId } from '@/domain/voice/commands';
 import type { RecognitionMode } from '@/features/voice/recognizer';
+import type { VoiceMode } from '@/lib/voiceSettings';
 import type {
   BikeReason,
   BlockEvent,
@@ -393,6 +394,11 @@ export const pl = {
     mic: 'Polecenie głosowe',
     micStop: 'Przestań słuchać',
     listening: 'Słucham…',
+    pause: 'Wstrzymaj nasłuch',
+    resume: 'Włącz nasłuch',
+    paused: 'Nasłuch wstrzymany. Dotknij mikrofonu, żeby słuchał dalej.',
+    wakeHint: (phrases: string) => `Powiedz „hej trener” i: ${phrases}`,
+    continuousHint: (phrases: string) => `Słucham. Powiedz: ${phrases}`,
     hint: (phrases: string) => `Dotknij i powiedz: ${phrases}`,
     phrase: {
       stopwatch_start: 'start',
@@ -401,6 +407,8 @@ export const pl = {
       rest_end: 'koniec przerwy',
       rest_extend: '+30 sekund',
       skip_exercise: 'pomiń ćwiczenie',
+      warmup_next: 'dalej',
+      warmup_finish: 'pomiń rozgrzewkę',
     } satisfies Record<VoiceActionId, string>,
     done: {
       stopwatchStart: 'Stoper ruszył',
@@ -409,6 +417,8 @@ export const pl = {
       restEnd: 'Koniec przerwy',
       restExtend: (sec: number) => `Przerwa +${sec} s`,
       skipped: (name: string) => `Pominięte: ${name}`,
+      warmupNext: (name: string) => `Odhaczone: ${name}`,
+      warmupFinish: 'Rozgrzewka zakończona',
     },
     undo: 'Cofnij',
     notUnderstood: (text: string) => `Nie rozumiem: „${text}”.`,
@@ -436,6 +446,20 @@ export const pl = {
           'Mowa rozpoznawana przez usługę Google w telefonie. Bez polskiego pakietu offline nagranie polecenia może trafić na serwery Google.',
         unavailable: 'Ten telefon nie ma usługi rozpoznawania mowy.',
       } satisfies Record<RecognitionMode, string>,
+      modeTitle: 'Jak słucha mikrofon',
+      modes: {
+        tap: 'Po dotknięciu',
+        wake: '„Hej trener”',
+        continuous: 'Cały czas',
+      } satisfies Record<VoiceMode, string>,
+      modeHint: {
+        tap: 'Dotykasz mikrofonu przed każdym poleceniem.',
+        wake: 'Mikrofon słucha przez cały trening, a reaguje na „hej trener” i polecenie, np. „hej trener, seria zrobiona”. Mowa jest rozpoznawana tylko na telefonie.',
+        continuous:
+          'Mikrofon słucha przez cały trening i reaguje na każde polecenie z listy, bez „hej trener”. Inne rozmowy pomija i nigdzie ich nie wysyła; telewizor albo rozmowa mogą jednak czasem wyzwolić polecenie (każde da się cofnąć). Mowa jest rozpoznawana tylko na telefonie.',
+      } satisfies Record<VoiceMode, string>,
+      needsPack:
+        'Słuchanie bez dotykania działa tylko z polskim pakietem offline, żeby dźwięk z całego treningu nie wychodził z telefonu. Do czasu pobrania mikrofon działa po dotknięciu.',
       download: 'Pobierz polski pakiet offline',
       downloadStarted:
         'Pobieranie zlecone. Gdy się skończy, mowa będzie rozpoznawana na telefonie.',

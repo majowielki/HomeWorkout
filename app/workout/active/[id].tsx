@@ -13,6 +13,7 @@ import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
 import { createAppVoiceFallback } from '@/features/voice/appFallback';
+import { useEffectiveVoiceMode } from '@/features/voice/useEffectiveVoiceMode';
 import { VoiceBar } from '@/features/voice/VoiceBar';
 import { SetLogger, type SetLoggerHandle } from '@/features/workout/SetLogger';
 import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
@@ -20,7 +21,7 @@ import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useActiveSession } from '@/features/workout/useActiveSession';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { useSessionVoice } from '@/features/workout/useSessionVoice';
-import { WarmupChecklist } from '@/features/workout/WarmupChecklist';
+import { WarmupChecklist, type WarmupHandle } from '@/features/workout/WarmupChecklist';
 import { useLandscapeAllowed } from '@/lib/useLandscapeAllowed';
 import { getVoiceEnabled } from '@/lib/voiceSettings';
 import { pl } from '@/strings/pl';
@@ -36,9 +37,11 @@ export default function ActiveSessionScreen() {
   const calibrations = useBandCalibrations();
   const sheetRef = useRef<BottomSheetType>(null);
   const loggerRef = useRef<SetLoggerHandle>(null);
+  const warmupRef = useRef<WarmupHandle>(null);
   const [substituteModalOpen, setSubstituteModalOpen] = useState(false);
   const [stopwatchRunning, setStopwatchRunning] = useState(false);
   const [voiceEnabled] = useState(getVoiceEnabled);
+  const voiceMode = useEffectiveVoiceMode();
   // Read once per session: the AI switch lives in Settings, not on this screen.
   const [voiceFallback] = useState(createAppVoiceFallback);
   const session = useActiveSession(id, exerciseMap);
@@ -69,6 +72,7 @@ export default function ActiveSessionScreen() {
   const voice = useSessionVoice({
     session,
     logger: loggerRef,
+    warmup: warmupRef,
     exercise: effectiveExercise,
     stopwatchRunning,
     confirmFinish,
@@ -122,7 +126,11 @@ export default function ActiveSessionScreen() {
       />
 
       {phase === 'warmup' ? (
-        <WarmupChecklist moves={warmupMoves(session.profile)} onDone={session.warmupDone} />
+        <WarmupChecklist
+          ref={warmupRef}
+          moves={warmupMoves(session.profile)}
+          onDone={session.warmupDone}
+        />
       ) : null}
 
       {phase === 'resting' && currentStep ? (
@@ -198,8 +206,9 @@ export default function ActiveSessionScreen() {
         </View>
       ) : null}
 
-      {voiceEnabled && voice.available.length > 0 ? (
+      {voiceEnabled && voiceMode && voice.available.length > 0 ? (
         <VoiceBar
+          mode={voiceMode}
           available={voice.available}
           run={voice.run}
           fallback={voiceFallback ?? undefined}

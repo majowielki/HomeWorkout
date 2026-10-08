@@ -1,8 +1,8 @@
-import type { VoiceActionId } from '../../../domain/voice/commands';
+import type { VoiceIntentActionId } from '../../contract/voiceIntent';
 import type { VoiceCallOutcome } from '../../client/voiceIntentClient';
 import { askVoiceFallback, toVoiceExchangeRecord } from '../fallback';
 
-const REST: VoiceActionId[] = ['rest_end', 'rest_extend', 'skip_exercise'];
+const REST: VoiceIntentActionId[] = ['rest_end', 'rest_extend', 'skip_exercise'];
 
 const ok = (action: string, validationOutcome = 'ok'): VoiceCallOutcome =>
   ({
@@ -126,6 +126,24 @@ describe('toVoiceExchangeRecord', () => {
       outcome: 'ok',
       request,
       response: ok('rest_end').result,
+    });
+  });
+});
+
+describe('what contract 5 knows', () => {
+  it('asks nothing about the warm-up, whose commands the model was never offered', async () => {
+    const d = deps(ok('rest_end'));
+    expect(await askVoiceFallback(['lecimy dalej'], ['warmup_next', 'warmup_finish'], d)).toEqual({
+      kind: 'unknown',
+    });
+    expect(d.call).not.toHaveBeenCalled();
+  });
+
+  it('offers only the actions it knows when the screen mixes them', async () => {
+    const d = deps(ok('rest_end'));
+    await askVoiceFallback(['lecimy dalej'], ['warmup_next', 'rest_end'], d);
+    expect(d.call).toHaveBeenCalledWith(expect.objectContaining({ available: ['rest_end'] }), {
+      signal: undefined,
     });
   });
 });

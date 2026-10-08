@@ -10,7 +10,7 @@
  */
 import { z } from 'zod';
 
-import { VOICE_ACTIONS, type VoiceActionId } from '../../domain/voice/commands';
+import type { VoiceActionId } from '../../domain/voice/commands';
 import { apiErrorSchema, usageSchema } from './api';
 import { CONTRACT_VERSION } from './versions';
 
@@ -23,7 +23,26 @@ export const VOICE_LIMITS = {
 
 export const UNKNOWN = 'unknown' as const;
 
-export type VoiceIntent = VoiceActionId | typeof UNKNOWN;
+/**
+ * The actions contract 5 lets the phone offer the model. The warm-up's
+ * commands came later and are understood on the phone only: offering them
+ * would need the next contract, and a Worker deployed together with it.
+ */
+export const VOICE_INTENT_ACTIONS = [
+  'stopwatch_start',
+  'stopwatch_stop',
+  'set_done',
+  'rest_end',
+  'rest_extend',
+  'skip_exercise',
+] as const satisfies readonly VoiceActionId[];
+
+export type VoiceIntentActionId = (typeof VOICE_INTENT_ACTIONS)[number];
+
+export const isIntentAction = (id: VoiceActionId): id is VoiceIntentActionId =>
+  (VOICE_INTENT_ACTIONS as readonly string[]).includes(id);
+
+export type VoiceIntent = VoiceIntentActionId | typeof UNKNOWN;
 
 const transcript = z.string().trim().min(1).max(VOICE_LIMITS.transcriptChars);
 
@@ -34,9 +53,9 @@ export const voiceIntentRequestSchema = z.strictObject({
   alternatives: z.array(transcript).max(VOICE_LIMITS.alternatives),
   /** What the screen offers right now; the answer is one of these or `unknown`. */
   available: z
-    .array(z.enum(VOICE_ACTIONS))
+    .array(z.enum(VOICE_INTENT_ACTIONS))
     .min(1)
-    .max(VOICE_ACTIONS.length)
+    .max(VOICE_INTENT_ACTIONS.length)
     .refine((list) => new Set(list).size === list.length, 'available must not repeat'),
 });
 
@@ -47,13 +66,13 @@ export type VoiceIntentRequest = z.infer<typeof voiceIntentRequestSchema>;
  * the actions offered, so the provider's structured output cannot even
  * spell one that is not.
  */
-export function voiceIntentOutputSchema(available: readonly VoiceActionId[]) {
+export function voiceIntentOutputSchema(available: readonly VoiceIntentActionId[]) {
   const options: [VoiceIntent, ...VoiceIntent[]] = [UNKNOWN, ...available];
   return z.object({ action: z.enum(options) });
 }
 
 /** The widest form of the output, for tests and the architecture check. */
-export const voiceIntentOutputShape = voiceIntentOutputSchema(VOICE_ACTIONS);
+export const voiceIntentOutputShape = voiceIntentOutputSchema(VOICE_INTENT_ACTIONS);
 
 export const voiceIntentOkSchema = z.strictObject({
   kind: z.literal('ok'),
@@ -61,7 +80,7 @@ export const voiceIntentOkSchema = z.strictObject({
   promptVersion: z.string(),
   model: z.string(),
   usage: usageSchema,
-  action: z.enum([...VOICE_ACTIONS, UNKNOWN]),
+  action: z.enum([...VOICE_INTENT_ACTIONS, UNKNOWN]),
   /**
    * `invalid_output`: the model's answer could not be read, or named an action
    * that was not offered, and `unknown` stands in for it. No second try: the

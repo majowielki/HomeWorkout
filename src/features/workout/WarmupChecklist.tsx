@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { type Ref, useImperativeHandle, useRef, useState } from 'react';
 import {
   FlatList,
   type NativeScrollEvent,
@@ -18,9 +18,23 @@ import { cn } from '@/lib/cn';
 import { getWarmupView, setWarmupView, type WarmupView } from '@/lib/warmupView';
 import { pl } from '@/strings/pl';
 
+/** What "dalej" by voice did, so "Cofnij" can take it back. */
+export type WarmupStep =
+  | { kind: 'ticked'; id: WarmupMoveId; index: number }
+  /** It was the last move: the warm-up is over, like "Gotowe". */
+  | { kind: 'finished' };
+
+/** The voice's way in: the same as "Zrobione, dalej" in the cards, the next unticked move in the list. */
+export interface WarmupHandle {
+  next(): WarmupStep;
+  /** Takes a tick back, and in the cards goes back to that move. */
+  untick(step: Extract<WarmupStep, { kind: 'ticked' }>): void;
+}
+
 type Props = {
   moves: readonly WarmupMoveId[];
   onDone: () => void;
+  ref?: Ref<WarmupHandle>;
 };
 
 /**
@@ -32,9 +46,10 @@ type Props = {
  * readable from a couple of metres away when the phone lies on the floor.
  * The chosen view is remembered.
  */
-export function WarmupChecklist({ moves, onDone }: Props) {
+export function WarmupChecklist({ moves, onDone, ref }: Props) {
   const [ticked, setTicked] = useState<ReadonlySet<WarmupMoveId>>(new Set());
   const [view, setView] = useState<WarmupView>(getWarmupView);
+  const cards = useRef<CardsHandle>(null);
 
   const toggle = (id: WarmupMoveId) =>
     setTicked((prev) => {
@@ -45,6 +60,28 @@ export function WarmupChecklist({ moves, onDone }: Props) {
     });
   const tick = (id: WarmupMoveId) => setTicked((prev) => new Set(prev).add(id));
 
+  useImperativeHandle(ref, () => ({
+    next() {
+      if (view === 'cards' && cards.current) return cards.current.next();
+      const index = moves.findIndex((id) => !ticked.has(id));
+      const id = moves[index];
+      if (id === undefined) {
+        onDone();
+        return { kind: 'finished' };
+      }
+      tick(id);
+      return { kind: 'ticked', id, index };
+    },
+    untick(step) {
+      setTicked((prev) => {
+        const rest = new Set(prev);
+        rest.delete(step.id);
+        return rest;
+      });
+      if (view === 'cards') cards.current?.goTo(step.index);
+    },
+  }));
+
   const switchView = () => {
     const next = view === 'list' ? 'cards' : 'list';
     setView(next);
@@ -53,6 +90,7 @@ export function WarmupChecklist({ moves, onDone }: Props) {
 
   return view === 'cards' ? (
     <WarmupCards
+      ref={cards}
       moves={moves}
       ticked={ticked}
       onToggle={toggle}
@@ -147,6 +185,11 @@ function WarmupList({
   );
 }
 
+interface CardsHandle {
+  next(): WarmupStep;
+  goTo(index: number): void;
+}
+
 function WarmupCards({
   moves,
   ticked,
@@ -154,6 +197,7 @@ function WarmupCards({
   onTick,
   onSwitch,
   onDone,
+  ref,
 }: {
   moves: readonly WarmupMoveId[];
   ticked: ReadonlySet<WarmupMoveId>;
@@ -161,6 +205,7 @@ function WarmupCards({
   onTick: (id: WarmupMoveId) => void;
   onSwitch: () => void;
   onDone: () => void;
+  ref?: Ref<CardsHandle>;
 }) {
   const t = pl.workout.warmup;
   const list = useRef<FlatList<WarmupMoveId>>(null);
@@ -174,11 +219,17 @@ function WarmupCards({
     list.current?.scrollToIndex({ index: i, animated: true });
   };
 
-  const handleDone = () => {
+  const handleDone = (): WarmupStep => {
     if (current) onTick(current);
-    if (last) onDone();
-    else goTo(index + 1);
+    if (last || !current) {
+      onDone();
+      return { kind: 'finished' };
+    }
+    goTo(index + 1);
+    return { kind: 'ticked', id: current, index };
   };
+
+  useImperativeHandle(ref, () => ({ next: handleDone, goTo }));
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (width === 0) return;
@@ -258,7 +309,7 @@ function WarmupCards({
           size="lg"
           label={last ? t.done : t.cardDone}
           icon={<Check size={20} className="text-primary-foreground" />}
-          onPress={handleDone}
+          onPress={() => void handleDone()}
         />
         <Button label={t.skip} variant="ghost" onPress={onDone} />
       </View>
