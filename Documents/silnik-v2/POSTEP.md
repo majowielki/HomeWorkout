@@ -48,10 +48,10 @@ bez ryzyka. P2 wymaga migracji bazy i resetu danych, więc czeka na świadomą d
 | P0.3 | `trainingDate` wg lokalnej daty i godziny (`trainingDateOf` ze strefą; stara funkcja czyta lokalną godzinę urządzenia) | T01–T04 w `trainingDateZones.test.ts` | ☑ | (ten commit) |
 | P0.4 | `resolveDayPolicy` — jeden efektywny config dla `selectDay`, `selectCustom`, `composeDay`, `dayOptions`, `planCustom` | T05, T06 w `dayPolicy.test.ts` | ☑ | (ten commit) |
 | P0.7 | (D39 e) brak `PERFORMANCE_REGRESSION` i tekstu „szczebel lżej”, gdy opór się nie zmienia | `progression.test.ts` („stays put at the floor”, „never reports a step down”) | ☑ | (ten commit) |
-| P0.1 | Golden baseline: manifest (rewizja, dirty, config, katalog) i skrót symulacji 84 dni | `engineBaseline.test.ts` | ☐ | |
-| P0.2 | Lista call-site’ów planowania, startu sesji, importu, szablonu | sekcja w DOKUMENTACJI | ☐ | |
-| P0.5 | Pomiar czasu planowania w node (p50/p95); pomiar na telefonie → UWAGI | `scripts/engine-bench.ts` | ☐ | |
-| P0.6 | Aktualizacja specyfikacji rozbieżnej z kodem (`SPEC-silnik-regul.md`) | diff | ☐ | |
+| P0.1 | Golden baseline: manifest (rewizja, dirty, config, katalog) i snapshot symulacji | `engineBaseline.test.ts`, `scripts/engine-baseline.ts`, `baseline/manifest-2026-10-09.json` | ☑ | (ten commit) |
+| P0.2 | Lista call-site’ów planowania, startu sesji, importu, szablonu | DOKUMENTACJA §2.1 | ☑ | (ten commit) |
+| P0.5 | Pomiar czasu planowania w node (p50/p95); pomiar na telefonie → UWAGI | `scripts/engine-bench.ts`, DOKUMENTACJA §4.4 | ☑ (telefon: UWAGI T-2) | (ten commit) |
+| P0.6 | Aktualizacja specyfikacji rozbieżnej z kodem (`IMPLEMENTACJA.md` §7.3, `SPEC-silnik-regul.md` §5.1) | diff | ☑ | (ten commit) |
 
 ## P1–P9
 

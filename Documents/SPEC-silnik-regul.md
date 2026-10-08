@@ -329,6 +329,8 @@ JEŻELI wszystkie serie robocze osiągnęły `max` powtórzeń ORAZ rir >= targe
 JEŻELI którakolwiek seria < `min` powtórzeń w dwóch kolejnych sesjach
    → zmniejsz ciężar o jeden krok
    → reasons: ['PERFORMANCE_REGRESSION']
+   (tylko gdy na drabince jest krok w dół: od 2026-10-09 najlżejszy szczebel nie zgłasza regresu, bo nic się nie zmienia —
+    silnik v2, P0.7; budowanie do zakresu od wyniku wejdzie w P3)
 
 W przeciwnym razie
    → utrzymaj ciężar, cel: +1 powtórzenie w pierwszej serii, która nie osiągnęła `max`

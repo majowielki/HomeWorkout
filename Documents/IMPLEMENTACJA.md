@@ -735,11 +735,16 @@ na wypadek zablokowania telefonu ręcznie.
 
 ```ts
 // src/domain/time/trainingDate.ts
-export const trainingDate = (now: Date, boundaryHour: number) =>
-  format(subHours(now, boundaryHour), 'yyyy-MM-dd');
+export function trainingDate(now: Date, boundaryHour: number): string {
+  const date = toIsoDate(now); // lokalna data kalendarzowa
+  return now.getHours() < boundaryHour ? addDays(date, -1) : date;
+}
 ```
 
-Trening o 00:40 przy granicy 4:00 → data poprzedniego dnia. Waga (`body_metrics.date`) używa daty
+Trening o 00:40 przy granicy 4:00 → data poprzedniego dnia. Liczy się godzina na zegarze ściennym, a nie „chwila minus N godzin”:
+ta druga (`subHours`, pierwotna wersja tego dokumentu) myliła się o godzinę w dwie noce zmiany czasu (2026-10-25 03:30 dawało 25.
+zamiast 24.; 2026-03-29 04:00 dawało 28. zamiast 29.). Poprawione 2026-10-09 (silnik v2, P0.3); wariant ze strefą jawną:
+`trainingDateOf(instant, timeZone, boundaryHour)`. Waga (`body_metrics.date`) używa daty
 **kalendarzowej** — ważysz się rano, nie ma dwuznaczności.
 
 ### 7.4 Średnia krocząca i trend
