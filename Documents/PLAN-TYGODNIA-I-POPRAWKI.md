@@ -534,6 +534,7 @@ raport mówi „neutralne", więc to kwestia strojenia, nie bezpieczeństwa.
 | E3 | zapis tygodnia: tabele `planned_days`, `plan_generations`, `plan_constraints`, `user_profile.rest_weekdays` (migracja 0006, backup v4); `weekSync` (pominięty dzień → przeliczenie, niebezpieczny dzień → zmiana tylko jego, horyzont 7 dni); „Dziś” czyta zapisany plan; baner „Plan tygodnia się zmienił”; dzień wolny; „Przelicz tydzień” na ekranie „Dlaczego taki plan?”; dni treningowe w Ustawieniach |
 | E4 | Kalendarz zamiast Treningu: siatka 7 × 6, strzałki i przesuwanie miesięcy, horyzont 7 dni, ikony sesji/jazd/planu, pominięcie i deload; arkusz dnia z historią, dziennikiem, prognozą i wyjaśnieniem konkretnej daty; wyjątek „Dzień wolny / Jednak trenuję”; start/wznowienie, FBW A/B i szybki wpis roweru przeniesione do arkusza dziś. Trasa `/(tabs)/workout` zachowana. |
 | E5 | „Zgłoś zakwasy / ból” z kalendarza: wybór objawów, partii i przegląd prośby; lekkie zakwasy → dziennik bez nowej blokady, silne → ograniczenie domyślnie 2 dni, ból mięśnia → 3 pytania i domyślnie 3 dni; objawy alarmowe i ból stawu → konsultacja bez zmiany planu; aktywne zgłoszenia z odwołaniem i przeliczeniem; daty włącznie, od 1 do 3 dni. |
+| E6 | „Dodatkowy trening” z „Dziś zrobione” i arkusza dziś w kalendarzu: dostępne ruchy z powodami pominięcia, wybór i podgląd recepty; ponowna kontrola przed startem, wznowienie po restarcie, zapis osobnej sesji `planned_days.seq >= 2`; FBW A/B pozostają w historii i backupie, bez przycisków startu i bez seeda na nowej instalacji. |
 
 **Weryfikacja E4 (2026-10-07):** `npm run verify` — 1813 testów, 89 zestawów, wymagane pokrycie domeny
 i AI 100%. Build `release` x86_64 na Pixel_API36 z nawigacją trzyprzyciskową: sprawdzone siatka,
@@ -565,16 +566,40 @@ Lista objawów alarmowych uwzględnia też bardzo silny lub szybko narastający 
 Opis początku i lokalizacji objawów porównany z [konsensusem monachijskim](https://pmc.ncbi.nlm.nih.gov/articles/PMC3607100/)
 (DOI 10.1136/bjsports-2012-091448, opinia ekspertów); trzy pytania nie są zwalidowanym testem diagnostycznym.
 
-**Dalej (kolejność bez zmian):**
+**Weryfikacja E6 (2026-10-08):** `npm run verify` — 1882 testy, 97 zestawów, wymagane pokrycie
+domeny i AI 100%. Build `release` x86_64, Pixel_API36 z nawigacją trzyprzyciskową: wybór łydek,
+podgląd 2 serii z receptą, start, restart aplikacji i wznowienie tej samej sesji, zapis 2 serii
+i ukończenie; historia oraz arkusz kalendarza pokazują osobny dodatkowy trening, a kolejny wybór
+nie proponuje już łydek. Jasny i ciemny motyw, wejście z obu miejsc, jedno „wstecz” do kalendarza.
+Test wykonano na dacie 7.10, żeby wykorzystać wcześniejszy ukończony trening emulatora;
+zegar został przywrócony. Odczyt SQLite potwierdza `seq = 2`, `status = done`, powiązaną sesję
+i brak naruszeń kluczy obcych.
 
-1. **E6 — Dodatkowy trening**: `extraSessionOptions` (sloty, które dziś jeszcze mogą wejść) + wybór → `selectDay` z ograniczeniem do wybranych slotów → `buildDay`; FBW A/B znika z UI.
-2. **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach, prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą „Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
+**Doprecyzowania E6:** `selectCustom` wykorzystuje `selectDay` tylko dla wskazanych slotów roboczych,
+bez automatycznego dopełnienia. Wyraźny wybór może przekroczyć tygodniowy cel, ale nigdy maksimum;
+krótki dodatkowy trening nie musi mieć 20 minut. Połączony wybór może zostać ograniczony limitem
+partii, czasu lub liczby ćwiczeń — podgląd pokazuje faktyczną receptę i powody pominięcia.
+Start ponownie czyta dane i sprawdza zgodność z podglądem oraz datę treningową. Trwająca sesja
+ma pierwszeństwo przed nowym startem; dzień wolny i brak ukończonej sesji blokują tę ścieżkę.
+
+Migracja `0007_extra_sessions` zmienia klucz `planned_days` na `(date, seq)` i dodaje `workoutId`;
+stare wpisy otrzymują `seq = 1`. Synchronizacja tygodnia czyta i zmienia tylko `seq = 1`.
+Dodatkowa recepta i jej wybór zapisują się atomowo, ukończenie/porzucenie zmienia status obu
+wierszy. Backup v4 pozostaje zgodny: przechowuje receptę sesji z `kind: extra`, a odtwarzalny
+`planned_days` nadal nie jest eksportowany. Test SQLite sprawdza migrację z istniejącym planem,
+rollback startu, ponowienie bez duplikatu, ochronę dodatkowej sesji przed synchronizacją,
+odczyt kalendarza, zachowanie starych szablonów oraz round-trip backupu.
+
+**Dalej:** **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach,
+prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą
+„Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
 
 **Uwagi na następną sesję:** emulator ma testowe dane (czwartek odznaczony w dniach treningowych,
 sesje testowe 7.10, testowy rower 20 min 7.10 i wyjątek „trenuję” 9.10 po sprawdzeniu przełączania;
-lekkie zakwasy barków w dzienniku 7.10; testowe zgłoszenia silnych zakwasów i bólu zostały odwołane).
+lekkie zakwasy barków w dzienniku 7.10; testowe zgłoszenia silnych zakwasów i bólu zostały odwołane;
+ukończony dodatkowy trening łydek 7.10, 2 serie przy RIR 4).
 Na telefon nic jeszcze nie poszło — przed instalacją: eksport backupu, nowe APK (migracje 0005
-i 0006 wykonają się same).
+i 0006 oraz 0007 wykonają się same).
 
 **Środowisko Codex:** SDK ze wskazanej przez użytkownika ścieżki jest widoczne tutaj jako
 `C:/Users/mmaje/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Local/Android/Sdk` (wirtualizacja

@@ -13,7 +13,7 @@ export async function getPlannedDays(from: string, to: string): Promise<StoredDa
   const rows = await db
     .select()
     .from(plannedDays)
-    .where(and(gte(plannedDays.date, from), lte(plannedDays.date, to)))
+    .where(and(eq(plannedDays.seq, 1), gte(plannedDays.date, from), lte(plannedDays.date, to)))
     .orderBy(plannedDays.date);
   return rows.map((r) => ({
     date: r.date,
@@ -52,7 +52,7 @@ export async function saveWeek(write: WeekWrite, now: Date = new Date()): Promis
     for (const u of write.statusUpdates) {
       tx.update(plannedDays)
         .set({ status: u.status, updatedAt: at })
-        .where(eq(plannedDays.date, u.date))
+        .where(and(eq(plannedDays.date, u.date), eq(plannedDays.seq, 1)))
         .run();
     }
     tx.insert(planGenerations)
@@ -75,7 +75,7 @@ export async function saveWeek(write: WeekWrite, now: Date = new Date()): Promis
       };
       tx.insert(plannedDays)
         .values({ date: row.date, ...values })
-        .onConflictDoUpdate({ target: plannedDays.date, set: values })
+        .onConflictDoUpdate({ target: [plannedDays.date, plannedDays.seq], set: values })
         .run();
     }
   });
@@ -92,7 +92,7 @@ export async function markDays(
     for (const u of updates) {
       tx.update(plannedDays)
         .set({ status: u.status, updatedAt: at })
-        .where(eq(plannedDays.date, u.date))
+        .where(and(eq(plannedDays.date, u.date), eq(plannedDays.seq, 1)))
         .run();
     }
   });
@@ -225,7 +225,7 @@ export async function refreshForecasts(rows: StoredDay[], now: Date = new Date()
     for (const row of rows) {
       tx.update(plannedDays)
         .set({ forecast: row.forecast, updatedAt: at })
-        .where(eq(plannedDays.date, row.date))
+        .where(and(eq(plannedDays.date, row.date), eq(plannedDays.seq, 1)))
         .run();
     }
   });

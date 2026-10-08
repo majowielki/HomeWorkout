@@ -1,4 +1,4 @@
-import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
@@ -242,21 +242,29 @@ export const aiExchanges = sqliteTable(
 );
 
 /**
- * The week ahead as the engine chose it (SPEC §11): one row per day, the
+ * The week ahead as the engine chose it (SPEC §11): one main row per day,
+ * plus separately linked extra sessions. Each row holds the
  * choice (slots, exercises, sets — never loads) and the forecast shown in
  * the calendar. Derived from the logs, so it is not in the backup: after a
  * restore the week is simply planned again.
  */
-export const plannedDays = sqliteTable('planned_days', {
-  date: text('date').primaryKey(),
-  /** Null on a rest day. */
-  selection: text('selection', { mode: 'json' }).$type<DaySelection | null>(),
-  forecast: text('forecast', { mode: 'json' }).$type<SessionPlan | null>(),
-  /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
-  status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
-  generationId: text('generation_id').notNull(),
-  updatedAt: text('updated_at').notNull(),
-});
+export const plannedDays = sqliteTable(
+  'planned_days',
+  {
+    date: text('date').notNull(),
+    /** 1 = main day, 2+ = an extra session, never overwritten by week sync. */
+    seq: integer('seq').notNull().default(1),
+    workoutId: text('workout_id').references(() => workouts.id, { onDelete: 'cascade' }),
+    /** Null on a rest day. */
+    selection: text('selection', { mode: 'json' }).$type<DaySelection | null>(),
+    forecast: text('forecast', { mode: 'json' }).$type<SessionPlan | null>(),
+    /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
+    status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
+    generationId: text('generation_id').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.date, t.seq] })],
+);
 
 /** Every time the week was planned again, and what changed — the banner on "Dziś". */
 export const planGenerations = sqliteTable(

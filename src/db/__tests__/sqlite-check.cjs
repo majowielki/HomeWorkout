@@ -16,7 +16,28 @@ for (const file of fs
   .readdirSync(path.join(root, 'src/db/migrations'))
   .filter((f) => f.endsWith('.sql'))
   .sort()) {
+  if (file === '0007_extra_sessions.sql') {
+    native.exec(
+      "INSERT INTO planned_days VALUES ('2026-09-01', NULL, NULL, 'planned', 'old-generation', 'old-time')",
+    );
+  }
   native.exec(fs.readFileSync(path.join(root, 'src/db/migrations', file), 'utf8'));
+  if (file === '0007_extra_sessions.sql') {
+    assert.deepEqual(
+      { ...native.prepare("SELECT * FROM planned_days WHERE date = '2026-09-01'").get() },
+      {
+        date: '2026-09-01',
+        seq: 1,
+        workout_id: null,
+        selection: null,
+        forecast: null,
+        status: 'planned',
+        generation_id: 'old-generation',
+        updated_at: 'old-time',
+      },
+    );
+    native.exec("DELETE FROM planned_days WHERE date = '2026-09-01'");
+  }
 }
 native.exec('PRAGMA foreign_keys = ON');
 const client = {
@@ -56,6 +77,7 @@ const backup = require('../repositories/backup.ts');
 const calendar = require('../repositories/calendar.ts');
 const blocks = require('../repositories/trainingBlocks.ts');
 const diary = require('../repositories/dailyLogs.ts');
+const workoutRepo = require('../repositories/workouts.ts');
 const all = (sql) => native.prepare(sql).all();
 
 async function main() {
@@ -70,6 +92,14 @@ async function main() {
   await seed.seedDatabase();
   assert.equal(all('SELECT * FROM user_profile').length, 1);
   assert.ok(all('SELECT * FROM exercises').length > 100);
+  assert.equal(all('SELECT * FROM workout_templates').length, 0);
+  const oldTemplate = require(path.join(root, 'data/templates.json')).templates[0];
+  db.insert(schema.workoutTemplates)
+    .values({ id: oldTemplate.id, name: 'old name', blocks: oldTemplate.blocks, sortOrder: 0 })
+    .run();
+  await seed.seedDatabase();
+  assert.equal(all('SELECT * FROM workout_templates').length, 1);
+  assert.equal(all('SELECT * FROM workout_templates')[0].name, oldTemplate.name);
 
   await week.setDayTraining('2026-10-08', false);
   const before = await week.getActiveConstraints('2026-10-07');
@@ -267,13 +297,84 @@ async function main() {
       .revoked_at,
   );
 
+  const extraPlan = {
+    version: 1,
+    kind: 'extra',
+    date: '2026-10-01',
+    blockIndex: 1,
+    phase: 'work',
+    regions: ['push'],
+    exercises: [{ exerciseId, slotId: 'push', sets: 1 }],
+    skipped: [],
+    dayReasons: [],
+    signals: [],
+    adjustments: [],
+    bike: { minutes: 10, resistance: 1, reasons: [] },
+    estimatedMinutes: 4,
+  };
+  const extraSelection = {
+    date: extraPlan.date,
+    blockIndex: 1,
+    phase: 'work',
+    items: [{ exerciseId, slotId: 'push', sets: 1, role: 'work' }],
+    skipped: [],
+    dayReasons: [],
+  };
+  native.exec(
+    "CREATE TRIGGER fail_extra BEFORE INSERT ON planned_days WHEN NEW.seq > 1 BEGIN SELECT RAISE(ABORT, 'extra failure'); END",
+  );
+  await assert.rejects(workoutRepo.startExtraWorkout(extraPlan, extraSelection));
+  assert.equal(all('SELECT * FROM workouts').length, 4);
+  native.exec('DROP TRIGGER fail_extra');
+  await assert.rejects(
+    workoutRepo.startExtraWorkout({ ...extraPlan, exercises: [] }, extraSelection),
+  );
+  await assert.rejects(
+    workoutRepo.startExtraWorkout(
+      { ...extraPlan, date: '2026-10-02' },
+      { ...extraSelection, date: '2026-10-02' },
+    ),
+  );
+  const extraId = await workoutRepo.startExtraWorkout(extraPlan, extraSelection);
+  assert.equal(await workoutRepo.startExtraWorkout(extraPlan, extraSelection), extraId);
+  assert.equal(all('SELECT * FROM planned_days WHERE seq = 2')[0].workout_id, extraId);
+  assert.equal((await week.getPlannedDays(extraPlan.date, extraPlan.date)).length, 0);
+  await workoutRepo.completeWorkout(extraId, 4, null);
+  assert.equal(all('SELECT * FROM planned_days WHERE seq = 2')[0].status, 'done');
+  const nextExtra = await workoutRepo.startExtraWorkout(extraPlan, extraSelection);
+  assert.equal(all('SELECT * FROM planned_days WHERE seq = 3')[0].workout_id, nextExtra);
+  await week.saveWeek({
+    ...write,
+    rows: [
+      { date: extraPlan.date, selection: extraSelection, forecast: extraPlan, status: 'planned' },
+    ],
+    statusUpdates: [],
+  });
+  await week.markDays([{ date: extraPlan.date, status: 'done' }]);
+  await week.refreshForecasts([
+    { date: extraPlan.date, selection: null, forecast: null, status: 'planned' },
+  ]);
+  assert.ok(all('SELECT forecast FROM planned_days WHERE seq = 3')[0].forecast);
+  assert.equal(all('SELECT status FROM planned_days WHERE seq = 3')[0].status, 'planned');
+  await workoutRepo.abandonWorkout(nextExtra);
+  assert.equal(all('SELECT status FROM planned_days WHERE seq = 3')[0].status, 'missed');
+  await workoutRepo.deleteWorkout(nextExtra);
+  assert.equal(all('SELECT * FROM planned_days WHERE seq = 3').length, 0);
+  const calendarExtra = await calendar.getCalendarRange(extraPlan.date, extraPlan.date);
+  assert.equal(calendarExtra.sessions.length, 2);
+  assert.equal(calendarExtra.days.length, 1);
+  const staleId = await workoutRepo.startExtraWorkout(extraPlan, extraSelection);
+  await workoutRepo.abandonStaleWorkouts(new Date(Date.now() + 13 * 60 * 60 * 1000));
+  assert.equal((await workoutRepo.getWorkout(staleId)).status, 'abandoned');
+  await workoutRepo.deleteWorkout(staleId);
   const saved = await backup.dumpAll();
   const corrupted = structuredClone(saved);
   corrupted.tables.bands.push(corrupted.tables.bands[0]); // duplicate key after deletes and profile insertion
   await assert.rejects(backup.restoreAll(corrupted));
   assert.deepEqual(await backup.dumpAll(new Date(saved.exportedAt)), saved);
   await backup.restoreAll(saved);
-  assert.equal(all('SELECT * FROM workouts').length, 4);
+  assert.equal(all('SELECT * FROM workouts').length, 5);
+  assert.equal((await workoutRepo.getWorkout(extraId)).plan.kind, 'extra');
   assert.equal(all('SELECT * FROM set_logs').length, 2);
   assert.equal(all('SELECT * FROM planned_days').length, 0); // history restored, forecast rebuilt on focus
   console.log(

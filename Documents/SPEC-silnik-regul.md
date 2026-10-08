@@ -889,7 +889,7 @@ Można cofać miesiące bez limitu; daty po `asOf + 6` są nieaktywne.
 Arkusz dnia łączy sesje (odsyłacz do szczegółów i liczba serii bez rozgrzewkowych), wszystkie jazdy
 oraz dziennik. Przyszłość pokazuje ćwiczenia, serie, czas i odsyłacz do wyjaśnienia tego konkretnego
 dnia. Prognoza nie obiecuje przyszłych ciężarów: recepta nadal powstaje z historii w dniu treningu.
-Start, wznowienie, ręczne szablony i szybki wpis roweru są dostępne w arkuszu dzisiejszego dnia.
+Start, wznowienie, dodatkowy trening i szybki wpis roweru są dostępne w arkuszu dzisiejszego dnia.
 
 „Dzień wolny / Jednak trenuję” zamienia pojedynczy wyjątek użytkownika atomowo, nie odwołuje prośby
 o pominięcie mięśni i uruchamia przeliczenie od wybranej daty. Ukończony dzień i dzień z sesją
@@ -924,3 +924,28 @@ DOMS 4 do dziennika, więc samo nie tworzy drugiej blokady, której odwołanie n
 Zapis i przeliczenie mają osobne wyniki: awaria przeliczenia pozostawia zgłoszenie i informację
 o potrzebie ponowienia planu; ponowienie nie wymaga tworzenia kolejnego zgłoszenia. Backup v4
 już obejmuje dziennik i ograniczenia, więc E5 nie wymaga migracji ani nowego formatu eksportu.
+
+### 11.8 Dodatkowy trening (E6)
+
+Po ukończeniu dzisiejszej sesji użytkownik może wybrać dodatkowe ruchy. `extraSessionOptions`
+sprawdza każdy slot roboczy osobno, na rzeczywistej historii obejmującej dzisiejsze ukończone
+serie. Niedostępny slot pokazuje powód: regenerację, DOMS, ograniczenie, maksimum objętości,
+brak dozwolonego ćwiczenia albo wymóg wariantu obunóż przy zmęczeniu.
+
+`selectCustom` uruchamia `selectDay` na wskazanych slotach, bez mobilizacji i lekkiego dopełnienia.
+Wybór użytkownika zastępuje warunek niedoboru do tygodniowego celu, zachowuje jednak maksima
+serii, regenerację, ograniczenia, deload i budżet czasu. Sesja może być krótsza niż 20 minut.
+Kilka ruchów dostępnych osobno może nie zmieścić się razem — podgląd ujawnia pominięcia.
+`planCustom` buduje receptę przez `buildDay` i `validatePlan`, z obciążeniami z rzeczywistej historii.
+
+Przed startem dane są odczytywane ponownie. Zmieniona recepta lub data wymaga ponownego wyboru;
+trwająca sesja jest wznawiana zamiast tworzenia kolejnej. Dzień wolny i brak ukończonego treningu
+blokują dodatkową sesję. Zapis zamraża plan z `kind: extra` w `workouts.plan` i wybór w
+`planned_days` w jednej transakcji. Klucz po migracji 0007 to `(date, seq)`: główny plan ma
+`seq = 1`, dodatkowe sesje `seq >= 2` i `workoutId`. Synchronizacja tygodnia dotyczy tylko
+głównego planu. Ukończenie lub porzucenie aktualizuje status powiązanego wpisu; usunięcie sesji
+usuwa go kaskadowo. Po ukończeniu reguły synchronizacji minimalnie korygują kolejne dni.
+
+FBW A/B nie mają już przycisków startu i nie powstają na nowej instalacji; istniejące szablony
+pozostają dla historii i backupu. Format backupu v4 się nie zmienia: sesje zachowują `kind: extra`,
+a odtwarzalny plan kalendarza jest po imporcie wyliczany ponownie.

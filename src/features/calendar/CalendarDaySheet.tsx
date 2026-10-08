@@ -29,8 +29,6 @@ type Props = {
   busy: boolean;
   starting: boolean;
   inProgressId: string | null;
-  manualTemplates: { id: string; name: string }[];
-  onManualStart: (id: string) => void;
   onClose: () => void;
   onReload: () => Promise<void>;
   onTraining: (date: string, train: boolean) => void;
@@ -48,8 +46,6 @@ export function CalendarDaySheet(props: Props) {
     busy,
     starting,
     inProgressId,
-    manualTemplates,
-    onManualStart,
     onClose,
     onReload,
     onTraining,
@@ -230,19 +226,15 @@ export function CalendarDaySheet(props: Props) {
                   onPress={() => setQuickCardio(true)}
                 />
               )}
-              {!inProgressId && manualTemplates.length ? (
-                <View className="gap-2">
-                  <Text variant="eyebrow">{pl.plan.manualEyebrow}</Text>
-                  {manualTemplates.map((t) => (
-                    <Button
-                      key={t.id}
-                      variant="secondary"
-                      label={pl.today.startNext(t.name)}
-                      disabled={starting || busy}
-                      onPress={() => onManualStart(t.id)}
-                    />
-                  ))}
-                </View>
+              {!inProgressId && completed ? (
+                <Link href="/plan/extra" asChild>
+                  <Button
+                    label={pl.extra.title}
+                    variant="outline"
+                    disabled={starting || busy}
+                    onPress={onClose}
+                  />
+                </Link>
               ) : null}
             </>
           ) : null}

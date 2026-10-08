@@ -41,8 +41,6 @@ const base = {
   busy: false,
   starting: false,
   inProgressId: null,
-  manualTemplates: [],
-  onManualStart: jest.fn(),
   onClose: jest.fn(),
   onReload: jest.fn().mockResolvedValue(undefined),
   onTraining: jest.fn(),
@@ -110,6 +108,7 @@ describe('CalendarDaySheet', () => {
     } as unknown as CalendarData;
     await render(<CalendarDaySheet {...base} date="2026-10-07" data={data} todayPlan={plan} />);
     expect(screen.getByText('FBW A')).toBeTruthy();
+    expect(screen.getByText(pl.extra.title)).toBeTruthy();
     expect(screen.getByText(/Trening ukończony.*8 serii/)).toBeTruthy();
     expect(screen.queryByText(pl.calendar.restAction)).toBeNull();
     expect(screen.queryByText(pl.calendar.trainAction)).toBeNull();

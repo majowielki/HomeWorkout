@@ -12,11 +12,12 @@ const MINI_BAND_IDS = new Set(
 );
 
 /** "Nogi + pchanie" from the day's regions; a day without hard work is a light day. */
-export function planTitle(plan: Pick<SessionPlan, 'regions'>): string {
+export function planTitle(plan: Pick<SessionPlan, 'regions' | 'kind'>): string {
   const regions = plan.regions.slice(0, 2).map((r) => pl.plan.region[r]);
   if (regions.length === 0) return pl.plan.lightDayTitle;
   const text = regions.join(' + ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  const title = text.charAt(0).toUpperCase() + text.slice(1);
+  return plan.kind === 'extra' ? `${pl.extra.title} · ${title}` : title;
 }
 
 export function loadText(load: PlannedLoad, exerciseId?: string): string {
