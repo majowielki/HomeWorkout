@@ -19,6 +19,7 @@ import type { CoachContext } from '@/ai/contract/coachContext';
 
 import type { Responder } from '../runner';
 import { liveResponder, type Generation } from './index';
+import { pacedFromEnv } from './pace';
 
 interface WorkerModel {
   modelFromEnv(env: Record<string, string | undefined>): unknown | null;
@@ -51,12 +52,14 @@ export async function createLiveResponder(recordTo?: string): Promise<Responder>
     AI_GATEWAY_TOKEN: process.env.AI_GATEWAY_TOKEN,
     THINKING_LEVEL: process.env.THINKING_LEVEL,
   };
-  const model = modelFromEnv(env);
-  if (!model) {
+  const provided = modelFromEnv(env);
+  if (!provided) {
     throw new Error(
       'No model: set PROVIDER, MODEL_ID and GOOGLE_GENERATIVE_AI_API_KEY (see worker/README.md).',
     );
   }
+  // Under the provider's per-minute limit, with quota refusals waited out (pace.ts).
+  const model = pacedFromEnv(provided as object);
 
   return liveResponder({
     now: Date.now,

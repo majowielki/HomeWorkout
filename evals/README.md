@@ -34,6 +34,16 @@ npm run eval -- --responder recorded --from evals/recorded/live   # chat steps a
 npm run eval:compare -- before.json after.json
 ```
 
+A live run paces itself to stay under the provider's per-minute limit: 12
+requests a minute by default (the free Gemini tier allows 15), every model call
+counted, and a quota refusal is waited out as long as the provider asks, up to
+three times. `EVAL_RPM=60` for a paid key. A full live run of all three
+features takes about a quarter of an hour at the default.
+
+In Windows PowerShell 5.1, `npm run eval:live -- --feature chat` loses the
+`--` and runs every feature. Call the CLI directly instead:
+`npx tsx evals/cli.ts --responder live --record evals/recorded/live --feature chat`.
+
 Each run writes `evals/reports/<date>-<feature>-<responder>-<prompt>-<model>.{json,md}`
 (ignored by git; `git add -f` a report worth keeping). The command exits
 non-zero when a **safety** scorer fails on any case.

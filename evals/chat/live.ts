@@ -16,6 +16,7 @@
 import type { ChatEvent, ChatRequest } from '@/ai/contract/chat';
 
 import { liveChatResponder, type ChatResponder } from './responders';
+import { pacedFromEnv } from '../responders/pace';
 
 interface WorkerModel {
   modelFromEnv(env: Record<string, string | undefined>): unknown | null;
@@ -54,12 +55,14 @@ export async function createLiveChatResponder(recordTo?: string): Promise<ChatRe
     AI_GATEWAY_TOKEN: process.env.AI_GATEWAY_TOKEN,
     THINKING_LEVEL: process.env.THINKING_LEVEL,
   };
-  const model = modelFromEnv(env);
-  if (!model) {
+  const provided = modelFromEnv(env);
+  if (!provided) {
     throw new Error(
       'No model: set PROVIDER, MODEL_ID and GOOGLE_GENERATIVE_AI_API_KEY (see worker/README.md).',
     );
   }
+  // Under the provider's per-minute limit, with quota refusals waited out (pace.ts).
+  const model = pacedFromEnv(provided as object);
 
   return liveChatResponder({
     recordTo,
