@@ -652,3 +652,17 @@ i 0006 oraz 0007 wykonają się same).
 aplikacji Claude). AVD: `Pixel_API36`. Istniejący projekt natywny/APK ma identyfikator `com.homeworkout`,
 i od 2026-10-08 tak samo `app.json` (wcześniej `pl.majewski.homeworkout`) — przed instalacją na telefonie
 sprawdzić identyfikator zainstalowanej aplikacji i zachować go, żeby aktualizacja trafiła do jej bazy.
+
+**Poprawki po audycie (2026-10-08):** przegląd architektury i jakości kodu E4–E7 (raport poza repo,
+`Review-helper/reports/2026-10-08-homeworkout-audit.md`) i cztery etapy poprawek, każdy z zielonym
+`npm run verify`: (1) `app.json` z identyfikatorem `com.homeworkout`, nieaktualny podgląd dodatkowej
+sesji z czatu kończy się stanem „wygasła” zamiast „ponów”, komunikaty błędów zapisu serii, cofnięcia,
+zamiany do końca bloku i startu planu, globalny `ErrorBoundary`; (2) jedno wejście silnika
+(`buildPlanningSnapshot`, `extraSessionState`), reguły intencji trenera w `domain/coach/intentGuards`
+pod bramką 100%, `overrideDay` w domenie, `WEEK_CONFIG` (horyzont, okna, długości próśb), testy
+`computeToday`; (3) usunięty martwy kod po starcie FBW A/B, start bazy jako hook `useDatabaseStartup`
+z ekranem w `features/startup` i regułą lint dla `src/db`, nazwane stałe czasu i granicy doby;
+(4) logika aktywnej sesji w `features/workout/useActiveSession` z testami. Kształt schematów narzędzi
+widzianych przez model się nie zmienił; Worker nie wymaga ponownego wdrożenia z tego powodu.
+Nie sprawdzono jeszcze na emulatorze ani telefonie — przed instalacją przejść sesję treningową,
+cofnięcie serii, zamianę ćwiczenia i dodatkową sesję z czatu.
