@@ -10,6 +10,7 @@ import m0005 from './0005_sides.sql';
 import m0006 from './0006_week_plan.sql';
 import m0007 from './0007_extra_sessions.sql';
 import m0008 from './0008_compose_day.sql';
+import m0009 from './0009_set_shortfall.sql';
 
   export default {
     journal,
@@ -22,7 +23,8 @@ m0004,
 m0005,
 m0006,
 m0007,
-m0008
+m0008,
+m0009
     }
   }
   

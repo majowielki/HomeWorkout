@@ -136,7 +136,70 @@ describe('SetLogger', () => {
       bandId: null,
       anchorPosition: null,
       estimatedLoadKg: null,
+      shortfall: null,
     });
+  });
+
+  it('records the felt effort as RIR', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    expect(await screen.findByText('odczucie: ciężko–spokojnie')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Bardzo ciężko'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ rir: 1 }));
+  });
+
+  it('asks why a set fell short, and keeps the reason only while it is short', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    expect(await screen.findByText('10')).toBeTruthy();
+    expect(screen.queryByText('Mniej niż cel — dlaczego?')).toBeNull();
+
+    await fireEvent.press(screen.getByLabelText('Zmniejsz: Powtórzenia'));
+    await fireEvent.press(screen.getByText('Za krótka przerwa'));
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reps: 9, shortfall: 'short_rest' }),
+    );
+
+    await fireEvent.press(screen.getByLabelText('Zwiększ: Powtórzenia'));
+    expect(screen.queryByText('Mniej niż cel — dlaczego?')).toBeNull();
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ reps: 10, shortfall: null }));
+  });
+
+  it('says what to do about pain', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={jest.fn()}
+      />,
+    );
+    await fireEvent.press(await screen.findByLabelText('Zmniejsz: Powtórzenia'));
+    await fireEvent.press(screen.getByText('Ból'));
+    expect(screen.getByText(/przerwij ćwiczenie/)).toBeTruthy();
   });
 
   it('has no warm-up set toggle (SPEC v1.3)', async () => {

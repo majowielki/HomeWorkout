@@ -3,7 +3,7 @@ import { randomUUID } from 'expo-crypto';
 import { and, desc, eq } from 'drizzle-orm';
 
 import { stepKey } from '@/domain/session/steps';
-import type { AnchorPosition, DumbbellMode, Side } from '@/domain/types';
+import type { AnchorPosition, DumbbellMode, ShortfallReason, Side } from '@/domain/types';
 
 import { db } from '../client';
 import { setLogs } from '../schema';
@@ -25,6 +25,8 @@ export interface LogSetInput {
   estimatedLoadKg?: number | null;
   /** The side of a one-sided set; null for two-sided work. */
   side?: Side | null;
+  /** Why the set fell short of its target, when the person said. */
+  shortfall?: ShortfallReason | null;
 }
 
 export async function logSet(input: LogSetInput): Promise<string> {
@@ -45,6 +47,7 @@ export async function logSet(input: LogSetInput): Promise<string> {
     anchorPosition: input.anchorPosition ?? null,
     estimatedLoadKg: input.estimatedLoadKg ?? null,
     side: input.side ?? null,
+    shortfall: input.shortfall ?? null,
     loggedAt: new Date().toISOString(),
   });
   // Wear counter for the recalibration nudge. Edits and deletes in history
@@ -103,6 +106,7 @@ export type SetPatch = Pick<
   | 'bandId'
   | 'anchorPosition'
   | 'estimatedLoadKg'
+  | 'shortfall'
 >;
 
 /**

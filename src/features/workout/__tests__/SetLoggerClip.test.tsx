@@ -77,7 +77,7 @@ describe('SetLogger with a clip', () => {
     expect(screen.getByLabelText('Film pokazujący: Przysiad goblet')).toBeTruthy();
     expect(screen.getByText('Przysiad goblet')).toBeTruthy();
     expect(screen.getByText('cel: 10–20')).toBeTruthy();
-    expect(screen.getByText('RIR 2–3')).toBeTruthy();
+    expect(screen.getByText('odczucie: ciężko–spokojnie')).toBeTruthy();
   });
 
   it('opens the full description from the link', async () => {

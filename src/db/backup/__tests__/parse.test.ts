@@ -145,6 +145,7 @@ function validBackup(): BackupFile {
           anchorPosition: null,
           estimatedLoadKg: null,
           side: null,
+          shortfall: null,
           loggedAt: '2026-09-14T17:05:00.000Z',
         },
       ],
@@ -351,6 +352,25 @@ describe('parseBackup', () => {
       source: 'coach',
       items: [{ slotId: 'push', sets: 1 }],
     };
+    expect(parseBackup(JSON.stringify(doc))).toEqual({ ok: true, data: doc });
+  });
+
+  it('lifts a version 5 file: no set says why it fell short', () => {
+    const v6 = validBackup();
+    const v5 = {
+      ...v6,
+      schemaVersion: 5,
+      tables: {
+        ...v6.tables,
+        set_logs: v6.tables.set_logs.map(({ shortfall: _, ...row }) => row),
+      },
+    };
+    expect(parseBackup(JSON.stringify(v5))).toEqual({ ok: true, data: v6 });
+  });
+
+  it('keeps why a set fell short', () => {
+    const doc = validBackup();
+    doc.tables.set_logs[0] = { ...doc.tables.set_logs[0]!, shortfall: 'short_rest' };
     expect(parseBackup(JSON.stringify(doc))).toEqual({ ok: true, data: doc });
   });
 

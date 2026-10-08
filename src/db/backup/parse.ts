@@ -82,6 +82,18 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
+  // v6: a set may say why it fell short of its target.
+  5: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 6,
+      tables: {
+        ...doc.tables,
+        set_logs: (doc.tables.set_logs ?? []).map((r) => ({ ...r, shortfall: null })),
+      },
+    };
+  },
 };
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {

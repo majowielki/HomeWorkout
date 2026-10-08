@@ -10,10 +10,12 @@ type ChipProps = {
   className?: string;
   /** Colour dot before the label — e.g. the physical colour of a band. */
   swatch?: string;
+  /** A smaller second line under the label — e.g. the RIR behind a felt effort. */
+  caption?: string;
 };
 
-/** Single-choice pill button — used for RIR, band colour and anchor position. */
-export function Chip({ label, selected, onPress, className, swatch }: ChipProps) {
+/** Single-choice pill button — used for the felt effort, band colour and anchor position. */
+export function Chip({ label, selected, onPress, className, swatch, caption }: ChipProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -31,14 +33,26 @@ export function Chip({ label, selected, onPress, className, swatch }: ChipProps)
           style={{ backgroundColor: swatch }}
         />
       ) : null}
-      <Text
-        className={cn(
-          'font-display-medium text-sm',
-          selected ? 'text-primary-foreground' : 'text-secondary-foreground',
-        )}
-      >
-        {label}
-      </Text>
+      <View className="items-center">
+        <Text
+          className={cn(
+            'font-display-medium text-sm',
+            selected ? 'text-primary-foreground' : 'text-secondary-foreground',
+          )}
+        >
+          {label}
+        </Text>
+        {caption ? (
+          <Text
+            className={cn(
+              'text-xs',
+              selected ? 'text-primary-foreground/80' : 'text-muted-foreground',
+            )}
+          >
+            {caption}
+          </Text>
+        ) : null}
+      </View>
     </Pressable>
   );
 }

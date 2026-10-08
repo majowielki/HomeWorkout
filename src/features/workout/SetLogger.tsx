@@ -14,6 +14,7 @@ import type {
   AnchorPosition,
   BandCalibrationMap,
   Exercise,
+  ShortfallReason,
   Side,
   TemplateBlock,
 } from '@/domain/types';
@@ -24,6 +25,8 @@ import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
 import {
+  effortLabel,
+  isBelowTarget,
   isTimed,
   ladderFor,
   type SavedSetData,
@@ -43,6 +46,8 @@ export interface PrefillData {
   weightKg: number | null;
   bandId: string | null;
   anchorPosition: AnchorPosition | null;
+  /** Only a set taken back carries one; a fresh set starts without a reason. */
+  shortfall?: ShortfallReason | null;
 }
 
 type Props = {
@@ -160,14 +165,18 @@ function SetLoggerFields({
     weightKg: prefill?.weightKg ?? ladderFor(exercise)[0]!,
     bandId: prefill?.bandId ?? BANDS[0]!.id,
     position: prefill?.anchorPosition ?? 1,
+    shortfall: prefill?.shortfall ?? null,
   }));
+  const below = isBelowTarget(exercise, values, block);
   // A band is stiffer for its first few stretches (Mullins effect, SPEC
   // §5.6): a cue before the first set instead of a logged warm-up set.
   const bandPrestretch = setNumber === 1 && usesBand(exercise);
 
   const handleSave = () => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSave(toSavedSet(exercise, values, calibrations));
+    // A reason is kept only while the set is still short of the target.
+    const saved = toSavedSet(exercise, values, calibrations);
+    onSave({ ...saved, shortfall: below ? saved.shortfall : null });
   };
 
   const hasClip = ymoveMedia[exercise.id] !== undefined;
@@ -197,7 +206,10 @@ function SetLoggerFields({
       <Badge variant="outline" label={targetLabel(block)} />
       <Badge
         variant="outline"
-        label={`RIR ${block.targetRirMin}${block.targetRirMax !== block.targetRirMin ? `–${block.targetRirMax}` : ''}`}
+        label={pl.workout.session.targetEffort(
+          effortLabel(block.targetRirMin),
+          effortLabel(block.targetRirMax),
+        )}
       />
     </View>
   );
@@ -259,6 +271,7 @@ function SetLoggerFields({
         values={values}
         onChange={setValues}
         calibrations={calibrations}
+        shortfall={below ? 'below' : undefined}
       />
 
       <Button label={pl.workout.session.saveSet} size="lg" onPress={handleSave} disabled={saving} />

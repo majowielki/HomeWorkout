@@ -21,6 +21,7 @@ export function undoneFromRow(row: SetLogRow): UndoneSet {
       weightKg: row.weightKg,
       bandId: row.bandId,
       anchorPosition: row.anchorPosition,
+      shortfall: row.shortfall,
     },
   };
 }

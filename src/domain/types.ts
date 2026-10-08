@@ -59,6 +59,15 @@ export type ExerciseSides = 'perSet' | 'alternating';
 /** The side a one-sided set was done on. */
 export type Side = 'left' | 'right';
 
+/**
+ * Why a set fell short of its target, as the person tells it after the set:
+ * sore or tired muscle, too short a rest, technique, pain. Recorded and shown
+ * in the history; the engine does not read it (yet).
+ */
+export const SHORTFALL_REASONS = ['doms', 'short_rest', 'technique', 'pain'] as const;
+
+export type ShortfallReason = (typeof SHORTFALL_REASONS)[number];
+
 export interface Exercise {
   id: string;
   name: string;

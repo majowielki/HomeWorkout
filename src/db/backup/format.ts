@@ -4,6 +4,7 @@ import { muscleGroupSchema } from '@data/exercises.schema';
 import { templateBlockSchema } from '@data/templates.schema';
 import { CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
 import type { SessionPlan } from '@/domain/plan/types';
+import { SHORTFALL_REASONS } from '@/domain/types';
 
 import type {
   bands,
@@ -32,7 +33,7 @@ import type {
  * Bump BACKUP_SCHEMA_VERSION whenever a row shape changes and add a step
  * to MIGRATIONS in parse.ts that lifts the previous shape to the new one.
  */
-export const BACKUP_SCHEMA_VERSION = 5;
+export const BACKUP_SCHEMA_VERSION = 6;
 export const BACKUP_APP = 'homeworkout';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -154,6 +155,7 @@ export const setLogRowSchema = z.object({
   anchorPosition: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).nullable(),
   estimatedLoadKg: nullableNumber,
   side: z.enum(['left', 'right']).nullable(),
+  shortfall: z.enum(SHORTFALL_REASONS).nullable(),
   loggedAt: instant,
 }) satisfies z.ZodType<typeof setLogs.$inferSelect>;
 

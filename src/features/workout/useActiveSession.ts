@@ -312,6 +312,7 @@ export function useActiveSession(
         anchorPosition: data.anchorPosition,
         estimatedLoadKg: data.estimatedLoadKg,
         side: currentStep.side,
+        shortfall: data.shortfall,
       });
       freshKeys = await deps.getLoggedStepKeys(loaded.workoutId);
       setLoggedKeys(freshKeys);
