@@ -121,6 +121,9 @@ export interface SessionPlan {
   version: 1;
   /** Omitted in main plans and historical plans. */
   kind?: 'extra';
+  /** A coach preview accepted on the phone; the recipe still comes from the engine. */
+  source?: 'ai_accepted';
+  coachProposalId?: string;
   date: string;
   blockIndex: number;
   phase: 'work' | 'deload';

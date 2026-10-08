@@ -6,5 +6,6 @@
  * the previous version cannot parse. See Documents/AI-INTEGRACJA.md §4.4.
  *
  * 2 (M7): the chat tool getPlanExplanation and the tool error no_plan.
+ * 3 (E7): week reads and plan proposals that require local acceptance.
  */
-export const CONTRACT_VERSION = 2;
+export const CONTRACT_VERSION = 3;

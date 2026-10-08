@@ -5,6 +5,7 @@ import type { Exchange } from '@/ai/chat/history';
 import type { ChatFacts } from '@/ai/contract/chat';
 
 import { chatReducer, initialChatState, isBusy } from './state';
+import type { ProposalStatus, ProposalView } from './proposals';
 
 interface Options {
   /** Null until the weekly context is built; nothing can be asked before. */
@@ -12,6 +13,9 @@ interface Options {
   deps: TurnDeps;
   /** Called once per finished turn, to keep it. A failure here never reaches the screen. */
   onTurn?: (outcome: TurnOutcome, facts: ChatFacts) => void | Promise<void>;
+  onQuestion?: (text: string, facts: ChatFacts) => void;
+  loadFacts?: () => Promise<ChatFacts>;
+  resolveProposal?: (id: string) => ProposalView | null;
 }
 
 /**
@@ -21,7 +25,14 @@ interface Options {
  *
  * Leaving the screen cancels the turn in flight, all the way to the provider.
  */
-export function useCoachChat({ facts, deps, onTurn }: Options) {
+export function useCoachChat({
+  facts,
+  deps,
+  onTurn,
+  onQuestion,
+  resolveProposal,
+  loadFacts,
+}: Options) {
   const [state, dispatch] = useReducer(chatReducer, initialChatState);
   const history = useRef<Exchange[]>([]);
   const controller = useRef<AbortController | null>(null);
@@ -39,9 +50,27 @@ export function useCoachChat({ facts, deps, onTurn }: Options) {
       asked.current += 1;
       dispatch({ type: 'asked', id: `q${asked.current}`, text });
 
+      let askedFacts = facts;
+      try {
+        if (loadFacts) askedFacts = await loadFacts();
+      } catch {
+        if (controller.current === abort) {
+          controller.current = null;
+          dispatch({ type: abort.signal.aborted ? 'preparationCancelled' : 'preparationFailed' });
+        }
+        return;
+      }
+      if (controller.current !== abort) return;
+      if (abort.signal.aborted) {
+        controller.current = null;
+        dispatch({ type: 'preparationCancelled' });
+        return;
+      }
+      onQuestion?.(text, askedFacts);
+
       const outcome = await runTurn(
         {
-          facts,
+          facts: askedFacts,
           history: history.current,
           text,
           signal: abort.signal,
@@ -58,19 +87,36 @@ export function useCoachChat({ facts, deps, onTurn }: Options) {
       if (controller.current !== abort) return;
       controller.current = null;
       if (outcome.kind === 'answered') history.current = outcome.history;
-      dispatch({ type: 'finished', outcome });
+      const proposals: ProposalView[] = [];
+      if (outcome.kind === 'answered' && !outcome.truncated) {
+        for (const message of outcome.messages) {
+          if (message.role !== 'tool') continue;
+          for (const result of message.results) {
+            if (result.name !== 'proposePlanChange' && result.name !== 'proposeExtraSession')
+              continue;
+            const output = result.output as { proposalId?: string };
+            const proposal = output.proposalId ? resolveProposal?.(output.proposalId) : null;
+            if (proposal && !proposals.some((p) => p.id === proposal.id)) proposals.push(proposal);
+          }
+        }
+      }
+      dispatch({ type: 'finished', outcome, proposals });
 
       try {
-        await onTurn?.(outcome, facts);
+        await onTurn?.(outcome, askedFacts);
       } catch (error) {
         console.warn('could not keep the chat exchange', error);
       }
     },
-    [facts, deps, onTurn],
+    [facts, deps, onTurn, onQuestion, resolveProposal, loadFacts],
   );
 
   return {
     entries: state.entries,
+    setProposalStatus: useCallback(
+      (id: string, status: ProposalStatus) => dispatch({ type: 'proposalStatus', id, status }),
+      [],
+    ),
     busy: isBusy(state.entries),
     send,
     stop: useCallback(() => controller.current?.abort(), []),

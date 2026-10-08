@@ -535,6 +535,7 @@ raport mówi „neutralne", więc to kwestia strojenia, nie bezpieczeństwa.
 | E4 | Kalendarz zamiast Treningu: siatka 7 × 6, strzałki i przesuwanie miesięcy, horyzont 7 dni, ikony sesji/jazd/planu, pominięcie i deload; arkusz dnia z historią, dziennikiem, prognozą i wyjaśnieniem konkretnej daty; wyjątek „Dzień wolny / Jednak trenuję”; start/wznowienie, FBW A/B i szybki wpis roweru przeniesione do arkusza dziś. Trasa `/(tabs)/workout` zachowana. |
 | E5 | „Zgłoś zakwasy / ból” z kalendarza: wybór objawów, partii i przegląd prośby; lekkie zakwasy → dziennik bez nowej blokady, silne → ograniczenie domyślnie 2 dni, ból mięśnia → 3 pytania i domyślnie 3 dni; objawy alarmowe i ból stawu → konsultacja bez zmiany planu; aktywne zgłoszenia z odwołaniem i przeliczeniem; daty włącznie, od 1 do 3 dni. |
 | E6 | „Dodatkowy trening” z „Dziś zrobione” i arkusza dziś w kalendarzu: dostępne ruchy z powodami pominięcia, wybór i podgląd recepty; ponowna kontrola przed startem, wznowienie po restarcie, zapis osobnej sesji `planned_days.seq >= 2`; FBW A/B pozostają w historii i backupie, bez przycisków startu i bez seeda na nowej instalacji. |
+| E7 | Implementacja: kontrakt v3, prompt `chat/v3`, `getWeekPlan`, `proposePlanChange`, `proposeExtraSession`; lokalne karty różnic „Zastosuj / Odrzuć”, walidacja i zapis po akceptacji. APK ARM64 i bundle Workera gotowe; wspólne wdrożenie czeka na backup i podłączony telefon. |
 
 **Weryfikacja E4 (2026-10-07):** `npm run verify` — 1813 testów, 89 zestawów, wymagane pokrycie domeny
 i AI 100%. Build `release` x86_64 na Pixel_API36 z nawigacją trzyprzyciskową: sprawdzone siatka,
@@ -590,14 +591,59 @@ wierszy. Backup v4 pozostaje zgodny: przechowuje receptę sesji z `kind: extra`,
 rollback startu, ponowienie bez duplikatu, ochronę dodatkowej sesji przed synchronizacją,
 odczyt kalendarza, zachowanie starych szablonów oraz round-trip backupu.
 
-**Dalej:** **E7 — AI**: kontrakt v3 (kody `AVOIDED_BY_REQUEST`, `LIGHTER_DAY_REQUESTED` w listach,
-prompt chat/v3), narzędzia `getWeekPlan`, `proposePlanChange`, `proposeExtraSession` z kartą
-„Zastosuj / Odrzuć”; po wdrożeniu nowe APK + redeploy Workera razem.
+**Weryfikacja E7 (2026-10-08):** `npm run verify` — 2000 testy, 101 zestawów, wymagane pokrycie
+domeny i AI 100%; Worker — typecheck, 121 testów w workerd, bundle `build:dry`. Ewaluacja 26
+przypadków czatu z modelem zastępczym: wszystkie wymagane reguły przechodzą; raport
+`evals/reports/2026-10-08-chat-reference-v3-reference-chat-model.{json,md}`. To test pipeline'u,
+nie ocena zachowania Gemini na nowym prompcie. Prompt v1/v2 pozostaje niezmieniony.
+
+Emulator Pixel_API36, release x86_64, nawigacja trzyprzyciskowa: podgląd dnia wolnego bez zapisu
+(SQLite: zero ograniczeń i generacji `coach`), odrzucenie, ponowne przygotowanie i zastosowanie
+(SQLite: jeden zapis prośby i jedna generacja `coach`), odwołanie dnia wolnego przez „Jednak
+trenuję”, podgląd dodatkowej sesji klatki → start tej sesji; ból kolana → stały komunikat i zero
+nowych żądań do lokalnego Workera. Jasny i ciemny motyw. Test działał z lokalną atrapą, bez
+wywołań Gemini; zegar został przywrócony. Gotowy APK ARM64 używa normalnego adresu Workera
+i ustawień sieci, bez lokalnego endpointu ani konfiguracji atrapy.
+
+**Doprecyzowania E7:** narzędzia wyłącznie czytają i liczą. Podglądy istnieją w pamięci rozmowy;
+nowe pytanie, nowa rozmowa lub odrzucenie wygasza wcześniejsze niezaakceptowane propozycje.
+Karty pojawiają się po pełnej, sprawdzonej odpowiedzi — nie po anulowaniu, błędzie, skróceniu
+lub wycofaniu odpowiedzi. Akceptacja ponownie czyta dane, sprawdza ich zgodność z podglądem
+i datę treningową; nie przelicza po cichu innego wyniku do zapisania. Podwójny start i
+powtórne zastosowanie tej samej karty są blokowane. Błąd zapisu można ponowić; transakcja
+obejmuje ograniczenia, blok treningowy, dni i generację `coach`. Synchronizacja i akceptacja
+korzystają ze wspólnej kolejki.
+
+Fakty, w tym data treningowa i stan skąpej historii, są odświeżane przed każdym pytaniem.
+Zmiana daty podczas odpowiedzi modelu kończy narzędzie kodem `date_changed`; nie powstaje
+propozycja z terminami przesuniętymi względem pytania. Anulowanie podczas ładowania danych
+nie wysyła żądania do modelu. Te scenariusze sprawdza test hooka i kontrolera propozycji.
+
+`avoid_muscle` dla zakwasów wymaga wyraźnie nazwanych, silnych DOMS w wiadomości i nasilenia
+4–5/5; model nie może sam uznać lekkich lub nieokreślonych zakwasów za silne ani nazwać bólu
+mięśnia zakwasami. Medyczne i receptowe teksty w notatce propozycji też są odrzucane. Model
+nie dostaje ciężarów ani celów powtórzeń; do karty trafiają daty, ćwiczenia i liczby serii
+wyliczone przez silnik, z oznaczeniem serii na stronę. Zaakceptowana dodatkowa sesja ma
+`source: ai_accepted` i `coachProposalId` w zamrożonej recepcie; backup v4 zachowuje te pola.
+Prośba o dodatkową sesję nie może omijać silnych lub nieokreślonych zakwasów wspomnianych
+w wiadomości: najpierw trzeba doprecyzować lub zapisać zgłoszenie i przygotować nową prośbę.
+
+Kalendarz może odwołać pojedynczy dzień z przyjętej prośby trenera o wolne, zachowując resztę
+jej zakresu oraz ograniczenia mięśni. Sprawdzone również atomowe wycofanie zmian przy błędzie.
+
+**Dalej — wdrożenie E7:** ADB widział tylko emulator, bez fizycznego telefonu; backup telefonu
+nie został potwierdzony. Produkcyjny Worker pozostaje w dotychczasowej wersji. Po eksporcie
+backupu i podłączeniu telefonu: sprawdzić identyfikator aplikacji i zgodność podpisu, zainstalować
+gotowy `.expo/HomeWorkout-E7-arm64-release.apk`, wdrożyć Worker v3 w tej samej sesji i sprawdzić
+rozmowę z prawdziwym modelem. Stary klient v2 otrzyma od Workera v3 `contract_mismatch`, dlatego
+nie wdrażamy samego Workera przed aktualizacją aplikacji.
 
 **Uwagi na następną sesję:** emulator ma testowe dane (czwartek odznaczony w dniach treningowych,
 sesje testowe 7.10, testowy rower 20 min 7.10 i wyjątek „trenuję” 9.10 po sprawdzeniu przełączania;
 lekkie zakwasy barków w dzienniku 7.10; testowe zgłoszenia silnych zakwasów i bólu zostały odwołane;
-ukończony dodatkowy trening łydek 7.10, 2 serie przy RIR 4).
+ukończony dodatkowy trening łydek 7.10, 2 serie przy RIR 4; dodatkowa testowa sesja pchania
+7.10 bez serii, automatycznie porzucona po przywróceniu zegara; prośba trenera o wolne 9.10
+odwołana przez kalendarz). Emulator ma lokalny build E7 do testów atrapy.
 Na telefon nic jeszcze nie poszło — przed instalacją: eksport backupu, nowe APK (migracje 0005
 i 0006 oraz 0007 wykonają się same).
 

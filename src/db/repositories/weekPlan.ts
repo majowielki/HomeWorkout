@@ -3,10 +3,13 @@ import { randomUUID } from 'expo-crypto';
 import { and, desc, eq, gte, inArray, isNull, lte, ne } from 'drizzle-orm';
 
 import type { PlanConstraint } from '@/domain/plan/constraints';
+import type { BlockAdvance } from '@/domain/plan/block';
+import { addDays } from '@/domain/time/trainingDate';
 import type { StoredDay, StoredDayChange, SyncTrigger } from '@/domain/plan/weekSync';
 
 import { db } from '../client';
 import { planConstraints, plannedDays, planGenerations, workouts } from '../schema';
+import { type StoredBlock, writeBlockAdvance } from './trainingBlocks';
 
 /** The stored days between two dates, inclusive, oldest first. */
 export async function getPlannedDays(from: string, to: string): Promise<StoredDay[]> {
@@ -48,36 +51,84 @@ export interface WeekWrite {
 export async function saveWeek(write: WeekWrite, now: Date = new Date()): Promise<void> {
   const at = now.toISOString();
   const generationId = randomUUID();
-  db.transaction((tx) => {
-    for (const u of write.statusUpdates) {
-      tx.update(plannedDays)
-        .set({ status: u.status, updatedAt: at })
-        .where(and(eq(plannedDays.date, u.date), eq(plannedDays.seq, 1)))
-        .run();
-    }
-    tx.insert(planGenerations)
-      .values({
-        id: generationId,
-        createdAt: at,
-        trigger: write.trigger,
-        fromDate: write.fromDate,
-        changes: write.changes,
-        seenAt: write.changes.length === 0 ? at : null,
-      })
+  db.transaction((tx) => writeWeek(tx, write, at, generationId));
+}
+
+function writeWeek(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  write: WeekWrite,
+  at: string,
+  generationId: string,
+): void {
+  for (const u of write.statusUpdates) {
+    tx.update(plannedDays)
+      .set({ status: u.status, updatedAt: at })
+      .where(and(eq(plannedDays.date, u.date), eq(plannedDays.seq, 1)))
       .run();
-    for (const row of write.rows) {
-      const values = {
-        selection: row.selection,
-        forecast: row.forecast,
-        status: row.status,
-        generationId,
-        updatedAt: at,
-      };
-      tx.insert(plannedDays)
-        .values({ date: row.date, ...values })
-        .onConflictDoUpdate({ target: [plannedDays.date, plannedDays.seq], set: values })
+  }
+  tx.insert(planGenerations)
+    .values({
+      id: generationId,
+      createdAt: at,
+      trigger: write.trigger,
+      fromDate: write.fromDate,
+      changes: write.changes,
+      seenAt: write.changes.length === 0 ? at : null,
+    })
+    .run();
+  for (const row of write.rows) {
+    const values = {
+      selection: row.selection,
+      forecast: row.forecast,
+      status: row.status,
+      generationId,
+      updatedAt: at,
+    };
+    tx.insert(plannedDays)
+      .values({ date: row.date, ...values })
+      .onConflictDoUpdate({ target: [plannedDays.date, plannedDays.seq], set: values })
+      .run();
+  }
+}
+
+/** Consent boundary: restrictions, block and reviewed week succeed or roll back together. */
+export async function saveCoachWeek(
+  proposalId: string,
+  constraints: readonly PlanConstraint[],
+  write: WeekWrite,
+  current: StoredBlock | null,
+  advance: BlockAdvance,
+  asOf: string,
+  now: Date = new Date(),
+): Promise<void> {
+  db.transaction((tx) => {
+    if (
+      tx
+        .select({ id: planGenerations.id })
+        .from(planGenerations)
+        .where(eq(planGenerations.id, proposalId))
+        .get()
+    )
+      return;
+    const at = now.toISOString();
+    for (const c of constraints) {
+      tx.insert(planConstraints)
+        .values({
+          id: randomUUID(),
+          kind: c.kind,
+          muscles: c.muscles,
+          fromDate: c.from,
+          untilDate: c.until,
+          reason: c.reason,
+          source: 'coach',
+          note: c.note,
+          createdAt: at,
+          revokedAt: null,
+        })
         .run();
     }
+    writeBlockAdvance(tx, current, advance, asOf, now);
+    writeWeek(tx, { ...write, trigger: 'coach' }, at, proposalId);
   });
 }
 
@@ -186,6 +237,46 @@ export async function setDayTraining(
 ): Promise<void> {
   const at = now.toISOString();
   db.transaction((tx) => {
+    // An explicit calendar choice can take back one day of an accepted
+    // coach rest request while preserving the rest of its date range.
+    if (train) {
+      const requests = tx
+        .select()
+        .from(planConstraints)
+        .where(
+          and(
+            eq(planConstraints.source, 'coach'),
+            eq(planConstraints.kind, 'rest_day'),
+            lte(planConstraints.fromDate, date),
+            gte(planConstraints.untilDate, date),
+            isNull(planConstraints.revokedAt),
+          ),
+        )
+        .all();
+      for (const c of requests) {
+        tx.update(planConstraints).set({ revokedAt: at }).where(eq(planConstraints.id, c.id)).run();
+        if (c.fromDate < date)
+          tx.insert(planConstraints)
+            .values({
+              ...c,
+              id: randomUUID(),
+              untilDate: addDays(date, -1),
+              createdAt: at,
+              revokedAt: null,
+            })
+            .run();
+        if (date < c.untilDate)
+          tx.insert(planConstraints)
+            .values({
+              ...c,
+              id: randomUUID(),
+              fromDate: addDays(date, 1),
+              createdAt: at,
+              revokedAt: null,
+            })
+            .run();
+      }
+    }
     tx.update(planConstraints)
       .set({ revokedAt: at })
       .where(

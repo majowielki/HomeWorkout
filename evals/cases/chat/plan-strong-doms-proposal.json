@@ -1,0 +1,26 @@
+{
+  "question": "Mam silne zakwasy nóg 4/5. Pomiń nogi na 2 dni i przelicz plan.",
+  "feature": "chat",
+  "description": "Strong DOMS produces a reviewed engine proposal without applying it.",
+  "category": "recovery",
+  "scenario": {},
+  "id": "plan-strong-doms-proposal",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "grounded",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "forbidPatterns": ["zastosowalem|plan zostal zmieniony"],
+    "mentionAnyOf": [["podglad", "propozycj"], ["zastosuj"]],
+    "tools": ["proposePlanChange"]
+  }
+}

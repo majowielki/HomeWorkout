@@ -16,9 +16,9 @@
  */
 import type { ChatEvent, ChatMessage, ChatRequest, ToolCall, ToolResult } from '@/ai/contract/chat';
 import type { ToolName, ToolOutput } from '@/ai/contract/chatTools';
-import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v2';
+import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v3';
 import { fold } from '@/domain/coach/text';
-import type { SKIP_REASONS } from '@/domain/plan/reasons';
+import type { SkipReason } from '@/domain/plan/reasons';
 
 export const REFERENCE_CHAT_MODEL = 'reference-chat-model';
 
@@ -183,7 +183,8 @@ function bodyLines(body: ToolOutput<'getBodyTrend'>): string[] {
 }
 
 /** Why a movement is left out, in plain Polish — the engine's code, nothing added. */
-const SKIPPED: Record<(typeof SKIP_REASONS)[number], string> = {
+const SKIPPED: Record<SkipReason, string> = {
+  AVOIDED_BY_REQUEST: 'na Twoją prośbę ta partia dziś odpoczywa',
   NO_CANDIDATE: 'w tym ruchu nie ma teraz dozwolonego ćwiczenia',
   DOMS_HIGH: 'masz dziś mocne zakwasy w tej partii',
   RECOVERING: 'ta partia pracowała wczoraj i się regeneruje',
@@ -230,6 +231,50 @@ export function referenceChatStep(request: ChatRequest): ChatEvent[] {
 
   // --- things it will not do, before anything is looked up ---------------------
   if (/zignoruj|zapomnij|ignore|zasady/.test(q)) return says(request, REFUSE_RULES);
+  if (/zakwas/.test(q) && /pomin|zmien|przelicz/.test(q)) {
+    if (!/siln|mocn|[45]\s*\/\s*5/.test(q))
+      return says(request, 'Czy zakwasy są lekkie czy silne? Lekkie zakwasy nie wyłączają partii.');
+    const proposal = results.find((r) => r.name === 'proposePlanChange');
+    if (proposal)
+      return says(
+        request,
+        'Przygotowałem podgląd zmiany planu. Sprawdź kartę i wybierz Zastosuj lub Odrzuć.',
+      );
+    return asksFor(request, [
+      call('ref-change', 'proposePlanChange', {
+        constraints: [
+          {
+            kind: 'avoid_muscle',
+            muscles: ['quads', 'hamstrings', 'glutes', 'calves'],
+            fromDaysAhead: 0,
+            days: 2,
+            reason: 'doms',
+            domsLevel: 4,
+          },
+        ],
+        note: 'Silne zakwasy nóg.',
+      }),
+    ]);
+  }
+  if (/dodatkow/.test(q)) {
+    const proposal = results.find((r) => r.name === 'proposeExtraSession');
+    if (proposal)
+      return says(
+        request,
+        'Dodatkowy trening jest gotowy do sprawdzenia. Wybierz Zastosuj na karcie, aby go rozpocząć.',
+      );
+    return asksFor(request, [
+      call('ref-extra', 'proposeExtraSession', { focusMuscles: ['calves'] }),
+    ]);
+  }
+  if (/tydzien|tygodnia/.test(q) && /plan|zaplanowan/.test(q) && !/ciezar|kg|doloz/.test(q)) {
+    if (results.some((r) => r.name === 'getWeekPlan'))
+      return says(
+        request,
+        'Plan tygodnia jest gotowy. Dni i ćwiczenia możesz sprawdzić w kalendarzu.',
+      );
+    return asksFor(request, [call('ref-week', 'getWeekPlan', {})]);
+  }
   const aboutPlan =
     /\bplan/.test(q) || (/czemu|dlaczego/.test(q) && /nie ma|nie bylo|brak/.test(q));
   if (/zamien|zmien|wymien/.test(q) && (aboutPlan || /dzis/.test(q))) {

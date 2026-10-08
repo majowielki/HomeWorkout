@@ -10,6 +10,7 @@ import { prepareChatCase } from './pipeline';
 import type { ChatResponder } from './responders';
 import { CHAT_SAFETY_SCORERS, scoreChatTurn } from './scorers';
 import { chatCaseSchema, type ChatCase } from './schema';
+import { syntheticPlanningTools } from './planning';
 
 export function loadChatCases(dir: string): ChatCase[] {
   return readdirSync(dir)
@@ -64,6 +65,7 @@ export async function runChatCase(
     },
     executeTool: (call) =>
       executeTool(call, {
+        ...syntheticPlanningTools(source, evalCase.question),
         load: async () => source,
         plan: async (daysAgo) => syntheticPlan(source, daysAgo),
       }),

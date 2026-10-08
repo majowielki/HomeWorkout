@@ -1,13 +1,15 @@
 import { exerciseTrend } from '@/domain/coach/exerciseTrend';
 import { fold } from '@/domain/coach/text';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
-import { DAY_REASONS, type DayReason, SKIP_REASONS, type SkipReason } from '@/domain/plan/reasons';
+import { type DayReason, type SkipReason } from '@/domain/plan/reasons';
 import type { SessionPlan } from '@/domain/plan/types';
 import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
 
 import {
   TOOL_LIMITS,
+  PLAN_DAY_REASONS,
+  PLAN_SKIP_REASONS,
   type ToolError,
   type ToolInput,
   type ToolName,
@@ -17,16 +19,15 @@ import { bodySummary, volumeWeek } from '../context/derive';
 import type { CoachSource, SourceSet } from '../context/source';
 
 /*
- * The codes the chat contract v2 knows. Codes that come from a request
- * (AVOIDED_BY_REQUEST, LIGHTER_DAY_REQUESTED) join it with contract v3,
- * stage E7; until then they stay on the phone.
+ * Codes known to contract v3, including requests. Unknown historical codes
+ * remain on the phone instead of breaking an otherwise readable plan.
  */
-function inContractDay(code: DayReason): code is (typeof DAY_REASONS)[number] {
-  return (DAY_REASONS as readonly string[]).includes(code);
+function inContractDay(code: DayReason): code is (typeof PLAN_DAY_REASONS)[number] {
+  return (PLAN_DAY_REASONS as readonly string[]).includes(code);
 }
 
-function inContractSkip(code: SkipReason): code is (typeof SKIP_REASONS)[number] {
-  return (SKIP_REASONS as readonly string[]).includes(code);
+function inContractSkip(code: SkipReason): code is (typeof PLAN_SKIP_REASONS)[number] {
+  return (PLAN_SKIP_REASONS as readonly string[]).includes(code);
 }
 
 /**
@@ -52,6 +53,13 @@ export interface ToolEnvironment {
   load(days: number): Promise<CoachSource>;
   /** The plan for the day `daysAgo` days before today, or null when that day has none. */
   plan(daysAgo: number): Promise<PlanLookup | null>;
+  week?(): Promise<ToolOutput<'getWeekPlan'> | ToolError>;
+  proposeChange?(
+    input: ToolInput<'proposePlanChange'>,
+  ): Promise<ToolOutput<'proposePlanChange'> | ToolError>;
+  proposeExtra?(
+    input: ToolInput<'proposeExtraSession'>,
+  ): Promise<ToolOutput<'proposeExtraSession'> | ToolError>;
 }
 
 type Result<N extends ToolName> = ToolOutput<N> | ToolError;
@@ -78,6 +86,15 @@ const nameOf = (source: CoachSource, exerciseId: string) =>
  * quotes them (I6); it does not derive them (I1).
  */
 export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
+  async getWeekPlan(_input, env) {
+    return env.week ? env.week() : { error: 'failed' };
+  },
+  async proposePlanChange(input, env) {
+    return env.proposeChange ? env.proposeChange(input) : { error: 'failed' };
+  },
+  async proposeExtraSession(input, env) {
+    return env.proposeExtra ? env.proposeExtra(input) : { error: 'failed' };
+  },
   async getRecentSessions({ count }, env) {
     const source = await env.load(RECENT_WINDOW_DAYS);
     const windowStart = addDays(source.asOf, -(RECENT_WINDOW_DAYS - 1));

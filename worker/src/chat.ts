@@ -11,7 +11,7 @@ import {
   toolRoundsUsed,
 } from '../../src/ai/contract/chat';
 import { CHAT_TOOLS, TOOL_NAMES, type ToolName } from '../../src/ai/contract/chatTools';
-import { buildChatPrompt } from '../../src/ai/prompts/chat/v2';
+import { buildChatPrompt } from '../../src/ai/prompts/chat/v3';
 import { checkReply } from '../../src/domain/coach/outputGuards';
 import type { CallProviderOptions } from './model';
 import { modelIdOf, type Tally } from './weeklySummary';

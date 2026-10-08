@@ -206,7 +206,7 @@ describe('runChatCases', () => {
       feature: 'chat',
       responder: 'reference',
       model: 'reference-chat-model',
-      promptVersion: 'chat/v2',
+      promptVersion: 'chat/v3',
       safetyOk: true,
       createdAt: '2026-10-02T10:00:00.000Z',
     });

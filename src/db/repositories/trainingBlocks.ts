@@ -58,27 +58,36 @@ export async function saveBlockAdvance(
   asOf: string,
   now: Date = new Date(),
 ): Promise<StoredBlock> {
+  return db.transaction((tx) => writeBlockAdvance(tx, current, advance, asOf, now));
+}
+
+/** Synchronous write, also used inside the atomic acceptance of a coach proposal. */
+export function writeBlockAdvance(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  current: StoredBlock | null,
+  advance: BlockAdvance,
+  asOf: string,
+  now: Date,
+): StoredBlock {
   const updatedAt = now.toISOString();
   if (current === null || advance.closed !== null) {
     const id = randomUUID();
-    db.transaction((tx) => {
-      if (current !== null) {
-        tx.update(trainingBlocks)
-          .set({ closedOn: asOf, updatedAt })
-          .where(eq(trainingBlocks.id, current.id))
-          .run();
-      }
-      tx.insert(trainingBlocks)
-        .values({ id, ...toColumns(advance.block), closedOn: null, updatedAt })
+    if (current !== null) {
+      tx.update(trainingBlocks)
+        .set({ closedOn: asOf, updatedAt })
+        .where(eq(trainingBlocks.id, current.id))
         .run();
-    });
+    }
+    tx.insert(trainingBlocks)
+      .values({ id, ...toColumns(advance.block), closedOn: null, updatedAt })
+      .run();
     return { id, state: advance.block };
   }
   if (JSON.stringify(current.state) !== JSON.stringify(advance.block)) {
-    await db
-      .update(trainingBlocks)
+    tx.update(trainingBlocks)
       .set({ ...toColumns(advance.block), updatedAt })
-      .where(eq(trainingBlocks.id, current.id));
+      .where(eq(trainingBlocks.id, current.id))
+      .run();
   }
   return { id: current.id, state: advance.block };
 }

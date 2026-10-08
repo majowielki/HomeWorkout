@@ -28,6 +28,23 @@ describe('the implementations', () => {
   it('cover exactly the tools of the contract', () => {
     expect(Object.keys(TOOL_IMPLEMENTATIONS).sort()).toEqual([...TOOL_NAMES].sort());
   });
+  it.each(['getWeekPlan', 'proposePlanChange', 'proposeExtraSession'] as const)(
+    'delegates %s without writes and handles an unavailable adapter',
+    async (name) => {
+      const env = envFor(scenario());
+      expect(await TOOL_IMPLEMENTATIONS[name]({} as never, env)).toEqual({ error: 'failed' });
+      const callback = jest.fn().mockResolvedValue({ error: 'no_plan' });
+      const key = {
+        getWeekPlan: 'week',
+        proposePlanChange: 'proposeChange',
+        proposeExtraSession: 'proposeExtra',
+      }[name];
+      expect(await TOOL_IMPLEMENTATIONS[name]({} as never, { ...env, [key]: callback })).toEqual({
+        error: 'no_plan',
+      });
+      expect(callback).toHaveBeenCalledTimes(1);
+    },
+  );
 });
 
 describe('getRecentSessions', () => {
@@ -391,7 +408,7 @@ describe('getPlanExplanation', () => {
     expect(() => CHAT_TOOLS.getPlanExplanation.output.parse(out)).not.toThrow();
   });
 
-  it('keeps the codes of a request on the phone until the contract knows them (v3)', async () => {
+  it('exports request codes with contract v3', async () => {
     const base = plan();
     const out = await ask(
       plan({
@@ -402,9 +419,19 @@ describe('getPlanExplanation', () => {
         ],
       }),
     );
-    expect(out).toMatchObject({ dayReasons: ['DELOAD_WEEK'] });
-    expect((out as { skipped: unknown[] }).skipped).toHaveLength(2);
+    expect(out).toMatchObject({ dayReasons: ['DELOAD_WEEK', 'LIGHTER_DAY_REQUESTED'] });
+    expect((out as { skipped: unknown[] }).skipped).toHaveLength(3);
     expect(() => CHAT_TOOLS.getPlanExplanation.output.parse(out)).not.toThrow();
+  });
+
+  it('drops only unknown historical codes', async () => {
+    const out = await ask(
+      plan({
+        dayReasons: ['FUTURE' as never],
+        skipped: [{ slotId: 'squat', exerciseId: null, reason: 'FUTURE' as never }],
+      }),
+    );
+    expect(out).toMatchObject({ dayReasons: [], skipped: [] });
   });
 
   it('caps what it lists at the contract limits', async () => {
