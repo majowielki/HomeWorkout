@@ -672,6 +672,8 @@ na 15+ nazwanych przypadków; historia per sesja (`firstOfEachDay`, `byTrainingD
 testy architektury ADR 0001 (`src/__tests__/architecture.test.ts`); ADR 0006; `compose_day`
 (migracja 0008, backup v5), `getDayOptions` + `proposeDayPlan`, kontrakt v4, prompt `chat/v4`
 (szkic), karta „Ułożony dzień”, 3 przypadki ewaluacji. `npm run verify` 2167 testów, Worker 121.
-**Zostało:** w kalendarzu pokazać dzień ułożony z trenerem i przycisk „Przywróć plan silnika”
-(odwołanie `compose_day`); README (sekcja AI); test na emulatorze; ewaluacja na prawdziwym modelu;
-wdrożenie APK + Worker v4 razem (Worker v4 odrzuca klienta v3).
+Potem (2026-10-08): arkusz dnia w kalendarzu oznacza dzień ułożony z trenerem („Zaplanowane ·
+Ułożony z trenerem”) i ma przycisk „Przywróć plan silnika” (potwierdzenie, odwołanie `compose_day`,
+przeliczenie tygodnia od tego dnia); README opisuje narzędzia planu i granicę zgody.
+**Zostało:** test na emulatorze; ewaluacja na prawdziwym modelu; wdrożenie APK + Worker v4 razem
+(Worker v4 odrzuca klienta v3).
