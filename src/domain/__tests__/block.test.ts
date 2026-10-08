@@ -5,7 +5,6 @@ import {
   phaseOf,
   repairSelections,
   rotateSelections,
-  withSelection,
 } from '../plan/block';
 import type { EligibilityContext } from '../plan/eligibility';
 import type { BlockState } from '../plan/types';
@@ -207,19 +206,5 @@ describe('advanceBlock', () => {
     expect(out.block.selections).toEqual({ abc: 'b', xy: 'x' });
     expect(out.events).toEqual(['SELECTION_REPLACED']);
     expect(out.replacedSlots).toEqual(['abc']);
-  });
-});
-
-describe('withSelection', () => {
-  it('overrides one slot for the rest of the block', () => {
-    const before: BlockState = {
-      index: 3,
-      startedOn: '2026-10-01',
-      deloadFrom: null,
-      deloadReason: null,
-      selections: { abc: 'a', xy: 'x' },
-    };
-    expect(withSelection(before, 'abc', 'c').selections).toEqual({ abc: 'c', xy: 'x' });
-    expect(before.selections.abc).toBe('a');
   });
 });

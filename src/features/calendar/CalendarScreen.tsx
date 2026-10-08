@@ -162,7 +162,7 @@ export function CalendarScreen() {
           todayPlan={today.state.plan}
           exerciseMap={exerciseMap}
           busy={busy}
-          starting={today.starting || overview.starting}
+          starting={today.starting}
           inProgressId={overview.data?.inProgress?.id ?? null}
           onClose={close}
           onReload={reload}

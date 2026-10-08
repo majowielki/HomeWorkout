@@ -19,6 +19,7 @@ import {
 import { AiSettingsCard } from '@/features/coach/AiSettingsCard';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { isMuted, muteUntilDate, type ReminderSettings } from '@/domain/reminders/schedule';
+import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
 import type { KneeProfile } from '@/domain/types';
 import { syncReminders } from '@/lib/reminders';
 import { useLeaveGuard } from '@/lib/useLeaveGuard';
@@ -32,7 +33,7 @@ export default function SettingsScreen() {
   const [heightCm, setHeightCm] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [sex, setSex] = useState<'male' | 'female' | null>(null);
-  const [dayBoundaryHour, setDayBoundaryHour] = useState(4);
+  const [dayBoundaryHour, setDayBoundaryHour] = useState(DEFAULT_DAY_BOUNDARY_HOUR);
   const [saddleHeightCm, setSaddleHeightCm] = useState('');
   const [knee, setKnee] = useState<KneeProfile | null>(null);
   const [reminders, setReminders] = useState<ReminderSettings | null>(null);
@@ -51,7 +52,7 @@ export default function SettingsScreen() {
           formatDecimal(profile?.heightCm),
           profile?.birthYear ? String(profile.birthYear) : '',
           profile?.sex ?? null,
-          profile?.dayBoundaryHour ?? 4,
+          profile?.dayBoundaryHour ?? DEFAULT_DAY_BOUNDARY_HOUR,
           formatDecimal(profile?.saddleHeightCm),
           profile?.kneeProfile ?? null,
           rem,

@@ -6,7 +6,7 @@ import { overrideDay, type PlanConstraint } from '@/domain/plan/constraints';
 import type { BlockAdvance } from '@/domain/plan/block';
 import type { StoredDay, StoredDayChange, SyncTrigger } from '@/domain/plan/weekSync';
 
-import { db } from '../client';
+import { db, type Tx } from '../client';
 import { planConstraints, plannedDays, planGenerations, workouts } from '../schema';
 import { type StoredBlock, writeBlockAdvance } from './trainingBlocks';
 
@@ -84,12 +84,7 @@ export async function saveWeek(write: WeekWrite, now: Date = new Date()): Promis
   db.transaction((tx) => writeWeek(tx, write, at, generationId));
 }
 
-function writeWeek(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  write: WeekWrite,
-  at: string,
-  generationId: string,
-): void {
+function writeWeek(tx: Tx, write: WeekWrite, at: string, generationId: string): void {
   for (const u of write.statusUpdates) {
     tx.update(plannedDays)
       .set({ status: u.status, updatedAt: at })

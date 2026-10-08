@@ -242,6 +242,12 @@ export const WEEK_CONFIG = {
   requestDefaultDays: { strongDoms: 2, musclePain: 3 },
 } as const;
 
+/** The active session, SPEC §7.1. */
+export const SESSION_CONFIG = {
+  /** A session still in progress after this many hours was forgotten, not paused: it is closed on start. */
+  staleAfterHours: 12,
+} as const;
+
 /** The daily ride, SPEC §7 v1.2. */
 export const BIKE_CONFIG = {
   minutes: { min: 10, max: 20 },

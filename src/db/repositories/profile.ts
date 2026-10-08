@@ -2,16 +2,14 @@ import { eq } from 'drizzle-orm';
 
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { TrainingWeek } from '@/domain/plan/constraints';
+import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
 import type { MedicalProfile } from '@/domain/types';
 
-import { db, type Database } from '../client';
+import { db, type Executor } from '../client';
 import { userProfile } from '../schema';
 
 /** Single-user app: the one and only profile row. */
 export const PROFILE_ID = 1;
-
-/** Either the db itself or a transaction handle — both expose the same query API. */
-type Executor = Database | Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
  * Profile row seeded on first launch. The knee condition is this user's
@@ -31,7 +29,7 @@ export function ensureProfile(now: string, executor: Executor = db): void {
     .insert(userProfile)
     .values({
       id: PROFILE_ID,
-      dayBoundaryHour: 4,
+      dayBoundaryHour: DEFAULT_DAY_BOUNDARY_HOUR,
       kneeProfile: {
         side: 'right',
         missingCollaterals: true,
@@ -69,7 +67,7 @@ export async function getDayBoundaryHour(): Promise<number> {
     .from(userProfile)
     .where(eq(userProfile.id, PROFILE_ID))
     .limit(1);
-  return row?.dayBoundaryHour ?? 4;
+  return row?.dayBoundaryHour ?? DEFAULT_DAY_BOUNDARY_HOUR;
 }
 
 export type ProfileRow = typeof userProfile.$inferSelect;

@@ -181,15 +181,11 @@ export const pl = {
     weightCard: 'Waga',
     noWeightYet: 'Jeszcze się nie ważyłeś.',
     logWeightToday: 'Zapisz dzisiejszą wagę',
-    weightLoggedToday: (kg: number) => `Dziś: ${kg} kg`,
     average7: (kg: number) => `śr. 7 dni: ${kg} kg`,
     trend: (kgPerWeek: number) =>
       kgPerWeek === 0
         ? 'trend: stabilnie'
         : `trend: ${kgPerWeek > 0 ? '+' : ''}${kgPerWeek} kg/tydz.`,
-    sessionCard: 'Trening',
-    nextTemplate: (name: string) => `Następny: ${name}`,
-    startNext: (name: string) => `Rozpocznij ${name}`,
     dailyCard: 'Dziennik dnia',
     dailyEmpty: 'Jak się dziś czujesz? Sen, energia, zakwasy — 10 sekund.',
     dailySummary: (sleep: number | null, energy: number | null, soreCount: number) =>
@@ -204,7 +200,6 @@ export const pl = {
     editDaily: 'Edytuj',
     greeting: (hour: number) =>
       hour < 5 ? 'Dobranoc' : hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór',
-    nextSessionEyebrow: 'Następny trening',
     inProgressEyebrow: 'Sesja w trakcie',
     loggedToday: 'zapisano dziś',
     average7Label: 'Średnia 7 dni',
@@ -222,26 +217,8 @@ export const pl = {
     noValue: '—',
   },
   workout: {
-    title: 'Trening',
-    resumeBanner: (templateName: string) => `Niedokończona sesja: ${templateName}`,
     resume: 'Wznów',
-    discard: 'Porzuć',
-    discardConfirmTitle: 'Porzucić sesję?',
-    discardConfirmBody:
-      'Zalogowane serie zostaną w historii jako sesja porzucona. Nie da się jej potem wznowić.',
-    blockCount: (n: number) => `${n} ${n === 1 ? 'blok' : n >= 2 && n <= 4 ? 'bloki' : 'bloków'}`,
-    start: 'Rozpocznij',
-    suggested: 'Sugerowane',
-    lastSession: (daysAgo: number) =>
-      daysAgo === 0
-        ? 'Ostatnia sesja: dziś'
-        : daysAgo === 1
-          ? 'Ostatnia sesja: wczoraj'
-          : `Ostatnia sesja: ${daysAgo} dni temu`,
-    noSessionsYet: 'Brak sesji w historii — zacznij od planu na dziś.',
     quickCardio: 'Szybki log: rower',
-    quickCardioHint: 'Jazda poza sesją — najbezpieczniejsza objętość dla nóg',
-    templatesEyebrow: 'Szablony',
     moreExercises: (n: number) => `+${n}`,
     cardio: {
       minutes: 'Minuty',
@@ -435,8 +412,6 @@ export const pl = {
     loadError: 'Nie udało się ułożyć planu. Spróbuj ponownie.',
     startError: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
     retry: 'Spróbuj ponownie',
-    manualEyebrow: 'Trening ręczny',
-    manualHint: 'Stałe szablony sprzed silnika — gdy chcesz zrobić coś po swojemu.',
     sections: {
       day: 'Dzień',
       bike: 'Rower',
@@ -563,6 +538,8 @@ export const pl = {
     weightSection: 'Waga',
     weightInputLabel: 'Dzisiejsza waga (kg)',
     weightSave: 'Zapisz',
+    /** An example value in the weight field. */
+    weightPlaceholder: '82,5',
     weightSavedToday: 'Zapisano na dziś. Możesz poprawić — nadpisze wpis.',
     chartTitle: 'Ostatnie 60 dni',
     chartLegend: 'kropki = wpisy · linia = średnia 7-dniowa',

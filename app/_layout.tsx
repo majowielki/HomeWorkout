@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { DatabaseProvider } from '@/db/provider';
+import { DatabaseGate } from '@/features/startup/DatabaseGate';
 import { fonts, useIsDark, useThemeColors } from '@/lib/theme';
 import { pl } from '@/strings/pl';
 
@@ -84,7 +84,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={navTheme}>
         <StatusBar style="auto" />
-        <DatabaseProvider>
+        <DatabaseGate>
           {/*
            * Only the tab group hides the stack header — the tabs draw their
            * own. Every other route (settings, history detail, the active
@@ -114,7 +114,7 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           </Stack>
-        </DatabaseProvider>
+        </DatabaseGate>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

@@ -7,7 +7,11 @@
  * the morning, so the calendar date is unambiguous there.
  */
 
-const MS_PER_HOUR = 60 * 60 * 1000;
+export const MS_PER_HOUR = 60 * 60 * 1000;
+export const MS_PER_DAY = 24 * MS_PER_HOUR;
+
+/** Until 04:00 it is still yesterday (IMPLEMENTACJA §7.3); the person can change it in Settings. */
+export const DEFAULT_DAY_BOUNDARY_HOUR = 4;
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n);

@@ -17,3 +17,9 @@ sqlite.execSync('PRAGMA foreign_keys = ON;');
 export const db = drizzle(sqlite, { schema });
 
 export type Database = typeof db;
+
+/** A transaction handle: the query API of `db`, for writes that succeed or roll back together. */
+export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Either the database itself or a transaction handle. */
+export type Executor = Database | Tx;

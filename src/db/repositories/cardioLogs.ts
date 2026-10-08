@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { asc, desc, eq, isNull } from 'drizzle-orm';
 
 import { db } from '../client';
 import { cardioLogs } from '../schema';
@@ -33,15 +33,6 @@ export async function logCardio(input: LogCardioInput): Promise<string> {
     loggedAt: new Date().toISOString(),
   });
   return id;
-}
-
-export async function hasWarmupLog(workoutId: string): Promise<boolean> {
-  const [row] = await db
-    .select({ id: cardioLogs.id })
-    .from(cardioLogs)
-    .where(and(eq(cardioLogs.workoutId, workoutId), eq(cardioLogs.purpose, 'warmup')))
-    .limit(1);
-  return row !== undefined;
 }
 
 /** Bike work done as part of one session (warm-up or a ride after), in order. */

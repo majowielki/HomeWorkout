@@ -13,6 +13,7 @@ import type {
   Side,
   TemplateBlock,
 } from '@/domain/types';
+import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
 
 /*
  * Conventions:
@@ -30,7 +31,7 @@ export const userProfile = sqliteTable('user_profile', {
   birthYear: integer('birth_year'),
   sex: text('sex', { enum: ['male', 'female'] }),
   /** A workout at 00:40 still belongs to the previous training day. */
-  dayBoundaryHour: integer('day_boundary_hour').notNull().default(4),
+  dayBoundaryHour: integer('day_boundary_hour').notNull().default(DEFAULT_DAY_BOUNDARY_HOUR),
   saddleHeightCm: real('saddle_height_cm'),
   kneeProfile: text('knee_profile', { mode: 'json' }).$type<KneeProfile | null>(),
   /** Null = defaults from domain/reminders/schedule.ts. */
