@@ -105,6 +105,19 @@ export const SUBSTITUTE_CONFIG = {
 } as const;
 
 /**
+ * What a preference of the person may decide (engine v2, 12 §3-§4). It breaks
+ * ties between near-equivalent options; it never breaks a rule.
+ */
+export const PREFERENCE_CONFIG = {
+  /** Two exercises of one slot are near-equivalent when each is at least this good a substitute for the other (of 115). */
+  nearEquivalentScore: 70,
+  /** The weight of a preference in choosing a day's slots, against 2 for a volume deficit. */
+  scoreWeight: 0.25,
+  /** A variant the person would rather avoid is not chosen if another was not used in the last this many blocks. */
+  avoidedLookbackBlocks: 2,
+} as const;
+
+/**
  * Days since the last session at which each layoff tier starts, SPEC §6.3.
  * One table for the engine and for the AI signals, so "a short layoff"
  * means the same in a plan and in a weekly summary.
