@@ -675,5 +675,10 @@ testy architektury ADR 0001 (`src/__tests__/architecture.test.ts`); ADR 0006; `c
 Potem (2026-10-08): arkusz dnia w kalendarzu oznacza dzień ułożony z trenerem („Zaplanowane ·
 Ułożony z trenerem”) i ma przycisk „Przywróć plan silnika” (potwierdzenie, odwołanie `compose_day`,
 przeliczenie tygodnia od tego dnia); README opisuje narzędzia planu i granicę zgody.
-**Zostało:** test na emulatorze; ewaluacja na prawdziwym modelu; wdrożenie APK + Worker v4 razem
-(Worker v4 odrzuca klienta v3).
+Test na emulatorze (debug, lokalny Worker z atrapą modelu): start po migracji 0008, czat „ułóż
+jutro górę” → karta „Ułożony dzień” z konfliktem i „Zastosuj”, kalendarz z oznaczeniem i
+przywróceniem planu silnika, sesja na ułożonym dniu (obciążenia z silnika). Do decyzji: ułożony
+dzień może mieć ok. 10 min (2 ruchy), poniżej budżetu 20–30 min; ułożenie jednego dnia zmienia w
+podglądzie resztę tygodnia.
+**Zostało:** ewaluacja na prawdziwym modelu; wdrożenie APK + Worker v4 razem (Worker v4 odrzuca
+klienta v3).
