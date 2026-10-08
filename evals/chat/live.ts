@@ -42,6 +42,9 @@ const load = async <T>(specifier: string): Promise<T> => (await import(specifier
 /** The Worker's own per-step limit; a step that takes longer is a failure here too. */
 const STEP_TIMEOUT_MS = 45_000;
 
+/** The whole call including pacing and quota waits; the production limit applies per attempt (pace.ts). */
+const RUN_LIMIT_MS = 5 * 60_000;
+
 export async function createLiveChatResponder(recordTo?: string): Promise<ChatResponder> {
   const { modelFromEnv, providerOptionsFromEnv } =
     await load<WorkerModel>('../../worker/src/model');
@@ -62,7 +65,7 @@ export async function createLiveChatResponder(recordTo?: string): Promise<ChatRe
     );
   }
   // Under the provider's per-minute limit, with quota refusals waited out (pace.ts).
-  const model = pacedFromEnv(provided as object);
+  const model = pacedFromEnv(provided as object, STEP_TIMEOUT_MS);
 
   return liveChatResponder({
     recordTo,
@@ -70,7 +73,7 @@ export async function createLiveChatResponder(recordTo?: string): Promise<ChatRe
       const events: ChatEvent[] = [];
       try {
         for await (const event of streamChatStep(model, request, {
-          abortSignal: AbortSignal.timeout(STEP_TIMEOUT_MS),
+          abortSignal: AbortSignal.timeout(RUN_LIMIT_MS),
           maxOutputTokens: Number(process.env.MAX_OUTPUT_TOKENS ?? 2048),
           tally: { inputTokens: 0, outputTokens: 0 },
           stats: newStats(),

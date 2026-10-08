@@ -59,7 +59,8 @@ export async function createLiveResponder(recordTo?: string): Promise<Responder>
     );
   }
   // Under the provider's per-minute limit, with quota refusals waited out (pace.ts).
-  const model = pacedFromEnv(provided as object);
+  // The Worker's own 25 s limit per call (GENERATION_TIMEOUT_MS), started after the pacing wait.
+  const model = pacedFromEnv(provided as object, 25_000);
 
   return liveResponder({
     now: Date.now,

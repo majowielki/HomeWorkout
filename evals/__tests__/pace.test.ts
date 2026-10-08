@@ -3,6 +3,8 @@ import {
   DEFAULT_RPM,
   pacedModel,
   QUOTA_RETRIES,
+  describeError,
+  retryWaitMs,
   quotaWaitMs,
   rpmFromEnv,
   type Clock,
@@ -59,11 +61,11 @@ describe('pacedModel', () => {
       return this.#calls;
     }
     constructor(private readonly failures: unknown[] = []) {}
-    async doGenerate(input: string) {
+    async doGenerate(options: { prompt: string }) {
       this.#calls += 1;
       const failure = this.failures.shift();
       if (failure) throw failure;
-      return `answer to ${input}`;
+      return `answer to ${options.prompt}`;
     }
     async doStream() {
       return 'stream';
@@ -74,7 +76,7 @@ describe('pacedModel', () => {
     const { clock, sleeps } = fakeClock();
     const model = new Model();
     const paced = pacedModel(model, { rpm: 30, clock });
-    expect(await paced.doGenerate('a')).toBe('answer to a');
+    expect(await paced.doGenerate({ prompt: 'a' })).toBe('answer to a');
     expect(await paced.doStream()).toBe('stream');
     expect(paced.modelId).toBe('m');
     expect(paced.calls).toBe(1);
@@ -86,23 +88,64 @@ describe('pacedModel', () => {
     const log = jest.fn();
     const model = new Model([{ statusCode: 429, message: 'Please retry in 3s.' }]);
     const paced = pacedModel(model, { rpm: 60, clock, log });
-    expect(await paced.doGenerate('b')).toBe('answer to b');
+    expect(await paced.doGenerate({ prompt: 'b' })).toBe('answer to b');
     expect(model.calls).toBe(2);
     expect(sleeps).toContain(4000);
-    expect(log).toHaveBeenCalledWith('quota: waiting 4 s before trying again');
+    expect(log).toHaveBeenCalledWith('provider refused (429: Please retry in 3s.): waiting 4 s');
   });
 
   it('gives up after a few refusals, and never retries another error', async () => {
     const { clock } = fakeClock();
     const quota = { statusCode: 429, message: 'quota' };
     const stubborn = new Model(Array.from({ length: QUOTA_RETRIES + 1 }, () => quota));
-    await expect(pacedModel(stubborn, { rpm: 60, clock }).doGenerate('c')).rejects.toBe(quota);
+    await expect(pacedModel(stubborn, { rpm: 60, clock }).doGenerate({ prompt: 'c' })).rejects.toBe(
+      quota,
+    );
     expect(stubborn.calls).toBe(QUOTA_RETRIES + 1);
 
     const broken = new Model([new Error('bad request')]);
-    await expect(pacedModel(broken, { rpm: 60, clock }).doGenerate('d')).rejects.toThrow(
-      'bad request',
-    );
+    await expect(
+      pacedModel(broken, { rpm: 60, clock }).doGenerate({ prompt: 'd' }),
+    ).rejects.toThrow('bad request');
     expect(broken.calls).toBe(1);
+  });
+});
+
+describe('transient errors and the per-attempt limit', () => {
+  it('retries a provider error marked retryable, briefly, and nothing else', () => {
+    expect(retryWaitMs({ statusCode: 503, isRetryable: true }, 0)).toBe(2000);
+    expect(retryWaitMs({ statusCode: 503, isRetryable: true }, 1)).toBe(4000);
+    expect(retryWaitMs({ statusCode: 400, isRetryable: false }, 0)).toBeNull();
+    expect(retryWaitMs(new Error('x'), 0)).toBeNull();
+  });
+
+  it('starts the production limit after the pacing wait, for each attempt', async () => {
+    const seen: (AbortSignal | undefined)[] = [];
+    const model = {
+      async doGenerate(options: { abortSignal?: AbortSignal }) {
+        seen.push(options.abortSignal);
+        return 'ok';
+      },
+    };
+    const { clock } = fakeClock();
+    const outer = new AbortController();
+    const paced = pacedModel(model, { rpm: 60, clock, attemptTimeoutMs: 8000 });
+    await paced.doGenerate({ abortSignal: outer.signal });
+    await pacedModel(model, { rpm: 60, clock }).doGenerate({});
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+    expect(seen[0]).not.toBe(outer.signal);
+    outer.abort();
+    expect(seen[0]!.aborted).toBe(true);
+    expect(seen[1]).toBeUndefined();
+  });
+
+  it('describes an error by class, status and first line, and nothing for a key to hide in', () => {
+    const error = Object.assign(new Error('overloaded\nbody: {"key": "AQ.secret"}'), {
+      name: 'AI_APICallError',
+      statusCode: 503,
+    });
+    expect(describeError(error)).toBe('AI_APICallError 503: overloaded');
+    expect(describeError('plain')).toBe('plain');
+    expect(describeError({})).toBe('unknown error');
   });
 });
