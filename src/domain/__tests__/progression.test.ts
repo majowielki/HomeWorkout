@@ -164,9 +164,24 @@ describe('doubleProgression', () => {
     });
   });
 
-  it('stays put at the floor', () => {
+  it('stays put at the floor, and does not call it a step down (D39 e)', () => {
     const twice = [exposure(db(2), [5]), exposure(db(2), [5])];
-    expect(doubleProgression(twice, paired, params).load).toEqual(db(2));
+    expect(doubleProgression(twice, paired, params)).toEqual({
+      load: db(2),
+      target: 8,
+      reasons: ['REP_PROGRESSION'],
+      confidence: 'high',
+    });
+  });
+
+  it.each([
+    ['bodyweight', BODYWEIGHT_LADDER, bw],
+    ['the lightest band', bandLoadLadder('yellow', 50), band('yellow', 0)],
+  ])('never reports a step down on %s, where there is none', (_, ladder, load) => {
+    const twice = [exposure(load, [4, 3]), exposure(load, [5, 4])];
+    const decision = doubleProgression(twice, ladder, params);
+    expect(decision.load).toEqual(load);
+    expect(decision.reasons).not.toContain('PERFORMANCE_REGRESSION');
   });
 
   it('does not count a miss at another load, or a single miss, as regression', () => {

@@ -18,6 +18,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | Spec. mówi | Robię | Dlaczego | Zgoda |
 |---|---|---|---|
 | 13 §2: `resolveDayPolicy(base, week, date, intent, phase, constraints, prefs)` zwraca `DayPolicy` z polami `sessionSec`, `setsByKind`, `weekly`, … | P0.4 wprowadza `resolveDayPolicy(base, week, intent)` i `DayPolicy = PolicyBase & { intent }` (opakowanie na obecne `PlannerConfig` i `TRAINING_CONFIG`) | Zachowuje obecne API planera i zero zmian zachowania w P0. Pola ze specyfikacji dochodzą w P1/P3 razem z kodem, który je czyta; dodanie ich teraz byłoby martwym kodem pod progiem 100% pokrycia | nie wymaga |
+| 07 §2c, P0: „nie zwracać `PERFORMANCE_REGRESSION` … tylko uczciwy kod i tekst” — spec. zakłada kod typu `AT_MINIMUM` | Na minimum oporu zwracam zwykłe `REP_PROGRESSION` (istniejący kod), bez nowego kodu | Kody powodów są wyliczone w kontrakcie czatu (`z.enum(PROGRESSION_REASONS)` w `chatTools.ts`), więc nowy kod to zmiana kontraktu i wspólne wdrożenie Workera, a `src/strings/pl.ts` i `versions.ts` mają niezatwierdzone zmiany użytkownika (§1). Nowe kody (`AT_MINIMUM`, `BUILDUP_BELOW_RANGE` …) wchodzą z P3/P5 razem z kontraktem. Tekst `REP_PROGRESSION` („o powtórzenie więcej”) bywa tu niedokładny, bo cel = dół zakresu | nie wymaga |
 | 13 §1: `trainingDate` ma delegować do `trainingDateOf` ze strefą urządzenia | `trainingDate` używa lokalnych getterów (`getHours`, `getDate`), `trainingDateOf` — `Intl` z jawną strefą | Wynik jest ten sam (test „agrees … every half hour”), a stara funkcja nie zależy od `Intl.DateTimeFormat` w Hermesie (13 §1 każe to sprawdzić na urządzeniu — T-1) | nie wymaga |
 
 ## 3. Do sprawdzenia
@@ -45,4 +46,5 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | `trainingDate` odejmuje stałą liczbę ms (błąd 1 h przy zmianie czasu) | P0.3 | |
 | Drabinka masy ciała nie ma szczebla w dół; po dwóch sesjach pod zakresem pojawia się `PERFORMANCE_REGRESSION` mimo braku zmiany | P0.7 (kod i tekst), P3 (budowanie do zakresu, D39) | |
 | `plannerSource` nie niesie pełnej recepty, roli i `shortfall` do historii domenowej | P2/P3 | |
+| `LAYOFF_MEDIUM` („o krok lżej”) i `RE_EXPOSURE` („krok lżej niż ostatnio”) mówią o kroku w dół także wtedy, gdy `ladder.down` zwraca null i opór zostaje | P3 (kody z prawdziwą zmianą oporu, D39 e) | tak samo jak `PERFORMANCE_REGRESSION` przed P0.7; poza zakresem P0, bo to kody kontraktu |
 | Zapis serii generuje nowe UUID przy każdym wywołaniu (brak idempotencji) | P2 | |
