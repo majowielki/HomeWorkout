@@ -488,13 +488,13 @@ export const pl = {
     skip: {
       NO_CANDIDATE: 'brak dozwolonego ćwiczenia',
       DOMS_HIGH: 'mocne zakwasy w tej partii',
-      RECOVERING: 'ta partia pracowała dziś lub wczoraj — regeneruje się',
+      RECOVERING: 'ta partia pracowała tego dnia lub dzień wcześniej — regeneruje się',
       VOLUME_AT_MAX: 'partia ma już tygodniowe maksimum serii',
       VOLUME_ON_TARGET: 'partia ma już swoje serie w tym tygodniu',
-      ALREADY_TODAY: 'ta partia pracuje już dziś w innym ćwiczeniu',
+      ALREADY_TODAY: 'ta partia pracuje już tego dnia w innym ćwiczeniu',
       FATIGUE_BILATERAL_ONLY: 'przy sygnałach zmęczenia tylko ćwiczenia obunóż',
-      NOT_PICKED: 'nie zmieściło się w dzisiejszym czasie',
-      AVOIDED_BY_REQUEST: 'na Twoją prośbę ta partia dziś odpoczywa',
+      NOT_PICKED: 'nie zmieściło się w czasie tego dnia',
+      AVOIDED_BY_REQUEST: 'na Twoją prośbę ta partia tego dnia odpoczywa',
     } satisfies Record<SkipReason, string>,
     day: {
       FIRST_DAY: 'Pierwszy trening — wszystko lekko, z zapasem.',
@@ -840,7 +840,7 @@ export const pl = {
     chat: {
       title: 'Rozmowa z trenerem',
       intro:
-        'Pytaj o dziennik i plan tygodnia: ćwiczenia, serie, postępy i powody wyboru. Możesz też poprosić o dzień wolny, lżejszy plan lub dodatkowy trening. Sprawdzisz propozycję przed zastosowaniem. Dieta, leki i dolegliwości są poza zakresem rozmowy.',
+        'Pytaj o dziennik i plan tygodnia: ćwiczenia, serie, postępy i powody wyboru. Możesz też poprosić o dzień wolny, lżejszy plan, dodatkowy trening albo ułożyć z trenerem ćwiczenia na wybrany dzień. Sprawdzisz propozycję przed zastosowaniem. Dieta, leki i dolegliwości są poza zakresem rozmowy.',
       placeholder: 'Zadaj pytanie o swój trening',
       send: 'Wyślij',
       stop: 'Stop',
