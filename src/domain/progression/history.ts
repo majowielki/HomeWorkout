@@ -13,10 +13,32 @@ export interface HistorySet {
   side?: Side | null;
 }
 
-/** One completed session: its training date and every set in the order performed. */
+/**
+ * One completed session — one workout — with its training date and every
+ * set in the order performed. Two sessions may share a date: the main one
+ * and an extra session later that day.
+ */
 export interface HistorySession {
   date: string;
   sets: HistorySet[];
+}
+
+/**
+ * The sessions of each training day joined into one, in order. Signals about
+ * fatigue over days (SPEC §6.1) read history this way: a main and an extra
+ * session on the same day are one day of training, not two in a row.
+ */
+export function byTrainingDay(sessions: readonly HistorySession[]): HistorySession[] {
+  const out: HistorySession[] = [];
+  for (const session of sessions) {
+    const last = out[out.length - 1];
+    if (last?.date === session.date) {
+      out[out.length - 1] = { date: session.date, sets: [...last.sets, ...session.sets] };
+    } else {
+      out.push(session);
+    }
+  }
+  return out;
 }
 
 export type Unit = 'reps' | 'sec';
@@ -71,4 +93,14 @@ export function exposuresOf(
     out.push({ date: session.date, load: atTop[0]!.load, sets: atTop, warmupMissing });
   }
   return out;
+}
+
+/**
+ * The first exposure of each training day, which is what progression
+ * compares. A repeat later the same day is extra work done tired, not a test
+ * of the load: three sets of ten in the morning are not undone by two sets
+ * of six in an evening session.
+ */
+export function firstOfEachDay(exposures: readonly Exposure[]): Exposure[] {
+  return exposures.filter((e, i) => i === 0 || exposures[i - 1]!.date !== e.date);
 }

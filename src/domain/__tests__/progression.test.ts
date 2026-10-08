@@ -1,6 +1,13 @@
 import { PROGRESSION_CONFIG } from '../config/training';
 import { doubleProgression, type DoubleProgressionParams } from '../progression/doubleProgression';
-import { amountOf, type Exposure, exposuresOf, type HistorySet } from '../progression/history';
+import {
+  amountOf,
+  byTrainingDay,
+  type Exposure,
+  exposuresOf,
+  firstOfEachDay,
+  type HistorySet,
+} from '../progression/history';
 import { BODYWEIGHT_LADDER, bandLoadLadder, dumbbellLoadLadder } from '../progression/ladder';
 import type { LayoffState } from '../progression/layoff';
 import { prescribe, type PrescribeInput, unitOf } from '../progression/prescribe';
@@ -372,5 +379,39 @@ describe('unitOf', () => {
   it('is seconds for isometric work', () => {
     expect(unitOf({ forceProfile: 'Isometric' })).toBe('sec');
     expect(unitOf({ forceProfile: 'ConcentricEccentric' })).toBe('reps');
+  });
+});
+
+describe('sessions on the same training day', () => {
+  const morning = { date: '2026-10-08', sets: [set({ reps: 15 }), set({ reps: 15 })] };
+  const evening = { date: '2026-10-08', sets: [set({ reps: 6 }), set({ reps: 6 })] };
+  const before = { date: '2026-10-06', sets: [set({ reps: 12 })] };
+
+  it('joins them into one day, in order, and leaves other days alone', () => {
+    expect(byTrainingDay([before, morning, evening])).toEqual([
+      before,
+      { date: '2026-10-08', sets: [...morning.sets, ...evening.sets] },
+    ]);
+    expect(byTrainingDay([])).toEqual([]);
+  });
+
+  it('keeps each session as its own exposure, and progression compares the first of the day', () => {
+    const all = exposuresOf('press', [before, morning, evening], paired, 'reps', false);
+    expect(all.map((e) => [e.date, e.sets.map((s) => s.reps)])).toEqual([
+      ['2026-10-06', [12]],
+      ['2026-10-08', [15, 15]],
+      ['2026-10-08', [6, 6]],
+    ]);
+    expect(firstOfEachDay(all).map((e) => e.sets.map((s) => s.reps))).toEqual([[12], [15, 15]]);
+  });
+
+  it('does not let a tired repeat in an evening session hold back the morning result', () => {
+    const press = exercise({ id: 'press', equipment: ['dumbbell'], dumbbellMode: 'paired' });
+    const pressSlot = slot({ repRange: [8, 15], rir: [2, 3], start: { paired: 4 } });
+    const layoff: LayoffState = { tier: 'none', gapDays: 1, recalibrating: false };
+    const base = { exercise: press, slot: pressSlot, asOf: '2026-10-10', layoff };
+    const morningOnly = prescribe({ ...base, sessions: [before, morning] });
+    expect(prescribe({ ...base, sessions: [before, morning, evening] })).toEqual(morningOnly);
+    expect(morningOnly.reasons).toContain('REP_TARGET_MET');
   });
 });
