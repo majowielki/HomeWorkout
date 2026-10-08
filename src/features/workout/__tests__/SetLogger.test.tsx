@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { createRef } from 'react';
 
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import type { PlannedExercise } from '@/domain/plan/types';
 import type { Exercise, TemplateBlock } from '@/domain/types';
 
-import { SetLogger } from '../SetLogger';
+import { SetLogger, type SetLoggerHandle } from '../SetLogger';
 
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => undefined),
@@ -416,6 +417,72 @@ describe('SetLogger', () => {
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: null, timeSec: 38 }));
     now.mockRestore();
+  });
+
+  it('is driven by voice: start, stop taken back, and "seria zrobiona" saves the running time', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    const onStopwatchChange = jest.fn();
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const ref = createRef<SetLoggerHandle>();
+
+    await render(
+      <SetLogger
+        ref={ref}
+        exercise={exercise({
+          id: 'plank',
+          forceProfile: 'Isometric',
+          equipment: ['mat', 'bodyweight'],
+          dumbbellMode: undefined,
+          loadsKnee: false,
+          kneeCue: undefined,
+        })}
+        block={{ ...block, exerciseId: 'plank', repMin: undefined, repMax: undefined, timeSec: 45 }}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+        onStopwatchChange={onStopwatchChange}
+      />,
+    );
+    await screen.findByText('Start');
+
+    await act(async () => expect(ref.current!.startStopwatch()).toBe(true));
+    expect(ref.current!.startStopwatch()).toBe(false);
+    expect(onStopwatchChange).toHaveBeenLastCalledWith(true);
+
+    now.mockReturnValue(1_000_000 + 20_000);
+    await act(async () => expect(ref.current!.stopStopwatch()).toBe(20));
+    expect(onStopwatchChange).toHaveBeenLastCalledWith(false);
+    expect(ref.current!.stopStopwatch()).toBeNull();
+    // "Cofnij": the clock runs on from the first start.
+    await act(async () => ref.current!.revertStopwatch());
+    expect(onStopwatchChange).toHaveBeenLastCalledWith(true);
+
+    now.mockReturnValue(1_000_000 + 41_200);
+    await act(async () => expect(ref.current!.save()).toBe(true));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: null, timeSec: 41 }));
+    now.mockRestore();
+  });
+
+  it('a voice "seria zrobiona" does nothing while a save is under way', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    const ref = createRef<SetLoggerHandle>();
+    await render(
+      <SetLogger
+        ref={ref}
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+        saving
+      />,
+    );
+    await screen.findByText('Seria zrobiona');
+    expect(ref.current!.save()).toBe(false);
+    expect(ref.current!.stopStopwatch()).toBeNull();
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('has no stopwatch for a rep-based exercise', async () => {

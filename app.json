@@ -34,7 +34,14 @@
       ],
       "expo-sharing",
       "expo-font",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Mikrofon służy do poleceń głosowych w trakcie treningu.",
+          "speechRecognitionPermission": "Rozpoznawanie mowy zamienia polecenie głosowe na tekst."
+        }
+      ]
     ],
     "scheme": "homeworkout",
     "experiments": {

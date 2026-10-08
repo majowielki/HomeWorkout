@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState } from 'react';
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,24 @@ import { Text } from '@/components/ui/text';
 import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
+/** What a voice command can do to the stopwatch; the same as its button. */
+export interface StopwatchHandle {
+  /** Starts from zero. False when it was already running. */
+  start(): boolean;
+  /** The whole seconds held, or null when it was not running. */
+  stop(): number | null;
+  /** Takes the last start or stop back: a start resets, a stop runs on from where it was. */
+  revert(): void;
+}
+
 type Props = {
   /** The planned hold; a buzz and a note when it is reached, the clock keeps going. */
   targetSec?: number;
   /** Whole seconds held, on Stop. */
   onStop: (seconds: number) => void;
+  /** Running or not, for whoever offers "start" and "stop" by voice. */
+  onRunningChange?: (running: boolean) => void;
+  ref?: Ref<StopwatchHandle>;
 };
 
 function format(ms: number): string {
@@ -25,11 +38,14 @@ function format(ms: number): string {
  * from a start timestamp on every tick, so a backgrounded app cannot make
  * it drift.
  */
-export function Stopwatch({ targetSec, onStop }: Props) {
+export function Stopwatch({ targetSec, onStop, onRunningChange, ref }: Props) {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const buzzed = useRef(false);
+  // The state before the last start or stop, for a voice command taken back.
+  const before = useRef<{ startedAt: number | null; elapsedMs: number } | null>(null);
   const reached = targetSec !== undefined && elapsedMs >= targetSec * 1000;
+  const running = startedAt !== null;
 
   useEffect(() => {
     if (startedAt === null) return;
@@ -44,7 +60,46 @@ export function Stopwatch({ targetSec, onStop }: Props) {
     }
   }, [startedAt, reached]);
 
-  const running = startedAt !== null;
+  useEffect(() => {
+    onRunningChange?.(running);
+    // A stopwatch that goes away (the set was saved) is not running any more.
+    return () => onRunningChange?.(false);
+  }, [running, onRunningChange]);
+
+  function start(): boolean {
+    if (startedAt !== null) return false;
+    before.current = { startedAt, elapsedMs };
+    buzzed.current = false;
+    setElapsedMs(0);
+    setStartedAt(Date.now());
+    return true;
+  }
+
+  function stop(): number | null {
+    if (startedAt === null) return null;
+    before.current = { startedAt, elapsedMs };
+    const ms = Date.now() - startedAt;
+    setStartedAt(null);
+    setElapsedMs(ms);
+    const seconds = Math.max(1, Math.round(ms / 1000));
+    onStop(seconds);
+    return seconds;
+  }
+
+  useImperativeHandle(ref, () => ({
+    start,
+    stop,
+    revert() {
+      const previous = before.current;
+      if (!previous) return;
+      before.current = null;
+      setStartedAt(previous.startedAt);
+      setElapsedMs(
+        previous.startedAt === null ? previous.elapsedMs : Date.now() - previous.startedAt,
+      );
+    },
+  }));
+
   const s = pl.workout.session.stopwatch;
 
   return (
@@ -65,16 +120,8 @@ export function Stopwatch({ targetSec, onStop }: Props) {
         variant={running ? 'inverse' : 'default'}
         label={running ? s.stop : elapsedMs > 0 ? s.again : s.start}
         onPress={() => {
-          if (running) {
-            const ms = Date.now() - startedAt;
-            setStartedAt(null);
-            setElapsedMs(ms);
-            onStop(Math.max(1, Math.round(ms / 1000)));
-          } else {
-            buzzed.current = false;
-            setElapsedMs(0);
-            setStartedAt(Date.now());
-          }
+          if (running) stop();
+          else start();
         }}
       />
     </View>

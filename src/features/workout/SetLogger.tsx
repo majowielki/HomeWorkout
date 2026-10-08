@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useState } from 'react';
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { ymoveMedia } from '@/assets/ymove-media';
@@ -35,9 +35,20 @@ import {
   toSavedSet,
   usesBand,
 } from './SetFields';
-import { Stopwatch } from './Stopwatch';
+import { Stopwatch, type StopwatchHandle } from './Stopwatch';
 
 export type { SavedSetData } from './SetFields';
+
+/** What a voice command can do on the set screen; each is the same as its button. */
+export interface SetLoggerHandle {
+  /** "Seria zrobiona": a running stopwatch is stopped first and its time is the one saved. */
+  save(): boolean;
+  startStopwatch(): boolean;
+  /** The seconds held, or null when it was not running. */
+  stopStopwatch(): number | null;
+  /** Takes the last stopwatch start or stop back. */
+  revertStopwatch(): void;
+}
 
 export interface PrefillData {
   reps: number | null;
@@ -77,6 +88,9 @@ type Props = {
   supersetWith?: string;
   /** The numbers of a set just taken back ("Cofnij serię"): shown again for a correction. */
   restore?: PrefillData;
+  /** A timed set's stopwatch started or stopped. */
+  onStopwatchChange?: (running: boolean) => void;
+  ref?: Ref<SetLoggerHandle>;
 };
 
 /**
@@ -157,7 +171,10 @@ function SetLoggerFields({
   calibrations,
   onShowDetails,
   supersetWith,
+  onStopwatchChange,
+  ref,
 }: Props & { prefill: PrefillData | null }) {
+  const stopwatch = useRef<StopwatchHandle>(null);
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: prefill?.reps ?? block.repMin ?? 10,
     timeSec: prefill?.timeSec ?? block.timeSec ?? 30,
@@ -172,12 +189,25 @@ function SetLoggerFields({
   // §5.6): a cue before the first set instead of a logged warm-up set.
   const bandPrestretch = setNumber === 1 && usesBand(exercise);
 
-  const handleSave = () => {
+  const handleSave = (current: SetFieldValues = values) => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // A reason is kept only while the set is still short of the target.
-    const saved = toSavedSet(exercise, values, calibrations);
-    onSave({ ...saved, shortfall: below ? saved.shortfall : null });
+    const saved = toSavedSet(exercise, current, calibrations);
+    const short = isBelowTarget(exercise, current, block);
+    onSave({ ...saved, shortfall: short ? saved.shortfall : null });
   };
+
+  useImperativeHandle(ref, () => ({
+    save() {
+      if (saving) return false;
+      const seconds = stopwatch.current?.stop() ?? null;
+      handleSave(seconds === null ? values : { ...values, timeSec: seconds });
+      return true;
+    },
+    startStopwatch: () => stopwatch.current?.start() ?? false,
+    stopStopwatch: () => stopwatch.current?.stop() ?? null,
+    revertStopwatch: () => stopwatch.current?.revert(),
+  }));
 
   const hasClip = ymoveMedia[exercise.id] !== undefined;
   const { width, height } = useWindowDimensions();
@@ -261,7 +291,9 @@ function SetLoggerFields({
     <>
       {isTimed(exercise) ? (
         <Stopwatch
+          ref={stopwatch}
           targetSec={block.timeSec}
+          onRunningChange={onStopwatchChange}
           onStop={(seconds) => setValues((v) => ({ ...v, timeSec: seconds }))}
         />
       ) : null}
@@ -274,7 +306,12 @@ function SetLoggerFields({
         shortfall={below ? 'below' : undefined}
       />
 
-      <Button label={pl.workout.session.saveSet} size="lg" onPress={handleSave} disabled={saving} />
+      <Button
+        label={pl.workout.session.saveSet}
+        size="lg"
+        onPress={() => handleSave()}
+        disabled={saving}
+      />
     </>
   );
 

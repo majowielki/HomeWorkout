@@ -17,6 +17,7 @@ import {
   updateProfile,
 } from '@/db/repositories/profile';
 import { AiSettingsCard } from '@/features/coach/AiSettingsCard';
+import { VoiceSettingsCard } from '@/features/voice/VoiceSettingsCard';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { isMuted, muteUntilDate, type ReminderSettings } from '@/domain/reminders/schedule';
 import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
@@ -394,6 +395,8 @@ export default function SettingsScreen() {
           )}
         </CardContent>
       </Card>
+
+      <VoiceSettingsCard />
 
       <AiSettingsCard />
 

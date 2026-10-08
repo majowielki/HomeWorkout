@@ -37,6 +37,20 @@ import { takeUndone, type UndoneSet, undoneFromRow } from './undoneSet';
 
 export type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'groupDone' | 'notFound';
 
+/** Where a rest ended early stood, so "Cofnij" can bring it back. */
+export interface EndedRest {
+  phase: 'resting' | 'groupDone';
+  index: number;
+  remainingMs: number;
+}
+
+/** What skipping an exercise did. */
+export type SkipOutcome =
+  | { kind: 'skipped'; blockIndex: number; name: string }
+  /** Nothing would be left to do: skipping it ends the workout, which asks first. */
+  | { kind: 'last' }
+  | { kind: 'none' };
+
 export type LoadedSession = {
   workoutId: string;
   trainingDate: string;
@@ -61,7 +75,12 @@ export interface ActiveSessionDeps {
   getCurrentBlock: typeof getCurrentBlock;
   setBlockSelection: typeof setBlockSelection;
   startRest: (seconds: number, notificationBody: string) => Promise<void>;
+  /** Adds to the rest running now; a negative amount takes an extension back. */
+  extendRest: (seconds: number, notificationBody: string) => Promise<void>;
   stopRest: () => Promise<void>;
+  /** When the rest running now ends, or null. */
+  restEndsAt: () => number | null;
+  now: () => number;
   alert: (message: string) => void;
 }
 
@@ -78,7 +97,10 @@ const defaultDeps: ActiveSessionDeps = {
   getCurrentBlock,
   setBlockSelection,
   startRest: (seconds, body) => useRestTimerStore.getState().start(seconds, body),
+  extendRest: (seconds, body) => useRestTimerStore.getState().extend(seconds, body),
   stopRest: () => useRestTimerStore.getState().stop(),
+  restEndsAt: () => useRestTimerStore.getState().restEndsAt,
+  now: Date.now,
   alert: (message) => Alert.alert(message),
 };
 
@@ -110,6 +132,8 @@ export function useActiveSession(
   const [groupDone, setGroupDone] = useState<GroupDoneExercise[]>([]);
   // A set taken back with "Cofnij serię": its step shows the logged numbers again.
   const [restored, setRestored] = useState<UndoneSet | null>(null);
+  // Blocks passed over with "Pomiń ćwiczenie": not offered again this session, never logged.
+  const [skipped, setSkipped] = useState<ReadonlySet<number>>(new Set());
 
   // Initial load: workout -> template -> steps -> where to resume.
   useEffect(() => {
@@ -183,13 +207,18 @@ export function useActiveSession(
     ? (exerciseMap[substitutes[currentStep.blockIndex] ?? ''] ?? templateExercise)
     : undefined;
 
+  // Logged steps plus those of skipped exercises: what the session will not ask for again.
+  const passedKeys = useMemo(
+    () => passedWith(steps, loggedKeys, skipped),
+    [steps, loggedKeys, skipped],
+  );
+
   // What the rest is for. Mirrors restDone — the first unlogged step from
   // here, wrapping round — so after a warm-up (the same step comes back) and
   // after a jump through the progress sheet it still names the right exercise.
   const upcoming = useMemo(() => {
     if (phase !== 'resting' && phase !== 'groupDone') return null;
-    const index =
-      nextUnloggedIndex(steps, loggedKeys, currentIndex) ?? nextUnloggedIndex(steps, loggedKeys, 0);
+    const index = nextFrom(steps, passedKeys, currentIndex);
     const step = index === null ? undefined : steps[index];
     if (!step) return null;
     const exercise =
@@ -203,11 +232,12 @@ export function useActiveSession(
     const otherSide = current?.blockIndex === step.blockIndex && step.side !== null;
     const name = exercise?.name ?? step.block.exerciseId;
     return {
+      blockIndex: step.blockIndex,
       exercise: exercise ?? null,
       label: `${step.block.label} · ${name}${step.side ? ` — ${t.side[step.side]}` : ''}`,
       note: supersetSwitch ? t.supersetNext : otherSide ? t.otherSideNext : null,
     };
-  }, [phase, steps, loggedKeys, currentIndex, substitutes, exerciseMap]);
+  }, [phase, steps, passedKeys, currentIndex, substitutes, exerciseMap]);
 
   /**
    * A swap can change whether the exercise is done one side per set, and so
@@ -247,7 +277,7 @@ export function useActiveSession(
   // "Superseria z: …" on the set screen, naming the other half of the pair.
   const supersetWith = currentStep
     ? groupBlockIndices(steps, currentStep.blockIndex)
-        .filter((i) => i !== currentStep.blockIndex)
+        .filter((i) => i !== currentStep.blockIndex && !skipped.has(i))
         .map((i) => exerciseFor(i)?.name)
         .filter(Boolean)
         .join(', ')
@@ -328,12 +358,13 @@ export function useActiveSession(
 
     // Nothing left anywhere in the session (not just after this index) —
     // the user may have jumped around, so scan the whole list.
-    if (nextUnloggedIndex(steps, freshKeys, 0) === null) {
+    const freshPassed = passedWith(steps, freshKeys, skipped);
+    if (nextUnloggedIndex(steps, freshPassed, 0) === null) {
       finish();
       return;
     }
 
-    if (isGroupComplete(steps, freshKeys, currentStep.blockIndex)) {
+    if (isGroupComplete(steps, freshPassed, currentStep.blockIndex)) {
       // The exercise (or the whole superset) is done: show what was done and
       // let the person move on when ready, instead of a rest countdown.
       await loadGroupDone(loaded.workoutId, currentStep.blockIndex);
@@ -350,14 +381,93 @@ export function useActiveSession(
     setPhase('logging');
     // Advance to the next step that still needs a log. "index + 1" is not
     // safe once the user has jumped around via the progress sheet.
-    const next =
-      nextUnloggedIndex(steps, loggedKeys, currentIndex) ?? nextUnloggedIndex(steps, loggedKeys, 0);
+    const next = nextFrom(steps, passedKeys, currentIndex);
     if (next === null) {
       finish();
     } else {
       setCurrentIndex(next);
     }
     void deps.stopRest();
+  }
+
+  /**
+   * "Koniec przerwy" by voice: the same as the button, but it remembers the
+   * rest it cut short, so "Cofnij" can put it back.
+   */
+  function endRest(): EndedRest | null {
+    if (phase !== 'resting' && phase !== 'groupDone') return null;
+    const endsAt = deps.restEndsAt();
+    const ended: EndedRest = {
+      phase,
+      index: currentIndex,
+      remainingMs: phase === 'resting' && endsAt !== null ? Math.max(0, endsAt - deps.now()) : 0,
+    };
+    restDone();
+    return ended;
+  }
+
+  /** Back to the rest "Koniec przerwy" cut short, with the time it still had. */
+  function resumeRest(ended: EndedRest) {
+    setCurrentIndex(ended.index);
+    if (ended.phase === 'groupDone') {
+      setPhase('groupDone');
+    } else if (ended.remainingMs >= 1000) {
+      void deps.startRest(
+        Math.round(ended.remainingMs / 1000),
+        pl.workout.session.restNotificationBody,
+      );
+      setPhase('resting');
+    } else {
+      // The rest had run out anyway; the next set is where it would have led.
+      setPhase('logging');
+      const next = nextFrom(steps, passedKeys, ended.index);
+      if (next !== null) setCurrentIndex(next);
+    }
+  }
+
+  /** "+30 s", or any other amount; a negative one takes an extension back. */
+  function extendRest(seconds: number): boolean {
+    if (phase !== 'resting') return false;
+    void deps.extendRest(seconds, pl.workout.session.restNotificationBody);
+    return true;
+  }
+
+  /**
+   * "Pomiń ćwiczenie": during a set, the exercise on screen; during a rest
+   * or on the done card, the one coming up. Its unlogged sets are passed
+   * over for the rest of the session and the next exercise opens at once,
+   * without a rest. Skipping the last thing left would end the workout, so
+   * that is only reported; the screen asks before finishing.
+   */
+  function skipExercise(): SkipOutcome {
+    const blockIndex =
+      phase === 'logging'
+        ? currentStep?.blockIndex
+        : phase === 'resting' || phase === 'groupDone'
+          ? upcoming?.blockIndex
+          : undefined;
+    if (blockIndex === undefined) return { kind: 'none' };
+    const skips = new Set(skipped).add(blockIndex);
+    const next = nextFrom(steps, passedWith(steps, loggedKeys, skips), currentIndex);
+    if (next === null) return { kind: 'last' };
+    const name = exerciseFor(blockIndex)?.name ?? '';
+    setSkipped(skips);
+    setRestored(null);
+    setCurrentIndex(next);
+    setPhase('logging');
+    void deps.stopRest();
+    return { kind: 'skipped', blockIndex, name };
+  }
+
+  /** Takes a skip back: the exercise opens again on its first unlogged set. */
+  function unskip(blockIndex: number) {
+    setSkipped((prev) => without(prev, blockIndex));
+    const first = steps.findIndex(
+      (s) => s.blockIndex === blockIndex && !loggedKeys.has(stepKey(s.blockIndex, s.setNumber)),
+    );
+    if (first >= 0) setCurrentIndex(first);
+    void deps.stopRest();
+    setPhase('logging');
   }
 
   /**
@@ -389,6 +499,9 @@ export function useActiveSession(
   /** From the progress sheet: straight to an unlogged step. */
   function jump(index: number) {
     void deps.stopRest();
+    // Jumping onto a skipped exercise is changing one's mind about it.
+    const block = steps[index]?.blockIndex;
+    if (block !== undefined) setSkipped((prev) => without(prev, block));
     setCurrentIndex(index);
     setPhase('logging');
   }
@@ -445,8 +558,14 @@ export function useActiveSession(
     supersetWith,
     unloggedCount,
     warmupDone: () => setPhase('logging'),
+    skipped,
     saveSet,
     restDone,
+    endRest,
+    resumeRest,
+    extendRest,
+    skipExercise,
+    unskip,
     undo,
     jump,
     finish,
@@ -454,4 +573,35 @@ export function useActiveSession(
     restoreSubstitute,
     exclude,
   };
+}
+
+/** Logged steps plus every step of a skipped block. */
+function passedWith(
+  steps: readonly SessionStep[],
+  keys: ReadonlySet<string>,
+  skips: ReadonlySet<number>,
+): ReadonlySet<string> {
+  if (skips.size === 0) return keys;
+  const passed = new Set(keys);
+  for (const s of steps) {
+    if (skips.has(s.blockIndex)) passed.add(stepKey(s.blockIndex, s.setNumber));
+  }
+  return passed;
+}
+
+/** The next step still to do from `from`, wrapping round; null when nothing is left. */
+function nextFrom(
+  steps: readonly SessionStep[],
+  passed: ReadonlySet<string>,
+  from: number,
+): number | null {
+  return nextUnloggedIndex(steps, passed, from) ?? nextUnloggedIndex(steps, passed, 0);
+}
+
+/** The set without one block; the same set when it was not there, so nothing re-renders. */
+function without(set: ReadonlySet<number>, blockIndex: number): ReadonlySet<number> {
+  if (!set.has(blockIndex)) return set;
+  const rest = new Set(set);
+  rest.delete(blockIndex);
+  return rest;
 }
