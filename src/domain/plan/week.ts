@@ -17,13 +17,13 @@ import type { Ride } from '../progression/bike';
 import type { HistorySession } from '../progression/history';
 import type { BandCalibrationMap, Exercise, MuscleGroup } from '../types';
 import { advanceBlock } from './block';
+import { resolveDayPolicy } from '../policy/dayPolicy';
 import { composeDay, type DayOption, dayOptions } from './compose';
 import {
   composedOn,
   dateRange,
   isTrainingDay,
   type PlanConstraint,
-  scaledConfig,
   TRAIN_DAILY,
   type TrainingWeek,
 } from './constraints';
@@ -99,7 +99,9 @@ export function planWeek(
   const { catalog, slots, eligibility } = input;
   const constraints = input.constraints ?? [];
   const week = input.week ?? TRAIN_DAILY;
-  const dayCfg = scaledConfig(week, cfg);
+  const base = { planner: cfg, training };
+  const autoPolicy = resolveDayPolicy(base, week, 'auto_day');
+  const composePolicy = resolveDayPolicy(base, week, 'compose');
   const slotOf = slotByExercise(slots);
   const sessions = [...input.sessions];
   const rides = [...input.rides];
@@ -145,24 +147,25 @@ export function planWeek(
       daily: input.daily,
       calibrations: input.calibrations,
       constraints,
+      week,
     };
     // A composed day comes first; what the engine could not take is reported, and an
     // empty composition gives the day back to the engine (ADR 0006).
     const items = composedOn(constraints, date);
-    const composition = items ? composeDay(day, items) : null;
+    const composition = items ? composeDay(day, items, composePolicy) : null;
     const composedSelection =
       composition && composition.selection.items.length > 0 ? composition.selection : null;
     const violations = composition
       ? composition.conflicts.map((c) => ({ slotId: c.slotId, code: c.reason }))
       : stored
-        ? checkSelection(stored, day, dayCfg, training)
+        ? checkSelection(stored, day, autoPolicy.planner, autoPolicy.training)
         : [];
     const selection =
       composedSelection ??
       (!composition && stored && violations.length === 0
         ? stored
-        : selectDay(day, dayCfg, training));
-    const forecast = buildDay(selection, day, dayCfg, training);
+        : selectDay(day, autoPolicy.planner, autoPolicy.training));
+    const forecast = buildDay(selection, day, autoPolicy.planner, autoPolicy.training);
     days.push({
       date,
       rest: false,
@@ -172,7 +175,7 @@ export function planWeek(
       violations,
       events: advance.events,
       composed: composedSelection !== null,
-      ...(input.optionsFor === date ? { options: dayOptions(day) } : {}),
+      ...(input.optionsFor === date ? { options: dayOptions(day, composePolicy) } : {}),
     });
 
     sessions.push({ date, sets: perform(forecast, FOLLOWS_THE_PLAN, catalog) });

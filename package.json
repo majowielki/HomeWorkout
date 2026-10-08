@@ -74,6 +74,7 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "validate:data": "ts-node --project tsconfig.scripts.json scripts/validate-data.ts",
+    "engine:baseline": "tsx scripts/engine-baseline.ts",
     "db:generate": "drizzle-kit generate",
     "verify": "npm run lint && npm run format:check && npm run routes:types && npm run typecheck && npm run validate:data && npm run test:coverage",
     "media:import": "ts-node --project tsconfig.scripts.json scripts/import-media.ts",

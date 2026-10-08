@@ -41,7 +41,9 @@ export function targetMet(
  * - every set at the top of the range with RIR in target → one step up the
  *   ladder and back to the bottom of the range; at the ceiling, stay on top
  * - a set below the range in both of the last two exposures at this load →
- *   one step down, bottom of the range
+ *   one step down, bottom of the range. With no lighter step (bodyweight, the
+ *   lightest dumbbell or band) nothing changes, so no step down is reported:
+ *   the exposure is treated like any other below the top of the range
  * - otherwise the same load and one more rep (or 5 s) in the first set that
  *   did not reach the top
  */
@@ -68,13 +70,9 @@ export function doubleProgression(
     previous !== undefined &&
     ladder.rank(previous.load) === ladder.rank(last.load) &&
     previous.sets.some((s) => amountOf(s, params.unit)! < lo);
-  if (belowNow && belowBefore) {
-    return {
-      load: ladder.down(last.load) ?? last.load,
-      target: lo,
-      reasons: ['PERFORMANCE_REGRESSION'],
-      confidence: 'high',
-    };
+  const lighter = ladder.down(last.load);
+  if (belowNow && belowBefore && lighter) {
+    return { load: lighter, target: lo, reasons: ['PERFORMANCE_REGRESSION'], confidence: 'high' };
   }
 
   if (allAtTop) {
