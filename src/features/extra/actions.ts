@@ -53,6 +53,7 @@ export class ExtraSessionChangedError extends Error {}
 export async function startExtraSession(
   slotIds: readonly string[],
   preview: SessionPlan,
+  acceptedCoach?: { proposalId: string },
 ): Promise<string> {
   const live = await loadExtraSession();
   if (live.inProgress) return live.inProgress.id;
@@ -66,5 +67,8 @@ export async function startExtraSession(
   ) {
     throw new ExtraSessionChangedError();
   }
-  return startExtraWorkout(plan, selectCustom(live.input, slotIds));
+  const frozen = acceptedCoach
+    ? { ...plan, source: 'ai_accepted' as const, coachProposalId: acceptedCoach.proposalId }
+    : plan;
+  return startExtraWorkout(frozen, selectCustom(live.input, slotIds));
 }

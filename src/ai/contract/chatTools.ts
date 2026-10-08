@@ -28,6 +28,8 @@ import {
   DAY_REASONS,
   FATIGUE_SIGNALS,
   PROGRESSION_REASONS,
+  REQUEST_DAY_REASONS,
+  REQUEST_SKIP_REASONS,
   SKIP_REASONS,
 } from '../../domain/plan/reasons';
 import { isoDate, setSchema, volumeWeekSchema, waistSchema, weightSchema } from './coachContext';
@@ -39,6 +41,9 @@ export const TOOL_NAMES = [
   'getBodyTrend',
   'findExercises',
   'getPlanExplanation',
+  'getWeekPlan',
+  'proposePlanChange',
+  'proposeExtraSession',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -67,7 +72,81 @@ const exerciseRef = z.strictObject({
   name: z.string().min(1).max(120),
 });
 
-export const TOOL_ERRORS = ['invalid_input', 'unknown_exercise', 'no_plan', 'failed'] as const;
+export const TOOL_ERRORS = [
+  'invalid_input',
+  'unknown_exercise',
+  'no_plan',
+  'failed',
+  'in_progress',
+  'finish_first',
+  'rest_day',
+  'clarification_required',
+  'date_changed',
+] as const;
+
+export const PLAN_DAY_REASONS = [...DAY_REASONS, ...REQUEST_DAY_REASONS] as const;
+export const PLAN_SKIP_REASONS = [...SKIP_REASONS, ...REQUEST_SKIP_REASONS] as const;
+
+/** Relative dates keep the model from inventing a calendar date. The phone resolves them. */
+export const planIntentSchema = z.strictObject({
+  kind: z.enum(['avoid_muscle', 'rest_day', 'lighter_day']),
+  muscles: z.array(z.enum(MUSCLE_GROUPS)).max(MUSCLE_GROUPS.length),
+  fromDaysAhead: z.number().int().min(0).max(6),
+  days: z.number().int().min(1).max(3),
+  reason: z.enum(['doms', 'busy', 'other']),
+  domsLevel: z.number().int().min(1).max(5).optional(),
+});
+
+export const planDaySummarySchema = z.strictObject({
+  date: isoDate,
+  status: z.enum(['planned', 'done', 'in_progress']),
+  rest: z.boolean(),
+  regions: z.array(z.enum(['lower', 'push', 'pull', 'shoulders', 'arms', 'core', 'mobility'])),
+  phase: z.enum(['work', 'deload']).nullable(),
+  estimatedMinutes: count,
+  dayReasons: z.array(z.enum(PLAN_DAY_REASONS)),
+  exercises: z
+    .array(
+      z.strictObject({
+        exercise: exerciseRef,
+        sets: count,
+        perSide: z.boolean(),
+        movement: z.string().min(1).max(60),
+      }),
+    )
+    .max(TOOL_LIMITS.planExercisesShown),
+  skipped: z
+    .array(
+      z.strictObject({ movement: z.string().min(1).max(60), reason: z.enum(PLAN_SKIP_REASONS) }),
+    )
+    .max(TOOL_LIMITS.planSkippedShown),
+});
+
+const proposalConstraintSchema = z.strictObject({
+  kind: z.enum(['avoid_muscle', 'rest_day', 'lighter_day']),
+  muscles: z.array(z.enum(MUSCLE_GROUPS)),
+  from: isoDate,
+  until: isoDate,
+  reason: z.enum(['doms', 'busy', 'other']),
+});
+
+export const planProposalSummarySchema = z.strictObject({
+  proposalId: z.string().min(1).max(64),
+  kind: z.literal('plan'),
+  requiresAcceptance: z.literal(true),
+  constraints: z.array(proposalConstraintSchema).min(1).max(3),
+  changes: z
+    .array(z.strictObject({ before: planDaySummarySchema, after: planDaySummarySchema }))
+    .max(7),
+});
+
+export const extraProposalSummarySchema = z.strictObject({
+  proposalId: z.string().min(1).max(64),
+  kind: z.literal('extra'),
+  requiresAcceptance: z.literal(true),
+  focusMuscles: z.array(z.enum(MUSCLE_GROUPS)).min(1).max(MUSCLE_GROUPS.length),
+  day: planDaySummarySchema,
+});
 
 /**
  * What any tool may return instead of its output. A failure is data the
@@ -175,7 +254,7 @@ export const CHAT_TOOLS = {
       source: z.enum(['session', 'today']),
       blockIndex: z.number().int().positive(),
       phase: z.enum(['work', 'deload']),
-      dayReasons: z.array(z.enum(DAY_REASONS)),
+      dayReasons: z.array(z.enum(PLAN_DAY_REASONS)),
       signals: z.array(z.enum(FATIGUE_SIGNALS)),
       bike: z.strictObject({
         minutes: count,
@@ -197,11 +276,34 @@ export const CHAT_TOOLS = {
           z.strictObject({
             movement: z.string().min(1).max(60),
             exercise: exerciseRef.nullable(),
-            reason: z.enum(SKIP_REASONS),
+            reason: z.enum(PLAN_SKIP_REASONS),
           }),
         )
         .max(TOOL_LIMITS.planSkippedShown),
     }),
+  },
+  getWeekPlan: {
+    description:
+      'Read the current rolling seven-day plan, including requested rest and muscle restrictions as reason codes. Loads and repetition targets are omitted. Explain only the engine decisions returned here.',
+    input: z.strictObject({}),
+    output: z.strictObject({ asOf: isoDate, days: z.array(planDaySummarySchema).max(7) }),
+  },
+  proposePlanChange: {
+    description:
+      'Preview a user-requested change through the rules engine, without saving anything. The user must press Apply in a local review card. Offer avoid_muscle only for explicitly strong DOMS (domsLevel 4-5) or a non-medical preference; ask about severity first if unknown. Mild DOMS does not exclude a muscle. No pain, injury, joint symptoms, loads, exercise IDs, or treatment requests. fromDaysAhead 0 means the training date shown in facts. days is 1-3 and the range must end inside the horizon. rest_day and lighter_day have empty muscles. Do not claim the plan has changed.',
+    input: z.strictObject({
+      constraints: z.array(planIntentSchema).min(1).max(3),
+      note: z.string().min(1).max(160),
+    }),
+    output: planProposalSummarySchema,
+  },
+  proposeExtraSession: {
+    description:
+      "Preview a user-requested additional session for the given muscle groups after today's main workout was completed. The engine chooses available slots and validates the recipe. Nothing is started until the user presses Apply in the local card. Do not prescribe loads or choose exercises directly.",
+    input: z.strictObject({
+      focusMuscles: z.array(z.enum(MUSCLE_GROUPS)).min(1).max(MUSCLE_GROUPS.length),
+    }),
+    output: extraProposalSummarySchema,
   },
 } as const satisfies Record<ToolName, { description: string; input: z.ZodType; output: z.ZodType }>;
 

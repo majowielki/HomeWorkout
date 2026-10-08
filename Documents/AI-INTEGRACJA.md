@@ -663,6 +663,34 @@ Wniosek ograniczony do tego, co zmierzone: w tej próbie 3.8 Flash był wolny i 
 
 **Sprawdzone:** `npm run verify`; `npm run eval` (wzorzec, 21 przypadków czatu, bezpieczeństwo czyste); testy Workera w workerd (120); bundle Workera na sucho. **Niesprawdzone:** prawdziwy model na nowych przypadkach (`npm run eval:live`) i rozmowa przez wdrożony Worker — wymaga ponownego wdrożenia Workera (`cd worker && npx wrangler deploy`) i nowego APK.
 
+### E7 — propozycje planu w czacie (2026-10-08)
+
+Kontrakt 3 i prompt `chat/v3` rozszerzają czat o `getWeekPlan`, `proposePlanChange` oraz
+`proposeExtraSession`. Model proponuje ograniczenia lub kierunek dodatkowej pracy; receptę
+wylicza silnik. Odpowiedź narzędzia zawiera tylko podgląd i identyfikator lokalnej karty,
+bez obciążeń i celów powtórzeń. Poprzednie wersje promptu są zachowane.
+
+Akceptacja jest osobną akcją aplikacji. Karta pokazuje daty, prośbę i konkretne różnice ćwiczeń
+oraz serii. Odrzucenie niczego nie zapisuje. Propozycje po błędzie, anulowaniu, niepełnej lub
+wycofanej odpowiedzi nie są aktywne. Nowe pytanie wygasza wcześniejsze niezaakceptowane karty.
+Przed zapisem aplikacja ponownie sprawdza źródło i datę; zmieniony podgląd wymaga nowej rozmowy,
+nie jest automatycznie zaakceptowany. Zapis prośby, bloku i tygodnia jest atomowy; generacja
+`coach` ma identyfikator propozycji. Dodatkowa sesja przechodzi walidację E6 i ma znacznik
+`ai_accepted` oraz odsyłacz do propozycji w zamrożonej recepcie. Ciężary pozostają decyzją silnika.
+
+Zakwasy silne muszą być jasno podane przez użytkownika; model nie może wywnioskować wysokiego
+nasilenia z lekkich lub nieokreślonych zakwasów. Filtr sprawdza również medyczne lub receptowe
+treści w notatce propozycji. Ból kolana/stawu nadal zatrzymuje wiadomość przed siecią.
+
+Weryfikacja: aplikacja 2000 testy, wymagane pokrycie domeny i AI 100%; Worker 121 testów,
+typecheck i bundle na sucho. Ewaluacja 26 syntetycznych przypadków na `reference-chat-model`
+przechodzi wszystkie reguły. Raport `2026-10-08-chat-reference-v3-reference-chat-model` dotyczy
+pipeline'u; jakość Gemini z nowym promptem wymaga oceny na żywo. Na emulatorze sprawdzono
+lokalnego Workera z atrapą: podgląd bez zapisu, odrzucenie, zastosowanie, dodatkową sesję
+i brak żądań po wiadomości o bólu kolana. APK ARM64 jest przygotowane; wdrożenie APK i Workera
+razem pozostaje do wykonania po backupie i podłączeniu telefonu. Produkcyjny Worker nie został
+przełączony na v3, aby nie blokować starej aplikacji błędem niezgodności kontraktu.
+
 ### A0 — Fundament bez sieci (2–3 wieczory)
 
 1. `src/ai/contract` dla F1; `buildCoachContext` + `redact`; ekran „co wysyłam" + „Kopiuj brief" /

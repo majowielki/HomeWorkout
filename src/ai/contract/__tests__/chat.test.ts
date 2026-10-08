@@ -22,6 +22,33 @@ import {
 import { CONTRACT_VERSION } from '../versions';
 
 const OUTPUTS: Record<ToolName, ToolResult['output']> = {
+  getWeekPlan: { asOf: '2026-10-01', days: [] },
+  proposePlanChange: {
+    proposalId: 'p1',
+    kind: 'plan',
+    requiresAcceptance: true,
+    constraints: [
+      { kind: 'rest_day', muscles: [], from: '2026-10-01', until: '2026-10-01', reason: 'busy' },
+    ],
+    changes: [],
+  },
+  proposeExtraSession: {
+    proposalId: 'p2',
+    kind: 'extra',
+    requiresAcceptance: true,
+    focusMuscles: ['calves'],
+    day: {
+      date: '2026-10-01',
+      status: 'planned',
+      rest: false,
+      regions: ['lower'],
+      phase: 'work',
+      estimatedMinutes: 5,
+      dayReasons: [],
+      exercises: [],
+      skipped: [],
+    },
+  },
   getRecentSessions: {
     totalCompleted: 9,
     sessions: [
@@ -90,6 +117,12 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
 };
 
 const INPUTS: Record<ToolName, ToolCall['input']> = {
+  getWeekPlan: {},
+  proposePlanChange: {
+    constraints: [{ kind: 'rest_day', muscles: [], fromDaysAhead: 0, days: 1, reason: 'busy' }],
+    note: 'Dzień wolny na prośbę.',
+  },
+  proposeExtraSession: { focusMuscles: ['calves'] },
   getRecentSessions: { count: 3 },
   getExerciseHistory: { exerciseId: 'row', weeks: 4 },
   getWeeklyVolume: { weeksAgo: 0 },

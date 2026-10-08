@@ -1,0 +1,25 @@
+{
+  "question": "Co mam w planie tygodnia?",
+  "feature": "chat",
+  "description": "Week questions read the rolling plan through the week tool.",
+  "category": "typical",
+  "scenario": {},
+  "id": "plan-week-read",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "grounded",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "mentionAnyOf": [["plan", "kalendarz"]],
+    "tools": ["getWeekPlan"]
+  }
+}

@@ -849,7 +849,7 @@ export const pl = {
     chat: {
       title: 'Rozmowa z trenerem',
       intro:
-        'Pytaj o to, co widać w dzienniku i w planie: serie, postępy w ćwiczeniach, objętość, waga, powody planu na dziś. Model sam sprawdza dane na Twoim telefonie i niczego nie zmienia w planie. Nie doradza w sprawie diety, leków ani dolegliwości.',
+        'Pytaj o dziennik i plan tygodnia: ćwiczenia, serie, postępy i powody wyboru. Możesz też poprosić o dzień wolny, lżejszy plan lub dodatkowy trening. Sprawdzisz propozycję przed zastosowaniem. Dieta, leki i dolegliwości są poza zakresem rozmowy.',
       placeholder: 'Zadaj pytanie o swój trening',
       send: 'Wyślij',
       stop: 'Stop',
@@ -859,7 +859,7 @@ export const pl = {
       empty:
         'Na przykład: „Jak mi idzie z wiosłowaniem?”, „Ile serii na plecy zrobiłem w tym tygodniu?” albo „Czemu dziś nie ma przysiadów?”',
       disclaimer:
-        'To komentarz do liczb z dziennika, nie plan ani porada. Obciążenia ustala wyłącznie silnik reguł.',
+        'Obciążenia ustala silnik reguł. Każda propozycja zmiany planu wymaga Twojej akceptacji.',
       counter: (used: number, max: number) => `${used}/${max}`,
       /** What the app says while the model looks something up. Typed so a new tool cannot be forgotten. */
       tools: {
@@ -869,7 +869,32 @@ export const pl = {
         getBodyTrend: 'Sprawdzam wagę i talię…',
         findExercises: 'Szukam ćwiczenia…',
         getPlanExplanation: 'Sprawdzam plan dnia…',
+        getWeekPlan: 'Sprawdzam plan tygodnia…',
+        proposePlanChange: 'Liczę propozycję zmian…',
+        proposeExtraSession: 'Sprawdzam dodatkowy trening…',
       } satisfies Record<ToolName, string>,
+      proposal: {
+        plan: 'Propozycja zmiany planu',
+        apply: 'Zastosuj',
+        reject: 'Odrzuć',
+        before: 'Było',
+        after: 'Będzie',
+        noChanges: 'Ćwiczenia pozostają takie same. Zapiszę wskazaną prośbę na podany okres.',
+        extraHint: '„Zastosuj” rozpocznie tę sesję. Obciążenia silnika zobaczysz w treningu.',
+        constraint: {
+          avoid_muscle: 'Pomiń partię',
+          rest_day: 'Dzień wolny',
+          lighter_day: 'Lżejszy dzień',
+        },
+        status: {
+          pending: 'To podgląd. Plan zmieni się dopiero po Twojej akceptacji.',
+          applying: 'Sprawdzam dane i zapisuję…',
+          applied: 'Zastosowano.',
+          rejected: 'Odrzucono. Ta propozycja nie zmieniła planu.',
+          stale: 'Propozycja wygasła. Poproś o nową, uwzględniającą aktualne dane.',
+          failed: 'Nie udało się zastosować propozycji. Możesz ponowić próbę.',
+        },
+      },
       /** The app's own replies, when it does not ask the model at all. */
       blocked: {
         medical: 'Dolegliwości omów z fizjoterapeutą lub lekarzem.',

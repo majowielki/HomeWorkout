@@ -4,6 +4,7 @@ import { pl } from '@/strings/pl';
 
 import { chatReducer, initialChatState, isBusy, type ChatAction, type ChatState } from '../state';
 import { describeTurnFailure } from '../turnErrors';
+import type { ProposalView } from '../proposals';
 
 const meta = {
   requestIds: ['req-1-aaaaaaa'],
@@ -15,6 +16,68 @@ const meta = {
   latencyMs: 10,
   messages: [],
 };
+
+const proposal: ProposalView = {
+  id: 'p',
+  note: 'Jutro wolne.',
+  summary: {
+    kind: 'plan',
+    proposalId: 'p',
+    requiresAcceptance: true,
+    constraints: [
+      { kind: 'rest_day', muscles: [], from: '2026-10-02', until: '2026-10-02', reason: 'busy' },
+    ],
+    changes: [],
+  },
+};
+
+describe('proposal consent state', () => {
+  it('shows drafts only after a complete checked reply and expires unaccepted cards on a new question', () => {
+    const out = chatReducer(apply([asked()]), {
+      type: 'finished',
+      outcome: { ...meta, kind: 'answered', text: 'Podgląd.', truncated: false, history: [] },
+      proposals: [proposal],
+    });
+    expect(out.entries.at(-1)).toMatchObject({ kind: 'proposal', status: 'pending' });
+    const applying = chatReducer(out, { type: 'proposalStatus', id: 'p', status: 'applying' });
+    expect(applying.entries.at(-1)).toMatchObject({ status: 'applying' });
+    const next = chatReducer(out, asked('Następne pytanie.', 'q2'));
+    expect(next.entries.find((e) => e.id === 'p')).toMatchObject({ status: 'stale' });
+    const applied = chatReducer(out, { type: 'proposalStatus', id: 'p', status: 'applied' });
+    expect(
+      chatReducer(applied, asked('Następne pytanie.', 'q2')).entries.find((e) => e.id === 'p'),
+    ).toMatchObject({ status: 'applied' });
+  });
+  it.each(['withheld', 'failed', 'aborted', 'truncated'])(
+    'does not expose actionable proposals after %s',
+    (kind) => {
+      const outcome =
+        kind === 'truncated'
+          ? { ...meta, kind: 'answered' as const, text: 'Podgląd.', truncated: true, history: [] }
+          : kind === 'withheld'
+            ? {
+                ...meta,
+                kind: 'withheld' as const,
+                text: 'Weź ciężar.',
+                violations: ['load_prescription' as const],
+              }
+            : kind === 'failed'
+              ? {
+                  ...meta,
+                  kind: 'failed' as const,
+                  partialText: '',
+                  failure: { kind: 'offline' as const },
+                }
+              : { ...meta, kind: 'aborted' as const };
+      const out = chatReducer(apply([asked()]), {
+        type: 'finished',
+        outcome,
+        proposals: [proposal],
+      });
+      expect(out.entries.some((e) => e.kind === 'proposal')).toBe(false);
+    },
+  );
+});
 
 const apply = (actions: ChatAction[], from: ChatState = initialChatState) =>
   actions.reduce(chatReducer, from);

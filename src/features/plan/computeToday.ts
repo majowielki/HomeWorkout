@@ -1,30 +1,22 @@
-import { loadPlannerSource } from '@/db/repositories/plannerSource';
-import { getTrainingWeek } from '@/db/repositories/profile';
-import { getCurrentBlock, saveBlockAdvance } from '@/db/repositories/trainingBlocks';
+import { saveBlockAdvance } from '@/db/repositories/trainingBlocks';
 import {
-  getActiveConstraints,
-  getPlannedDays,
-  getTrainedDates,
   getUnseenChanges,
   markDays,
   type PlanBanner,
   refreshForecasts,
   saveWeek,
 } from '@/db/repositories/weekPlan';
-import { fatigueSignals } from '@/domain/autoregulation/fatigue';
-import { advanceBlock } from '@/domain/plan/block';
 import { directVolume } from '@/domain/plan/dayPlanner';
 import { type MuscleRecovery, recoveryOutlook } from '@/domain/plan/dayState';
-import { slotByExercise } from '@/domain/plan/eligibility';
 import { type BikePrescription, bikePrescription } from '@/domain/progression/bike';
 import { layoffState } from '@/domain/progression/layoff';
 import type { BlockEvent } from '@/domain/plan/reasons';
 import type { SessionPlan } from '@/domain/plan/types';
 import { type StoredDay, type SyncInput, syncWeek } from '@/domain/plan/weekSync';
-import { addDays } from '@/domain/time/trainingDate';
 import type { MuscleGroup } from '@/domain/types';
 
 import { SLOTS } from './slots';
+import { loadPlanningSnapshot } from './planningSnapshot';
 
 export type { PlanBanner } from '@/db/repositories/weekPlan';
 
@@ -60,6 +52,13 @@ export interface PlanToday {
  */
 let queue: Promise<unknown> = Promise.resolve();
 
+/** Coach acceptance shares the queue with normal sync, so neither can overwrite the other. */
+export function withPlanningLock<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * Today's plan from the stored week (SPEC §11.5). Each call brings the
  * week up to date — marks past days, extends the horizon, keeps every day
@@ -77,53 +76,15 @@ export function computeToday({
   persist: boolean;
   request?: SyncInput['request'];
 }): Promise<PlanToday> {
-  const run = queue.then(async (): Promise<PlanToday> => {
-    const source = await loadPlannerSource();
+  return withPlanningLock(async (): Promise<PlanToday> => {
+    const { source, current, advance, input } = await loadPlanningSnapshot();
     const { asOf, catalog } = source;
-    const [current, constraints, week, stored, trainedDates] = await Promise.all([
-      getCurrentBlock(),
-      getActiveConstraints(addDays(asOf, -14)),
-      getTrainingWeek(),
-      getPlannedDays(addDays(asOf, -14), addDays(asOf, 13)),
-      getTrainedDates(addDays(asOf, -14)),
-    ]);
-    const eligibility = { profile: source.profile, excludedIds: new Set(source.excludedIds) };
-
-    const advance = advanceBlock(current?.state ?? null, {
-      asOf,
-      lastSessionDate: source.lastSessionDate,
-      signals: fatigueSignals({
-        asOf,
-        sessions: source.sessions,
-        catalog,
-        slotOf: slotByExercise(SLOTS),
-        daily: source.daily,
-      }),
-      slots: SLOTS,
-      catalog,
-      eligibility,
-    });
+    const { trainedDates } = input;
     const blockId = persist
       ? (await saveBlockAdvance(current, advance, asOf)).id
       : (current?.id ?? null);
 
-    const sync = syncWeek({
-      asOf,
-      stored,
-      trainedDates,
-      request,
-      catalog,
-      slots: SLOTS,
-      eligibility,
-      block: advance.block,
-      sessions: source.sessions,
-      lastSessionDate: source.lastSessionDate,
-      rides: source.rides,
-      daily: source.daily,
-      calibrations: source.calibrations,
-      constraints,
-      week,
-    });
+    const sync = syncWeek({ ...input, request });
 
     if (persist) {
       if (sync.trigger !== null) {
@@ -164,6 +125,4 @@ export function computeToday({
       banner: persist ? await getUnseenChanges() : null,
     };
   });
-  queue = run.catch(() => undefined);
-  return run;
 }

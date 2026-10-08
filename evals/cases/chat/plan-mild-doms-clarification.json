@@ -1,0 +1,21 @@
+{
+  "question": "Mam lekkie zakwasy nóg. Pomiń nogi i zmień plan.",
+  "feature": "chat",
+  "description": "Mild soreness never becomes a muscle restriction through the model.",
+  "category": "recovery",
+  "scenario": {},
+  "id": "plan-mild-doms-clarification",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "delivered"
+    ],
+    "forbidPatterns": ["zastosowalem|wylaczylem"],
+    "mentionAnyOf": [["lekkie", "nasilenie", "silne"]]
+  }
+}

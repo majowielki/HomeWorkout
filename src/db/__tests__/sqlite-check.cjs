@@ -300,6 +300,8 @@ async function main() {
   const extraPlan = {
     version: 1,
     kind: 'extra',
+    source: 'ai_accepted',
+    coachProposalId: 'extra-proposal',
     date: '2026-10-01',
     blockIndex: 1,
     phase: 'work',
@@ -367,6 +369,99 @@ async function main() {
   await workoutRepo.abandonStaleWorkouts(new Date(Date.now() + 13 * 60 * 60 * 1000));
   assert.equal((await workoutRepo.getWorkout(staleId)).status, 'abandoned');
   await workoutRepo.deleteWorkout(staleId);
+  const beforeCoach = await backup.dumpAll();
+  const beforeCoachDays = all('SELECT * FROM planned_days');
+  const coachRequest = {
+    id: 'preview',
+    kind: 'avoid_muscle',
+    muscles: ['chest'],
+    from: '2026-10-08',
+    until: '2026-10-09',
+    reason: 'doms',
+    source: 'user',
+    note: 'strong soreness',
+  };
+  const coachAdvance = {
+    block: { ...original.state, index: original.state.index + 1 },
+    closed: original.state,
+    events: [],
+  };
+  native.exec(
+    "CREATE TRIGGER fail_coach BEFORE INSERT ON plan_generations WHEN NEW.trigger = 'coach' BEGIN SELECT RAISE(ABORT, 'coach failure'); END",
+  );
+  await assert.rejects(
+    week.saveCoachWeek(
+      'coach-proposal',
+      [coachRequest],
+      write,
+      original,
+      coachAdvance,
+      '2026-10-08',
+    ),
+  );
+  assert.deepEqual(await backup.dumpAll(new Date(beforeCoach.exportedAt)), beforeCoach);
+  assert.deepEqual(all('SELECT * FROM planned_days'), beforeCoachDays);
+  assert.equal((await blocks.getCurrentBlock()).id, original.id);
+  native.exec('DROP TRIGGER fail_coach');
+  await week.saveCoachWeek(
+    'coach-proposal',
+    [coachRequest],
+    write,
+    original,
+    coachAdvance,
+    '2026-10-08',
+  );
+  await week.saveCoachWeek(
+    'coach-proposal',
+    [coachRequest],
+    write,
+    original,
+    coachAdvance,
+    '2026-10-08',
+  );
+  assert.equal(all("SELECT * FROM plan_constraints WHERE source = 'coach'").length, 1);
+  assert.equal(
+    all("SELECT * FROM plan_generations WHERE id = 'coach-proposal'")[0].trigger,
+    'coach',
+  );
+  assert.equal(all('SELECT * FROM training_blocks WHERE closed_on IS NULL').length, 1);
+  assert.equal((await blocks.getCurrentBlock()).state.index, original.state.index + 1);
+  assert.equal(all('SELECT * FROM planned_days WHERE seq = 2')[0].status, 'done');
+  await week.addConstraint({
+    kind: 'rest_day',
+    muscles: [],
+    from: '2026-10-09',
+    until: '2026-10-11',
+    reason: 'busy',
+    source: 'coach',
+    note: 'accepted rest',
+  });
+  await week.setDayTraining('2026-10-10', true);
+  const splitRest = (await week.getActiveConstraints('2026-10-09')).filter(
+    (c) => c.source === 'coach' && c.kind === 'rest_day',
+  );
+  assert.deepEqual(
+    splitRest.map((c) => [c.from, c.until]),
+    [
+      ['2026-10-09', '2026-10-09'],
+      ['2026-10-11', '2026-10-11'],
+    ],
+  );
+  assert.ok(!splitRest.some((c) => c.from <= '2026-10-10' && '2026-10-10' <= c.until));
+  const beforeUndo = await week.getActiveConstraints('2026-10-09');
+  native.exec(
+    "CREATE TRIGGER fail_rest_undo BEFORE INSERT ON plan_constraints BEGIN SELECT RAISE(ABORT, 'undo failure'); END",
+  );
+  await assert.rejects(week.setDayTraining('2026-10-09', true));
+  assert.deepEqual(await week.getActiveConstraints('2026-10-09'), beforeUndo);
+  native.exec('DROP TRIGGER fail_rest_undo');
+  await week.setDayTraining('2026-10-09', true);
+  assert.equal(
+    (await week.getActiveConstraints('2026-10-09')).filter(
+      (c) => c.source === 'coach' && c.kind === 'rest_day',
+    ).length,
+    1,
+  );
   const saved = await backup.dumpAll();
   const corrupted = structuredClone(saved);
   corrupted.tables.bands.push(corrupted.tables.bands[0]); // duplicate key after deletes and profile insertion
@@ -375,6 +470,8 @@ async function main() {
   await backup.restoreAll(saved);
   assert.equal(all('SELECT * FROM workouts').length, 5);
   assert.equal((await workoutRepo.getWorkout(extraId)).plan.kind, 'extra');
+  assert.equal((await workoutRepo.getWorkout(extraId)).plan.source, 'ai_accepted');
+  assert.equal((await workoutRepo.getWorkout(extraId)).plan.coachProposalId, 'extra-proposal');
   assert.equal(all('SELECT * FROM set_logs').length, 2);
   assert.equal(all('SELECT * FROM planned_days').length, 0); // history restored, forecast rebuilt on focus
   console.log(

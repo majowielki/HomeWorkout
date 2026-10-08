@@ -1,0 +1,30 @@
+{
+  "question": "Chcę dodatkowy trening łydek dziś.",
+  "feature": "chat",
+  "description": "A completed main workout permits a preview of additional calf work without starting it.",
+  "category": "typical",
+  "scenario": {
+    "olderSessions": 0,
+    "lastSessionDaysAgo": 0,
+    "sessions": 1
+  },
+  "id": "plan-extra-calf-proposal",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "grounded",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "forbidPatterns": ["rozpoczalem|zastosowalem"],
+    "mentionAnyOf": [["zastosuj"], ["dodatkow"]],
+    "tools": ["proposeExtraSession"]
+  }
+}

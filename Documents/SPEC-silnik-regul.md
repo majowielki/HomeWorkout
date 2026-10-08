@@ -949,3 +949,38 @@ usuwa go kaskadowo. Po ukończeniu reguły synchronizacji minimalnie korygują k
 FBW A/B nie mają już przycisków startu i nie powstają na nowej instalacji; istniejące szablony
 pozostają dla historii i backupu. Format backupu v4 się nie zmienia: sesje zachowują `kind: extra`,
 a odtwarzalny plan kalendarza jest po imporcie wyliczany ponownie.
+
+### 11.9 Propozycje trenera (E7)
+
+Kontrakt v3 udostępnia odczyt tygodnia i dwa narzędzia przygotowujące propozycję. Dane wyjściowe
+nie zawierają ciężarów, gum, pozycji kotwicy ani celów powtórzeń. `proposePlanChange` przyjmuje
+wyłącznie ograniczenia (`avoid_muscle`, `rest_day`, `lighter_day`), zakresy względne w horyzoncie
+7 dni i neutralną notatkę. `proposeExtraSession` przyjmuje partie, a dostępne sloty i receptę
+wybiera silnik z E6. Model nie przekazuje ćwiczeń ani obciążeń do zapisania.
+
+Narzędzia niczego nie zapisują. Propozycja ma lokalny identyfikator i podgląd: ograniczenia,
+daty i różnice ćwiczeń oraz serii, albo receptę dodatkowej sesji bez obciążeń. Karta staje się
+aktywna po pełnej odpowiedzi przechodzącej strażniki. Błąd, anulowanie, skrócenie i wycofanie
+odpowiedzi nie udostępniają akceptacji. Nowe pytanie i odrzucenie wygaszają starsze podglądy.
+
+„Zastosuj” ponownie ładuje źródło, bieżący blok, zapisane dni i ograniczenia. Inne dane lub
+inna data treningowa wygaszają propozycję; nic nie zapisuje się z nowej, nieobejrzanej recepty.
+Przy zmianie tygodnia ograniczenia (`source: coach`), blok, dni i generacja (`trigger: coach`)
+są jedną transakcją. Identyfikator propozycji jest identyfikatorem generacji — ponowienie nie
+tworzy drugiego zapisu. Akceptacja i zwykła synchronizacja współdzielą kolejkę. Akceptacja
+dodatkowej sesji korzysta z ponownej walidacji E6 i zapisuje `source: ai_accepted` oraz
+`coachProposalId` w `workouts.plan`. Format backupu v4 pozostaje zgodny.
+
+Fakty czatu są odczytywane na nowo przed każdym pytaniem. Narzędzia wiążą względne daty
+z datą przekazaną modelowi; zmiana dnia podczas pytania zwraca `date_changed` i wymaga nowego
+pytania. Zatrzymanie przed odczytem faktów nie rozpoczyna wywołania modelu.
+
+Prośby są blokowane podczas trwającej sesji. Ukończony dzień pozostaje zamknięty. Dodatkowa
+sesja wymaga ukończonego treningu na dziś i dnia treningowego. Zakwasy nieokreślone lub lekkie
+nie stają się `avoid_muscle`; narzędzie wymaga jawnych silnych DOMS, a nie wywnioskowanej przez
+model diagnozy albo nasilenia. Notatka propozycji przechodzi bramkę tekstową i filtr recept.
+Ból stawu/kolana nadal kończy rozmowę stałym komunikatem, bez narzędzi i sieci.
+
+Wybranie „Jednak trenuję” w kalendarzu odwołuje dotyczący tego dnia fragment przyjętego
+`rest_day` trenera. Pozostałe daty prośby i ograniczenia mięśni są zachowane; rozcięcie zakresu
+i zapis wyjątku są jedną transakcją.

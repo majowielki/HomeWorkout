@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
 import type { Entry } from './state';
+import { ProposalCard } from './ProposalCard';
 
 interface Props {
   entries: readonly Entry[];
@@ -18,6 +19,8 @@ interface Props {
   onStop: () => void;
   onRetry: () => void;
   onNewChat: () => void;
+  onApplyProposal?: (id: string) => void;
+  onRejectProposal?: (id: string) => void;
 }
 
 const WARN_FROM = Math.floor(CHAT_LIMITS.userChars * 0.8);
@@ -26,7 +29,16 @@ const WARN_FROM = Math.floor(CHAT_LIMITS.userChars * 0.8);
  * The conversation and its composer. Purely presentational: the state and
  * the loop are in `useCoachChat`, so this renders the same from a test.
  */
-export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: Props) {
+export function ChatView({
+  entries,
+  busy,
+  onSend,
+  onStop,
+  onRetry,
+  onNewChat,
+  onApplyProposal,
+  onRejectProposal,
+}: Props) {
   const [draft, setDraft] = useState('');
   const scroll = useRef<ScrollView>(null);
   const root = useRef<View>(null);
@@ -35,6 +47,7 @@ export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: 
   const [top, setTop] = useState(0);
   const c = pl.coach.chat;
   const canSend = !busy && draft.trim() !== '';
+  const applyingProposal = entries.some((e) => e.kind === 'proposal' && e.status === 'applying');
 
   function submit() {
     if (!canSend) return;
@@ -65,9 +78,20 @@ export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: 
             </>
           ) : null}
 
-          {entries.map((entry) => (
-            <Bubble key={entry.id} entry={entry} onRetry={onRetry} />
-          ))}
+          {entries.map((entry) =>
+            entry.kind === 'proposal' ? (
+              <ProposalCard
+                key={entry.id}
+                proposal={entry.proposal}
+                status={entry.status}
+                busy={busy}
+                onApply={(id) => onApplyProposal?.(id)}
+                onReject={(id) => onRejectProposal?.(id)}
+              />
+            ) : (
+              <Bubble key={entry.id} entry={entry} onRetry={onRetry} />
+            ),
+          )}
 
           {entries.length > 0 ? (
             <>
@@ -98,7 +122,9 @@ export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: 
             <Text variant="muted" className="text-xs">
               {draft.length >= WARN_FROM ? c.counter(draft.length, CHAT_LIMITS.userChars) : ' '}
             </Text>
-            {busy ? (
+            {applyingProposal ? (
+              <ActivityIndicator />
+            ) : busy ? (
               <Button variant="outline" label={c.stop} onPress={onStop} />
             ) : (
               <Button label={c.send} onPress={submit} disabled={!canSend} />
@@ -110,7 +136,13 @@ export function ChatView({ entries, busy, onSend, onStop, onRetry, onNewChat }: 
   );
 }
 
-function Bubble({ entry, onRetry }: { entry: Entry; onRetry: () => void }) {
+function Bubble({
+  entry,
+  onRetry,
+}: {
+  entry: Exclude<Entry, { kind: 'proposal' }>;
+  onRetry: () => void;
+}) {
   const c = pl.coach.chat;
 
   if (entry.kind === 'user') {

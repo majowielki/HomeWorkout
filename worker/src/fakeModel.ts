@@ -1,4 +1,5 @@
 import { MockLanguageModelV4 } from 'ai/test';
+import { fold } from '../../src/domain/coach/text';
 
 /**
  * A stand-in model for running the app against a local Worker with no
@@ -100,6 +101,51 @@ export function fakeModel() {
     doStream: async (options) => {
       const afterTool = options.prompt[options.prompt.length - 1]?.role === 'tool';
       const asksAboutPlan = /plan/i.test(JSON.stringify(lastUserMessage(options.prompt)));
+      const question = fold(JSON.stringify(lastUserMessage(options.prompt)));
+      const request = /dodatkow/.test(question)
+        ? {
+            name: 'proposeExtraSession',
+            input: { focusMuscles: /klatk/.test(question) ? ['chest'] : ['calves'] },
+          }
+        : /zakwas/.test(question) && /pomin|przelicz|zmien/.test(question)
+          ? {
+              name: 'proposePlanChange',
+              input: {
+                constraints: [
+                  {
+                    kind: 'avoid_muscle',
+                    muscles: ['quads', 'hamstrings', 'glutes', 'calves'],
+                    fromDaysAhead: 0,
+                    days: 2,
+                    reason: 'doms',
+                    domsLevel: 4,
+                  },
+                ],
+                note: 'Silne zakwasy nóg.',
+              },
+            }
+          : /woln/.test(question)
+            ? {
+                name: 'proposePlanChange',
+                input: {
+                  constraints: [
+                    {
+                      kind: 'rest_day',
+                      muscles: [],
+                      fromDaysAhead: /pojutrze/.test(question) ? 2 : /jutro/.test(question) ? 1 : 0,
+                      days: 1,
+                      reason: 'busy',
+                    },
+                  ],
+                  note: 'Dzień wolny na prośbę.',
+                },
+              }
+            : /tygod|tydzien/.test(question) && asksAboutPlan
+              ? { name: 'getWeekPlan', input: {} }
+              : {
+                  name: asksAboutPlan ? 'getPlanExplanation' : 'getWeeklyVolume',
+                  input: asksAboutPlan ? { daysAgo: 0 } : { weeksAgo: 0 },
+                };
       const parts: Part[] = afterTool
         ? [
             { type: 'text-start', id: 't1' },
@@ -115,8 +161,8 @@ export function fakeModel() {
             {
               type: 'tool-call',
               toolCallId: `fake-${options.prompt.length}`,
-              toolName: asksAboutPlan ? 'getPlanExplanation' : 'getWeeklyVolume',
-              input: JSON.stringify(asksAboutPlan ? { daysAgo: 0 } : { weeksAgo: 0 }),
+              toolName: request.name,
+              input: JSON.stringify(request.input),
             },
             {
               type: 'finish',

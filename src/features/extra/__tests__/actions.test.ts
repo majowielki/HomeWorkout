@@ -73,6 +73,19 @@ it('resumes instead of inserting a duplicate if another session appeared', async
   expect(await startExtraSession(['push'], plan)).toBe('active');
   expect(startExtraWorkout).not.toHaveBeenCalled();
 });
+it('marks an accepted coach session only after validation, with a link to the local proposal', async () => {
+  const plan = await preview();
+  await startExtraSession(['push'], plan, { proposalId: 'coach-preview' });
+  expect(startExtraWorkout).toHaveBeenCalledWith(
+    expect.objectContaining({
+      source: 'ai_accepted',
+      coachProposalId: 'coach-preview',
+      kind: 'extra',
+    }),
+    expect.anything(),
+  );
+  expect(plan.source).toBeUndefined();
+});
 it.each(['date', 'not-done', 'rest', 'constraint', 'empty', 'changed-load'])(
   'rejects an outdated preview: %s',
   async (change) => {

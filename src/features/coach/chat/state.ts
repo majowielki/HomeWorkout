@@ -4,8 +4,10 @@ import type { ToolName } from '@/ai/contract/chatTools';
 import { pl } from '@/strings/pl';
 
 import { describeTurnFailure } from './turnErrors';
+import type { ProposalStatus, ProposalView } from './proposals';
 
 export type Entry =
+  | { id: string; kind: 'proposal'; proposal: ProposalView; status: ProposalStatus }
   | { id: string; kind: 'user'; text: string }
   | {
       id: string;
@@ -29,7 +31,10 @@ export type ChatAction =
   | { type: 'asked'; id: string; text: string }
   | { type: 'delta'; text: string }
   | { type: 'tool'; name: ToolName | null }
-  | { type: 'finished'; outcome: TurnOutcome }
+  | { type: 'finished'; outcome: TurnOutcome; proposals?: ProposalView[] }
+  | { type: 'proposalStatus'; id: string; status: ProposalStatus }
+  | { type: 'preparationFailed' }
+  | { type: 'preparationCancelled' }
   /** Takes the last question and everything that came of it off the screen, to ask it again. */
   | { type: 'dropLastTurn' }
   | { type: 'reset' };
@@ -102,7 +107,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'asked':
       return {
         entries: [
-          ...entries,
+          ...entries.map((e) =>
+            e.kind === 'proposal' && (e.status === 'pending' || e.status === 'failed')
+              ? { ...e, status: 'stale' as const }
+              : e,
+          ),
           { id: action.id, kind: 'user', text: action.text },
           { id: `${action.id}-a`, kind: 'assistant', text: '', state: 'streaming', activity: null },
         ],
@@ -122,8 +131,44 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         : state;
     case 'finished':
       return isStreaming(last)
-        ? { entries: [...entries.slice(0, -1), ...conclusion(last, action.outcome)] }
+        ? {
+            entries: [
+              ...entries.slice(0, -1),
+              ...conclusion(last, action.outcome),
+              ...(action.outcome.kind === 'answered' && !action.outcome.truncated
+                ? (action.proposals ?? []).map((proposal): Entry => ({
+                    id: proposal.id,
+                    kind: 'proposal',
+                    proposal,
+                    status: 'pending',
+                  }))
+                : []),
+            ],
+          }
         : state;
+    case 'proposalStatus':
+      return {
+        entries: entries.map((e) =>
+          e.kind === 'proposal' && e.id === action.id ? { ...e, status: action.status } : e,
+        ),
+      };
+    case 'preparationFailed':
+      return isStreaming(last)
+        ? {
+            entries: [
+              ...entries.slice(0, -1),
+              {
+                id: `${last.id}-preflight`,
+                kind: 'notice',
+                tone: 'error',
+                text: pl.coach.loadError,
+                canRetry: true,
+              },
+            ],
+          }
+        : state;
+    case 'preparationCancelled':
+      return isStreaming(last) ? { entries: entries.slice(0, -1) } : state;
     case 'dropLastTurn': {
       const at = entries.map((e) => e.kind).lastIndexOf('user');
       return at === -1 ? state : { entries: entries.slice(0, at) };
