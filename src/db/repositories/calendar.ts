@@ -2,11 +2,11 @@ import { and, count, eq, gte, inArray, lte } from 'drizzle-orm';
 
 import { db } from '../client';
 import { cardioLogs, dailyLogs, setLogs, workoutTemplates, workouts } from '../schema';
-import { getPlannedDays } from './weekPlan';
+import { getComposedDays, getPlannedDays } from './weekPlan';
 
 /** Bounded reads for the visible grid; never loads the entire training history. */
 export async function getCalendarRange(from: string, until: string) {
-  const [sessions, rides, diary, days] = await Promise.all([
+  const [sessions, rides, diary, days, composed] = await Promise.all([
     db
       .select({ workout: workouts, templateName: workoutTemplates.name })
       .from(workouts)
@@ -23,6 +23,7 @@ export async function getCalendarRange(from: string, until: string) {
       .from(dailyLogs)
       .where(and(gte(dailyLogs.date, from), lte(dailyLogs.date, until))),
     getPlannedDays(from, until),
+    getComposedDays(from, until),
   ]);
   const ids = sessions.map((s) => s.workout.id);
   const counts =
@@ -39,6 +40,7 @@ export async function getCalendarRange(from: string, until: string) {
     rides,
     diary,
     days,
+    composed,
   };
 }
 

@@ -58,6 +58,15 @@ export const pl = {
     restAction: 'Dzień wolny',
     trainAction: 'Jednak trenuję',
     changeHint: 'Zmiana dotyczy tego dnia. Plan od tego dnia zostanie przeliczony.',
+    composed: 'Ułożony z trenerem',
+    restoreEngine: 'Przywróć plan silnika',
+    restoreHint: 'Silnik sam dobierze ćwiczenia na ten dzień. Ułożenie z czatu zostanie odwołane.',
+    restoreConfirm: {
+      title: 'Przywrócić plan silnika?',
+      body: 'Dzień ułożony z trenerem zostanie odwołany, a plan od tego dnia przeliczony. Nowy układ możesz potem zaproponować w czacie.',
+      cancel: 'Anuluj',
+      confirm: 'Przywróć',
+    },
     saveError: 'Nie udało się zapisać zmiany. Spróbuj ponownie.',
     legend:
       'Pełne ikony: zapisane · przygaszone: plan · 2 hantle: kilka sesji · czerwona kropka: pominięte · tło tygodnia: deload',

@@ -33,6 +33,8 @@ type Props = {
   onClose: () => void;
   onReload: () => Promise<void>;
   onTraining: (date: string, train: boolean) => void;
+  /** Takes back the compose_day requests of a day composed with the coach. */
+  onRestore: (date: string, ids: string[]) => void;
   onStart: () => void;
   onResume: (id: string) => void;
 };
@@ -50,6 +52,7 @@ export function CalendarDaySheet(props: Props) {
     onClose,
     onReload,
     onTraining,
+    onRestore,
     onStart,
     onResume,
   } = props;
@@ -76,7 +79,7 @@ export function CalendarDaySheet(props: Props) {
     ),
     [],
   );
-  const { day, sessions, rides, diary, completed, plan, editable } = calendarDay(
+  const { day, sessions, rides, diary, completed, plan, editable, composedIds } = calendarDay(
     data,
     date,
     asOf,
@@ -169,7 +172,9 @@ export function CalendarDaySheet(props: Props) {
             <View className="gap-3">
               <Text variant="eyebrow">
                 {plan
-                  ? pl.calendar.planned
+                  ? composedIds.length > 0
+                    ? `${pl.calendar.planned} · ${pl.calendar.composed}`
+                    : pl.calendar.planned
                   : day?.selection === null
                     ? pl.calendar.rest
                     : pl.calendar.noPlan}
@@ -233,6 +238,19 @@ export function CalendarDaySheet(props: Props) {
                 </Link>
               ) : null}
             </>
+          ) : null}
+          {editable && plan && composedIds.length > 0 ? (
+            <View className="gap-2">
+              <Button
+                label={pl.calendar.restoreEngine}
+                variant="outline"
+                disabled={busy || starting || inProgressId !== null}
+                onPress={() => onRestore(date, composedIds)}
+              />
+              <Text variant="muted" className="text-xs">
+                {pl.calendar.restoreHint}
+              </Text>
+            </View>
           ) : null}
           {editable ? (
             <View className="gap-2">

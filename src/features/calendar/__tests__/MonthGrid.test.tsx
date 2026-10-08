@@ -4,7 +4,7 @@ import type { SessionPlan } from '@/domain/plan/types';
 import { pl } from '@/strings/pl';
 import { MonthGrid } from '../MonthGrid';
 
-const empty: CalendarData = { sessions: [], rides: [], diary: [], days: [] };
+const empty: CalendarData = { sessions: [], rides: [], diary: [], days: [], composed: [] };
 const base = {
   month: '2026-10',
   asOf: '2026-10-07',

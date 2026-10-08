@@ -7,7 +7,7 @@ import { Bandage, RefreshCw } from '@/components/ui/icons';
 import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import { getCalendarRange, type CalendarData } from '@/db/repositories/calendar';
-import { setDayTraining } from '@/db/repositories/weekPlan';
+import { revokeConstraints, setDayTraining } from '@/db/repositories/weekPlan';
 import { WEEK_CONFIG } from '@/domain/config/training';
 import { addDays } from '@/domain/time/trainingDate';
 import { PlanChangeBanner } from '@/features/plan/PlanChangeBanner';
@@ -67,12 +67,20 @@ export function CalendarScreen() {
     await overview.reload();
     await loadRange();
   }
-  async function changeTraining(date: string, train: boolean) {
+  /** The day composed with the coach goes back to the engine, after a confirmation. */
+  function restoreEngine(date: string, ids: string[]) {
+    const t = pl.calendar.restoreConfirm;
+    Alert.alert(t.title, t.body, [
+      { text: t.cancel, style: 'cancel' },
+      { text: t.confirm, onPress: () => void changeDay(date, () => revokeConstraints(ids)) },
+    ]);
+  }
+  async function changeDay(date: string, write: () => Promise<void>) {
     if (writeBusy.current) return;
     writeBusy.current = true;
     setBusy(true);
     try {
-      await setDayTraining(date, train);
+      await write();
       // The week is planned again from that day, once; a failure there shows the plan's own retry.
       await reload({ trigger: 'constraint', from: date });
     } catch {
@@ -166,7 +174,8 @@ export function CalendarScreen() {
           inProgressId={overview.data?.inProgress?.id ?? null}
           onClose={close}
           onReload={reload}
-          onTraining={(date, train) => void changeTraining(date, train)}
+          onTraining={(date, train) => void changeDay(date, () => setDayTraining(date, train))}
+          onRestore={restoreEngine}
           onStart={() => {
             close();
             void today.start();

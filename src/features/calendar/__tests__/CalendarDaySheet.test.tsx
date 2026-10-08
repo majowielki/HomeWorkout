@@ -17,7 +17,7 @@ jest.mock('@gorhom/bottom-sheet', () => ({
   ...jest.requireActual('@gorhom/bottom-sheet/mock'),
 }));
 
-const empty: CalendarData = { sessions: [], rides: [], diary: [], days: [] };
+const empty: CalendarData = { sessions: [], rides: [], diary: [], days: [], composed: [] };
 const plan: SessionPlan = {
   version: 1,
   date: '2026-10-08',
@@ -44,6 +44,7 @@ const base = {
   onClose: jest.fn(),
   onReload: jest.fn().mockResolvedValue(undefined),
   onTraining: jest.fn(),
+  onRestore: jest.fn(),
   onStart: jest.fn(),
   onResume: jest.fn(),
 };
@@ -94,6 +95,29 @@ describe('CalendarDaySheet', () => {
     expect(screen.queryByText(pl.plan.start)).toBeNull();
     await fireEvent.press(screen.getByText(pl.calendar.restAction));
     expect(onTraining).toHaveBeenCalledWith(base.date, false);
+    expect(screen.queryByText(pl.calendar.restoreEngine)).toBeNull();
+  });
+  it('marks a day composed with the coach and hands it back to the engine on a tap', async () => {
+    const onRestore = jest.fn();
+    const data: CalendarData = {
+      ...empty,
+      days: [
+        {
+          date: base.date,
+          selection: {} as NonNullable<CalendarData['days'][number]['selection']>,
+          forecast: plan,
+          status: 'planned',
+        },
+      ],
+      composed: [
+        { id: 'c1', date: base.date },
+        { id: 'other-day', date: '2026-10-09' },
+      ],
+    };
+    await render(<CalendarDaySheet {...base} data={data} onRestore={onRestore} />);
+    expect(screen.getByText(`${pl.calendar.planned} · ${pl.calendar.composed}`)).toBeTruthy();
+    await fireEvent.press(screen.getByText(pl.calendar.restoreEngine));
+    expect(onRestore).toHaveBeenCalledWith(base.date, ['c1']);
   });
   it('keeps completed days immutable while linking to recorded sessions', async () => {
     const data = {
