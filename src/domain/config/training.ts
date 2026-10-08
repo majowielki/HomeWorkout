@@ -138,6 +138,12 @@ export const PROGRESSION_CONFIG = {
   requireBandWarmup: false as boolean,
   /** Above this jump in estimated force, a new band starts at P0, not P1. SPEC §5.4. */
   bandMacroMaxJump: 0.15,
+  /**
+   * The most repetitions a set may be pushed to before the next step is a harder variant, not more
+   * repetitions (engine v2, D34). Lower where the knee is loaded: a long set at a high rep count is a
+   * different kind of stress than the rep range was chosen for; to be confirmed with the physiotherapist.
+   */
+  repCap: { default: 25, kneeLoading: 20 },
   /** Used only when a slot lacks the range a candidate needs (the data check prevents it). */
   fallbackRepRange: [8, 15] as [number, number],
   fallbackTimeRange: [20, 60] as [number, number],

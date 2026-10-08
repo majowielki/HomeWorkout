@@ -25,6 +25,11 @@ export type Stance =
 
 export type ForceProfile = 'ConcentricEccentric' | 'Isometric' | 'Plyometric';
 
+/** The joints a profile can describe and an exercise can load (05 §12). Only the knee has rules today. */
+export const JOINT_IDS = ['knee', 'shoulder', 'lumbar', 'wrist', 'elbow', 'hip', 'ankle'] as const;
+
+export type JointId = (typeof JOINT_IDS)[number];
+
 export type Equipment = 'dumbbell' | 'band' | 'mini-band' | 'mat' | 'bike' | 'bodyweight';
 
 export type MuscleGroup =
@@ -113,6 +118,27 @@ export interface Exercise {
   hideClip?: boolean;
 
   archived?: boolean;
+
+  // Catalogue flexibility (engine v2, 05 §3, §12-§14). All optional: what is absent is derived or defaulted.
+  /** Colloquial and Polish names, so "wyciskanie siedząc" finds its exercise (13 §11). */
+  aliases?: string[];
+  /** A named group of near-equivalent variants of one slot; the preference breaks ties inside it (12 §4.1). */
+  equivalenceGroup?: string;
+  /**
+   * Directed edges to variants of the same movement (05 §13). Authored in one direction; the graph adds the
+   * inverse, so `A harder -> B` also makes `B easier -> A`.
+   */
+  progressions?: VariantEdge[];
+  /** Joints the exercise loads where `loadsKnee` is not enough; `unknown` is not `false` (05 §12). */
+  jointLoading?: Partial<Record<JointId, boolean | 'unknown'>>;
+  /** How much of a set counts for a secondary muscle, 0-1; absent means the policy default (05 §14). */
+  secondaryWeights?: Partial<Record<MuscleGroup, number>>;
+}
+
+export interface VariantEdge {
+  to: string;
+  kind: 'harder' | 'easier';
+  note?: string;
 }
 
 export interface KneeProfile {

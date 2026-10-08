@@ -81,6 +81,29 @@ export const exerciseSchema = z
     hideClip: z.boolean().optional(),
 
     archived: z.boolean().optional(),
+
+    /** Colloquial names for resolving a spoken or typed exercise (13 §11). */
+    aliases: z.array(z.string().min(1)).min(1).optional(),
+    equivalenceGroup: z.string().min(1).optional(),
+    /** Edges to harder or easier variants; the inverse of each is implied (05 §13). */
+    progressions: z
+      .array(
+        z.strictObject({
+          to: z.string().min(1),
+          kind: z.enum(['harder', 'easier']),
+          note: z.string().min(1).optional(),
+        }),
+      )
+      .min(1)
+      .optional(),
+    jointLoading: z
+      .partialRecord(
+        z.enum(['knee', 'shoulder', 'lumbar', 'wrist', 'elbow', 'hip', 'ankle']),
+        z.union([z.boolean(), z.literal('unknown')]),
+      )
+      .optional(),
+    /** Share of a set that counts for a secondary muscle, in [0, 1] (05 §14). */
+    secondaryWeights: z.partialRecord(muscleGroupSchema, z.number().min(0).max(1)).optional(),
   })
   .refine((e) => !e.loadsKnee || typeof e.kneeCue === 'string', {
     message: 'every knee-loading exercise must carry a kneeCue',
