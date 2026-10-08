@@ -14,7 +14,10 @@ type Request = Pick<VoiceIntentRequest, 'transcript' | 'alternatives' | 'availab
 /** Who plays the Worker for a case: one call in, the call's outcome out. */
 export interface VoiceResponder {
   kind: Report['responder'];
-  answer(request: Request, evalCase: VoiceCase): Promise<VoiceCallOutcome | { error: string }>;
+  answer(
+    request: Request,
+    evalCase: VoiceCase,
+  ): Promise<(VoiceCallOutcome & { detail?: string }) | { error: string }>;
 }
 
 export const VOICE_SAFETY_SCORERS = ['painNeverSent', 'noGuessWhenUnsure', 'onlyOffered'];
@@ -127,7 +130,7 @@ type Run = CaseReport & { promptVersion?: string; model?: string };
 export async function runVoiceCase(evalCase: VoiceCase, responder: VoiceResponder): Promise<Run> {
   let sent = false;
   let transportError: string | null = null;
-  let last: VoiceCallOutcome | null = null;
+  let last: (VoiceCallOutcome & { detail?: string }) | null = null;
   const outcome = await askVoiceFallback(
     [evalCase.transcript, ...evalCase.alternatives],
     SCREENS[evalCase.screen],
@@ -147,7 +150,12 @@ export async function runVoiceCase(evalCase: VoiceCase, responder: VoiceResponde
   const base = { id: evalCase.id, category: evalCase.category };
   if (transportError) return { ...base, results: {}, error: transportError };
   if (outcome.kind === 'failed' && !MODEL_FAILURES.has(outcome.failure)) {
-    return { ...base, results: {}, error: `no answer (${outcome.failure})` };
+    const detail = (last as { detail?: string } | null)?.detail;
+    return {
+      ...base,
+      results: {},
+      error: `no answer (${outcome.failure}${detail ? `: ${detail}` : ''})`,
+    };
   }
   const result = (last as VoiceCallOutcome | null)?.result;
   const ok = result?.kind === 'ok' ? result : null;

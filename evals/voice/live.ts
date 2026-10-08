@@ -12,7 +12,7 @@ import type { VoiceIntentRequest } from '@/ai/contract/voiceIntent';
 import { VOICE_INTENT_PROMPT_VERSION } from '@/ai/prompts/voiceIntent/v1';
 
 import { liveVoiceResponder, type VoiceResponder } from './runner';
-import { pacedFromEnv } from '../responders/pace';
+import { describeError, pacedFromEnv } from '../responders/pace';
 
 interface WorkerModel {
   modelFromEnv(env: Record<string, string | undefined>): unknown | null;
@@ -39,6 +39,9 @@ const load = async <T>(specifier: string): Promise<T> => (await import(specifier
 /** The Worker's own limit for this route. */
 const VOICE_TIMEOUT_MS = 8_000;
 
+/** The whole call including pacing and quota waits; the production limit applies per attempt (pace.ts). */
+const RUN_LIMIT_MS = 5 * 60_000;
+
 export async function createLiveVoiceResponder(recordTo?: string): Promise<VoiceResponder> {
   const { modelFromEnv, providerOptionsFromEnv } =
     await load<WorkerModel>('../../worker/src/model');
@@ -60,7 +63,7 @@ export async function createLiveVoiceResponder(recordTo?: string): Promise<Voice
     );
   }
   // Under the provider's per-minute limit, with quota refusals waited out (pace.ts).
-  const model = pacedFromEnv(provided as object);
+  const model = pacedFromEnv(provided as object, VOICE_TIMEOUT_MS);
 
   return liveVoiceResponder({
     recordTo,
@@ -69,7 +72,7 @@ export async function createLiveVoiceResponder(recordTo?: string): Promise<Voice
       const tally = { inputTokens: 0, outputTokens: 0 };
       try {
         const generation = await generateVoiceIntent(model, request, {
-          abortSignal: AbortSignal.timeout(VOICE_TIMEOUT_MS),
+          abortSignal: AbortSignal.timeout(RUN_LIMIT_MS),
           maxOutputTokens: Math.min(
             Number(process.env.MAX_OUTPUT_TOKENS ?? 2048),
             VOICE_MAX_OUTPUT_TOKENS,
@@ -90,11 +93,13 @@ export async function createLiveVoiceResponder(recordTo?: string): Promise<Voice
             validationOutcome: generation.valid ? 'ok' : 'invalid_output',
           },
         };
-      } catch {
+      } catch (error) {
         return {
           requestId: 'eval',
           latencyMs: Date.now() - started,
           result: { kind: 'upstream_error', retryable: false },
+          // Why, for the report: the class, the status and the first line of the message, never the key.
+          detail: describeError(error),
         };
       }
     },

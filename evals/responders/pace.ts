@@ -55,9 +55,26 @@ export function quotaWaitMs(error: unknown): number | null {
 }
 
 /**
- * The model with every request paced and a quota refusal waited out. A
- * Proxy, so the provider's object (its id, its URLs, its specification
- * version) is otherwise untouched.
+ * How long to wait before trying a failed call again, or null for an error
+ * that another try will not fix. A quota refusal waits as long as it asks;
+ * a provider's own transient trouble (a 5xx it marks retryable) a little.
+ */
+export function retryWaitMs(error: unknown, retry: number): number | null {
+  const quota = quotaWaitMs(error);
+  if (quota !== null) return quota;
+  const retryable =
+    typeof error === 'object' && error !== null && (error as { isRetryable?: unknown }).isRetryable;
+  return retryable === true ? 2000 * (retry + 1) : null;
+}
+
+/**
+ * The model with every request paced and a refusal waited out. A Proxy, so
+ * the provider's object (its id, its URLs, its specification version) is
+ * otherwise untouched.
+ *
+ * `attemptTimeoutMs` is the production limit for one call, started when the
+ * request actually goes, after the pacing wait: a limit started before the
+ * wait would let the pacing eat the model's time and read as a slow model.
  */
 export function pacedModel<T extends object>(
   model: T,
@@ -66,6 +83,7 @@ export function pacedModel<T extends object>(
     clock?: Clock;
     /** A pace shared with other models; one of its own otherwise. */
     pace?: () => Promise<void>;
+    attemptTimeoutMs?: number;
     log?: (line: string) => void;
   },
 ): T {
@@ -78,15 +96,23 @@ export function pacedModel<T extends object>(
       if ((prop !== 'doGenerate' && prop !== 'doStream') || typeof value !== 'function') {
         return value;
       }
-      return async (...args: unknown[]) => {
+      const call = value as (...a: unknown[]) => Promise<unknown>;
+      return async (callOptions: { abortSignal?: AbortSignal }, ...rest: unknown[]) => {
         for (let retry = 0; ; retry += 1) {
           await pace();
+          const signals = [
+            callOptions?.abortSignal,
+            options.attemptTimeoutMs ? AbortSignal.timeout(options.attemptTimeoutMs) : undefined,
+          ].filter((x): x is AbortSignal => x !== undefined);
+          const abortSignal = signals.length > 1 ? AbortSignal.any(signals) : signals[0];
           try {
-            return await (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+            return await call.apply(target, [{ ...callOptions, abortSignal }, ...rest]);
           } catch (error) {
-            const wait = quotaWaitMs(error);
+            const wait = retryWaitMs(error, retry);
             if (wait === null || retry >= QUOTA_RETRIES) throw error;
-            options.log?.(`quota: waiting ${Math.round(wait / 1000)} s before trying again`);
+            options.log?.(
+              `provider refused (${describeError(error)}): waiting ${Math.round(wait / 1000)} s`,
+            );
             await clock.sleep(wait);
           }
         }
@@ -95,25 +121,44 @@ export function pacedModel<T extends object>(
   });
 }
 
-let shared: (<T extends object>(model: T) => T) | null = null;
+/** A short, key-free description of a provider error, for the log and the report. */
+export function describeError(error: unknown): string {
+  if (typeof error !== 'object' || error === null) return String(error).slice(0, 200);
+  const { name, statusCode, message } = error as {
+    name?: unknown;
+    statusCode?: unknown;
+    message?: unknown;
+  };
+  const head = [
+    typeof name === 'string' ? name : null,
+    typeof statusCode === 'number' ? statusCode : null,
+  ]
+    .filter((x) => x !== null)
+    .join(' ');
+  const text = typeof message === 'string' ? message.split('\n')[0]!.slice(0, 160) : '';
+  return [head, text].filter(Boolean).join(': ') || 'unknown error';
+}
+
+let shared: (<T extends object>(model: T, attemptTimeoutMs?: number) => T) | null = null;
 
 /**
  * The live responders' entry point: one pace for the whole run, so a feature
  * starting right after another does not get a fresh allowance the provider
  * never gave. EVAL_RPM overrides the rate (a paid key allows far more).
  */
-export function pacedFromEnv<T extends object>(model: T): T {
+export function pacedFromEnv<T extends object>(model: T, attemptTimeoutMs?: number): T {
   if (!shared) {
     const rpm = rpmFromEnv(process.env.EVAL_RPM);
     const clock = realClock;
     const pace = createPacer(rpm, clock);
-    shared = (m) =>
+    shared = (m, timeout) =>
       pacedModel(m, {
         rpm,
         clock,
         pace,
+        attemptTimeoutMs: timeout,
         log: (line) => process.stderr.write(`${line}\n`),
       });
   }
-  return shared(model);
+  return shared(model, attemptTimeoutMs);
 }

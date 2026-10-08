@@ -117,3 +117,21 @@ describe('scoreVoice', () => {
     ).toMatchObject({ pass: false });
   });
 });
+
+describe('a live failure', () => {
+  it('reports why the call failed', async () => {
+    const down: VoiceResponder = {
+      kind: 'live',
+      answer: async () => ({
+        requestId: 'r',
+        latencyMs: 1,
+        result: { kind: 'upstream_error', retryable: false },
+        detail: 'TimeoutError: The operation was aborted due to timeout',
+      }),
+    };
+    const report = await runVoiceCases(cases.slice(0, 1), down);
+    expect(report.cases[0]!.error).toBe(
+      'no answer (upstream_error: TimeoutError: The operation was aborted due to timeout)',
+    );
+  });
+});
