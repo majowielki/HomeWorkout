@@ -1,10 +1,6 @@
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-import {
-  type ComposedItem,
-  CONSTRAINT_KINDS,
-  CONSTRAINT_REASONS,
-} from '@/domain/plan/constraints';
+import { type ComposedItem, CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
