@@ -75,6 +75,6 @@ Do sprawdzenia na telefonie: czy rozpoznawacz offline łapie „hej trener” w 
 - [ ] Telefon z prawdziwą mową: każda z sześciu akcji i „Cofnij”.
 - [x] V2: zapas AI, kontrakt v5 (Worker 140+ testów, ewaluacje wzorcowe zielone).
 - [x] Wdrożenie Workera v5 + APK (użytkownik, 2026-10-08).
-- [ ] `npm run eval:live` z kluczem użytkownika.
+- [ ] `npm run eval:live` z kluczem użytkownika: pierwsze wyniki i kroki w [DO-ZROBIENIA.md](DO-ZROBIENIA.md).
 - [x] §5: głos w rozgrzewce, tryby „hej trener” i „cały czas” (tylko z pakietem offline).
 - [ ] Telefon: tryby bez dotykania w prawdziwym treningu.
