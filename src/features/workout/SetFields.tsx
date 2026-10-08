@@ -10,7 +10,14 @@ import {
   estimatedPeakKg,
   type LoadEstimate,
 } from '@/domain/progression/calibration';
-import type { AnchorPosition, BandCalibrationMap, DumbbellMode, Exercise } from '@/domain/types';
+import {
+  type AnchorPosition,
+  type BandCalibrationMap,
+  type DumbbellMode,
+  type Exercise,
+  SHORTFALL_REASONS,
+  type ShortfallReason,
+} from '@/domain/types';
 import { bandSwatch } from '@/features/bands/bandSwatch';
 import { pl } from '@/strings/pl';
 
@@ -25,6 +32,8 @@ export interface SavedSetData {
   anchorPosition: AnchorPosition | null;
   /** Peak of the calibrated range, or null whenever no honest number exists. */
   estimatedLoadKg: number | null;
+  /** Why the set fell short of its target, when the person said. */
+  shortfall: ShortfallReason | null;
 }
 
 /**
@@ -40,6 +49,7 @@ export interface SetFieldValues {
   weightKg: number;
   bandId: string;
   position: AnchorPosition;
+  shortfall: ShortfallReason | null;
 }
 
 const RIR_OPTIONS = [0, 1, 2, 3, 4] as const;
@@ -86,6 +96,7 @@ export function toSavedSet(
     estimatedLoadKg: usesBand(exercise)
       ? estimatedPeakKg(bandEstimate(exercise, v.bandId, v.position, calibrations))
       : null,
+    shortfall: v.shortfall,
   };
 }
 
@@ -95,6 +106,12 @@ type Props = {
   onChange: (values: SetFieldValues) => void;
   /** Without it the band block shows no kilograms at all. */
   calibrations?: BandCalibrationMap;
+  /**
+   * Asks why the set fell short: 'below' when the logged amount is under the
+   * target (the live logger), 'optional' in the history editor, which does
+   * not know the target. Absent: not asked.
+   */
+  shortfall?: 'below' | 'optional';
 };
 
 /**
@@ -103,7 +120,7 @@ type Props = {
  * the active session can prefill from the last log and the history editor
  * from the row being corrected.
  */
-export function SetFields({ exercise, values, onChange, calibrations }: Props) {
+export function SetFields({ exercise, values, onChange, calibrations, shortfall }: Props) {
   const ladder = ladderFor(exercise);
   const set = (patch: Partial<SetFieldValues>) => onChange({ ...values, ...patch });
   const estimate = usesBand(exercise)
@@ -188,21 +205,68 @@ export function SetFields({ exercise, values, onChange, calibrations }: Props) {
         />
       )}
 
+      {/* The felt effort is stored as RIR, which the engine reads (SPEC §5.1). */}
       <View className="gap-1.5">
         <Text variant="eyebrow" className="text-center">
-          RIR
+          {pl.workout.session.effort.title}
         </Text>
-        <View className="flex-row justify-center gap-2">
+        <View className="flex-row flex-wrap justify-center gap-2">
           {RIR_OPTIONS.map((r) => (
             <Chip
               key={r}
-              label={String(r)}
+              label={effortLabel(r)}
+              caption={pl.workout.session.effort.caption(r)}
               selected={values.rir === r}
               onPress={() => set({ rir: r })}
             />
           ))}
         </View>
+        <Text variant="muted" className="text-center text-xs">
+          {pl.workout.session.effort.hint}
+        </Text>
       </View>
+
+      {shortfall ? (
+        <View className="gap-1.5">
+          <Text variant="eyebrow" className="text-center">
+            {shortfall === 'below'
+              ? pl.workout.session.shortfall.title
+              : pl.history.setEdit.shortfallTitle}
+          </Text>
+          <View className="flex-row flex-wrap justify-center gap-2">
+            {SHORTFALL_REASONS.map((r) => (
+              <Chip
+                key={r}
+                label={pl.workout.session.shortfall.reason[r]}
+                selected={values.shortfall === r}
+                // A second tap takes the reason back: it is optional.
+                onPress={() => set({ shortfall: values.shortfall === r ? null : r })}
+              />
+            ))}
+          </View>
+          <Text variant="muted" className="text-center text-xs">
+            {values.shortfall === 'pain'
+              ? pl.workout.session.shortfall.painNote
+              : pl.workout.session.shortfall.hint}
+          </Text>
+        </View>
+      ) : null}
     </>
   );
+}
+
+/** The felt effort for an RIR; 4 and more read as "Lekko". */
+export function effortLabel(rir: number): string {
+  const levels = pl.workout.session.effort.level;
+  return levels[Math.min(Math.max(rir, 0), levels.length - 1)]!;
+}
+
+/** Whether a set falls short of its block's target: reps under the range, or time under the goal. */
+export function isBelowTarget(
+  exercise: Exercise,
+  values: Pick<SetFieldValues, 'reps' | 'timeSec'>,
+  target: { repMin?: number; timeSec?: number },
+): boolean {
+  if (isTimed(exercise)) return target.timeSec !== undefined && values.timeSec < target.timeSec;
+  return target.repMin !== undefined && values.reps < target.repMin;
 }

@@ -71,6 +71,7 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
     weightKg: row.weightKg ?? ladderFor(exercise)[0]!,
     bandId: row.bandId ?? BANDS[0]!.id,
     position: row.anchorPosition ?? 1,
+    shortfall: row.shortfall,
   }));
   const [busy, setBusy] = useState(false);
 
@@ -88,6 +89,7 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
         bandId: saved.bandId,
         anchorPosition: saved.anchorPosition,
         estimatedLoadKg: saved.estimatedLoadKg,
+        shortfall: saved.shortfall,
       });
       router.back();
     } finally {
@@ -133,6 +135,7 @@ function EditSetForm({ row, exercise }: { row: SetLogRow; exercise: Exercise }) 
         values={values}
         onChange={setValues}
         calibrations={calibrations}
+        shortfall="optional"
       />
 
       <Button label={pl.history.setEdit.save} size="lg" onPress={handleSave} disabled={busy} />

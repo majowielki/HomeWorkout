@@ -22,6 +22,7 @@ import type {
   MovementPattern,
   MuscleGroup,
   Plane,
+  ShortfallReason,
   Side,
   Stance,
 } from '@/domain/types';
@@ -242,6 +243,11 @@ export const pl = {
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
       targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
       targetTime: (sec: number) => `cel: ${sec} s`,
+      /** The target effort as felt words, e.g. "odczucie: ciężko–spokojnie". */
+      targetEffort: (from: string, to: string) =>
+        from === to
+          ? `odczucie: ${from.toLowerCase()}`
+          : `odczucie: ${from.toLowerCase()}–${to.toLowerCase()}`,
       bandPrestretch:
         'Przed pierwszą serią rozciągnij gumę 5–10 razy bez liczenia — pierwsze rozciągnięcia są wyraźnie twardsze.',
       dumbbellSingle: 'Hantel (jeden gryf)',
@@ -252,6 +258,26 @@ export const pl = {
         `P0: stoisz tam, gdzie guma jest ledwo napięta. P1, P2, P3: każda o ${stepCm} cm dalej od zaczepu — guma bardziej rozciągnięta, większy opór.`,
       reps: 'Powtórzenia',
       time: 'Czas',
+      effort: {
+        title: 'Jak było?',
+        hint: 'Na wyczucie: ile powtórzeń dałbyś radę zrobić jeszcze w tej serii.',
+        /** Index = RIR (reps in reserve); the engine reads the number. */
+        level: ['Na maksa', 'Bardzo ciężko', 'Ciężko', 'Spokojnie', 'Lekko'] as const,
+        caption: (rir: number) =>
+          rir === 0 ? 'nic w zapasie' : rir >= 4 ? 'zapas 4+' : `zapas ${rir}`,
+      },
+      shortfall: {
+        title: 'Mniej niż cel — dlaczego?',
+        hint: 'Opcjonalnie. Powód zapisze się przy serii i będzie widoczny w historii.',
+        reason: {
+          doms: 'Zakwasy / zmęczony mięsień',
+          short_rest: 'Za krótka przerwa',
+          technique: 'Technika',
+          pain: 'Ból',
+        } satisfies Record<ShortfallReason, string>,
+        painNote:
+          'Jeśli boli staw albo ból narasta, przerwij ćwiczenie. Po treningu zgłoś to w Kalendarzu: „Zgłoś zakwasy / ból”.',
+      },
       saveSet: 'Seria zrobiona',
       restLabel: 'Przerwa',
       restExtend: '+30 s',
@@ -686,6 +712,7 @@ export const pl = {
       title: 'Edytuj serię',
       notFound: 'Nie znaleziono serii.',
       setNumber: (n: number) => `seria #${n}`,
+      shortfallTitle: 'Powód słabszej serii (opcjonalnie)',
       save: 'Zapisz zmiany',
       delete: 'Usuń serię',
       deleteTitle: 'Usunąć serię?',
@@ -702,6 +729,12 @@ export const pl = {
       peakKg: (n: number) => `(do ≈ ${n} kg)`,
       rir: (n: number) => `RIR ${n}`,
       side: { left: 'lewa', right: 'prawa' } satisfies Record<Side, string>,
+      shortfall: {
+        doms: 'zakwasy',
+        short_rest: 'krótka przerwa',
+        technique: 'technika',
+        pain: 'ból',
+      } satisfies Record<ShortfallReason, string>,
     },
   },
   bands: {
@@ -1268,7 +1301,7 @@ export const pl = {
       {
         term: 'RIR',
         definition:
-          'Reps In Reserve (powtórzenia w zapasie) — ile powtórzeń mógłbyś jeszcze wykonać w danej serii, zanim doszedłbyś do odmowy mięśniowej. RIR 2 oznacza „zostały mi jeszcze 2 powtórzenia”. Im niższe RIR, tym bliżej maksimum.',
+          'Reps In Reserve (powtórzenia w zapasie) — ile powtórzeń mógłbyś jeszcze wykonać w danej serii, zanim doszedłbyś do odmowy mięśniowej. RIR 2 oznacza „zostały mi jeszcze 2 powtórzenia”. Im niższe RIR, tym bliżej maksimum. Po serii wybierasz odczucie: Na maksa = RIR 0, Bardzo ciężko = 1, Ciężko = 2, Spokojnie = 3, Lekko = 4 i więcej.',
       },
       {
         term: 'RPE',

@@ -4,15 +4,16 @@ import { type ComposedItem, CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domai
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
-import type {
-  AnchorPosition,
-  BandCalibration,
-  DumbbellMode,
-  Exercise,
-  KneeProfile,
-  MuscleGroup,
-  Side,
-  TemplateBlock,
+import {
+  type AnchorPosition,
+  type BandCalibration,
+  type DumbbellMode,
+  type Exercise,
+  type KneeProfile,
+  type MuscleGroup,
+  SHORTFALL_REASONS,
+  type Side,
+  type TemplateBlock,
 } from '@/domain/types';
 import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
 
@@ -124,6 +125,8 @@ export const setLogs = sqliteTable(
      * two-sided work and for every set logged before sides existed.
      */
     side: text('side', { enum: ['left', 'right'] }).$type<Side>(),
+    /** Why the set fell short of its target, when the person said; null otherwise. */
+    shortfall: text('shortfall', { enum: SHORTFALL_REASONS }),
     loggedAt: text('logged_at').notNull(),
   },
   (t) => [

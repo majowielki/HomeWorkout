@@ -89,6 +89,7 @@ const blocks = require('../repositories/trainingBlocks.ts');
 const diary = require('../repositories/dailyLogs.ts');
 const workoutRepo = require('../repositories/workouts.ts');
 const plannerSource = require('../repositories/plannerSource.ts');
+const setRepo = require('../repositories/setLogs.ts');
 
 const all = (sql, ...params) => current.native.prepare(sql).all(...params);
 const exec = (sql) => current.native.exec(sql);
@@ -635,6 +636,27 @@ const CASES = [
       drop();
       await week.setDayTraining('2026-10-09', true);
       assert.equal((await coachRest()).length, 1);
+    },
+  ],
+  [
+    'a set keeps why it fell short, through a backup',
+    async () => {
+      await seeded();
+      const exerciseId = firstExerciseId();
+      completedSession(exerciseId);
+      const id = await setRepo.logSet({
+        workoutId: 'inside',
+        exerciseId,
+        exerciseOrder: 1,
+        setIndex: 1,
+        reps: 6,
+        rir: 1,
+        shortfall: 'doms',
+      });
+      assert.equal((await setRepo.getSet(id)).shortfall, 'doms');
+      const saved = await backup.dumpAll();
+      await backup.restoreAll(saved);
+      assert.equal((await setRepo.getSet(id)).shortfall, 'doms');
     },
   ],
   [
