@@ -50,6 +50,13 @@
       "when": 1791394528867,
       "tag": "0006_week_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791430283940,
+      "tag": "0007_extra_sessions",
+      "breakpoints": true
     }
   ]
 }

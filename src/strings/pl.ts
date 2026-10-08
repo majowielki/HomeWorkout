@@ -366,6 +366,24 @@ export const pl = {
       backUndoHint: 'Ostatnia seria wróci do poprawki.',
     },
   },
+  extra: {
+    title: 'Dodatkowy trening',
+    intro:
+      'Wybierz ruchy z partii, które mogą dziś jeszcze pracować. Silnik sprawdzi regenerację i limity serii.',
+    available: 'Do wyboru',
+    unavailable: 'Dziś pomijamy',
+    empty: 'Dziś nie ma już partii do dodatkowego treningu. Czas na regenerację.',
+    preview: 'Podgląd treningu',
+    start: 'Rozpocznij dodatkowy trening',
+    changed: 'Dane planu się zmieniły. Sprawdź wybór ponownie.',
+    loadError: 'Nie udało się wczytać dodatkowego treningu.',
+    startError: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
+    finishFirst: 'Najpierw ukończ dzisiejszy trening.',
+    rest: 'Na dziś wybrano dzień wolny. Możesz zmienić go w kalendarzu.',
+    choose: 'Wybierz przynajmniej jeden ruch.',
+    reduced: 'Część wyboru nie mieści się w limitach. Poniżej pokazujemy to, co możesz wykonać.',
+    weekHint: 'Po ukończeniu sesji plan kolejnych dni sprawdzi się automatycznie.',
+  },
   plan: {
     eyebrow: (date: string) => `Plan na dziś · ${date}`,
     tomorrowEyebrow: (date: string) => `Plan na jutro · ${date}`,
@@ -481,7 +499,7 @@ export const pl = {
     skip: {
       NO_CANDIDATE: 'brak dozwolonego ćwiczenia',
       DOMS_HIGH: 'mocne zakwasy w tej partii',
-      RECOVERING: 'ta partia pracowała wczoraj — regeneruje się',
+      RECOVERING: 'ta partia pracowała dziś lub wczoraj — regeneruje się',
       VOLUME_AT_MAX: 'partia ma już tygodniowe maksimum serii',
       VOLUME_ON_TARGET: 'partia ma już swoje serie w tym tygodniu',
       ALREADY_TODAY: 'ta partia pracuje już dziś w innym ćwiczeniu',

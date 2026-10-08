@@ -74,6 +74,7 @@ describe('PlanHero', () => {
       />,
     );
     expect(screen.getByText('Dziś zrobione')).toBeTruthy();
+    expect(screen.getByText('Dodatkowy trening')).toBeTruthy();
     expect(screen.getByText('Czas na regenerację')).toBeTruthy();
     expect(screen.getByText('czworogłowe, pośladki')).toBeTruthy();
     expect(screen.getByText(/^Plan na jutro · /)).toBeTruthy();

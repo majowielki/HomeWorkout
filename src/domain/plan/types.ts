@@ -119,6 +119,8 @@ export interface PlanAdjustment {
 /** The plan for one day, SPEC §10.5. Frozen into `workouts.plan` when the session starts. */
 export interface SessionPlan {
   version: 1;
+  /** Omitted in main plans and historical plans. */
+  kind?: 'extra';
   date: string;
   blockIndex: number;
   phase: 'work' | 'deload';

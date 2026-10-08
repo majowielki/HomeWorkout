@@ -164,11 +164,6 @@ export function CalendarScreen() {
           busy={busy}
           starting={today.starting || overview.starting}
           inProgressId={overview.data?.inProgress?.id ?? null}
-          manualTemplates={overview.data?.templates ?? []}
-          onManualStart={(id) => {
-            close();
-            void overview.start(id);
-          }}
           onClose={close}
           onReload={reload}
           onTraining={(date, train) => void changeTraining(date, train)}

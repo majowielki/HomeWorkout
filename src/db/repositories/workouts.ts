@@ -2,10 +2,10 @@ import { randomUUID } from 'expo-crypto';
 
 import { and, count, desc, eq, isNotNull, lt, ne } from 'drizzle-orm';
 
-import type { SessionPlan } from '@/domain/plan/types';
+import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 
 import { db } from '../client';
-import { setLogs, workouts } from '../schema';
+import { plannedDays, setLogs, workouts } from '../schema';
 
 export async function startWorkout(templateId: string, trainingDate: string): Promise<string> {
   const id = randomUUID();
@@ -40,17 +40,31 @@ export async function completeWorkout(
   sessionRpe: number | null,
   notes: string | null,
 ): Promise<void> {
-  await db
-    .update(workouts)
-    .set({ status: 'completed', finishedAt: new Date().toISOString(), sessionRpe, notes })
-    .where(eq(workouts.id, id));
+  const at = new Date().toISOString();
+  db.transaction((tx) => {
+    tx.update(workouts)
+      .set({ status: 'completed', finishedAt: at, sessionRpe, notes })
+      .where(eq(workouts.id, id))
+      .run();
+    tx.update(plannedDays)
+      .set({ status: 'done', updatedAt: at })
+      .where(eq(plannedDays.workoutId, id))
+      .run();
+  });
 }
 
 export async function abandonWorkout(id: string): Promise<void> {
-  await db
-    .update(workouts)
-    .set({ status: 'abandoned', finishedAt: new Date().toISOString() })
-    .where(eq(workouts.id, id));
+  const at = new Date().toISOString();
+  db.transaction((tx) => {
+    tx.update(workouts)
+      .set({ status: 'abandoned', finishedAt: at })
+      .where(eq(workouts.id, id))
+      .run();
+    tx.update(plannedDays)
+      .set({ status: 'missed', updatedAt: at })
+      .where(eq(plannedDays.workoutId, id))
+      .run();
+  });
 }
 
 /**
@@ -60,10 +74,73 @@ export async function abandonWorkout(id: string): Promise<void> {
  */
 export async function abandonStaleWorkouts(now: Date = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
-  await db
-    .update(workouts)
-    .set({ status: 'abandoned', finishedAt: now.toISOString() })
-    .where(and(eq(workouts.status, 'in_progress'), lt(workouts.startedAt, cutoff)));
+  const at = now.toISOString();
+  db.transaction((tx) => {
+    const stale = and(eq(workouts.status, 'in_progress'), lt(workouts.startedAt, cutoff));
+    const rows = tx.select({ id: workouts.id }).from(workouts).where(stale).all();
+    tx.update(workouts).set({ status: 'abandoned', finishedAt: at }).where(stale).run();
+    for (const row of rows) {
+      tx.update(plannedDays)
+        .set({ status: 'missed', updatedAt: at })
+        .where(eq(plannedDays.workoutId, row.id))
+        .run();
+    }
+  });
+}
+
+/** Freeze the extra session and its dated choice together; retries resume it. */
+export async function startExtraWorkout(
+  plan: SessionPlan,
+  selection: DaySelection,
+): Promise<string> {
+  if (plan.kind !== 'extra' || plan.exercises.length === 0 || plan.date !== selection.date)
+    throw new Error('Invalid extra session');
+  return db.transaction((tx) => {
+    const active = tx
+      .select({ id: workouts.id })
+      .from(workouts)
+      .where(eq(workouts.status, 'in_progress'))
+      .get();
+    if (active) return active.id;
+    const history = tx
+      .select({ id: workouts.id })
+      .from(workouts)
+      .where(and(eq(workouts.trainingDate, plan.date), eq(workouts.status, 'completed')))
+      .all();
+    if (history.length === 0) throw new Error('Complete today first');
+    const previous = tx
+      .select({ seq: plannedDays.seq })
+      .from(plannedDays)
+      .where(eq(plannedDays.date, plan.date))
+      .orderBy(desc(plannedDays.seq))
+      .get();
+    const seq = Math.max(2, (previous?.seq ?? 1) + 1, history.length + 1);
+    const id = randomUUID();
+    const at = new Date().toISOString();
+    tx.insert(workouts)
+      .values({
+        id,
+        templateId: null,
+        trainingDate: plan.date,
+        startedAt: at,
+        status: 'in_progress',
+        plan,
+      })
+      .run();
+    tx.insert(plannedDays)
+      .values({
+        date: plan.date,
+        seq,
+        workoutId: id,
+        selection,
+        forecast: plan,
+        status: 'planned',
+        generationId: id,
+        updatedAt: at,
+      })
+      .run();
+    return id;
+  });
 }
 
 /** Most recent completed session using this template, excluding `excludeId`. */

@@ -22,9 +22,8 @@ import { bands, exercises, workoutTemplates } from './schema';
  *   exercise dropped from the JSON is marked archived instead.
  * - Bands are inserted only when missing, so a calibration is never
  *   overwritten by a reseed.
- * - Templates are overwritten unconditionally. There is no in-app editor
- *   yet (planned for M10), so data/templates.json is the only author and
- *   version gating would just be ceremony.
+ * - Existing templates are refreshed for historical sessions. New installs
+ *   use the rules engine and no longer receive the manual FBW templates.
  */
 export async function seedDatabase(): Promise<void> {
   const parsed = exerciseCatalogueSchema.parse(catalogue);
@@ -108,10 +107,6 @@ export async function seedDatabase(): Promise<void> {
       };
       if (knownTemplates.has(template.id)) {
         tx.update(workoutTemplates).set(values).where(eq(workoutTemplates.id, template.id)).run();
-      } else {
-        tx.insert(workoutTemplates)
-          .values({ id: template.id, ...values })
-          .run();
       }
     }
   });

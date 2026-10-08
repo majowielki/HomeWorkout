@@ -67,6 +67,11 @@ export function PlanHero({ today, exerciseMap }: Props) {
       <>
         {banner}
         {state.done ? <DayDoneCard recovery={state.recovery} /> : <RestDayCard />}
+        {state.done ? (
+          <Link href="/plan/extra" asChild>
+            <Button label={pl.extra.title} variant="outline" />
+          </Link>
+        ) : null}
         {next ? (
           <SessionHero
             eyebrow={
