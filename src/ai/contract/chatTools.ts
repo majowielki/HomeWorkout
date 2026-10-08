@@ -23,7 +23,7 @@
 import { z } from 'zod';
 
 import { MUSCLE_GROUPS, TREND_VERDICTS } from '../../domain/coach/vocabulary';
-import { WEEK_CONFIG } from '../../domain/config/training';
+import { PLANNER_CONFIG, WEEK_CONFIG } from '../../domain/config/training';
 import { COACH_CONSTRAINT_KINDS, COACH_CONSTRAINT_REASONS } from '../../domain/plan/constraints';
 import { SLOT_REGIONS } from '../../domain/plan/types';
 import {
@@ -47,6 +47,8 @@ export const TOOL_NAMES = [
   'getWeekPlan',
   'proposePlanChange',
   'proposeExtraSession',
+  'getDayOptions',
+  'proposeDayPlan',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -70,6 +72,14 @@ export const TOOL_LIMITS = {
   planDays: WEEK_CONFIG.horizonDays,
   /** Requests in one proposal. */
   proposalConstraints: 3,
+  /** Days one composition may cover. */
+  composedDays: 3,
+  /** Movements one composed day may name: as many exercises as a session holds. */
+  composedMovements: PLANNER_CONFIG.maxExercisesPerSession,
+  /** Sets a composed movement may ask for: the engine's daily maximum for one muscle. */
+  composedSets: PLANNER_CONFIG.maxDirectSetsPerMuscleDay,
+  /** Movements listed by the day options tool. */
+  dayOptionsShown: 24,
 } as const;
 
 const count = z.number().int().nonnegative();
@@ -89,10 +99,14 @@ export const TOOL_ERRORS = [
   'rest_day',
   'clarification_required',
   'date_changed',
+  /** Today is already trained: its plan is closed. */
+  'day_done',
 ] as const;
 
 export const PLAN_DAY_REASONS = [...DAY_REASONS, ...REQUEST_DAY_REASONS] as const;
 export const PLAN_SKIP_REASONS = [...SKIP_REASONS, ...REQUEST_SKIP_REASONS] as const;
+/** Why the engine did not take a composed movement: a skip reason, or the day rests. */
+export const COMPOSE_CONFLICTS = [...PLAN_SKIP_REASONS, 'REST_DAY'] as const;
 
 /** Relative dates keep the model from inventing a calendar date. The phone resolves them. */
 export const planIntentSchema = z.strictObject({
@@ -112,6 +126,8 @@ export const planDaySummarySchema = z.strictObject({
   date: isoDate,
   status: z.enum(['planned', 'done', 'in_progress']),
   rest: z.boolean(),
+  /** The day's movements were composed with the coach and accepted (ADR 0006). */
+  composed: z.boolean(),
   regions: z.array(z.enum(SLOT_REGIONS)),
   phase: z.enum(['work', 'deload']).nullable(),
   estimatedMinutes: count,
@@ -157,6 +173,75 @@ export const extraProposalSummarySchema = z.strictObject({
   requiresAcceptance: z.literal(true),
   focusMuscles: z.array(z.enum(MUSCLE_GROUPS)).min(1).max(MUSCLE_GROUPS.length),
   day: planDaySummarySchema,
+});
+
+const movementName = z.string().min(1).max(60);
+const slotId = z.string().min(1).max(64);
+
+export const dayOptionsSchema = z.strictObject({
+  date: isoDate,
+  rest: z.boolean(),
+  phase: z.enum(['work', 'deload']).nullable(),
+  options: z
+    .array(
+      z.strictObject({
+        slotId,
+        movement: movementName,
+        exercise: exerciseRef.nullable(),
+        available: z.boolean(),
+        reason: z.enum(PLAN_SKIP_REASONS).nullable(),
+        sets: count,
+      }),
+    )
+    .max(TOOL_LIMITS.dayOptionsShown),
+  plan: planDaySummarySchema,
+});
+
+export const composeIntentSchema = z.strictObject({
+  days: z
+    .array(
+      z.strictObject({
+        daysAhead: z
+          .number()
+          .int()
+          .min(0)
+          .max(TOOL_LIMITS.planDays - 1),
+        slots: z
+          .array(
+            z.strictObject({
+              slotId,
+              sets: z.number().int().min(1).max(TOOL_LIMITS.composedSets).optional(),
+            }),
+          )
+          .min(1)
+          .max(TOOL_LIMITS.composedMovements),
+      }),
+    )
+    .min(1)
+    .max(TOOL_LIMITS.composedDays),
+  note: z.string().min(1).max(160),
+});
+
+export const composeProposalSummarySchema = z.strictObject({
+  /** Null when the engine could take nothing: there is no card to apply. */
+  proposalId: z.string().min(1).max(64).nullable(),
+  kind: z.literal('compose'),
+  requiresAcceptance: z.literal(true),
+  days: z
+    .array(
+      z.strictObject({
+        date: isoDate,
+        /** At least one movement was taken; the rest are conflicts. */
+        applied: z.boolean(),
+        conflicts: z
+          .array(z.strictObject({ movement: movementName, reason: z.enum(COMPOSE_CONFLICTS) }))
+          .max(TOOL_LIMITS.composedMovements),
+      }),
+    )
+    .max(TOOL_LIMITS.composedDays),
+  changes: z
+    .array(z.strictObject({ before: planDaySummarySchema, after: planDaySummarySchema }))
+    .max(TOOL_LIMITS.planDays),
 });
 
 /**
@@ -318,6 +403,24 @@ export const CHAT_TOOLS = {
       focusMuscles: z.array(z.enum(MUSCLE_GROUPS)).min(1).max(MUSCLE_GROUPS.length),
     }),
     output: extraProposalSummarySchema,
+  },
+  getDayOptions: {
+    description:
+      "The movements the app's rules engine offers for one day of the plan (daysAhead 0 is today), for composing that day with the person: each movement's slotId, the block's exercise for it, whether it can be trained that day and, if not, the engine's reason (RECOVERING, DOMS_HIGH, VOLUME_AT_MAX, AVOIDED_BY_REQUEST, NO_CANDIDATE …), and the sets the engine would give. Also the engine's own plan for the day. Read it before proposeDayPlan, and use the reasons to explain what is possible. No loads.",
+    input: z.strictObject({
+      daysAhead: z
+        .number()
+        .int()
+        .min(0)
+        .max(TOOL_LIMITS.planDays - 1),
+    }),
+    output: dayOptionsSchema,
+  },
+  proposeDayPlan: {
+    description:
+      "Preview a day (or up to three days) composed with the person from the engine's options, without saving anything. Name movements by the slotId from getDayOptions; you may ask for fewer sets than the engine offers, never more, and never name loads, repetitions or exercises. The engine builds the day and returns per day whether it could take the movements and, for those it could not, the reason. The person must press Apply in the local card. Ask first when the day, the muscles or the length is unclear. Do not claim the plan has changed.",
+    input: composeIntentSchema,
+    output: composeProposalSummarySchema,
   },
 } as const satisfies Record<ToolName, { description: string; input: z.ZodType; output: z.ZodType }>;
 

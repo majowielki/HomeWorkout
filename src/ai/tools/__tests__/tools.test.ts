@@ -28,23 +28,28 @@ describe('the implementations', () => {
   it('cover exactly the tools of the contract', () => {
     expect(Object.keys(TOOL_IMPLEMENTATIONS).sort()).toEqual([...TOOL_NAMES].sort());
   });
-  it.each(['getWeekPlan', 'proposePlanChange', 'proposeExtraSession'] as const)(
-    'delegates %s without writes and handles an unavailable adapter',
-    async (name) => {
-      const env = envFor(scenario());
-      expect(await TOOL_IMPLEMENTATIONS[name]({} as never, env)).toEqual({ error: 'failed' });
-      const callback = jest.fn().mockResolvedValue({ error: 'no_plan' });
-      const key = {
-        getWeekPlan: 'week',
-        proposePlanChange: 'proposeChange',
-        proposeExtraSession: 'proposeExtra',
-      }[name];
-      expect(await TOOL_IMPLEMENTATIONS[name]({} as never, { ...env, [key]: callback })).toEqual({
-        error: 'no_plan',
-      });
-      expect(callback).toHaveBeenCalledTimes(1);
-    },
-  );
+  it.each([
+    'getWeekPlan',
+    'proposePlanChange',
+    'proposeExtraSession',
+    'getDayOptions',
+    'proposeDayPlan',
+  ] as const)('delegates %s without writes and handles an unavailable adapter', async (name) => {
+    const env = envFor(scenario());
+    expect(await TOOL_IMPLEMENTATIONS[name]({} as never, env)).toEqual({ error: 'failed' });
+    const callback = jest.fn().mockResolvedValue({ error: 'no_plan' });
+    const key = {
+      getWeekPlan: 'week',
+      proposePlanChange: 'proposeChange',
+      proposeExtraSession: 'proposeExtra',
+      getDayOptions: 'dayOptions',
+      proposeDayPlan: 'proposeDay',
+    }[name];
+    expect(await TOOL_IMPLEMENTATIONS[name]({} as never, { ...env, [key]: callback })).toEqual({
+      error: 'no_plan',
+    });
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('getRecentSessions', () => {

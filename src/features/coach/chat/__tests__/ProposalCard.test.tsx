@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ProposalCard } from '../ProposalCard';
-import { previewPlanChange, summarizePlan } from '@/features/plan/coachPreview';
+import { previewDayPlan, previewPlanChange, summarizePlan } from '@/features/plan/coachPreview';
 import { planCustom } from '@/domain/plan/extra';
 import { pl } from '@/strings/pl';
 import { proposalSnapshot, restIntent } from './proposalFixtures';
@@ -80,4 +80,29 @@ it('previews an additional session with set counts and tells what applying does'
   expect(screen.getByText('Pchanie · 2 serie')).toBeTruthy();
   expect(screen.getByText(pl.coach.chat.proposal.extraHint)).toBeTruthy();
   expect(screen.queryByText(/kg|RIR/)).toBeNull();
+});
+
+it('shows a composed day with what the engine did not take', async () => {
+  const s = proposalSnapshot();
+  const intent = {
+    days: [
+      { daysAhead: 1, slots: [{ slotId: 'pull' }] },
+      { daysAhead: 2, slots: [{ slotId: 'pull', sets: 1 }, { slotId: 'push' }] },
+    ],
+    note: 'Górna partia.',
+  };
+  const summary = previewDayPlan(s, intent, 'c').summary;
+  await render(
+    <ProposalCard
+      proposal={{ id: 'c', summary, note: intent.note }}
+      status="pending"
+      busy={false}
+      onApply={jest.fn()}
+      onReject={jest.fn()}
+    />,
+  );
+  expect(screen.getByText(pl.coach.chat.proposal.compose)).toBeTruthy();
+  expect(screen.getByText(pl.coach.chat.proposal.composeHint)).toBeTruthy();
+  expect(screen.getByText(new RegExp(pl.coach.chat.proposal.conflictsTitle))).toBeTruthy();
+  expect(screen.getByText(`Plecy · ${pl.plan.skip.RECOVERING}`)).toBeTruthy();
 });

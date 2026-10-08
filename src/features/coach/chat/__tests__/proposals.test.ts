@@ -58,6 +58,7 @@ it('previews through the real engine with no writes and applies the reviewed con
     expect.anything(),
     '2026-10-08',
     expect.any(Date),
+    [],
   );
   await expect(controller.apply('proposal-1')).rejects.toBeInstanceOf(ProposalChangedError);
   expect(deps.save).toHaveBeenCalledTimes(1);
@@ -305,4 +306,170 @@ it.each([
     error: 'clarification_required',
   });
   expect(deps.start).not.toHaveBeenCalled();
+});
+
+describe('composing days with the coach (ADR 0006)', () => {
+  const composeIntent = (slots: { slotId: string; sets?: number }[], daysAhead = 2) => ({
+    days: [{ daysAhead, slots }],
+    note: 'Górna partia jutro.',
+  });
+
+  it('lists the engine options of a day, with the reason for what is not possible', async () => {
+    const { controller, s } = setup();
+    s.input.constraints = [
+      {
+        id: 'sore',
+        kind: 'avoid_muscle',
+        muscles: ['chest'],
+        from: '2026-10-09',
+        until: '2026-10-09',
+        reason: 'pain',
+        source: 'user',
+        note: null,
+      },
+    ];
+    const out = await controller.tools.dayOptions!({ daysAhead: 1 });
+    expect(CHAT_TOOLS.getDayOptions.output.safeParse(out).success).toBe(true);
+    if ('error' in out) throw new Error(out.error);
+    expect(out.date).toBe('2026-10-09');
+    expect(out.options.find((o) => o.slotId === 'push')).toMatchObject({
+      available: false,
+      reason: 'AVOIDED_BY_REQUEST',
+    });
+    // Today's planned session works the back: tomorrow it is still recovering.
+    expect(out.options.find((o) => o.slotId === 'pull')).toMatchObject({
+      available: false,
+      reason: 'RECOVERING',
+    });
+    const later = await controller.tools.dayOptions!({ daysAhead: 2 });
+    if ('error' in later) throw new Error(later.error);
+    expect(later.options.find((o) => o.slotId === 'pull')).toMatchObject({
+      available: true,
+      sets: 2,
+    });
+    expect(JSON.stringify(out)).not.toMatch(/"load"|"kg"|"target"/);
+  });
+
+  it('previews a composed day with its conflicts, and applies it once, replacing an older one', async () => {
+    const { controller, deps, s } = setup();
+    s.input.constraints = [
+      {
+        id: 'older',
+        kind: 'compose_day',
+        muscles: [],
+        from: '2026-10-10',
+        until: '2026-10-10',
+        reason: 'other',
+        source: 'coach',
+        note: 'wcześniej',
+        items: [{ slotId: 'legs', sets: 2 }],
+      },
+    ];
+    const out = await controller.tools.proposeDay!(
+      composeIntent([{ slotId: 'pull', sets: 1 }, { slotId: 'push' }]),
+    );
+    expect(CHAT_TOOLS.proposeDayPlan.output.safeParse(out).success).toBe(true);
+    if ('error' in out) throw new Error(out.error);
+    expect(out).toMatchObject({ proposalId: 'proposal-1', kind: 'compose' });
+    expect(out.days).toEqual([{ date: '2026-10-10', applied: true, conflicts: [] }]);
+    const after = out.changes.find((c) => c.after.date === '2026-10-10')!.after;
+    expect(after.composed).toBe(true);
+    expect(after.exercises.map((e) => [e.exercise.id, e.sets])).toEqual(
+      expect.arrayContaining([
+        ['pull', 1],
+        ['push', 2],
+      ]),
+    );
+    expect(deps.save).not.toHaveBeenCalled();
+    await controller.apply('proposal-1');
+    expect(deps.save).toHaveBeenCalledWith(
+      'proposal-1',
+      [
+        expect.objectContaining({
+          kind: 'compose_day',
+          from: '2026-10-10',
+          items: [
+            { slotId: 'pull', sets: 1 },
+            { slotId: 'push', sets: 2 },
+          ],
+        }),
+      ],
+      expect.objectContaining({ trigger: 'coach' }),
+      expect.anything(),
+      expect.anything(),
+      '2026-10-08',
+      expect.any(Date),
+      ['older'],
+    );
+    await expect(controller.apply('proposal-1')).rejects.toBeInstanceOf(ProposalChangedError);
+  });
+
+  it('gives no card when the engine can take nothing, and says why', async () => {
+    const { controller, s } = setup();
+    s.input.week = { restWeekdays: [5] }; // 2026-10-10 is a Saturday
+    const out = await controller.tools.proposeDay!(composeIntent([{ slotId: 'pull' }]));
+    if ('error' in out) throw new Error(out.error);
+    expect(out.proposalId).toBeNull();
+    expect(out.days[0]).toEqual({
+      date: '2026-10-10',
+      applied: false,
+      conflicts: [{ movement: 'Plecy', reason: 'REST_DAY' }],
+    });
+    expect(controller.resolve('proposal-1')).toBeNull();
+  });
+
+  it.each([
+    ['an unknown movement', composeIntent([{ slotId: 'nope' }]), 'invalid_input'],
+    ['a filler movement', composeIntent([{ slotId: 'mobility' }]), 'invalid_input'],
+    [
+      'the same day twice',
+      {
+        days: [
+          { daysAhead: 1, slots: [{ slotId: 'pull' }] },
+          { daysAhead: 1, slots: [{ slotId: 'push' }] },
+        ],
+        note: 'x',
+      },
+      'invalid_input',
+    ],
+    [
+      'a load in the note',
+      { ...composeIntent([{ slotId: 'pull' }]), note: 'Weź 10 kg' },
+      'invalid_input',
+    ],
+  ])('refuses %s before reading options', async (_, intent, error) => {
+    const { controller, deps } = setup();
+    expect(await controller.tools.proposeDay!(intent)).toEqual({ error });
+    expect(deps.save).not.toHaveBeenCalled();
+  });
+
+  it('asks about soreness of unknown strength, and closes a trained day', async () => {
+    const sore = setup();
+    sore.controller.beginTurn('Mam zakwasy nóg, ułóż mi jutro górę.');
+    expect(await sore.controller.tools.proposeDay!(composeIntent([{ slotId: 'pull' }]))).toEqual({
+      error: 'clarification_required',
+    });
+    const done = setup(true);
+    expect(await done.controller.tools.proposeDay!(composeIntent([{ slotId: 'pull' }], 0))).toEqual(
+      {
+        error: 'day_done',
+      },
+    );
+    expect(await done.controller.tools.dayOptions!({ daysAhead: 0 })).toEqual({
+      error: 'day_done',
+    });
+  });
+
+  it('does not compose while a session runs or after the day changed', async () => {
+    const active = setup();
+    jest.mocked(active.deps.inProgress).mockResolvedValue({ id: 'active' } as never);
+    expect(await active.controller.tools.proposeDay!(composeIntent([{ slotId: 'pull' }]))).toEqual({
+      error: 'in_progress',
+    });
+    const moved = setup();
+    moved.controller.beginTurn('Ułóż jutro górę.', '2026-10-07');
+    expect(await moved.controller.tools.dayOptions!({ daysAhead: 1 })).toEqual({
+      error: 'date_changed',
+    });
+  });
 });

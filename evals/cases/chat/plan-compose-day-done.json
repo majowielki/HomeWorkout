@@ -1,0 +1,26 @@
+{
+  "question": "Ułóż mi dziś trening na górę ciała.",
+  "feature": "chat",
+  "description": "Today is already trained: the coach says so and offers a later day instead of composing today.",
+  "category": "plan_boundary",
+  "scenario": { "olderSessions": 0, "lastSessionDaysAgo": 0, "sessions": 1 },
+  "id": "plan-compose-day-done",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "forbidPatterns": ["zastosuj|ulozylem"],
+    "mentionAnyOf": [
+      ["juz zrobiony", "zrobiony"],
+      ["jutro", "pojutrze"]
+    ]
+  }
+}

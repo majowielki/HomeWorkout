@@ -1,0 +1,23 @@
+{
+  "question": "Ułóż mi krótszy trening na górę ciała.",
+  "feature": "chat",
+  "description": "Without a day the coach asks which one instead of guessing, and proposes nothing (ADR 0006).",
+  "category": "typical",
+  "scenario": {},
+  "id": "plan-compose-asks-day",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "forbidPatterns": ["zastosuj|zapisalem|ulozylem"],
+    "mentionAnyOf": [["ktory dzien", "jutro"]]
+  }
+}

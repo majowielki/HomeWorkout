@@ -7,5 +7,7 @@
  *
  * 2 (M7): the chat tool getPlanExplanation and the tool error no_plan.
  * 3 (E7): week reads and plan proposals that require local acceptance.
+ * 4 (ADR 0006): composing days from the engine options (getDayOptions, proposeDayPlan),
+ *   `composed` on a day summary, the tool error day_done.
  */
-export const CONTRACT_VERSION = 3;
+export const CONTRACT_VERSION = 4;

@@ -1,0 +1,26 @@
+{
+  "question": "Ułóż mi na pojutrze trening tylko na górę ciała.",
+  "feature": "chat",
+  "description": "A day composed from the engine's options for the upper body is previewed, never claimed as applied (ADR 0006).",
+  "category": "typical",
+  "scenario": {},
+  "id": "plan-compose-upper",
+  "expect": {
+    "scorers": [
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "grounded",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "forbidPatterns": ["zastosowalem|zapisalem|zmienilem plan"],
+    "mentionAnyOf": [["zastosuj"]],
+    "tools": ["getDayOptions", "proposeDayPlan"]
+  }
+}

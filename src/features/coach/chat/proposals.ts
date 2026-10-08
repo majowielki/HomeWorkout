@@ -1,8 +1,11 @@
 import {
-  summarizePlan,
+  describeDayOptions,
+  previewDayPlan,
   previewPlanChange,
-  validatePlanIntent,
+  proposeDayPreview,
+  summarizePlan,
   validateExtraQuestion,
+  validatePlanIntent,
 } from '@/features/plan/coachPreview';
 import { randomUUID } from 'expo-crypto';
 import { TOOL_LIMITS, type ToolInput, type ToolOutput } from '@/ai/contract/chatTools';
@@ -23,7 +26,10 @@ import {
 import { withPlanningLock } from '@/features/plan/computeToday';
 import { loadPlanningSnapshot, planningSnapshotKey } from '@/features/plan/planningSnapshot';
 
-export type ProposalSummary = ToolOutput<'proposePlanChange'> | ToolOutput<'proposeExtraSession'>;
+export type ProposalSummary =
+  | ToolOutput<'proposePlanChange'>
+  | ToolOutput<'proposeExtraSession'>
+  | ToolOutput<'proposeDayPlan'>;
 export type ProposalStatus = 'pending' | 'applying' | 'applied' | 'rejected' | 'stale' | 'failed';
 export interface ProposalView {
   id: string;
@@ -33,6 +39,7 @@ export interface ProposalView {
 type Draft = ProposalView & { fingerprint: string } & (
     | { kind: 'plan'; intent: ToolInput<'proposePlanChange'> }
     | { kind: 'extra'; slotIds: string[]; plan: SessionPlan }
+    | { kind: 'compose'; intent: ToolInput<'proposeDayPlan'> }
   );
 
 export class ProposalChangedError extends Error {}
@@ -65,7 +72,18 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
   let question = '';
   let expectedDate: string | null = null;
   let revision = 0;
-  const tools: Pick<ToolEnvironment, 'week' | 'proposeChange' | 'proposeExtra'> = {
+  /** The snapshot for this question, or the tool error that stops it. */
+  async function freshSnapshot(turn: number) {
+    const s = await deps.snapshot();
+    if (turn !== revision) return { error: 'failed' as const };
+    if (expectedDate !== null && s.input.asOf !== expectedDate)
+      return { error: 'date_changed' as const };
+    return s;
+  }
+  const tools: Pick<
+    ToolEnvironment,
+    'week' | 'proposeChange' | 'proposeExtra' | 'dayOptions' | 'proposeDay'
+  > = {
     async week() {
       const s = await deps.snapshot();
       const active = await deps.inProgress();
@@ -151,6 +169,30 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
       });
       return summary;
     },
+    async dayOptions({ daysAhead }) {
+      const s = await freshSnapshot(revision);
+      return 'error' in s ? s : describeDayOptions(s, daysAhead);
+    },
+    async proposeDay(intent) {
+      const turn = revision;
+      if (await deps.inProgress()) return { error: 'in_progress' };
+      const s = await freshSnapshot(turn);
+      if ('error' in s) return s;
+      const id = deps.id();
+      const result = proposeDayPreview(s, intent, question, id);
+      if ('error' in result) return result.error;
+      const { summary } = result.preview;
+      if (summary.proposalId !== null)
+        drafts.set(id, {
+          id,
+          kind: 'compose',
+          summary,
+          note: result.intent.note,
+          fingerprint: planningSnapshotKey(s),
+          intent: result.intent,
+        });
+      return summary;
+    },
   };
   return {
     tools,
@@ -193,7 +235,10 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
             drafts.delete(id);
             return { workoutId };
           }
-          const prepared = previewPlanChange(s, draft.intent, id);
+          const prepared =
+            draft.kind === 'compose'
+              ? previewDayPlan(s, draft.intent, id)
+              : { ...previewPlanChange(s, draft.intent, id), replaced: [] };
           if (JSON.stringify(prepared.summary) !== JSON.stringify(draft.summary))
             throw new ProposalChangedError();
           const sync: SyncResult = prepared.sync;
@@ -211,6 +256,7 @@ export function createProposalController(deps: ProposalDeps = defaultDeps) {
             s.advance,
             s.input.asOf,
             deps.now(),
+            prepared.replaced,
           );
           drafts.delete(id);
           return {};

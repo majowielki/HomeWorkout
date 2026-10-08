@@ -16,7 +16,7 @@
  */
 import type { ChatEvent, ChatMessage, ChatRequest, ToolCall, ToolResult } from '@/ai/contract/chat';
 import type { ToolName, ToolOutput } from '@/ai/contract/chatTools';
-import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v3';
+import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v4';
 import { fold } from '@/domain/coach/text';
 import type { SkipReason } from '@/domain/plan/reasons';
 
@@ -214,6 +214,72 @@ function planAnswer(q: string, plan: ToolOutput<'getPlanExplanation'>): string {
   return `W dzisiejszym planie nie widzę ruchu, o który pytasz.${day}`;
 }
 
+// --- composing a day with the engine (ADR 0006) --------------------------------
+
+/** Movements by the slots of the shipped data: what "the upper body" and "legs" mean here. */
+const UPPER = new Set([
+  'push-horizontal',
+  'push-vertical',
+  'chest-iso',
+  'pull-horizontal',
+  'pull-vertical',
+  'lateral-delts',
+  'rear-delts',
+  'biceps',
+  'triceps',
+]);
+const LOWER = new Set(['squat', 'lunge', 'hinge', 'glutes', 'calves']);
+
+const conflictText = (
+  reason: ToolOutput<'proposeDayPlan'>['days'][number]['conflicts'][number]['reason'],
+) => (reason === 'REST_DAY' ? 'ten dzień jest wolny' : SKIPPED[reason]);
+
+/** After a preview: what the engine took, and in plain words what it did not and why. */
+function composeAnswer(out: ToolOutput<'proposeDayPlan'>): string {
+  const refused = out.days.flatMap((d) =>
+    d.conflicts.map((c) => `${c.movement.toLowerCase()}, bo ${conflictText(c.reason)}`),
+  );
+  if (out.proposalId === null)
+    return `Silnik nie mógł ułożyć tego dnia: ${refused.join('; ')}. Mogę spróbować innego dnia albo innych partii.`;
+  const rest = refused.length ? ` Silnik nie przyjął: ${refused.join('; ')}.` : '';
+  return `Ułożyłem ten dzień razem z silnikiem. Sprawdź kartę i wybierz Zastosuj lub Odrzuć.${rest}`;
+}
+
+/** Nothing wanted is possible that day: the engine's reasons, and what could work instead. */
+function noRoomAnswer(options: ToolOutput<'getDayOptions'>, wanted: ReadonlySet<string>): string {
+  if (options.rest) return 'Ten dzień jest w planie wolny. Mogę ułożyć inny dzień.';
+  const reasons = [
+    ...new Set(
+      options.options
+        .filter((o) => wanted.has(o.slotId) && !o.available && o.reason !== null)
+        .map((o) => SKIPPED[o.reason!]),
+    ),
+  ];
+  return `Na ten dzień te ruchy nie są możliwe: ${reasons.join('; ')}. Spróbuj późniejszego dnia albo innych partii.`;
+}
+
+/** "Ułóż mi …": ask for what is missing, read the options, propose from the available ones. */
+function composeStep(request: ChatRequest, q: string, results: ToolResult[]): ChatEvent[] {
+  const ahead = /pojutrz/.test(q) ? 2 : /jutr/.test(q) ? 1 : /dzis/.test(q) ? 0 : null;
+  if (ahead === null)
+    return says(request, 'Na który dzień mam ułożyć trening: dziś, jutro czy pojutrze?');
+  const wanted = /\bgor|gorn/.test(q) ? UPPER : /\bnog|dolna partia/.test(q) ? LOWER : null;
+  if (!wanted) return says(request, 'Na które partie ma być ten dzień: górę ciała czy nogi?');
+  const [proposal] = outputsOf(results, 'proposeDayPlan');
+  if (proposal) return says(request, composeAnswer(proposal));
+  const [options] = outputsOf(results, 'getDayOptions');
+  if (!options)
+    return asksFor(request, [call('ref-options', 'getDayOptions', { daysAhead: ahead })]);
+  const chosen = options.options.filter((o) => o.available && wanted.has(o.slotId)).slice(0, 4);
+  if (!chosen.length) return says(request, noRoomAnswer(options, wanted));
+  return asksFor(request, [
+    call('ref-compose', 'proposeDayPlan', {
+      days: [{ daysAhead: ahead, slots: chosen.map((o) => ({ slotId: o.slotId })) }],
+      note: wanted === UPPER ? 'Górna partia ciała.' : 'Nogi.',
+    }),
+  ]);
+}
+
 /** One step of the stand-in model: what it would say or ask for next. */
 export function referenceChatStep(request: ChatRequest): ChatEvent[] {
   const { question, results } = currentTurn(request.messages);
@@ -227,6 +293,8 @@ export function referenceChatStep(request: ChatRequest): ChatEvent[] {
     const { error } = planResult.output as { error: string };
     return says(request, error === 'no_plan' ? NO_PLAN_THAT_DAY : COULD_NOT);
   }
+  if (results.some((r) => (r.output as { error?: string }).error === 'day_done'))
+    return says(request, 'Dzisiejszy trening jest już zrobiony. Mogę ułożyć jutro albo pojutrze.');
   if (results.some((r) => hasError(r.output))) return says(request, COULD_NOT);
 
   // --- things it will not do, before anything is looked up ---------------------
@@ -256,6 +324,7 @@ export function referenceChatStep(request: ChatRequest): ChatEvent[] {
       }),
     ]);
   }
+  if (/uloz|skomponuj/.test(q)) return composeStep(request, q, results);
   if (/dodatkow/.test(q)) {
     const proposal = results.find((r) => r.name === 'proposeExtraSession');
     if (proposal)
