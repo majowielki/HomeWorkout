@@ -217,6 +217,25 @@ export async function getActiveConstraints(from: string): Promise<PlanConstraint
   return rows.map(toConstraint);
 }
 
+/** Days composed with the coach between two dates (compose_day requests not taken back). */
+export async function getComposedDays(
+  from: string,
+  until: string,
+): Promise<{ id: string; date: string }[]> {
+  const rows = await db
+    .select({ id: planConstraints.id, date: planConstraints.fromDate })
+    .from(planConstraints)
+    .where(
+      and(
+        eq(planConstraints.kind, 'compose_day'),
+        isNull(planConstraints.revokedAt),
+        gte(planConstraints.fromDate, from),
+        lte(planConstraints.fromDate, until),
+      ),
+    );
+  return rows;
+}
+
 export async function addConstraint(
   c: Omit<PlanConstraint, 'id'>,
   now: Date = new Date(),

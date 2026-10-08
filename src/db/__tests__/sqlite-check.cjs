@@ -638,6 +638,34 @@ const CASES = [
     },
   ],
   [
+    'the calendar sees a day composed with the coach until it is taken back',
+    async () => {
+      await seeded();
+      const composed = (date) => ({
+        kind: 'compose_day',
+        muscles: [],
+        from: date,
+        until: date,
+        reason: 'other',
+        source: 'coach',
+        note: null,
+        items: [{ slotId: 'push', sets: 2 }],
+      });
+      const inside = await week.addConstraint(composed('2026-10-09'));
+      await week.addConstraint(composed('2026-11-02'));
+      await week.addConstraint({
+        ...composed('2026-10-10'),
+        kind: 'lighter_day',
+        items: undefined,
+      });
+      const range = async () =>
+        (await calendar.getCalendarRange('2026-10-01', '2026-10-31')).composed;
+      assert.deepEqual(await range(), [{ id: inside, date: '2026-10-09' }]);
+      await week.revokeConstraints([inside]);
+      assert.deepEqual(await range(), []);
+    },
+  ],
+  [
     'a corrupt backup changes nothing; a valid one restores history and drops the derived week',
     async () => {
       await seeded();

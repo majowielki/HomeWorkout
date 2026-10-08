@@ -17,6 +17,8 @@ export function calendarDay(
   const rides = data.rides.filter((r) => r.trainingDate === date);
   const diary = data.diary.find((d) => d.date === date);
   const completed = sessions.some((s) => s.workout.status === 'completed');
+  // The day's movements were composed with the coach; taking that back hands the day to the engine.
+  const composedIds = data.composed.filter((c) => c.date === date).map((c) => c.id);
   // Today's plan is the live one (it follows this morning's log); later days show the forecast.
   const plan = date === asOf ? todayPlan : (day?.forecast ?? null);
   // A trained or running day is history; only today and later may become rest or training.
@@ -25,5 +27,5 @@ export function calendarDay(
     date >= asOf &&
     !completed &&
     !sessions.some((s) => s.workout.status === 'in_progress');
-  return { day, sessions, rides, diary, completed, plan, editable };
+  return { day, sessions, rides, diary, completed, plan, editable, composedIds };
 }

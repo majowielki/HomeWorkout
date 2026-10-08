@@ -28,6 +28,7 @@ const data: CalendarData = {
   sessions: [session('2026-10-06', 'completed'), session('2026-10-08', 'in_progress')],
   rides: [],
   diary: [],
+  composed: [{ id: 'compose-9', date: '2026-10-09' }],
   days: [
     {
       date: '2026-10-07',
@@ -45,6 +46,11 @@ describe('a calendar day', () => {
     expect(calendarDay(data, '2026-10-07', '2026-10-07', live).plan).toBe(live);
     expect(calendarDay(data, '2026-10-09', '2026-10-07', live).plan?.date).toBe('2026-10-09');
     expect(calendarDay(data, '2026-10-10', '2026-10-07', live).plan).toBeNull();
+  });
+
+  it('knows which day was composed with the coach', () => {
+    expect(calendarDay(data, '2026-10-09', '2026-10-07', null).composedIds).toEqual(['compose-9']);
+    expect(calendarDay(data, '2026-10-07', '2026-10-07', null).composedIds).toEqual([]);
   });
 
   it('lets only an untrained day from today on change', () => {
