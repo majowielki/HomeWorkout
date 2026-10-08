@@ -70,6 +70,18 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
+  // v5: a request may hold the movements of a day composed with the coach (ADR 0006).
+  4: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 5,
+      tables: {
+        ...doc.tables,
+        plan_constraints: (doc.tables.plan_constraints ?? []).map((r) => ({ ...r, items: null })),
+      },
+    };
+  },
 };
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {

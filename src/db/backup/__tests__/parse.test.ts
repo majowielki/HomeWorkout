@@ -196,6 +196,7 @@ function validBackup(): BackupFile {
           note: null,
           createdAt: '2026-09-15T08:00:00.000Z',
           revokedAt: null,
+          items: null,
         },
       ],
     },
@@ -325,6 +326,32 @@ describe('parseBackup', () => {
       },
     };
     expect(parseBackup(JSON.stringify(v3))).toEqual({ ok: true, data: v4 });
+  });
+
+  it('lifts a version 4 file: no request holds a composed day', () => {
+    const v5 = validBackup();
+    const v4 = {
+      ...v5,
+      schemaVersion: 4,
+      tables: {
+        ...v5.tables,
+        plan_constraints: v5.tables.plan_constraints.map(({ items: _, ...row }) => row),
+      },
+    };
+    expect(parseBackup(JSON.stringify(v4))).toEqual({ ok: true, data: v5 });
+  });
+
+  it('keeps the movements of a composed day', () => {
+    const doc = validBackup();
+    doc.tables.plan_constraints[0] = {
+      ...doc.tables.plan_constraints[0]!,
+      kind: 'compose_day',
+      muscles: [],
+      reason: 'other',
+      source: 'coach',
+      items: [{ slotId: 'push', sets: 1 }],
+    };
+    expect(parseBackup(JSON.stringify(doc))).toEqual({ ok: true, data: doc });
   });
 
   it('lifts a version 1 file even without the tables it extends', () => {

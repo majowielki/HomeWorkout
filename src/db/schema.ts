@@ -1,5 +1,10 @@
 import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
+import {
+  type ComposedItem,
+  CONSTRAINT_KINDS,
+  CONSTRAINT_REASONS,
+} from '@/domain/plan/constraints';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
@@ -287,14 +292,16 @@ export const planGenerations = sqliteTable(
 /** What the person (or the coach, with consent) asked the planner to respect, SPEC §11.2. */
 export const planConstraints = sqliteTable('plan_constraints', {
   id: text('id').primaryKey(),
-  kind: text('kind', { enum: ['avoid_muscle', 'rest_day', 'train_day', 'lighter_day'] }).notNull(),
+  kind: text('kind', { enum: CONSTRAINT_KINDS }).notNull(),
   muscles: text('muscles', { mode: 'json' }).$type<MuscleGroup[]>().notNull(),
   fromDate: text('from_date').notNull(),
   untilDate: text('until_date').notNull(),
-  reason: text('reason', { enum: ['doms', 'pain', 'busy', 'other'] }).notNull(),
+  reason: text('reason', { enum: CONSTRAINT_REASONS }).notNull(),
   source: text('source', { enum: ['user', 'coach'] }).notNull(),
   note: text('note'),
   createdAt: text('created_at').notNull(),
   /** Taken back early; null while it applies. */
   revokedAt: text('revoked_at'),
+  /** For `compose_day`: the movements and sets composed with the coach (ADR 0006). Null otherwise. */
+  items: text('items', { mode: 'json' }).$type<ComposedItem[] | null>(),
 });

@@ -22,6 +22,7 @@ function toConstraint(r: ConstraintRow): PlanConstraint {
     reason: r.reason,
     source: r.source,
     note: r.note,
+    ...(r.items ? { items: r.items } : {}),
   };
 }
 
@@ -36,6 +37,7 @@ function constraintRow(c: Omit<PlanConstraint, 'id'>, createdAt: string) {
     reason: c.reason,
     source: c.source,
     note: c.note,
+    items: c.items ? [...c.items] : null,
     createdAt,
     revokedAt: null,
   };

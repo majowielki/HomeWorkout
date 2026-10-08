@@ -17,6 +17,8 @@ export const CONSTRAINT_KINDS = [
   'train_day',
   /** One set per exercise on these days. */
   'lighter_day',
+  /** The movements of one day, composed with the coach from the engine's options (ADR 0006). */
+  'compose_day',
 ] as const;
 
 export type ConstraintKind = (typeof CONSTRAINT_KINDS)[number];
@@ -55,6 +57,14 @@ export interface PlanConstraint {
   reason: ConstraintReason;
   source: 'user' | 'coach';
   note: string | null;
+  /** For `compose_day`: the movements (slots) and the sets asked for; absent otherwise. */
+  items?: readonly ComposedItem[];
+}
+
+/** One movement of a composed day; the engine gives at most `sets`, possibly fewer. */
+export interface ComposedItem {
+  slotId: string;
+  sets: number;
 }
 
 /** The weekly pattern of training days. 0 = Monday … 6 = Sunday. */
@@ -191,4 +201,12 @@ export function overrideDay(
     note: null,
   });
   return { revoke, add };
+}
+
+/** The movements composed for a date, or null when the engine chooses the day itself. */
+export function composedOn(
+  constraints: readonly PlanConstraint[],
+  date: string,
+): readonly ComposedItem[] | null {
+  return constraintsOn(constraints, date).find((c) => c.kind === 'compose_day')?.items ?? null;
 }
