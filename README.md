@@ -45,8 +45,9 @@ equipment, today?_
 scripts/simulate-plan.ts` prints the calendar), and its first runs
   changed the design — see SPEC §10.8.
 - **A human in the loop, then an LLM.** The rules engine owns every number.
-  The planned AI layer only interprets, and its output is validated by the
-  same schema before it can touch a plan.
+  The AI layer explains the plan and composes days with the person from the
+  options the engine offers; the engine builds and checks every proposal, and
+  nothing changes until the person accepts it.
 
 ## Architecture
 
@@ -72,8 +73,9 @@ tested and kept free of anything that needs a device to run.
 ## The AI layer
 
 An LLM never touches a number that matters. The rules engine owns every
-load; a model is asked to _comment_ on figures the app computes in code, and
-what it says has to pass the app's checks before anyone reads it. It is a
+load; a model comments on figures the app computes in code, proposes changes
+the engine then builds, and what it says has to pass the app's checks before
+anyone reads it. It is a
 layer on top: with the switch off, or no network, the app is unchanged.
 Whether it earns its place in a release is a question for two weeks of use,
 not for this repository. What is built, and why each part exists:
@@ -95,9 +97,23 @@ not for this repository. What is built, and why each part exists:
   the way to the provider. The loop, its limits and the wire format are the
   app's own ([ADR 0005](docs/adr/0005-the-chat-loop-runs-on-the-phone-over-our-own-protocol.md)).
   A reply that breaks a rule is withdrawn, not shown.
+- **A coach that changes the plan only through the engine.** Chat tools read
+  the planned week and why each day looks the way it does. Others propose a
+  rest day, a lighter day, a muscle left out, an extra session, or a day
+  composed from the movements the engine lists as available
+  ([ADR 0006](docs/adr/0006-the-coach-composes-days-from-the-engines-options.md)).
+  The model picks movements and may ask for fewer sets, never more; it never
+  names a load, a rep target or an exercise outside the list. The engine
+  builds the proposal with the real logs and the knee rules, returns what it
+  could not take with a reason, and the person sees a preview against the
+  engine's own week. Pressing "Zastosuj" stores it in one transaction; the
+  engine re-checks it on every look at the plan, and a composed day can be
+  handed back to the engine from the calendar. A test walks every tool input
+  schema and fails if any field could carry a load
+  ([ADR 0001](docs/adr/0001-llm-does-not-compute-loads.md)).
 - **Versioned prompts.** A published prompt is pinned by a hash in a test;
   changing it means a new file and an evaluation report.
-- **Evaluation, with the scorers tested too.** Thirty-six synthetic cases for
+- **Evaluation, with the scorers tested too.** Forty-seven synthetic cases for
   the two features, safety scorers that gate the build, and a deliberately
   broken answer for each rule that its scorer must reject: a scorer that
   cannot fail is not a scorer. The chat cases run through the real loop and
@@ -105,7 +121,7 @@ not for this repository. What is built, and why each part exists:
   ([evals/README.md](evals/README.md)).
 - **No evaluation against a real model yet.** CI never calls one. The chat has
   been tried by hand through a deployed Worker against Gemini, a few questions
-  at a time, and that found real bugs (below); but no report of a real model
+  at a time, and that found real bugs; but no report of a real model
   over the cases exists, and a green evaluation shows only that the pipeline
   and the scorers work together. The reports say so.
 

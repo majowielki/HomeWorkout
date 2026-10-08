@@ -8,7 +8,7 @@ model is a guess until a report says what it did to the cases below
 
 ```
 cases/weekly-summary/   18 cases: a synthetic scenario plus what the pipeline and an answer must satisfy
-cases/chat/             21 cases: a synthetic history, one question, and what the whole turn must satisfy
+cases/chat/             29 cases: a synthetic history, one question, and what the whole turn must satisfy
 chat/                   the chat's scorers, reference model, runner, responders and mutations
 cases/medical-signal/   sentences labelled medical / soreness / none, for the injury-text gate
 scorers/                pure functions: (case, context, answer) -> pass or fail
