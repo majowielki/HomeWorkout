@@ -22,12 +22,59 @@ export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Which training day the given instant falls on. */
-export function trainingDate(now: Date, boundaryHour: number): string {
+function assertBoundary(boundaryHour: number): void {
   if (!Number.isInteger(boundaryHour) || boundaryHour < 0 || boundaryHour > 23) {
     throw new RangeError(`boundaryHour must be an integer 0-23, got ${boundaryHour}`);
   }
-  return toIsoDate(new Date(now.getTime() - boundaryHour * MS_PER_HOUR));
+}
+
+/**
+ * Which training day the given instant falls on, in the device's own time
+ * zone. Before the boundary hour it is still the previous *calendar* date,
+ * not "the instant minus N hours", which is an hour off on the two nights a
+ * year the clocks change. The local getters already resolve a repeated or
+ * skipped hour, so the clock on the wall is what counts.
+ */
+export function trainingDate(now: Date, boundaryHour: number): string {
+  assertBoundary(boundaryHour);
+  if (Number.isNaN(now.getTime())) throw new RangeError('trainingDate needs a valid instant');
+  const date = toIsoDate(now);
+  return now.getHours() < boundaryHour ? addDays(date, -1) : date;
+}
+
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatterFor(timeZone: string): Intl.DateTimeFormat {
+  let formatter = formatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    });
+    formatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+/**
+ * The same rule in an explicit IANA zone (engine v2, 13 §1): a session stores
+ * the zone it started in, and a test can state the zone instead of depending
+ * on the machine it runs on. Throws RangeError for a boundary outside 0-23
+ * or an unknown zone.
+ */
+export function trainingDateOf(instant: Date, timeZone: string, boundaryHour: number): string {
+  assertBoundary(boundaryHour);
+  const part = Object.fromEntries(
+    formatterFor(timeZone)
+      .formatToParts(instant)
+      .map((p) => [p.type, p.value]),
+  ) as Record<'year' | 'month' | 'day' | 'hour', string>;
+  const date = `${part.year}-${part.month}-${part.day}`;
+  return Number(part.hour) < boundaryHour ? addDays(date, -1) : date;
 }
 
 /** Whole days between two 'YYYY-MM-DD' strings; negative if `to` precedes `from`. */

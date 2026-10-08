@@ -45,7 +45,7 @@ Docelowa mapa plików to 13 §0. Status:
 
 | Moduł | Spec. | Etap | Stan |
 |---|---|---|---|
-| `time/trainingDate.ts` — `trainingDateOf` | 13 §1 | P0.3 | ☐ |
+| `time/trainingDate.ts` — `trainingDateOf` | 13 §1 | P0.3 | ☑ |
 | `policy/dayPolicy.ts` — `resolveDayPolicy` | 13 §2 | P0.4 | ☐ |
 | `policy/hardAdvice.ts`, `policy/registry.ts` | 12 §2, 13 §5 | P1 | ☐ |
 | `observations/{types,normalize,qualify}.ts` | 13 §3–4 | P1 (typy), P3 | ☐ |
@@ -59,7 +59,14 @@ Docelowa mapa plików to 13 §0. Status:
 
 ## 4. Zaimplementowane
 
-_(sekcje dodawane z każdym zamkniętym zadaniem)_
+### 4.1 Dzień treningowy (P0.3)
+
+`src/domain/time/trainingDate.ts`
+
+- `trainingDate(now, boundaryHour)` — dzień treningowy w strefie urządzenia. Przed godziną graniczną jest to poprzednia **data kalendarzowa** według lokalnych getterów (`getHours`, `getDate`), a nie "instant minus N godzin": stara arytmetyka myliła się o godzinę w dwie noce zmiany czasu (2026-10-25 03:30 CET dawało 25., a ma być 24.; 2026-03-29 04:00 CEST dawało 28., a ma być 29.). Niepoprawny `Date` i godzina spoza 0–23 dają `RangeError`.
+- `trainingDateOf(instant, timeZone, boundaryHour)` — ta sama reguła w jawnej strefie IANA przez `Intl.DateTimeFormat` (`hourCycle: h23`). Do zapisu strefy sesji i do testów niezależnych od maszyny. Nieznana strefa → `RangeError`.
+- Godzina powtórzona (02:00–02:59 dwa razy) i pominięta mapują się według zegara ściennego; granica w pominiętej godzinie zaczyna dzień od pierwszego istniejącego czasu.
+- Dzień sesji jest zamrażany przy starcie (`plan.date`); żaden kod nie przelicza go później (T04).
 
 ## 5. Konwencje testów
 
