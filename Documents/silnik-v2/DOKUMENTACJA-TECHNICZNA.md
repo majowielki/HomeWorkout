@@ -46,7 +46,7 @@ Docelowa mapa plików to 13 §0. Status:
 | Moduł | Spec. | Etap | Stan |
 |---|---|---|---|
 | `time/trainingDate.ts` — `trainingDateOf` | 13 §1 | P0.3 | ☑ |
-| `policy/dayPolicy.ts` — `resolveDayPolicy` | 13 §2 | P0.4 | ☐ |
+| `policy/dayPolicy.ts` — `resolveDayPolicy` | 13 §2 | P0.4 | ◐ (warstwy: baza, tydzień, intencja) |
 | `policy/hardAdvice.ts`, `policy/registry.ts` | 12 §2, 13 §5 | P1 | ☐ |
 | `observations/{types,normalize,qualify}.ts` | 13 §3–4 | P1 (typy), P3 | ☐ |
 | `progression/{next,failedRungs,axes,calibration,probe,buildUp}.ts` | 13 §5–8, 16, 20 | P3 | ☐ |
@@ -67,6 +67,30 @@ Docelowa mapa plików to 13 §0. Status:
 - `trainingDateOf(instant, timeZone, boundaryHour)` — ta sama reguła w jawnej strefie IANA przez `Intl.DateTimeFormat` (`hourCycle: h23`). Do zapisu strefy sesji i do testów niezależnych od maszyny. Nieznana strefa → `RangeError`.
 - Godzina powtórzona (02:00–02:59 dwa razy) i pominięta mapują się według zegara ściennego; granica w pominiętej godzinie zaczyna dzień od pierwszego istniejącego czasu.
 - Dzień sesji jest zamrażany przy starcie (`plan.date`); żaden kod nie przelicza go później (T04).
+
+### 4.2 Efektywna polityka dnia (P0.4)
+
+`src/domain/policy/dayPolicy.ts`
+
+```ts
+resolveDayPolicy(base: PolicyBase, week: TrainingWeek | undefined, intent: PlanIntent): DayPolicy
+// PolicyBase = { planner: PlannerConfig; training: typeof TRAINING_CONFIG }
+// DayPolicy  = PolicyBase & { intent }
+```
+
+Warstwy, każda tylko zawęża poprzednią: **baza** od wywołującego → **wzorzec tygodnia** (`scaledConfig`: mniej dni treningowych = dłuższy cel sesji w granicach min/max dnia) → **intencja**. Intencje jawne (`extra`, `compose`, `session_change`) mają `sessionMinutes = { min: 0, target: max, max }` i `forceStaleDays = 0`: prośba może przekroczyć tygodniowy cel, nigdy maksimum. `auto_day` i `template` zostają przy wartościach po skalowaniu.
+
+Kto z czego korzysta:
+
+| Ścieżka | Polityka |
+|---|---|
+| `planWeek` → `selectDay`, `buildDay`, `checkSelection` | `auto_day` z configu przekazanego do `planWeek` |
+| `planWeek` → `composeDay`, `dayOptions` | `compose` z tego samego configu |
+| `selectCustom`, `extraSessionOptions`, `slotsForFocus`, `planCustom` | domyślnie `extra` z `BASE_POLICY` i `input.week`; wywołujący może podać własną |
+
+Przed zmianą ścieżki `selectCustom`/`composeDay`/`dayOptions` czytały globalne `PLANNER_CONFIG`, więc config przekazany do `planWeek` (np. krótszy limit czasu) obowiązywał dzień automatyczny, a dzień złożony z trenerem już nie. `PlannerInput` ma teraz opcjonalne `week`. W aplikacji dziś wszyscy używają domyślnego configu, więc wynik planów się nie zmienia (golden baseline P0.1 to potwierdzi); poprawka dotyczy każdego innego configu: testów, przyszłych profili objętości i preferencji.
+
+Kolejne warstwy z 13 §2 (profil objętości `higher`, preferencja liczby serii, `phase`, `constraints` jako argumenty) dochodzą razem z funkcjami, które je czytają (P1, P3); do tego czasu faza i prośby dnia są czytane przez planer z bloku i logów.
 
 ## 5. Konwencje testów
 

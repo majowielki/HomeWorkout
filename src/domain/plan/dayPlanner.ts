@@ -23,6 +23,7 @@ import {
   isAvoided,
   isLighterDay,
   type PlanConstraint,
+  type TrainingWeek,
 } from './constraints';
 import {
   allowedCandidates,
@@ -61,6 +62,8 @@ export interface PlannerInput {
   calibrations?: BandCalibrationMap;
   /** What the person asked for; only the ones covering `asOf` matter. */
   constraints?: readonly PlanConstraint[];
+  /** Which weekdays rest; sets the effective session length of the day (`resolveDayPolicy`). */
+  week?: TrainingWeek;
 }
 
 interface Candidate {

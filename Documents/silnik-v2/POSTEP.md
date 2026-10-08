@@ -46,7 +46,7 @@ bez ryzyka. P2 wymaga migracji bazy i resetu danych, więc czeka na świadomą d
 | Zadanie | Zakres | Dowód | Status | Commit |
 |---|---|---|---|---|
 | P0.3 | `trainingDate` wg lokalnej daty i godziny (`trainingDateOf` ze strefą; stara funkcja czyta lokalną godzinę urządzenia) | T01–T04 w `trainingDateZones.test.ts` | ☑ | (ten commit) |
-| P0.4 | `resolveDayPolicy` — jeden efektywny config dla `selectDay`, `selectCustom`, `composeDay`, `dayOptions`, `planCustom` | T05, T06 | ☐ | |
+| P0.4 | `resolveDayPolicy` — jeden efektywny config dla `selectDay`, `selectCustom`, `composeDay`, `dayOptions`, `planCustom` | T05, T06 w `dayPolicy.test.ts` | ☑ | (ten commit) |
 | P0.7 | (D39 e) brak `PERFORMANCE_REGRESSION` i tekstu „szczebel lżej”, gdy opór się nie zmienia | test w `progression.test.ts` | ☐ | |
 | P0.1 | Golden baseline: manifest (rewizja, dirty, config, katalog) i skrót symulacji 84 dni | `engineBaseline.test.ts` | ☐ | |
 | P0.2 | Lista call-site’ów planowania, startu sesji, importu, szablonu | sekcja w DOKUMENTACJI | ☐ | |

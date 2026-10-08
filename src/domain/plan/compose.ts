@@ -9,6 +9,7 @@
  * conflicts, so the coach can explain it or try something else.
  */
 
+import { BASE_POLICY, type DayPolicy, resolveDayPolicy } from '../policy/dayPolicy';
 import type { ComposedItem } from './constraints';
 import type { PlannerInput } from './dayPlanner';
 import { extraSessionOptions, selectCustom } from './extra';
@@ -21,7 +22,13 @@ export interface Composition {
   conflicts: SkippedSlot[];
 }
 
-export function composeDay(input: PlannerInput, items: readonly ComposedItem[]): Composition {
+const composePolicy = (input: PlannerInput) => resolveDayPolicy(BASE_POLICY, input.week, 'compose');
+
+export function composeDay(
+  input: PlannerInput,
+  items: readonly ComposedItem[],
+  policy: DayPolicy = composePolicy(input),
+): Composition {
   const working = new Set(input.slots.filter((s) => s.kind !== 'filler').map((s) => s.id));
   const asked = new Map<string, number>();
   const conflicts: SkippedSlot[] = [];
@@ -32,7 +39,7 @@ export function composeDay(input: PlannerInput, items: readonly ComposedItem[]):
       asked.set(item.slotId, item.sets);
     }
   }
-  const selected = selectCustom(input, [...asked.keys()]);
+  const selected = selectCustom(input, [...asked.keys()], policy);
   return {
     selection: {
       ...selected,
@@ -56,8 +63,11 @@ export interface DayOption {
 }
 
 /** Every working slot of the day, each checked on its own, in the catalogue's order. */
-export function dayOptions(input: PlannerInput): DayOption[] {
-  return extraSessionOptions(input).map((o) => ({
+export function dayOptions(
+  input: PlannerInput,
+  policy: DayPolicy = composePolicy(input),
+): DayOption[] {
+  return extraSessionOptions(input, policy).map((o) => ({
     slotId: o.slotId,
     exerciseId: o.item?.exerciseId ?? input.block.selections[o.slotId] ?? null,
     available: o.item !== null,

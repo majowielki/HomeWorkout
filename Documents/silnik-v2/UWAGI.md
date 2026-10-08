@@ -15,7 +15,10 @@ Trzy części: **(1)** stan repozytorium i decyzje robocze, **(2)** odstępstwa 
 
 Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 
-_(na razie brak)_
+| Spec. mówi | Robię | Dlaczego | Zgoda |
+|---|---|---|---|
+| 13 §2: `resolveDayPolicy(base, week, date, intent, phase, constraints, prefs)` zwraca `DayPolicy` z polami `sessionSec`, `setsByKind`, `weekly`, … | P0.4 wprowadza `resolveDayPolicy(base, week, intent)` i `DayPolicy = PolicyBase & { intent }` (opakowanie na obecne `PlannerConfig` i `TRAINING_CONFIG`) | Zachowuje obecne API planera i zero zmian zachowania w P0. Pola ze specyfikacji dochodzą w P1/P3 razem z kodem, który je czyta; dodanie ich teraz byłoby martwym kodem pod progiem 100% pokrycia | nie wymaga |
+| 13 §1: `trainingDate` ma delegować do `trainingDateOf` ze strefą urządzenia | `trainingDate` używa lokalnych getterów (`getHours`, `getDate`), `trainingDateOf` — `Intl` z jawną strefą | Wynik jest ten sam (test „agrees … every half hour”), a stara funkcja nie zależy od `Intl.DateTimeFormat` w Hermesie (13 §1 każe to sprawdzić na urządzeniu — T-1) | nie wymaga |
 
 ## 3. Do sprawdzenia
 
