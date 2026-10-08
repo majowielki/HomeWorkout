@@ -4,7 +4,7 @@ import type { Slot } from '../plan/types';
 import { daysBetween } from '../time/trainingDate';
 import type { BandCalibrationMap, Exercise, PlannedLoad } from '../types';
 import { doubleProgression, type ProgressionDecision } from './doubleProgression';
-import { amountOf, exposuresOf, type HistorySession, type Unit } from './history';
+import { amountOf, exposuresOf, firstOfEachDay, type HistorySession, type Unit } from './history';
 import { ladderFor } from './ladder';
 import type { LayoffState } from './layoff';
 import { loadKindOf } from './load';
@@ -67,7 +67,7 @@ export function prescribe(input: PrescribeInput, cfg = PROGRESSION_CONFIG): Pres
   const warmup = isBand && cfg.requireBandWarmup;
   const base = { unit, range, warmupSet: warmup };
 
-  const exposures = exposuresOf(exercise.id, input.sessions, ladder, unit, warmup);
+  const exposures = firstOfEachDay(exposuresOf(exercise.id, input.sessions, ladder, unit, warmup));
   const last = exposures[exposures.length - 1];
   if (!last) {
     return {

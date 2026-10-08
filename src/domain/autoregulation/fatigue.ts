@@ -2,7 +2,7 @@ import { MUSCLE_GROUPS } from '../coach/vocabulary';
 import { AUTOREGULATION_CONFIG, PROGRESSION_CONFIG } from '../config/training';
 import type { FatigueSignal } from '../plan/reasons';
 import type { DailyReadiness, Slot } from '../plan/types';
-import { amountOf, exposuresOf, type HistorySession } from '../progression/history';
+import { amountOf, byTrainingDay, exposuresOf, type HistorySession } from '../progression/history';
 import { ladderFor } from '../progression/ladder';
 import { loadKindOf } from '../progression/load';
 import { unitOf } from '../progression/prescribe';
@@ -33,7 +33,10 @@ export interface FatigueInput {
  */
 export function fatigueSignals(input: FatigueInput, cfg = AUTOREGULATION_CONFIG): FatigueSignal[] {
   const from = addDays(input.asOf, -(cfg.signalWindowDays - 1));
-  const recent = input.sessions.filter((s) => s.date >= from && s.date <= input.asOf);
+  // Days, not sessions: an extra session the same day is not a second day of grinding.
+  const recent = byTrainingDay(
+    input.sessions.filter((s) => s.date >= from && s.date <= input.asOf),
+  );
   const out: FatigueSignal[] = [];
   if (grindingCompounds(recent, input.slotOf)) out.push('FATIGUE_HIGH');
   if (performanceDrop(recent, input)) out.push('PERFORMANCE_DROP');

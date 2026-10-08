@@ -946,6 +946,14 @@ blokują dodatkową sesję. Zapis zamraża plan z `kind: extra` w `workouts.plan
 głównego planu. Ukończenie lub porzucenie aktualizuje status powiązanego wpisu; usunięcie sesji
 usuwa go kaskadowo. Po ukończeniu reguły synchronizacji minimalnie korygują kolejne dni.
 
+**Historia per sesja (2026-10-08).** Silnik dostaje jedną `HistorySession` na trening, nie na dzień:
+sesja główna i dodatkowa z tej samej daty są osobne. Każda reguła mówi jawnie, jak je czyta:
+objętość, regeneracja, przerwa i data ostatniej sesji liczą się po datach (bez zmian); progresja
+(`prescribe`, `lastLoadsOf`) porównuje **pierwszą ekspozycję ćwiczenia w danym dniu**
+(`firstOfEachDay`) — powtórka wieczorem to dodatkowa praca na zmęczeniu, nie test obciążenia;
+sygnały zmęczenia §6.1 czytają **dni treningowe** (`byTrainingDay`), więc dwie sesje jednego dnia
+nie są „dwiema sesjami z RIR 0 z rzędu”.
+
 FBW A/B nie mają już przycisków startu i nie powstają na nowej instalacji; istniejące szablony
 pozostają dla historii i backupu. Format backupu v4 się nie zmienia: sesje zachowują `kind: extra`,
 a odtwarzalny plan kalendarza jest po imporcie wyliczany ponownie.

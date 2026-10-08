@@ -25,7 +25,7 @@ export interface PlannerSource {
   catalog: Record<string, Exercise>;
   profile: MedicalProfile;
   excludedIds: string[];
-  /** Completed sessions of the last HISTORY_DAYS, oldest first; sets in the order logged. */
+  /** Completed sessions (one per workout) of the last HISTORY_DAYS, oldest first; sets in the order logged. */
   sessions: HistorySession[];
   /** The latest completed session ever, which may be older than `sessions` reach. */
   lastSessionDate: string | null;
@@ -50,7 +50,12 @@ export async function loadPlannerSource(now: Date = new Date()): Promise<Planner
         .from(setLogs)
         .innerJoin(workouts, eq(setLogs.workoutId, workouts.id))
         .where(and(eq(workouts.status, 'completed'), gte(workouts.trainingDate, historyStart)))
-        .orderBy(asc(workouts.trainingDate), asc(workouts.startedAt), asc(setLogs.loggedAt)),
+        .orderBy(
+          asc(workouts.trainingDate),
+          asc(workouts.startedAt),
+          asc(workouts.id),
+          asc(setLogs.loggedAt),
+        ),
       db
         .select({ date: workouts.trainingDate })
         .from(workouts)
@@ -66,12 +71,16 @@ export async function loadPlannerSource(now: Date = new Date()): Promise<Planner
       db.select({ id: bands.id, calibration: bands.calibration }).from(bands),
     ]);
 
+  // One HistorySession per workout, not per day: a main and an extra session on
+  // the same date stay apart, and the engine decides how each rule reads them.
   const sessions: HistorySession[] = [];
+  let workoutId: string | null = null;
   for (const { set, date } of setRows) {
     let session = sessions[sessions.length - 1];
-    if (session?.date !== date) {
+    if (!session || set.workoutId !== workoutId) {
       session = { date, sets: [] };
       sessions.push(session);
+      workoutId = set.workoutId;
     }
     session.sets.push({
       exerciseId: set.exerciseId,

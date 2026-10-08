@@ -63,6 +63,16 @@ describe('fatigueSignals', () => {
       expect(fatigueSignals(input({ sessions }))).toEqual(['FATIGUE_HIGH']);
     });
 
+    it('counts days, not sessions: a main and an extra session the same day are one', () => {
+      const oneDay = [
+        session('2026-10-18', [set({ rir: 0 })]),
+        session('2026-10-18', [set({ exerciseId: 'row', rir: 0 })]),
+      ];
+      expect(fatigueSignals(input({ sessions: oneDay }))).toEqual([]);
+      const twoDays = [session('2026-10-17', [set({ rir: 0 })]), ...oneDay];
+      expect(fatigueSignals(input({ sessions: twoDays }))).toEqual(['FATIGUE_HIGH']);
+    });
+
     it('ignores isolation work, warm-ups, unknown exercises and old sessions', () => {
       const sessions = [
         session('2026-09-01', [set({ rir: 0 })]),

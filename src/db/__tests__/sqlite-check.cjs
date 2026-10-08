@@ -88,6 +88,7 @@ const calendar = require('../repositories/calendar.ts');
 const blocks = require('../repositories/trainingBlocks.ts');
 const diary = require('../repositories/dailyLogs.ts');
 const workoutRepo = require('../repositories/workouts.ts');
+const plannerSource = require('../repositories/plannerSource.ts');
 
 const all = (sql, ...params) => current.native.prepare(sql).all(...params);
 const exec = (sql) => current.native.exec(sql);
@@ -194,6 +195,46 @@ function extraSession(exerciseId) {
 }
 
 const CASES = [
+  [
+    'the engine reads a main and an extra session on one date as two sessions',
+    async () => {
+      await seeded();
+      const exerciseId = firstExerciseId();
+      completedSession(exerciseId, 'main');
+      current.db
+        .insert(schema.workouts)
+        .values({
+          id: 'extra',
+          trainingDate: '2026-10-01',
+          startedAt: '2026-10-02T09:00:00Z',
+          status: 'completed',
+        })
+        .run();
+      current.db
+        .insert(schema.setLogs)
+        .values({
+          id: 'extra-work',
+          workoutId: 'extra',
+          exerciseId,
+          exerciseOrder: 0,
+          setIndex: 1,
+          reps: 6,
+          rir: 1,
+          isWarmup: false,
+          loggedAt: '2026-10-02T09:10:00Z',
+        })
+        .run();
+      const source = await plannerSource.loadPlannerSource(new Date('2026-10-03T12:00:00'));
+      assert.deepEqual(
+        source.sessions.map((s) => [s.date, s.sets.map((set) => set.reps)]),
+        [
+          ['2026-10-01', [10, 10]],
+          ['2026-10-01', [6]],
+        ],
+      );
+      assert.equal(source.lastSessionDate, '2026-10-01');
+    },
+  ],
   [
     'migration 0007 keeps an existing planned day as the main session (seq 1)',
     async () => {
