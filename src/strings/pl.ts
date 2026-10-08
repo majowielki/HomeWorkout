@@ -314,6 +314,10 @@ export const pl = {
         targetReached: 'Cel osiągnięty — trzymaj albo Stop',
       },
       notFound: 'Nie znaleziono treningu.',
+      saveSetError: 'Nie udało się zapisać serii. Wpisane liczby zostały — spróbuj ponownie.',
+      undoError: 'Nie udało się cofnąć serii. Spróbuj ponownie.',
+      blockSwapError:
+        'Zamiana działa w tej sesji, ale nie udało się zapisać jej do końca bloku. Spróbuj ponownie.',
     },
     warmup: {
       title: 'Rozgrzewka',
@@ -429,6 +433,7 @@ export const pl = {
     deloadBadge: (index: number) => `Blok ${index} · deload`,
     meta: (minutes: number) => `ok. ${minutes} min ćwiczeń`,
     loadError: 'Nie udało się ułożyć planu. Spróbuj ponownie.',
+    startError: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
     retry: 'Spróbuj ponownie',
     manualEyebrow: 'Trening ręczny',
     manualHint: 'Stałe szablony sprzed silnika — gdy chcesz zrobić coś po swojemu.',
@@ -1237,6 +1242,11 @@ export const pl = {
   common: {
     loading: 'Ładowanie…',
     error: 'Coś poszło nie tak.',
+    crash: {
+      title: 'Ekran przestał działać',
+      body: 'Zapisane dane są bezpieczne. Spróbuj otworzyć go ponownie.',
+      retry: 'Spróbuj ponownie',
+    },
     notFound: 'Nie znaleziono.',
     cancel: 'Anuluj',
     close: 'Zamknij',

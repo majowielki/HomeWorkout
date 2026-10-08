@@ -199,6 +199,16 @@ export default function ActiveSessionScreen() {
     if (first >= 0) setCurrentIndex(first);
   }
 
+  /** "For the rest of the block": the session already uses the swap; a failed write says so. */
+  function saveBlockChoice(slotId: string, exerciseId: string) {
+    void getCurrentBlock()
+      .then((block) => (block ? setBlockSelection(block.id, slotId, exerciseId) : undefined))
+      .catch((error: unknown) => {
+        console.warn('could not save the swap for the block', error);
+        Alert.alert(pl.workout.session.blockSwapError);
+      });
+  }
+
   /** The exercise actually done for a block: today's swap, else the plan's. */
   const exerciseFor = (blockIndex: number) => {
     const block = steps.find((s) => s.blockIndex === blockIndex)?.block;
@@ -286,6 +296,11 @@ export default function ActiveSessionScreen() {
       freshKeys = await getLoggedStepKeys(loaded.workoutId);
       setLoggedKeys(freshKeys);
       setRestored(null);
+    } catch (error) {
+      // The logger keeps its numbers; the person can save again.
+      console.warn('could not log the set', error);
+      Alert.alert(pl.workout.session.saveSetError);
+      return;
     } finally {
       setSaving(false);
     }
@@ -344,6 +359,9 @@ export default function ActiveSessionScreen() {
         setRestored(undone);
       }
       setPhase('logging');
+    } catch (error) {
+      console.warn('could not take the set back', error);
+      Alert.alert(pl.workout.session.undoError);
     } finally {
       setSaving(false);
     }
@@ -485,9 +503,7 @@ export default function ActiveSessionScreen() {
             if (choice.forBlock && choice.slotId) {
               const slotId = choice.slotId;
               setBlockSwaps((prev) => ({ ...prev, [currentStep.blockIndex]: slotId }));
-              void getCurrentBlock().then((block) =>
-                block ? setBlockSelection(block.id, slotId, choice.exercise.id) : undefined,
-              );
+              saveBlockChoice(slotId, choice.exercise.id);
             }
           }}
           onRestore={() => {
@@ -500,13 +516,14 @@ export default function ActiveSessionScreen() {
             const slotId = blockSwaps[blockIndex];
             if (slotId) {
               setBlockSwaps(({ [blockIndex]: _, ...rest }) => rest);
-              void getCurrentBlock().then((block) =>
-                block ? setBlockSelection(block.id, slotId, templateExercise.id) : undefined,
-              );
+              saveBlockChoice(slotId, templateExercise.id);
             }
           }}
           onExclude={(exercise) => {
-            void setExerciseExcluded(exercise.id, true);
+            void setExerciseExcluded(exercise.id, true).catch((error: unknown) => {
+              console.warn('could not save the exclusion', error);
+              Alert.alert(pl.common.error);
+            });
             setExcludedIds((prev) => new Set(prev).add(exercise.id));
           }}
           onClose={() => setSubstituteModalOpen(false)}

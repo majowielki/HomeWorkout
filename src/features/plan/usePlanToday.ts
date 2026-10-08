@@ -1,8 +1,10 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { markChangesSeen } from '@/db/repositories/weekPlan';
 import { startPlannedWorkout } from '@/db/repositories/workouts';
+import { pl } from '@/strings/pl';
 
 import { computeToday, type PlanToday } from './computeToday';
 
@@ -46,6 +48,9 @@ export function usePlanToday() {
     try {
       const workoutId = await startPlannedWorkout(state.plan, state.asOf);
       router.push({ pathname: '/workout/active/[id]', params: { id: workoutId } });
+    } catch (error) {
+      console.warn('could not start the planned session', error);
+      Alert.alert(pl.plan.startError);
     } finally {
       setStarting(false);
     }

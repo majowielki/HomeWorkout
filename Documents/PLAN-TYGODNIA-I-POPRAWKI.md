@@ -650,5 +650,5 @@ i 0006 oraz 0007 wykonają się same).
 **Środowisko Codex:** SDK ze wskazanej przez użytkownika ścieżki jest widoczne tutaj jako
 `C:/Users/mmaje/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Local/Android/Sdk` (wirtualizacja
 aplikacji Claude). AVD: `Pixel_API36`. Istniejący projekt natywny/APK ma identyfikator `com.homeworkout`,
-chociaż `app.json` zawiera `pl.majewski.homeworkout` — przed nowym prebuildem i instalacją na telefonie
+i od 2026-10-08 tak samo `app.json` (wcześniej `pl.majewski.homeworkout`) — przed instalacją na telefonie
 sprawdzić identyfikator zainstalowanej aplikacji i zachować go, żeby aktualizacja trafiła do jej bazy.
