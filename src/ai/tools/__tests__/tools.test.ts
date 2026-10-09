@@ -52,6 +52,38 @@ describe('the implementations', () => {
   });
 });
 
+describe('the tools of contract 7 without a phone side, and with one', () => {
+  it('answer without a session when nothing is wired, and delegate to what is', async () => {
+    const env = envFor(scenario());
+    expect(await TOOL_IMPLEMENTATIONS.simulateProposal({} as never, env)).toEqual({
+      error: 'failed',
+    });
+    expect(await TOOL_IMPLEMENTATIONS.getActiveSession({}, env)).toEqual({
+      error: 'no_active_session',
+    });
+    expect(await TOOL_IMPLEMENTATIONS.assessSessionChange({} as never, env)).toEqual({
+      error: 'no_active_session',
+    });
+    expect(await TOOL_IMPLEMENTATIONS.proposeSessionChange({} as never, env)).toEqual({
+      error: 'failed',
+    });
+    const simulate = jest.fn().mockResolvedValue({ error: 'no_plan' });
+    expect(await TOOL_IMPLEMENTATIONS.simulateProposal({} as never, { ...env, simulate })).toEqual({
+      error: 'no_plan',
+    });
+    expect(simulate).toHaveBeenCalledTimes(1);
+  });
+
+  it('explains a plan through the week of engine v2 when it is wired, and through the first engine otherwise', async () => {
+    const env = envFor(scenario());
+    const explainPlan = jest.fn().mockResolvedValue({ error: 'no_plan' });
+    expect(
+      await TOOL_IMPLEMENTATIONS.getPlanExplanation({ daysAgo: 0 }, { ...env, explainPlan }),
+    ).toEqual({ error: 'no_plan' });
+    expect(explainPlan).toHaveBeenCalledWith({ daysAgo: 0 });
+  });
+});
+
 describe('getRecentSessions', () => {
   it('counts each reported reason per exercise, excluding warm-ups', async () => {
     const source = scenario({ sessions: 1 });

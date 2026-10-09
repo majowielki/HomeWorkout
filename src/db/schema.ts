@@ -15,7 +15,7 @@ import type { SessionPlanV2 } from '@/domain/plan/planV2';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
 import type { KeptItem } from '@/domain/plan/dayV2';
-import type { StoredDayChangeV2 } from '@/domain/plan/weekV2';
+import type { DaySummaryV2, StoredDayChangeV2 } from '@/domain/plan/weekV2';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import {
   type AnchorPosition,
@@ -518,6 +518,8 @@ export const plannedDaysV2 = sqliteTable('planned_days_v2', {
   /** The working exercises of the day; null on a rest day. */
   selection: text('selection', { mode: 'json' }).$type<KeptItem[] | null>(),
   forecast: text('forecast', { mode: 'json' }).$type<SessionPlanV2 | null>(),
+  /** What the day was planned for: its reasons, regions and the movements left out. */
+  summary: text('summary', { mode: 'json' }).$type<DaySummaryV2 | null>(),
   /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
   status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
   generationId: text('generation_id').notNull(),

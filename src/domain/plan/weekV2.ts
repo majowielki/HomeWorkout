@@ -85,6 +85,46 @@ export interface WeekInputV2 {
   athlete?: AthleteV2;
 }
 
+/**
+ * What a day was planned for, beside its choice of exercises: what the explanation of the day and the
+ * week the chat reads are made of. Stored with the day, because a forecast plan does not carry it.
+ */
+export interface DaySummaryV2 {
+  phase: 'work' | 'deload';
+  dayReasons: string[];
+  regions: SlotRegion[];
+  skipped: { slotId: string; exerciseId: string | null; reason: string }[];
+  composed: boolean;
+  estimatedMinutes: number;
+  /** The block the day belonged to, the signals of overload and the ride of the day. */
+  blockIndex?: number;
+  signals?: string[];
+  bike?: { minutes: number; reasons: string[] };
+}
+
+export function summaryOf(
+  output: DayOutputV2,
+  forecast: SessionPlanV2 | null,
+  composed: boolean,
+  blockIndex?: number,
+): DaySummaryV2 {
+  return {
+    phase: output.phase,
+    dayReasons: [...output.dayReasons],
+    regions: [...output.regions],
+    skipped: output.skipped.map((x) => ({
+      slotId: x.slotId,
+      exerciseId: x.exerciseId,
+      reason: x.reason,
+    })),
+    composed,
+    estimatedMinutes: forecast === null ? 0 : Math.round(forecast.time.exerciseTotal / 60),
+    ...(blockIndex === undefined ? {} : { blockIndex }),
+    signals: [...output.signals],
+    bike: { minutes: output.bike.minutes, reasons: [...output.bike.reasons] },
+  };
+}
+
 export interface WeekDayV2 {
   date: IsoDate;
   /** A rest day: from the weekly pattern or asked for. */
@@ -94,6 +134,7 @@ export interface WeekDayV2 {
   /** The day as it would be built if everything before it goes as planned — a forecast, not a result. */
   forecast: SessionPlanV2 | null;
   output: DayOutputV2 | null;
+  summary: DaySummaryV2 | null;
   /** kept: as chosen earlier; changed: chosen earlier but no longer holds; new: not chosen before. */
   status: 'kept' | 'changed' | 'new';
   /** Why a day chosen earlier was chosen again. */
@@ -192,6 +233,7 @@ export function planWeekV2(input: WeekInputV2): WeekPlanV2 {
         selection: null,
         forecast: null,
         output: null,
+        summary: null,
         status: stored ? 'changed' : 'new',
         violations: stored ? [{ slotId: '', reason: 'REST_DAY' }] : [],
         events: advance.events,
@@ -256,6 +298,7 @@ export function planWeekV2(input: WeekInputV2): WeekPlanV2 {
       selection: output.selection,
       forecast,
       output,
+      summary: summaryOf(output, forecast, items !== null, block.index),
       status:
         stored === undefined
           ? 'new'
@@ -312,6 +355,8 @@ export interface StoredDayV2 {
   /** Null on a rest day. */
   selection: KeptItem[] | null;
   forecast: SessionPlanV2 | null;
+  /** What the day was planned for; absent on a day stored before it was kept. */
+  summary?: DaySummaryV2 | null;
   status: 'planned' | 'done' | 'missed';
 }
 
@@ -424,6 +469,7 @@ export function syncWeekV2(input: SyncInputV2): SyncResultV2 {
       date: d.date,
       selection: d.selection,
       forecast: d.forecast,
+      summary: d.summary,
       status: 'planned',
     })),
     changes,

@@ -92,6 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `ai/tools/planPreviewV2.ts`, `app-services/coach/proposalsV2.ts`, `app-services/queries/planTools.ts`, migracja 0013 | 06 §4, 04 §5 | P5 | ☑ P5.6c; §4.28 |
 | `session/simulateProposal.ts`, `ai/contract/simulationTools.ts`, `ai/tools/simulationEnvironment.ts`, `weekPlanV2.loadSimulationBase` | 11 §13 | P5 | ☑ P5.6b; §4.27 |
 | `ai/contract/sessionTools.ts`, `ai/tools/{sessionSummary,sessionEnvironment}.ts`, `ai/prompts/chat/{v7,sessionRules}.ts`, `session/overview.ts`, `app-services/queries/sessionTools.ts` | 11 §8, 06 §4 | P5 | ☑ P5.6a; §4.26 |
 | `observations/entry.ts`, `voice/sessionIntent.ts`, `db/repositories/answers.ts`, migracja 0012 | 06 §1, §3, 13 §12 | P5 | ☑ P5.4; §4.25 |
@@ -668,6 +669,23 @@ Prognoza żyje w `planWeekV2` i nigdzie się nie zapisuje (test: tabela `planned
 Narzędzie `simulateProposal` (kontrakt 7) przyjmuje te same względne daty i rodzaje próśb co `proposePlanChange`, bez pola na obciążenie. `TOOL_ANNOTATIONS` (readOnly / proposal / idempotent) odpowiada tabeli
 z 11 §13: narzędzia odczytu i symulacja są tylko do odczytu; cztery narzędzia propozycji nic nie zmieniają bez akceptacji na telefonie. `loadSimulationBase` czyta bazę świeżo (tydzień, historia, blok,
 odpowiedzi, trwający trening v2).
+
+### 4.28 Narzędzia planu na tygodniu v2 (P5.6c)
+
+**Podsumowanie dnia.** Do wiersza `planned_days_v2` dochodzi `summary` (migracja 0013, JSON): faza, powody dnia, regiony, pominięte ruchy z powodem, `composed`, szacowane minuty, blok, sygnały
+przeciążenia i rower. Prognoza planu v2 tego nie niesie, a model ma tłumaczyć decyzje silnika tylko z kodów, więc powody zapisują się razem z dniem (`summaryOf` w `weekV2`).
+
+**`planPreviewV2.ts`** (czyste, w warstwie AI, 100%): `summarizeDay` (ćwiczenia z nazwą katalogu i ruchem ze slotu, serie logiczne, powody tylko znane kontraktowi, nigdy obciążenie),
+`describeWeek` (7 dni; dziś z trwającego treningu, dni zrobione), `previewPlanChange` / `previewDayPlan` (tydzień zaplanowany z dodaną prośbą obok tygodnia jak jest; różniące się dni
+jako przed/po, konflikty ruchów z powodem, zastąpiona wcześniejsza kompozycja), `describeDayOptions` (dla każdego ruchu roboczego dzień zaplanowany tylko dla niego: dostępny albo powód
+i serie, które dałby silnik; dzień minięty to `day_done`), `describePlan` (`getPlanExplanation`: plan zamrożony przy starcie sesji albo dzisiejszy z tygodnia; powody ćwiczeń z kodów śladu)
+oraz walidacje słów osoby (notatka nie przepisuje, partia po DOMS tylko za silnym zakwasem, nieznane ruchy, ból).
+
+**Kontroler** (`app-services/coach/proposalsV2.ts`): to samo API co pierwszy silnik (`tools`, `beginTurn`, `resolve`, `reject`, `apply`). Narzędzia tylko podglądają i trzymają szkic do końca pytania.
+`apply` w kolejce: ponowne wczytanie tygodnia, porównanie odcisku (data, odcisk wejścia, zapisane dni, dni trenowane) i — dla zmian — ponowne zrobienie podglądu i porównanie z tym, który widziała
+osoba; różnica to `ProposalChangedError`. Zmiana planu i dzień złożony zapisuje `saveCoachWeekV2` (prośby, zastąpione prośby i tydzień w jednej transakcji; generacją jest id propozycji, więc
+druga akceptacja nic nie zapisuje). Sesja dodatkowa to `acceptDay` z `kind: 'extra'` i hashem pokazanego planu; wymaga zakończonej sesji głównej dnia (`finish_first`) i dnia treningowego (`rest_day`).
+Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zapisywany przy akceptacji tygodnia — przesuwa go start sesji.
 
 ## 5. Konwencje testów
 

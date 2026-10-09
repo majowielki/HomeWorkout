@@ -1,0 +1,1 @@
+ALTER TABLE `planned_days_v2` ADD `summary` text;

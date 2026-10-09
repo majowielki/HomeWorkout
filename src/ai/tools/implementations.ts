@@ -67,6 +67,10 @@ export interface ToolEnvironment {
   proposeDay?(
     input: ToolInput<'proposeDayPlan'>,
   ): Promise<ToolOutput<'proposeDayPlan'> | ToolError>;
+  /** The explanation of a day's plan on the week of engine v2 (contract 7); the first engine's goes through `plan`. */
+  explainPlan?(
+    input: ToolInput<'getPlanExplanation'>,
+  ): Promise<ToolOutput<'getPlanExplanation'> | ToolError>;
   /** The workout under way, the engine's assessment of a change to it, and a card for the person (contract 7). */
   activeSession?(): Promise<ToolOutput<'getActiveSession'> | ToolError>;
   assessChange?(
@@ -243,6 +247,7 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
 
   async getPlanExplanation({ daysAgo }, env) {
+    if (env.explainPlan) return env.explainPlan({ daysAgo });
     const found = await env.plan(daysAgo);
     if (!found) return { error: 'no_plan' };
     const source = await env.load(1);

@@ -5,6 +5,7 @@ import {
   completedAsPlanned,
   planWeekV2,
   sameSelection,
+  summaryOf,
   syncWeekV2,
   type SyncInputV2,
   type WeekInputV2,
@@ -316,6 +317,18 @@ describe('P5.1: the week of the second engine', () => {
     const done = completedAsPlanned(records, live);
     expect(done[0]!.sets[0]).toEqual(records[0]!.sets[0]);
     expect(done[0]!.sets.slice(1).every((s) => s.disposition === 'performed')).toBe(true);
+  });
+
+  it('keeps what a day was planned for, with or without the block it belonged to', () => {
+    const plan = planWeekV2(week({ days: 1 })).days[0]!;
+    const named = summaryOf(plan.output!, plan.forecast, false, 3);
+    expect(named).toMatchObject({ blockIndex: 3, phase: 'work', composed: false });
+    expect(named.bike!.minutes).toBeGreaterThan(0);
+    expect(named.estimatedMinutes).toBeGreaterThan(0);
+    const bare = summaryOf(plan.output!, null, true);
+    expect(bare).toMatchObject({ composed: true, estimatedMinutes: 0 });
+    expect(bare).not.toHaveProperty('blockIndex');
+    expect(plan.summary).toMatchObject({ blockIndex: 1 });
   });
 
   it('keeps the selection helpers honest', () => {

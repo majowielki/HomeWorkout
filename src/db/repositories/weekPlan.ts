@@ -27,7 +27,7 @@ function toConstraint(r: ConstraintRow): PlanConstraint {
 }
 
 /** A request as a new row, in force until taken back. */
-function constraintRow(c: Omit<PlanConstraint, 'id'>, createdAt: string) {
+export function constraintRow(c: Omit<PlanConstraint, 'id'>, createdAt: string) {
   return {
     id: randomUUID(),
     kind: c.kind,

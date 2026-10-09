@@ -234,7 +234,8 @@ dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu k
 | P5.4d | Podłączenie loggera/głosu do ekranów (P2.4/P2.9 UI) | — | ⏸ po zakończeniu silnika (decyzja: UI bez zmian) |
 | P5.6a | Kontrakt 7: narzędzia `getActiveSession`, `assessSessionChange`, `proposeSessionChange`, błędy `no_active_session` / `stale_assessment`, kody decyzji w powodach recepty; prompt `chat/v7` (reguły sesji, słownik kodów generowany z rejestrów); implementacje i środowisko telefonu; Worker na `chat/v7` | `sessionTools.test.ts` (100%), `chatV7.test.ts`, `sqlite-check-ai-session-v2.cjs` (6 przypadków: model → karta → `applySessionChange`), testy Workera 143 ✔ | ☑ (kod; **wdrożenie Workera razem z APK po zakończeniu silnika**) |
 | P5.6b | `simulateProposal` (11 §13): domena (`session/simulateProposal.ts`: zmiana tygodnia, polityki albo trwającego treningu, baseline vs z propozycją, trend z 4 tygodni), narzędzie kontraktu 7 z adnotacjami (`TOOL_ANNOTATIONS`), środowisko telefonu, `loadSimulationBase`, reguły w `chat/v7` | `simulateProposal.test.ts` (12), `simulationTools.test.ts`, 2 przypadki SQLite | ☑ |
-| P5.6c | Narzędzia planu/tygodnia/wyjaśnień czytają v2 (`getPlanExplanation`, `getWeekPlan`, `getDayOptions`, `proposePlanChange`…); przypadki ewaluacji; zgodność klient N/N−1 | | ☐ |
+| P5.6c | Narzędzia planu czytają i proponują na tygodniu v2: `planPreviewV2` (podsumowanie dnia, tydzień, wyjaśnienie planu, podgląd zmiany/dnia, opcje dnia, walidacje słów osoby), `proposalsV2` (kontroler: podgląd, `apply` w jednej transakcji, wygasanie karty), `weekPlanV2` (`loadWeekContext`, `saveCoachWeekV2`, `startedPlanOn`), `summary` dnia w `planned_days_v2` (migracja 0013) | `planPreviewV2.test.ts` (29, 100%), `sqlite-check-proposals-v2.cjs` (7 przypadków), architektura: nowi zapisujący na liście ADR 0001/0006 | ☑ |
+| P5.6d | Przypadki ewaluacji dla narzędzi v2 i zgodność klient N/N−1 | wymaga żywego modelu i wdrożenia | ⏸ przy testach na działającej aplikacji |
 | P5.7 | Ekrany historii i kopia zapasowa czytają v2; ustawienia → Preferencje; „Zamienniki”, „Dodaj ćwiczenie” w sesji | T52–T55 + przepływ na telefonie | ☐ |
 
 ## P6–P9
@@ -246,6 +247,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P5.6c gotowe**: plan, tydzień, opcje dnia, propozycje (zmiana planu, dzień złożony, sesja dodatkowa) i wyjaśnienie planu na tygodniu v2, karta stosowana w jednej transakcji. `verify`: 4137 testów, 184 zestawy, domena i AI 100% | |
 | 2026-10-09 | **P5.6b gotowe**: `simulateProposal` (domena, narzędzie, SQLite), adnotacje narzędzi. `verify`: 4094 testy, 183 zestawy, domena i AI 100%; Worker 143 ✔ | |
 | 2026-10-09 | **P5.6a gotowe** (kontrakt 7 i prompt `chat/v7`, bez wdrożenia): model czyta trwający trening, pyta silnik o zmianę i kładzie kartę; akceptacja przez `applySessionChange`. `verify`: 4068 testów, 181 zestawów, domena i AI 100% | |
 | 2026-10-09 | **P5.4a–c, P5.5b gotowe**: obserwacje z pochodzeniem (dotyk = głos), intencje głosowe sesji, odpowiedzi na pytania recepty zapisane i czytane przez planowanie dnia i tygodnia, sesja dodatkowa ze wspólnym bilansem. `verify`: 4003 testy, 179 zestawów, domena 100% | |

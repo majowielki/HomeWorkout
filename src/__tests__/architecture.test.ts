@@ -66,6 +66,9 @@ const PLAN_WRITERS = [
   'refreshForecasts',
   'startExtraWorkout',
   'startPlannedWorkout',
+  // Engine v2: the coach's accepted week, and the day that becomes a running session.
+  'saveCoachWeekV2',
+  'acceptDay',
 ];
 
 /**
@@ -77,6 +80,7 @@ const PLAN_ORCHESTRATORS = [
   'src/features/plan/usePlanToday.ts',
   'src/features/extra/actions.ts',
   'src/features/coach/chat/proposals.ts',
+  'src/app-services/coach/proposalsV2.ts',
 ];
 
 describe('ADR 0001/0006: only the engine’s orchestration stores a plan', () => {

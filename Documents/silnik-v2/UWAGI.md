@@ -230,6 +230,16 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   Przekroczenia czasu dnia nie raportuję, bo prognoza z konstrukcji mieści się w budżecie dnia.
 - Symulacja używa `observed_trend` tylko do powtórzeń; wysiłek (RIR) zostaje na dole celu. Wystarczy na rekomendację „czy dodanie X zmieni tydzień”, nie na przewidywanie siły.
 
+### 2n. P5.6c — plan i propozycje na tygodniu v2 (2026-10-09)
+
+- Wyjaśnienie planu dla sesji, która już wystartowała, bierze powody dnia z `summary` zapisanego z dniem tygodnia. Dla dnia bez zapisanego wiersza (np. sesja dodatkowa albo dzień sprzed pierwszego
+  zapisu tygodnia) tłumaczy tylko ćwiczenia z kodów śladu; powody dnia, sygnały i rower są puste.
+- Opcje dnia (`getDayOptions`) liczą się osobnym planowaniem dla każdego z ~19 ruchów (≈ 0,5 s na telefonie według pomiaru w node ≈ 150 ms). Do pomiaru na telefonie (UWAGI T-2); jeśli za wolne — jedno planowanie
+  z `only` = wszystkie sloty i odczyt `skipped`.
+- `ProposalChangedError` także gdy zmieniła się data lub jakikolwiek zapisany dzień — ostrożniej niż pierwszy silnik (porównywał klucz migawki). Karta stara się więc częściej wygasać niż aplikować coś,
+  czego osoba nie widziała.
+- Pierwszy silnik (`proposals.ts`) i jego testy pozostają bez zmian do P6. Test architektury (ADR 0001/0006) obejmuje teraz `saveCoachWeekV2` i `acceptDay`: wolno je wołać tylko z orkiestratorów.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon
