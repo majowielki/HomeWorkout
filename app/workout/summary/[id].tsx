@@ -1,7 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
@@ -46,6 +46,7 @@ export default function SessionSummaryScreen() {
       });
       if (!isDone(result)) {
         console.warn('could not close the session', result);
+        Alert.alert(pl.common.error);
         return;
       }
       await syncReminders();

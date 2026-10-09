@@ -525,11 +525,17 @@ export function useActiveSession(
       const skipped = steps.filter(
         (s) => s.exposureIndex === target.exposureIndex && s.state === 'skipped',
       );
-      deps.reopenSets({
+      const reopened = deps.reopenSets({
         commandId: deps.newId(),
         sessionId: id,
         plannedSetIds: skipped.map((s) => s.set.id),
       });
+      if (!isDone(reopened)) {
+        // The exercise stays skipped: opening it would show a set that cannot be saved.
+        console.warn('could not reopen the exercise', reopened);
+        deps.alert(pl.common.error);
+        return;
+      }
       reload();
     }
     setCurrentIndex(index);

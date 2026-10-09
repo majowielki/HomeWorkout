@@ -476,6 +476,24 @@ describe('voice actions', () => {
     expect(result.current.currentStep?.round).toBe(2);
   });
 
+  it('stays where it is when a jump onto a skipped exercise cannot reopen it', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => {
+      result.current.skipExercise();
+    });
+    const at = result.current.currentIndex;
+    jest.mocked(deps.reopenSets).mockReturnValueOnce({
+      kind: 'rejected',
+      code: 'SESSION_NOT_ACTIVE',
+      detail: 'closed',
+    });
+    await act(async () => result.current.jump(0));
+    expect(deps.alert).toHaveBeenCalledWith(pl.common.error);
+    expect(result.current.currentIndex).toBe(at);
+  });
+
   it('says so when a skip cannot be taken back', async () => {
     const { deps } = setup();
     jest.mocked(deps.reopenSets).mockReturnValueOnce({
