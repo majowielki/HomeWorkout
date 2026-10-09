@@ -144,9 +144,13 @@ describe('a tired body swaps what is hardest on the knee', () => {
   const limit = (date: string) => did(date, 'press', [{ amount: 10, rir: 0 }, 10, 10]);
   const grind = { records: [limit('2026-10-11'), limit('2026-10-12')] };
 
-  it.skip('a one-legged exercise gives way to a two-legged one of the slot (TODO: check why the lunge slot is not picked)', () => {
+  it('a one-legged exercise gives way to a two-legged one of the slot', () => {
     const out = planDayV2(
-      world({ ...grind, block: { ...world().block, selections: { ...PICK, lunge: 'sl' } } }),
+      world({
+        ...grind,
+        slots: SLOTS_W.filter((s) => s.id !== 'squat'),
+        block: { ...world().block, selections: { ...PICK, lunge: 'sl' } },
+      }),
     );
     expect(out.signals).toContain('FATIGUE_HIGH');
     expect(ids(out)).toContain('bi');
@@ -286,9 +290,9 @@ describe('a short day is topped up', () => {
 });
 
 describe('what the person is shown', () => {
-  it.skip('an easier variant when the build stands still, and a step up to confirm after untouched suggestions (TODO: proposals of the planner)', () => {
-    const records = [did('2026-10-03', 'abs', [3, 3]), did('2026-10-05', 'abs', [3, 3])];
-    const out = planDayV2(world({ records }));
+  it('an easier variant when the build stands still, and a step up to confirm after untouched suggestions', () => {
+    const records = [did('2026-10-07', 'abs', [3, 3]), did('2026-10-11', 'abs', [3, 3])];
+    const out = planDayV2(world({ records, only: [{ slotId: 'abs' }] }));
     expect(out.proposals).toContainEqual({ exerciseId: 'cr', kind: 'variant_down', to: 'dd' });
 
     const suggested = { amount: 12, suggested: true, confirmation: 'visible' as const };
@@ -296,7 +300,7 @@ describe('what the person is shown', () => {
       did('2026-10-08', 'curl', [suggested, suggested]),
       did('2026-10-11', 'curl', [suggested, suggested]),
     ];
-    const step = planDayV2(world({ records: asleep }));
+    const step = planDayV2(world({ records: asleep, only: [{ slotId: 'curl' }] }));
     expect(step.proposals).toContainEqual({ exerciseId: 'cu', kind: 'confirm_step_up', to: null });
   });
 
@@ -307,8 +311,11 @@ describe('what the person is shown', () => {
       did('2026-10-11', 'curl', [suggested, suggested]),
     ];
     const key = asleep[0]!.comparisonKey;
-    const yes = planDayV2(world({ records: asleep, answers: { [key]: { stepUp: 'yes' } } }));
+    const yes = planDayV2(
+      world({ records: asleep, only: [{ slotId: 'curl' }], answers: { [key]: { stepUp: 'yes' } } }),
+    );
     expect(yes.proposals.filter((p) => p.kind === 'confirm_step_up')).toEqual([]);
+    expect(planOf(yes).exposures[0]!.trace.code).toBe('PROBE_PLANNED');
   });
 });
 

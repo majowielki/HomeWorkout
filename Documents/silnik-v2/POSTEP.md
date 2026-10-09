@@ -1,4 +1,4 @@
-`a9740eb` |`a9740eb` |`a9740eb` |`f2e6fbc` |`e36d7b2` |`371bc11` |`9bed6b2` |# Silnik v2 — postęp wdrożenia
+# Silnik v2 — postęp wdrożenia
 
 Ten plik jest **dziennikiem realizacji** przebudowy silnika. Specyfikacja (co i dlaczego) leży poza repozytorium:
 `D:\Projekty\HomeWorkout\architektura-silnika-2026-10-08\` (wersja 1.3, decyzje D01–D39, testy T01–T105, etapy P0–P9).
@@ -117,7 +117,7 @@ Czysta domena: nic w aplikacji tego jeszcze nie woła (pipeline wchodzi do plano
 | P4.2 | `plan/dayV2.ts` `planDayV2` (wybór zachłanny z jawnym score, recommendSets, prescribeNext, wypełniacze, grupy), `blockV2.ts`, `resistanceOf.ts`, `autoregulation/signalsV2.ts`, `plan/simulateV2.ts` (symulacja tygodni) | ◐ działa na prawdziwym katalogu (6 tygodni, własności objętości i czasu zielone); **brakuje pokrycia 100% gałęzi** `dayV2.ts`, `simulateV2.ts`; 2 testy w `dayV2Worlds.test.ts` są `it.skip` z TODO (zamiennik jednonożny przy FATIGUE_HIGH; propozycje wariantu/CONFIRM_STEP_UP w planie dnia) |
 | P4.7 | tryby audytu start/resume/import | ☑ (w audycie) |
 
-**Do zrobienia przy wznowieniu:** (1) odblokować dwa `it.skip`; (2) `npm run verify` i dopisać testy do 100% gałęzi dla `dayV2.ts`/`simulateV2.ts` (lista: `npx jest src/domain --coverage`); (3) UWAGI + DOKUMENTACJA dla P4; (4) scalić `--no-ff`. Obserwacja: przy 3 seriach compound tygodniowe maksima mięśni (pośladki 8, plecy 8) są wyczerpane w 4–5 dniu, więc kolejne dni to głównie wypełniacze (skutek D22; do oceny w benchmarku P8).
+**Wznowienie 2026-10-09:** dwa `it.skip` odblokowane (28 testów `dayV2Worlds.test.ts` zielonych): zamiennik badany bez konkurencyjnego przysiadu; propozycje z jawnym wyborem slotu i bez przerwy uruchamiającej regułę powrotu. Test akceptacji awansu sprawdza teraz rzeczywiście zaplanowaną próbę. **Pozostało:** (1) domknąć 100% pokrycia `dayV2.ts`/`simulateV2.ts`; (2) UWAGI + DOKUMENTACJA dla P4; (3) pełne `npm run verify`; (4) scalić `--no-ff`. Obserwacja: przy 3 seriach compound tygodniowe maksima mięśni (pośladki 8, plecy 8) są wyczerpane w 4–5 dniu, więc kolejne dni to głównie wypełniacze (skutek D22; do oceny w benchmarku P8).
 
 ## P5–P9
 
