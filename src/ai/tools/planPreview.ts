@@ -19,6 +19,7 @@ import { planDay } from '../../domain/plan/day';
 import type { SessionPlan } from '../../domain/plan/plan';
 import {
   type DaySummary as PlannedDaySummary,
+  recordsBefore,
   type SyncInput,
   type SyncResult,
   syncWeek,
@@ -235,6 +236,7 @@ export function previewDayPlan(
     items: d.slots.map((slot) => ({
       slotId: slot.slotId,
       sets: slot.sets ?? TOOL_LIMITS.composedSets,
+      ...(slot.confirmRecovery === true ? { confirmRecovery: true } : {}),
     })),
   }));
   const { sync, changes } = previewWithRequests(ctx, constraints, new Set(replaced));
@@ -280,6 +282,7 @@ export function describeDayOptions(
   const sync = syncWeek(ctx);
   const day = sync.week.days.find((d) => d.date === date);
   if (!day) return { error: 'day_done' };
+  const records = recordsBefore(sync.week, date, ctx.records);
   const options = ctx.slots
     .filter((slot) => slot.kind !== 'filler')
     .slice(0, TOOL_LIMITS.dayOptionsShown)
@@ -293,7 +296,8 @@ export function describeDayOptions(
             slots: ctx.slots,
             eligibility: ctx.eligibility,
             block: day.block,
-            records: ctx.records,
+            // The day as the week plans it: after the days before it, done as planned.
+            records,
             rides: ctx.rides,
             daily: ctx.daily,
             constraints: ctx.constraints,

@@ -397,6 +397,42 @@ const CASES = [
       assert.equal(revisions.block, 1);
     },
   ],
+  [
+    'a day composed with the coach starts as it was composed, not as an automatic day (ENG-01)',
+    async () => {
+      await seeded();
+      const { syncWeek, loadWeekContext, saveCoachWeek } = require('../repositories/weekPlan.ts');
+      const { previewDayPlan } = require('../../ai/tools/planPreview.ts');
+      syncWeek({}, NOW);
+      const ctx = loadWeekContext(NOW);
+      const options = require('../../ai/tools/planPreview.ts').describeDayOptions(ctx, 0);
+      const open = options.options.filter((o) => o.available).slice(0, 2);
+      assert.equal(open.length, 2, 'two movements can be trained today');
+      const preview = previewDayPlan(
+        ctx,
+        {
+          days: [{ daysAhead: 0, slots: open.map((o) => ({ slotId: o.slotId, sets: 2 })) }],
+          note: 'Układamy.',
+        },
+        'compose-today',
+      );
+      assert.equal(preview.summary.days[0].applied, true);
+      assert.ok(
+        saveCoachWeek('compose-today', preview.constraints, preview.sync, preview.replaced, NOW),
+      );
+      const saved = JSON.parse(
+        all("SELECT selection FROM planned_days WHERE date = '2026-10-05'")[0].selection,
+      );
+      const day = previewDay(request(), NOW);
+      assert.equal(day.input.intent, 'compose');
+      assert.deepEqual(
+        day.output.selection.map((x) => x.slotId),
+        saved.map((x) => x.slotId),
+      );
+      assert.deepEqual(day.output.selection, saved);
+      assert.equal(accept('compose-start', day).kind, 'committed');
+    },
+  ],
 ];
 
 async function main() {

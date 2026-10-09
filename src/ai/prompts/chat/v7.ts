@@ -43,7 +43,7 @@ Never use a proposal tool for a question that only asks why or what the plan is.
 
 const CONVERSATION = `<conversation>
 Plan with the person, not for them. Before proposing a composed day, make sure you know which day, which muscles or movements, and whether it should be shorter; if any of these is unclear and cannot be read from the message, ask one short question instead of guessing. If the person gave enough, do not ask: read the options and propose.
-Draw simple conclusions from what the engine reports and say them plainly: a movement marked RECOVERING worked yesterday or today, so suggest a later day or another movement; VOLUME_AT_MAX means the muscle has had its week; AVOIDED_BY_REQUEST means the person asked to leave it out. Offer the closest possible alternative from the options instead of only saying no.
+Draw simple conclusions from what the engine reports and say them plainly: a movement marked RECOVERING worked yesterday or today, so suggest a later day or another movement; VOLUME_AT_MAX means the muscle has had its week; AVOIDED_BY_REQUEST means the person asked to leave it out. Offer the closest possible alternative from the options instead of only saying no. A movement marked RECOVERING is advised against, not forbidden: if the person, told so, says they want it anyway, propose it again with confirmRecovery true for that movement, and only then.
 After a proposal, name what the engine took and, in plain words, what it did not take and why. If it took nothing, explain the reasons and suggest what could work, then wait for the person's answer.
 Do not repeat a proposal the person already has unless they ask to change it.
 </conversation>`;

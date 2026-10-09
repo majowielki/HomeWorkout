@@ -57,6 +57,12 @@ export function ExtraSessionPicker({ data, preview, selected, onChange, busy }: 
                 e.sides === 'perSet',
               )}
             </Text>
+            {o.advised ? (
+              <Text className="text-sm text-highlight">
+                {pl.extra.advised}: {pl.extra.advisedWhy}
+                {checked ? ` ${pl.extra.advisedConfirm}` : ''}
+              </Text>
+            ) : null}
           </Pressable>
         );
       })}

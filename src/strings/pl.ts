@@ -498,6 +498,9 @@ export const pl = {
     choose: 'Wybierz przynajmniej jeden ruch.',
     reduced: 'Część wyboru nie mieści się w limitach. Poniżej pokazujemy to, co możesz wykonać.',
     weekHint: 'Po ukończeniu sesji plan kolejnych dni sprawdzi się automatycznie.',
+    advised: 'Odradzane',
+    advisedWhy: 'Ta partia pracowała dziś lub wczoraj i jeszcze się regeneruje.',
+    advisedConfirm: 'Wybierając ten ruch, robisz go mimo rady silnika.',
   },
   plan: {
     skip: {

@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 import {
   ExtraSessionChangedError,
+  RECOVERY_ADVICE,
   loadExtraSession,
   previewExtraSession,
   startExtraSession,
@@ -45,7 +46,12 @@ export function ExtraSessionScreen() {
   const previewState = useMemo(() => {
     if (!data || selected.length === 0) return { preview: null, failed: null };
     try {
-      const preview = previewExtraSession(selected);
+      const advised = data.options.filter((o) => o.advised).map((o) => o.slotId);
+      const preview = previewExtraSession(
+        selected,
+        new Date(),
+        selected.some((id) => advised.includes(id)) ? RECOVERY_ADVICE : [],
+      );
       return preview.asOf === data.input.asOf
         ? { preview, failed: null }
         : { preview: null, failed: 'changed' as const };

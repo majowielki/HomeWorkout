@@ -28,7 +28,7 @@ import { MUSCLE_GROUPS } from '../coach/vocabulary';
 import { blockContext } from './blockContext';
 import { advanceBlock } from './block';
 import {
-  composedOn,
+  composedRequest,
   dateRange,
   isTrainingDay,
   type PlanConstraint,
@@ -235,7 +235,7 @@ export function planWeek(input: WeekInput): WeekPlan {
       continue;
     }
 
-    const items = composedOn(constraints, date);
+    const composed = composedRequest(constraints, date);
     const print = fingerprint({
       week: input.snapshotFingerprint,
       date,
@@ -244,7 +244,7 @@ export function planWeek(input: WeekInput): WeekPlan {
     });
     const output = planDay({
       asOf: date,
-      intent: items === null ? 'auto_day' : 'compose',
+      intent: composed === null ? 'auto_day' : 'compose',
       catalog,
       slots,
       eligibility,
@@ -257,11 +257,11 @@ export function planWeek(input: WeekInput): WeekPlan {
       preferences: input.preferences,
       models,
       answers: input.answers,
-      ...(items === null
+      ...(composed === null
         ? stored === undefined
           ? {}
           : { kept: stored }
-        : { only: items.map((i) => ({ slotId: i.slotId, sets: i.sets })) }),
+        : { only: composed.only, acknowledged: composed.acknowledged }),
       session: {
         sessionId: `forecast-${date}`,
         planRevision: 1,
@@ -276,9 +276,9 @@ export function planWeek(input: WeekInput): WeekPlan {
         ? output.result.plan
         : null;
     const missing =
-      items === null
+      composed === null
         ? output.keptViolations.map((v) => ({ slotId: v.slotId, reason: v.reason }))
-        : items
+        : composed.only
             .filter((i) => !output.selection.some((s) => s.slotId === i.slotId))
             .map((i) => ({
               slotId: i.slotId,
@@ -290,11 +290,11 @@ export function planWeek(input: WeekInput): WeekPlan {
       selection: output.selection,
       forecast,
       output,
-      summary: summaryOf(output, forecast, items !== null, block.index),
+      summary: summaryOf(output, forecast, composed !== null, block.index),
       status:
         stored === undefined
           ? 'new'
-          : items === null
+          : composed === null
             ? output.kept === 'held'
               ? 'kept'
               : 'changed'
@@ -303,7 +303,7 @@ export function planWeek(input: WeekInput): WeekPlan {
               : 'changed',
       violations: missing,
       events: advance.events,
-      composed: items !== null,
+      composed: composed !== null,
       block,
     });
     if (forecast !== null) {
@@ -482,3 +482,24 @@ export function syncWeek(input: SyncInput): SyncResult {
 
 export type SyncTrigger =
   'horizon' | 'missed_day' | 'unsafe' | 'block' | 'manual' | 'constraint' | 'coach';
+
+/**
+ * What a day of the week is planned after: the history plus the days before it, done as planned.
+ * The forecast stays out of the result of `planWeek`; this is how a reader of the week (the options
+ * of a day for the coach) plans a single day the way the week would plan it.
+ */
+export function recordsBefore(
+  week: WeekPlan,
+  date: IsoDate,
+  records: readonly ExposureRecord[],
+  athlete: Athlete = FOLLOWS_THE_PLAN,
+): ExposureRecord[] {
+  const out = [...records];
+  for (const day of week.days) {
+    if (day.date >= date) break;
+    if (day.forecast !== null) {
+      out.push(...recordsOf(day.forecast, athlete, day.output?.phase === 'deload'));
+    }
+  }
+  return out;
+}

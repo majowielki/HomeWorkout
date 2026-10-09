@@ -286,7 +286,13 @@ export const planConstraintRowSchema = z.object({
   createdAt: instant,
   revokedAt: instant.nullable(),
   items: z
-    .array(z.object({ slotId: z.string().min(1), sets: z.number().int().positive() }))
+    .array(
+      z.object({
+        slotId: z.string().min(1),
+        sets: z.number().int().positive(),
+        confirmRecovery: z.boolean().optional(),
+      }),
+    )
     .nullable(),
 }) satisfies z.ZodType<typeof planConstraints.$inferSelect>;
 

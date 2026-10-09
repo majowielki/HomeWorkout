@@ -267,8 +267,13 @@ function planDayCore(
   const lighter = isLighterDay(constraints, asOf);
   const avoided = avoidedOn(constraints, asOf);
   const sore = (e: Exercise) => e.primaryMuscles.some((m) => (today?.soreness?.[m] ?? 0) >= 4);
+  // Recovery is advice, also for what the person asked for (D18): it is left out unless they confirmed it.
+  // Pain is a hard rule and says so itself: the audit finds it, so it is not hidden behind recovery.
+  const recoveryConfirmed = (input.acknowledged ?? []).includes('RECOVERING');
+  const hurting = painToday(input.records, asOf, catalog);
+  const hurts = (e: Exercise) =>
+    [...e.primaryMuscles, ...e.secondaryMuscles].some((m) => hurting.has(m));
   const recovering = (e: Exercise) =>
-    input.only === undefined &&
     e.primaryMuscles.some((m) => {
       const last = idx.lastPrimary[m];
       return last !== undefined && daysBetween(last, asOf) <= cfg.recoveryDays;
@@ -317,7 +322,7 @@ function planDayCore(
       ? 'AVOIDED_BY_REQUEST'
       : sore(exercise)
         ? 'DOMS_HIGH'
-        : recovering(exercise)
+        : !recoveryConfirmed && !hurts(exercise) && recovering(exercise)
           ? 'RECOVERING'
           : null;
     if (blocked !== null) return skip(blocked);
@@ -612,7 +617,7 @@ function planDayCore(
     restDay:
       input.session.kind === 'main' && !isTrainingDay(asOf, input.week ?? TRAIN_DAILY, constraints),
     avoided,
-    painMuscles: painToday(input.records, asOf, catalog),
+    painMuscles: hurting,
     isSore: sore,
     isRecovering: recovering,
     doneToday,

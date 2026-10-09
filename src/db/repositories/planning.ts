@@ -15,6 +15,7 @@ import type { CommandResult } from '@/domain/commands/result';
 import type { BlockAdvance } from '@/domain/plan/blockSelection';
 import { blockContext } from '@/domain/plan/blockContext';
 import { advanceBlock } from '@/domain/plan/block';
+import { composedRequest } from '@/domain/plan/constraints';
 import { type DayInput, type DayOutput, planDay } from '@/domain/plan/day';
 import type { PlanIntent } from '@/domain/policy/dayPolicy';
 import { planVersions } from '@/domain/plan/versions';
@@ -70,10 +71,17 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
       deloadRequested: req.deloadRequested ?? false,
     }),
   );
-  const kept =
+  // A day composed with the coach is planned as it was in the week: its movements, not the rules of an automatic day.
+  const automatic =
     (req.kind ?? 'main') === 'main' &&
     req.only === undefined &&
-    (req.intent === undefined || req.intent === 'auto_day')
+    (req.intent === undefined || req.intent === 'auto_day');
+  const composed = automatic ? composedRequest(common.constraints ?? [], asOf) : null;
+  const only = composed === null ? req.only : composed.only;
+  const acknowledged =
+    composed === null ? req.acknowledged : [...(req.acknowledged ?? []), ...composed.acknowledged];
+  const kept =
+    automatic && composed === null
       ? (tx
           .select({ selection: plannedDays.selection })
           .from(plannedDays)
@@ -84,7 +92,7 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
   const snapshot = fingerprint(inputs);
   const input: DayInput = {
     asOf,
-    intent: req.intent ?? 'auto_day',
+    intent: composed === null ? (req.intent ?? 'auto_day') : composed.intent,
     catalog: common.catalog,
     slots: common.slots,
     eligibility: common.eligibility,
@@ -97,8 +105,8 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
     preferences: common.preferences,
     models: common.models,
     answers: common.answers,
-    ...(req.only === undefined ? {} : { only: req.only }),
-    ...(req.acknowledged === undefined ? {} : { acknowledged: req.acknowledged }),
+    ...(only === undefined ? {} : { only }),
+    ...(acknowledged === undefined ? {} : { acknowledged }),
     ...(kept === undefined ? {} : { kept }),
     session: {
       sessionId: req.sessionId,

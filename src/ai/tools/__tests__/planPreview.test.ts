@@ -326,8 +326,25 @@ describe('P5.6c the plan tools on the week of engine', () => {
   });
 
   describe('proposeDayPlan', () => {
-    const intent = (slotId: string, sets?: number): ToolInput<'proposeDayPlan'> => ({
-      days: [{ daysAhead: 1, slots: [{ slotId, ...(sets === undefined ? {} : { sets }) }] }],
+    // Two days ahead: the compound lift of today leaves its muscles recovering tomorrow.
+    const intent = (
+      slotId: string,
+      sets?: number,
+      daysAhead = 2,
+      confirmRecovery = false,
+    ): ToolInput<'proposeDayPlan'> => ({
+      days: [
+        {
+          daysAhead,
+          slots: [
+            {
+              slotId,
+              ...(sets === undefined ? {} : { sets }),
+              ...(confirmRecovery ? { confirmRecovery } : {}),
+            },
+          ],
+        },
+      ],
       note: 'Układamy dzień.',
     });
 
@@ -336,12 +353,28 @@ describe('P5.6c the plan tools on the week of engine', () => {
       const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2), 'd1');
       expect(CHAT_TOOLS.proposeDayPlan.output.safeParse(preview.summary).success).toBe(true);
       expect(preview.summary.proposalId).toBe('d1');
-      expect(preview.summary.days).toEqual([{ date: '2026-10-06', applied: true, conflicts: [] }]);
+      expect(preview.summary.days).toEqual([{ date: '2026-10-07', applied: true, conflicts: [] }]);
       expect(preview.constraints).toHaveLength(1);
       expect(preview.constraints[0]).toMatchObject({
         kind: 'compose_day',
         items: [{ slotId: compound.id, sets: 2 }],
       });
+    });
+
+    it('advises against a movement whose muscles have not recovered, and takes it once confirmed (D18)', () => {
+      const ctx = context();
+      const week = { ...ctx, stored: stored(ctx) };
+      const advised = previewDayPlan(week, intent(compound.id, 2, 1), 'd6');
+      expect(advised.summary.proposalId).toBeNull();
+      expect(advised.summary.days[0]).toMatchObject({
+        applied: false,
+        conflicts: [{ movement: compound.name, reason: 'RECOVERING' }],
+      });
+      const confirmed = previewDayPlan(week, intent(compound.id, 2, 1, true), 'd7');
+      expect(confirmed.summary.proposalId).toBe('d7');
+      expect(confirmed.constraints[0]!.items).toEqual([
+        { slotId: compound.id, sets: 2, confirmRecovery: true },
+      ]);
     });
 
     it('takes the engine’s number of sets when none is asked for', () => {
@@ -377,7 +410,7 @@ describe('P5.6c the plan tools on the week of engine', () => {
 
     it('a rest day takes none of it', () => {
       const ctx = context({ constraints: [rest('2026-10-06')] });
-      const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2), 'd4');
+      const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2, 1), 'd4');
       expect(preview.summary.days[0]).toMatchObject({
         applied: false,
         conflicts: [{ movement: compound.name, reason: 'REST_DAY' }],
@@ -397,12 +430,20 @@ describe('P5.6c the plan tools on the week of engine', () => {
         items: [{ slotId: compound.id, sets: 1 }],
       };
       const ctx = context({ constraints: [earlier] });
-      const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2), 'd5');
+      const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2, 1), 'd5');
       expect(preview.replaced).toEqual(['c-old']);
     });
   });
 
   describe('getDayOptions', () => {
+    it('reports RECOVERING for a movement the day before the week has already trained (D18)', () => {
+      const ctx = context();
+      const out = describeDayOptions({ ...ctx, stored: stored(ctx) }, 1);
+      if ('error' in out) throw new Error(out.error);
+      const option = out.options.find((o) => o.slotId === compound.id)!;
+      expect(option).toMatchObject({ available: false, reason: 'RECOVERING' });
+    });
+
     it('offers every working movement with the engine’s sets, and the reason for one it cannot', () => {
       const exercise = CATALOG[SELECTIONS[compound.id]!]!;
       const ctx = context({
@@ -563,7 +604,7 @@ describe('P5.6c the plan tools on the week of engine', () => {
     it('composes a day only when it is still ahead, and returns the cleaned note with the preview', () => {
       const ctx = context();
       const input = {
-        days: [{ daysAhead: 1, slots: [{ slotId: compound.id, sets: 2 }] }],
+        days: [{ daysAhead: 2, slots: [{ slotId: compound.id, sets: 2 }] }],
         note: 'Układamy dzień.',
       };
       const ok = proposeDayPreview({ ...ctx, stored: stored(ctx) }, input, 'ułóż jutro', 'x1');

@@ -11,7 +11,6 @@ import { MUSCLE_GROUPS } from '@/domain/coach/vocabulary';
 import { PLANNER_CONFIG } from '@/domain/config/training';
 import { buildHistoryIndex } from '@/domain/history';
 import { weekWork } from '@/domain/plan/day';
-import { composedOn } from '@/domain/plan/constraints';
 import type { SessionPlan } from '@/domain/plan/plan';
 import { summaryOf, type DaySummary, type StoredDay } from '@/domain/plan/week';
 import type { BlockEvent } from '@/domain/plan/reasons';
@@ -67,7 +66,7 @@ export function readToday(request?: WeekSyncRequest['request'], now = new Date()
     summary: summaryOf(
       preview.output,
       plan,
-      composedOn(context.constraints ?? [], asOf) !== null,
+      preview.input.intent === 'compose',
       preview.advance.block.index,
     ),
     events: preview.advance.events,

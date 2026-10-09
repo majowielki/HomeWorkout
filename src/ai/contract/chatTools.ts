@@ -234,6 +234,8 @@ export const composeIntentSchema = z.strictObject({
             z.strictObject({
               slotId,
               sets: z.number().int().min(1).max(TOOL_LIMITS.composedSets).optional(),
+              /** Only after the person was told the muscles have not recovered and said they want it anyway. */
+              confirmRecovery: z.boolean().optional(),
             }),
           )
           .min(1)
@@ -453,7 +455,7 @@ export const CHAT_TOOLS = {
   },
   proposeDayPlan: {
     description:
-      "Preview a day (or up to three days) composed with the person from the engine's options, without saving anything. Name movements by the slotId from getDayOptions; you may ask for fewer sets than the engine offers, never more, and never name loads, repetitions or exercises. The engine builds the day and returns per day whether it could take the movements and, for those it could not, the reason. The person must press Apply in the local card. Ask first when the day, the muscles or the length is unclear. Do not claim the plan has changed.",
+      "Preview a day (or up to three days) composed with the person from the engine's options, without saving anything. Name movements by the slotId from getDayOptions; you may ask for fewer sets than the engine offers, never more, and never name loads, repetitions or exercises. The engine builds the day and returns per day whether it could take the movements and, for those it could not, the reason. A movement whose muscles have not recovered (RECOVERING) is left out unless the person was told and confirmed it: then set confirmRecovery on that movement. The person must press Apply in the local card. Ask first when the day, the muscles or the length is unclear. Do not claim the plan has changed.",
     input: composeIntentSchema,
     output: composeProposalSummarySchema,
   },

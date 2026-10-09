@@ -184,14 +184,27 @@ describe('an extra session', () => {
     expect(out.dayReasons).not.toContain('LIGHT_DAY');
   });
 
-  it('does not wait for a muscle to recover when somebody asked for it', () => {
-    const out = extra([{ slotId: 'row' }], { records: [did('2026-10-13', 'row', [10, 10, 10])] });
-    expect(ids(out)).toEqual(['rw']);
+  it('advises against a muscle that has not recovered, and does it once that is confirmed (D18)', () => {
+    const records = [did('2026-10-13', 'row', [10, 10, 10])];
+    const advised = extra([{ slotId: 'row' }], { records });
+    expect(advised.result.kind).toBe('no_feasible_plan');
+    expect(advised.skipped).toEqual([
+      expect.objectContaining({ slotId: 'row', reason: 'RECOVERING' }),
+    ]);
+    const confirmed = extra([{ slotId: 'row' }], { records, acknowledged: ['RECOVERING'] });
+    expect(ids(confirmed)).toEqual(['rw']);
+    expect(planOf(confirmed).audit.overrides).toContain('RECOVERING');
+  });
+
+  it('does not let a confirmed recovery through when the muscle hurts', () => {
+    const records = [did('2026-10-14', 'row', [{ amount: 3, shortfall: 'pain' }])];
+    const out = extra([{ slotId: 'row' }], { records, acknowledged: ['RECOVERING'] });
+    expect(out.result.kind).toBe('no_feasible_plan');
   });
 
   it('a second exposure of the day is the same recipe, supplemental, and not a step further', () => {
     const first = did('2026-10-14', 'curl', [12, 12]);
-    const out = extra([{ slotId: 'curl' }], { records: [first] });
+    const out = extra([{ slotId: 'curl' }], { records: [first], acknowledged: ['RECOVERING'] });
     const e = planOf(out).exposures[0]!;
     expect(e.progressionScope).toBe('supplemental');
     expect(e.trace.code).toBe('FIRST_COMPARABLE_EXPOSURE');
