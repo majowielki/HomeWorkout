@@ -84,7 +84,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `plan/{planV2,ids}.ts`, `fingerprint/*` | 02 §1–2, 01 §4 | P1 | ☑ |
 | `progression/{next,rules,draft,assessed,failedRungs,axes,probe,buildUp,firstExposure,levels,policy,codes}.ts` | 13 §5–8, 16, 20 | P3 | ☑ (plik `calibration.ts` zostaje przy gumach) |
 | `catalog/{attributes,variants,validate}.ts`, `medical/screeners.ts` | 13 §9–10, 05 §13–14 | P1 | ☑ |
-| `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☐ |
+| `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☑ P4b.1; §4.16 |
 | `preferences/preferences.ts` (model, `preferenceScore`, `nearEquivalent`) | 12 §3–4 | P1 | ☑ |
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
 | `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
@@ -333,6 +333,35 @@ kontrolują dzienne/tygodniowe maksima, czas, rotację, deload, unikalność ID 
 **Dowody P4:** `compile.test.ts`, `audit.test.ts`, `repair.test.ts`, `dayV2.test.ts`, `dayV2Worlds.test.ts`,
 `dayV2Edges.test.ts`, `blockV2.test.ts`, `signalsV2.test.ts`, `resistanceOf.test.ts`, `simulateV2.test.ts`,
 `simulateV2Edges.test.ts`. Scenariusze dawniej wyłączone są aktywne. Znane ograniczenia i różnice: UWAGI §2b.
+
+### 4.16 Rozpoznawanie ćwiczeń (P4b.1)
+
+`catalog/resolve.ts` udostępnia `resolveExerciseRef(ref, catalog, lexicon)` oraz
+`createExerciseResolver(catalog, lexicon)` do wielokrotnego rozpoznawania z jednym przygotowanym katalogiem.
+Słownik jest jawnym wejściem, bo domena nie importuje plików danych. `data/movement-terms.json` v1 przechowuje
+odmiany/synonimy, frazy, słowa puste, grupy określeń wymagających zachowania i wskazówki ruchowe z mięśniami.
+`movement-terms.schema.ts` oraz `validate:data` sprawdzają format, sprzeczne znaczenia form (także kanonicznych),
+duplikaty i referencje do nieznanych tokenów. Są to wskazówki do rankingu, nie nowa klasyfikacja medyczna.
+
+Kolejność: jawne ID → dokładna znormalizowana nazwa → alias → zgodność zbiorów tokenów z jawnymi odmianami
+→ Jaccard zbioru nazwy i aliasów, z bonusem wzorca ruchu. `normalizeExerciseName` składa Unicode NFC, stosuje
+istniejący `fold`, zamienia interpunkcję/białe znaki na spacje. Frazy są rozpoznawane przed słowami pustymi,
+najdłuższa pierwsza. Typo to jedno dodanie/usunięcie/zastąpienie znaku, wyłącznie dla słów ≥ 6 znaków i gdy
+korekta prowadzi do jednego kanonicznego tokenu ze słownika albo nazw/aliasów katalogu. Nie używa stemmerów
+ani przybliżonej podmiany całych nazw.
+
+Progi w `EXERCISE_RESOLVER_CONFIG`: score ≥ 0,6, przewaga ≥ 0,15, bonus ruchu 0,2, najwyżej 3 najbliższe nazwy.
+Podana pozycja/kierunek/sprzęt/strona musi występować także u kandydata do automatycznego dopasowania.
+„Wyciskanie hantli zza głowy” pozostaje not_found z push-vertical; nie staje się wyciskaniem nad głowę ani
+wyprostem na triceps. Przy remisie zwracane jest ambiguous w kolejności ID, niezależnie od kolejności katalogu.
+Not_found zachowuje oryginalne zapytanie i `movement: {id, muscles} | null`. Zerowe podobieństwo nie daje
+arbitralnej listy najbliższych. Archived jest pomijane także dla ID i podpowiedzi.
+
+`data/exercises.json` v6 ma 109 aliasów w 63 ćwiczeniach. Zmiana danych obejmuje wyłącznie aliasy i wersję;
+ID, biomechanika, graf wariantów, sprzęt i recepty nie zmieniły się. Wersja powoduje reseed w zainstalowanej
+aplikacji, w tym wcześniej dodanych pól P1, bez resetu historii. Testy sprawdzają każdą nazwę/alias rzeczywistego
+katalogu, odmiany, literówki, niejednoznaczność, próg score, brak dopasowania i permutację wejścia.
+Resolver pozostaje poza ścieżkami aplikacji do integracji w P4b/P5.
 
 ## 5. Konwencje testów
 

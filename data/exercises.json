@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "exercises": [
     {
       "id": "goblet-squat",
@@ -25,7 +25,8 @@
         "Pięty przez cały czas na podłodze.",
         "Wdech na dole, wydech przy wstawaniu."
       ],
-      "kneeCue": "Prawe kolano prowadzone nad drugim palcem stopy — nie pozwól mu uciec na zewnątrz."
+      "kneeCue": "Prawe kolano prowadzone nad drugim palcem stopy — nie pozwól mu uciec na zewnątrz.",
+      "aliases": ["goblet squat", "przysiad z hantlem przed klatką"]
     },
     {
       "id": "band-squat",
@@ -81,7 +82,8 @@
           "to": "goblet-squat",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["przysiad bez obciążenia", "przysiad bez sprzętu"]
     },
     {
       "id": "box-squat",
@@ -113,7 +115,8 @@
           "to": "bodyweight-squat",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["przysiad na krzesło", "box squat"]
     },
     {
       "id": "dumbbell-squat",
@@ -139,7 +142,8 @@
         "Łącznie 20 kg — pozwala połączyć z gumą pod stopami.",
         "Nie unoś barków, hantle wiszą."
       ],
-      "kneeCue": "Ciężar przy bokach zwiększa pokusę pochylenia — trzymaj kolana nad stopami, nie do środka."
+      "kneeCue": "Ciężar przy bokach zwiększa pokusę pochylenia — trzymaj kolana nad stopami, nie do środka.",
+      "aliases": ["przysiad z hantlami", "przysiad z hantlami po bokach"]
     },
     {
       "id": "wall-sit",
@@ -164,7 +168,8 @@
         "Oddychaj spokojnie — to izometria, nie wstrzymywanie oddechu.",
         "Bezpieczna praca czworogłowego bez ruchu w stawie."
       ],
-      "kneeCue": "Kąt 90° w kolanie i stopy na szerokość bioder — brak ruchu oznacza brak sił bocznych."
+      "kneeCue": "Kąt 90° w kolanie i stopy na szerokość bioder — brak ruchu oznacza brak sił bocznych.",
+      "aliases": ["krzesełko", "wall sit"]
     },
     {
       "id": "band-leg-press",
@@ -215,7 +220,8 @@
         "Schodzisz, aż uda będą równoległe do podłogi; tułów pionowo.",
         "Hantle leżą na barkach — nie trzymasz ich w powietrzu."
       ],
-      "kneeCue": "Kolana w linii palców; prawe nie ucieka na zewnątrz."
+      "kneeCue": "Kolana w linii palców; prawe nie ucieka na zewnątrz.",
+      "aliases": ["front squat z hantlami", "przysiad przedni z hantlami"]
     },
     {
       "id": "split-squat",
@@ -243,7 +249,8 @@
       ],
       "kneeCue": "Przednie kolano stabilne nad stopą — przy zmęczeniu skończ serię wcześniej, zanim zacznie uciekać.",
       "sides": "perSet",
-      "hideClip": true
+      "hideClip": true,
+      "aliases": ["split squat"]
     },
     {
       "id": "reverse-lunge",
@@ -270,7 +277,8 @@
         "Dostępne dopiero po akceptacji fizjoterapeuty."
       ],
       "kneeCue": "Krok w tył wymaga stabilizacji stojącej nogi — zacznij bez obciążenia, ręka na ścianie.",
-      "sides": "alternating"
+      "sides": "alternating",
+      "aliases": ["wykroki w tył", "zakroki z hantlami"]
     },
     {
       "id": "step-up",
@@ -297,7 +305,8 @@
         "Dostępne dopiero po akceptacji fizjoterapeuty."
       ],
       "kneeCue": "Cała stopa na stopniu, kolano prowadzone prosto nad nią przez całą fazę wejścia.",
-      "sides": "perSet"
+      "sides": "perSet",
+      "aliases": ["step up", "wejścia na stopień"]
     },
     {
       "id": "lateral-lunge",
@@ -324,7 +333,8 @@
         "Zamienniki: przysiad goblet lub z gumą."
       ],
       "kneeCue": "WYKLUCZONE: wykrok boczny wywołuje moment szpotawy/koślawy, którego brak więzadeł pobocznych nie zatrzyma.",
-      "sides": "perSet"
+      "sides": "perSet",
+      "aliases": ["wykroki boczne", "wykrok w bok"]
     },
     {
       "id": "band-leg-extension",
@@ -387,7 +397,8 @@
           "to": "single-leg-rdl",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["rumuński martwy ciąg z hantlami", "rdl z hantlami"]
     },
     {
       "id": "band-pull-through",
@@ -464,7 +475,8 @@
         "Zamiennik: RDL obunóż."
       ],
       "kneeCue": "WYKLUCZONE: jednonóż bez podparcia — brak pasywnych stabilizatorów bocznych czyni ten wariant niebezpiecznym.",
-      "sides": "perSet"
+      "sides": "perSet",
+      "aliases": ["rdl jednonóż", "martwy ciąg rumuński jednonóż"]
     },
     {
       "id": "glute-bridge",
@@ -499,7 +511,8 @@
           "to": "db-glute-bridge",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["glute bridge", "mostek bez obciążenia"]
     },
     {
       "id": "hip-thrust",
@@ -525,7 +538,8 @@
         "Na górze uda równolegle do podłogi, pełne napięcie pośladków.",
         "Jeden hantel = drabinka do 18 kg; to Twoje najcięższe ćwiczenie na pośladki."
       ],
-      "kneeCue": "Kąt 90° w kolanach na górze; stopy dociskają całą powierzchnią, kolana nie schodzą się do środka."
+      "kneeCue": "Kąt 90° w kolanach na górze; stopy dociskają całą powierzchnią, kolana nie schodzą się do środka.",
+      "aliases": ["hip thrust", "unoszenie bioder z oparciem o kanapę"]
     },
     {
       "id": "hip-hinge-drill",
@@ -608,7 +622,8 @@
         "Plecy płaskie przez cały ruch, bez zaokrąglania lędźwi.",
         "Wstajesz, wypychając biodra do przodu; na górze ściskasz pośladki."
       ],
-      "kneeCue": "Kolana lekko ugięte i nieruchome — cały ruch pochodzi z bioder."
+      "kneeCue": "Kolana lekko ugięte i nieruchome — cały ruch pochodzi z bioder.",
+      "aliases": ["deadlift z hantlami"]
     },
     {
       "id": "db-stiff-leg-deadlift",
@@ -730,7 +745,8 @@
           "to": "hip-thrust",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["glute bridge z hantlem"]
     },
     {
       "id": "shoulder-bridge",
@@ -807,7 +823,8 @@
         "Łokcie pod kątem ~45° do tułowia, nie na boki.",
         "Zatrzymanie na dole 1 s, wyciśnięcie dynamiczne.",
         "Bezpieczniejsze dla barków niż wyciskanie na ławce."
-      ]
+      ],
+      "aliases": ["floor press", "wyciskanie hantli leżąc na podłodze"]
     },
     {
       "id": "push-up",
@@ -841,7 +858,8 @@
           "to": "band-push-up",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["pompki", "push up", "push ups"]
     },
     {
       "id": "incline-push-up",
@@ -871,7 +889,8 @@
           "to": "push-up",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["pompki na podwyższeniu", "pompki z rękami wyżej"]
     },
     {
       "id": "band-push-up",
@@ -895,7 +914,8 @@
         "Opór rośnie ku górze — dokładnie tam, gdzie pompka jest najłatwiejsza.",
         "Zacznij od żółtej; czarna to już ciężka progresja.",
         "Technika jak w zwykłej pompce, tempo kontrolowane."
-      ]
+      ],
+      "aliases": ["pompki z gumą"]
     },
     {
       "id": "close-grip-push-up",
@@ -919,7 +939,8 @@
         "Trudniejsza od klasycznej — zacznij od mniejszej liczby powtórzeń.",
         "Pełny wyprost łokci na górze.",
         "Regresja: kolana na podłodze."
-      ]
+      ],
+      "aliases": ["pompki wąskie", "pompki na triceps"]
     },
     {
       "id": "db-shoulder-press",
@@ -944,7 +965,8 @@
         "Pośladki i brzuch napięte, żebra w dół — bez wyginania lędźwi.",
         "Wyciskasz lekko do przodu i do góry, hantle spotykają się nad głową.",
         "Stojąc angażujesz core; siedząc izolujesz barki."
-      ]
+      ],
+      "aliases": ["wyciskanie stojąc", "wyciskanie hantli nad głowę na stojąco"]
     },
     {
       "id": "seated-db-shoulder-press",
@@ -969,7 +991,8 @@
         "Plecy przy oparciu — nie ma jak oszukać tułowiem.",
         "Łokcie lekko przed linią barków.",
         "Wersja na dni, gdy dolna część ciała potrzebuje odpoczynku."
-      ]
+      ],
+      "aliases": ["wyciskanie siedząc", "wyciskanie hantli na siedząco"]
     },
     {
       "id": "band-shoulder-press",
@@ -993,7 +1016,8 @@
         "Opór narasta ku górze — synergia z krzywą siły wyciskania.",
         "Szerszy rozstaw stóp = większy pre-stretch = ciężej.",
         "Powrót wolny, 3 sekundy."
-      ]
+      ],
+      "aliases": ["wyciskanie nad głowę z gumą"]
     },
     {
       "id": "band-chest-press",
@@ -1017,7 +1041,8 @@
         "Wyciskasz do przodu do pełnego wyprostu, łokcie ~45°.",
         "Odstęp od drzwi to Twoja pozycja P0–P3.",
         "Core napięty — guma ciągnie Cię do tyłu."
-      ]
+      ],
+      "aliases": ["wyciskanie z gumą przed klatką"]
     },
     {
       "id": "db-floor-flyes",
@@ -1042,7 +1067,8 @@
         "Ramiona opadają na boki do dotknięcia podłogi — bezpieczny limit.",
         "Łączysz hantle nad klatką łukiem, nie wyciskaniem.",
         "Lekki ciężar, pełna kontrola, 3 s w dół."
-      ]
+      ],
+      "aliases": ["rozpiętki leżąc na podłodze"]
     },
     {
       "id": "db-pullover",
@@ -1091,7 +1117,8 @@
         "Łopatki najpierw w dół i do siebie, potem łokcie.",
         "Guma jest najcięższa na końcu — nie szarp, dociągnij.",
         "Powrót kontrolowany, 3 sekundy."
-      ]
+      ],
+      "aliases": ["wiosłowanie z gumą z kotwicy"]
     },
     {
       "id": "db-bent-over-row",
@@ -1116,7 +1143,8 @@
         "Ciągniesz łokciami do bioder, nie do barków.",
         "Na górze ściśnij łopatki, zatrzymaj 1 s.",
         "Jeśli dolny odcinek pleców męczy się pierwszy — przejdź na wersję jednorącz z podparciem."
-      ]
+      ],
+      "aliases": ["wiosłowanie z hantlami w opadzie"]
     },
     {
       "id": "one-arm-db-row",
@@ -1142,7 +1170,8 @@
         "Łokieć blisko tułowia, hantel do biodra.",
         "Bez rotacji tułowia — biodra równolegle do podłogi."
       ],
-      "sides": "perSet"
+      "sides": "perSet",
+      "aliases": ["wiosłowanie jednorącz", "wiosłowanie jedną ręką z hantlem"]
     },
     {
       "id": "band-face-pull",
@@ -1166,7 +1195,8 @@
         "Ciągniesz do twarzy, łokcie wysoko i szeroko, dłonie rozchodzą się na boki.",
         "Na końcu rotacja zewnętrzna — kciuki w tył.",
         "Najlepsze ćwiczenie na plecy zgarbione od biurka; lekka guma, dużo powtórzeń."
-      ]
+      ],
+      "aliases": ["face pull", "face pull stojąc z gumą"]
     },
     {
       "id": "band-pull-apart",
@@ -1190,7 +1220,8 @@
         "Rozciągasz do dotknięcia klatki, łopatki do siebie.",
         "Bez kotwicy — możesz robić w przerwie między seriami.",
         "Żółta guma, 15–20 powtórzeń, codziennie, jeśli chcesz."
-      ]
+      ],
+      "aliases": ["pull apart", "band pull apart"]
     },
     {
       "id": "band-lat-pulldown",
@@ -1214,7 +1245,8 @@
         "Ciągniesz łokciami w dół i do tyłu, klatka do góry.",
         "Uchwyty do górnej części klatki.",
         "Guma najcięższa na dole — dociągnij świadomie, nie szarp."
-      ]
+      ],
+      "aliases": ["lat pulldown z gumą"]
     },
     {
       "id": "band-straight-arm-pulldown",
@@ -1270,7 +1302,8 @@
         "Łokcie lekko ugięte — unieś hantle szerokim łukiem na boki, aż ramiona będą na linii barków.",
         "Na górze ściągnij łopatki.",
         "Powoli opuść hantle, z kontrolą."
-      ]
+      ],
+      "aliases": ["odwrotne rozpiętki z hantlami"]
     },
     {
       "id": "lateral-raise",
@@ -1295,7 +1328,8 @@
         "Prowadzisz łokciami, nie dłońmi.",
         "Do wysokości barków, nie wyżej.",
         "Opuszczasz wolniej niż podnosisz."
-      ]
+      ],
+      "aliases": ["wznosy boczne z hantlami", "unoszenie hantli bokiem"]
     },
     {
       "id": "db-bicep-curl",
@@ -1320,7 +1354,8 @@
         "Supinacja w trakcie ruchu — kciuk odchyla się na zewnątrz na górze.",
         "Bez bujania tułowiem; jeśli musisz — ciężar jest za duży.",
         "Izolacja: możesz iść do 0–1 RIR bez obciążania układu nerwowego."
-      ]
+      ],
+      "aliases": ["uginanie hantli na biceps", "biceps curl"]
     },
     {
       "id": "hammer-curl",
@@ -1345,7 +1380,8 @@
         "Mocniej angażuje ramienny i przedramię.",
         "Łokcie nieruchome przy tułowiu.",
         "Zwykle uniesiesz nieco więcej niż w klasycznym uginaniu."
-      ]
+      ],
+      "aliases": ["uginanie młotkowe", "młotki na biceps"]
     },
     {
       "id": "db-overhead-triceps-extension",
@@ -1370,7 +1406,8 @@
         "Łokcie skierowane do przodu, blisko uszu — nie rozchodzą się.",
         "Opuszczasz za głowę do pełnego rozciągnięcia tricepsa.",
         "Żebra w dół, brzuch napięty."
-      ]
+      ],
+      "aliases": ["prostowanie ramion z hantlem zza głowy", "triceps zza głowy z hantlem"]
     },
     {
       "id": "db-lying-triceps-extension",
@@ -1395,7 +1432,8 @@
         "Ugięcie tylko w łokciach — ramiona pionowe i nieruchome.",
         "Hantle schodzą po bokach głowy.",
         "Lekki ciężar, precyzja ważniejsza niż kilogramy."
-      ]
+      ],
+      "aliases": ["wyciskanie francuskie leżąc", "prostowanie ramion z hantlami leżąc"]
     },
     {
       "id": "band-triceps-pushdown",
@@ -1494,7 +1532,8 @@
         "Zatrzymanie na górze 1 s, wolne opuszczanie poniżej poziomu.",
         "Wysokie powtórzenia, 15–25."
       ],
-      "kneeCue": "Kolano proste, ale nie zablokowane na siłę — ruch tylko w stawie skokowym."
+      "kneeCue": "Kolano proste, ale nie zablokowane na siłę — ruch tylko w stawie skokowym.",
+      "aliases": ["wspięcia na palce stojąc", "wspięcia na łydki z hantlami stojąc"]
     },
     {
       "id": "donkey-kick",
@@ -1575,7 +1614,8 @@
         "Pięty w dół do pełnego rozciągnięcia, potem jak najwyżej na palce.",
         "Zatrzymanie na górze 1 s; bez odbijania się z dołu."
       ],
-      "kneeCue": "Kolana ugięte ok. 90°, ciężar na udach — ruch tylko w stawie skokowym."
+      "kneeCue": "Kolana ugięte ok. 90°, ciężar na udach — ruch tylko w stawie skokowym.",
+      "aliases": ["wspięcia na palce siedząc", "łydki siedząc z hantlami"]
     },
     {
       "id": "band-ankle-plantarflexion",
@@ -1624,7 +1664,8 @@
         "Wzrok w podłogę, szyja w linii kręgosłupa.",
         "Jakość ponad czas: 30 s idealnie > 90 s z opadającymi biodrami."
       ],
-      "hideClip": true
+      "hideClip": true,
+      "aliases": ["plank", "deska na przedramionach"]
     },
     {
       "id": "side-plank",
@@ -1649,7 +1690,8 @@
         "Regresja: kolana ugięte, podparcie na kolanie.",
         "Seria na jeden bok, następna na drugi — ten sam czas."
       ],
-      "sides": "perSet"
+      "sides": "perSet",
+      "aliases": ["side plank", "deska boczna"]
     },
     {
       "id": "dead-bug",
@@ -1685,7 +1727,8 @@
           "note": "Regres hollow hold, gdy nie utrzymasz dolnej granicy czasu: ten sam wzorzec (brzuch przyciśnięty do podłogi), liczony w powtórzeniach.",
           "changesMeasure": true
         }
-      ]
+      ],
+      "aliases": ["dead bug", "martwy robak bez obciążenia"]
     },
     {
       "id": "bird-dog",
@@ -1716,7 +1759,8 @@
           "to": "swimmers",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["ptak pies", "bird dog bez obciążenia"]
     },
     {
       "id": "reverse-crunch",
@@ -1746,7 +1790,8 @@
           "to": "reverse-crunch-pulse",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["odwrotne brzuszki"]
     },
     {
       "id": "hollow-hold",
@@ -1770,7 +1815,8 @@
         "Im niżej nogi i ręce, tym trudniej — regresja: kolana ugięte, ręce przy bokach.",
         "Oddychaj — nie wstrzymuj.",
         "Skończ, gdy lędźwie odrywają się od podłogi."
-      ]
+      ],
+      "aliases": ["hollow body hold", "hollow body"]
     },
     {
       "id": "band-pallof-press",
@@ -1794,7 +1840,8 @@
         "Wyciskasz ręce przed siebie — guma chce Cię obrócić, Ty nie pozwalasz.",
         "Antyrotacja: ćwiczysz brak ruchu.",
         "Zatrzymanie 2–3 s z wyprostowanymi rękami; obie strony."
-      ]
+      ],
+      "aliases": ["pallof press"]
     },
     {
       "id": "superman",
@@ -1882,7 +1929,8 @@
           "to": "pilates-roll-up",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["brzuszki", "spięcia brzucha"]
     },
     {
       "id": "bicycle-crunch",
@@ -1907,7 +1955,8 @@
         "Skręt z tułowia, nie rozpędem; płynne „pedałowanie\".",
         "Lędźwie dociśnięte do podłogi przez cały czas."
       ],
-      "sides": "alternating"
+      "sides": "alternating",
+      "aliases": ["rowerek na brzuch"]
     },
     {
       "id": "reverse-crunch-pulse",
@@ -1967,7 +2016,8 @@
           "to": "toes-to-sky",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["unoszenie nóg leżąc"]
     },
     {
       "id": "toes-to-sky",
@@ -2111,7 +2161,8 @@
           "to": "hollow-hold",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["pozycja łódki"]
     },
     {
       "id": "db-dead-bug",
@@ -2287,7 +2338,8 @@
         "Mierz dystans lub czas, nie powtórzenia.",
         "Z 10 kg na rękę to raczej ćwiczenie postawy niż siły — nadal wartościowe."
       ],
-      "kneeCue": "Symetryczne obciążenie utrzymuje kolana w osi; stąpaj na całą stopę, bez skręcania."
+      "kneeCue": "Symetryczne obciążenie utrzymuje kolana w osi; stąpaj na całą stopę, bez skręcania.",
+      "aliases": ["farmer walk", "spacer farmera z hantlami"]
     },
     {
       "id": "suitcase-carry",
@@ -2314,7 +2366,8 @@
         "Zamiennik na antyzgięcie boczne: deska bokiem (w leżeniu, bez obciążenia kolana)."
       ],
       "kneeCue": "WYKLUCZONE: offset ciężaru generuje moment szpotawy/koślawy na kolanie przy każdym kroku.",
-      "sides": "perSet"
+      "sides": "perSet",
+      "aliases": ["suitcase carry", "spacer z hantlem jednorącz"]
     },
     {
       "id": "cat-cow",
@@ -2338,7 +2391,8 @@
         "Wdech: brzuch w dół, wzrok w górę. Wydech: plecy w górę, broda do klatki.",
         "Wolno, segment po segmencie.",
         "Rozgrzewka kręgosłupa po dniu przy biurku; 8–10 cykli."
-      ]
+      ],
+      "aliases": ["cat cow", "kot krowa"]
     },
     {
       "id": "open-book",
@@ -2413,7 +2467,8 @@
         "Umiarkowany opór, wyższa kadencja — mniej momentu na kolano przy tej samej pracy.",
         "Najbezpieczniejsza objętość dla nóg, jaką masz: prowadzony tor, zero lądowań."
       ],
-      "kneeCue": "Prowadzony tor ruchu w płaszczyźnie strzałkowej — jedyne ćwiczenie na nogi bez konfliktu z profilem kolana, o ile zostajesz w siodle."
+      "kneeCue": "Prowadzony tor ruchu w płaszczyźnie strzałkowej — jedyne ćwiczenie na nogi bez konfliktu z profilem kolana, o ile zostajesz w siodle.",
+      "aliases": ["rower", "rowerek stacjonarny"]
     },
     {
       "id": "band-bent-over-row",
@@ -3094,7 +3149,8 @@
           "to": "teaser",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["roll up", "pilates roll up"]
     },
     {
       "id": "teaser",
@@ -3176,7 +3232,8 @@
           "to": "plank",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["deska na kolanach", "plank na kolanach"]
     },
     {
       "id": "v-up",
@@ -3200,7 +3257,8 @@
         "Pracuj brzuchem, bez zamachu.",
         "Opuszczaj się powoli i z kontrolą.",
         "Nie napinaj nadmiernie szyi; patrz przed siebie i lekko w górę."
-      ]
+      ],
+      "aliases": ["scyzoryki", "v up"]
     },
     {
       "id": "russian-twist-feet-on-floor",
@@ -3834,7 +3892,8 @@
           "to": "push-up",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["pompki na kolanach", "pompki z kolan"]
     },
     {
       "id": "diamond-push-ups-knee-assisted",
@@ -3865,7 +3924,8 @@
           "to": "close-grip-push-up",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["pompki diamentowe na kolanach"]
     },
     {
       "id": "pilates-push-up",
@@ -3919,7 +3979,8 @@
           "to": "archer-push-up",
           "kind": "harder"
         }
-      ]
+      ],
+      "aliases": ["pompki z zatrzymaniem", "deadstop push up"]
     },
     {
       "id": "archer-push-up",
@@ -3942,7 +4003,8 @@
         "Zaawansowany wariant: zacznij od opanowania zwykłej pompki.",
         "Ciężar przenosisz na jedno ramię; drugie pozostaje proste.",
         "Tułów w jednej linii, bez skręcania bioder."
-      ]
+      ],
+      "aliases": ["pompki łucznicze", "archer push up"]
     },
     {
       "id": "seated-chest-opener",
@@ -3989,7 +4051,8 @@
         "Prowadź ruch łokciami i nie unoś barków do uszu.",
         "Kontroluj powrót zamiast pozwalać gumie się odbić.",
         "Napnij brzuch, aby tułów był stabilny i się nie bujał."
-      ]
+      ],
+      "aliases": ["wiosłowanie z gumą siedząc"]
     }
   ]
 }

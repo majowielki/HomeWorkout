@@ -9,6 +9,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import catalogue from '../data/exercises.json';
+import movementTerms from '../data/movement-terms.json';
+import { movementLexiconSchema } from '../data/movement-terms.schema';
 import { exerciseCatalogueSchema } from '../data/exercises.schema';
 import slotCatalogue from '../data/slots.json';
 import { slotCatalogueSchema } from '../data/slots.schema';
@@ -21,6 +23,11 @@ import { slotCatalogProblems } from '../src/domain/plan/slotCatalog';
 const MEDIA_DIR = join(__dirname, '..', 'assets', 'exercise-media');
 
 function main(): void {
+  const lexicon = movementLexiconSchema.safeParse(movementTerms);
+  if (!lexicon.success) {
+    console.error('movement-terms.json does not match the schema:', lexicon.error.issues);
+    process.exit(1);
+  }
   const parsed = exerciseCatalogueSchema.safeParse(catalogue);
 
   if (!parsed.success) {
@@ -169,6 +176,9 @@ function main(): void {
   );
   console.log(
     `slots.json OK — ${parsedSlots.data.slots.length} slots, every exercise in exactly one`,
+  );
+  console.log(
+    `movement-terms.json OK — v${lexicon.data.version}, ${lexicon.data.movements.length} movement hints`,
   );
 }
 

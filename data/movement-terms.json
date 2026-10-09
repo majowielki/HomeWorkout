@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "stopWords": [
+    "czy",
+    "mogę",
+    "można",
+    "chcę",
+    "chciałbym",
+    "chciałabym",
+    "proszę",
+    "dodaj",
+    "dodać",
+    "dorzucić",
+    "dorzuć",
+    "zamień",
+    "zamienić",
+    "jeszcze",
+    "ćwiczenie",
+    "ćwiczenia",
+    "mi",
+    "z",
+    "ze",
+    "w",
+    "na",
+    "do",
+    "i",
+    "oraz",
+    "o"
+  ],
+  "terms": [
+    {
+      "canonical": "wyciskanie",
+      "forms": ["wyciskania", "wyciskaniem", "wyciskaniu", "wyciskaj", "wyciśnij", "press"]
+    },
+    {
+      "canonical": "wioslowanie",
+      "forms": [
+        "wiosłowanie",
+        "wiosłowania",
+        "wiosłowaniem",
+        "wiosłowaniu",
+        "wiosłuj",
+        "row",
+        "rowing"
+      ]
+    },
+    {
+      "canonical": "przysiad",
+      "forms": [
+        "przysiady",
+        "przysiadu",
+        "przysiadów",
+        "przysiadem",
+        "przysiadzie",
+        "squat",
+        "squats"
+      ]
+    },
+    {
+      "canonical": "pompka",
+      "forms": ["pompki", "pompek", "pompkę", "pompką", "pompce", "pushup", "pushups"]
+    },
+    {
+      "canonical": "wykrok",
+      "forms": ["wykroki", "wykroku", "wykroków", "wykrokiem", "lunge", "lunges"]
+    },
+    {
+      "canonical": "hantla",
+      "forms": [
+        "hantle",
+        "hantli",
+        "hantlem",
+        "hantlami",
+        "hantlą",
+        "hantlę",
+        "dumbbell",
+        "dumbbells",
+        "db"
+      ]
+    },
+    {
+      "canonical": "guma",
+      "forms": ["gumy", "gumą", "gumę", "gumami", "band", "bands"]
+    },
+    {
+      "canonical": "siedzac",
+      "forms": ["siedząc", "siedząco", "seated"]
+    },
+    {
+      "canonical": "stojac",
+      "forms": ["stojąc", "stojąco", "standing"]
+    },
+    {
+      "canonical": "lezac",
+      "forms": ["leżąc", "leżąco", "leżeniu", "lying", "supine"]
+    },
+    {
+      "canonical": "opad",
+      "forms": ["opadzie", "opadu"]
+    },
+    {
+      "canonical": "jednonoz",
+      "forms": ["jednonóż", "jednonóz"]
+    },
+    {
+      "canonical": "jednoracz",
+      "forms": ["jednorącz", "jednoracz"]
+    },
+    {
+      "canonical": "obunoz",
+      "forms": ["obunóż", "obunoz"]
+    },
+    {
+      "canonical": "oburacz",
+      "forms": ["oburącz", "oburacz"]
+    },
+    {
+      "canonical": "ramie",
+      "forms": ["ramię", "ramienia", "ramieniem", "ramion", "ramiona", "ramionami"]
+    },
+    {
+      "canonical": "noga",
+      "forms": ["nogi", "nogę", "nogą", "nogami", "nóg", "leg", "legs"]
+    },
+    {
+      "canonical": "biodro",
+      "forms": ["biodra", "bioder", "biodrem", "hip", "hips"]
+    },
+    {
+      "canonical": "unoszenie",
+      "forms": ["unoszenia", "unoszeniem", "unoszeniu", "unieś"]
+    },
+    {
+      "canonical": "wyprost",
+      "forms": [
+        "wyprosty",
+        "wyprostu",
+        "wyprostem",
+        "prostowanie",
+        "prostowania",
+        "prostowaniem",
+        "extension"
+      ]
+    },
+    {
+      "canonical": "uginanie",
+      "forms": ["uginania", "uginaniem", "uginaniu", "curl", "curls"]
+    },
+    {
+      "canonical": "rozpietki",
+      "forms": ["rozpiętki", "rozpiętek", "rozpiętkami", "flyes", "flys"]
+    },
+    {
+      "canonical": "deska",
+      "forms": ["deskę", "deski", "deską", "desce", "plank"]
+    },
+    {
+      "canonical": "mostek",
+      "forms": ["mostki", "mostka", "mostkiem", "bridge"]
+    },
+    {
+      "canonical": "martwy",
+      "forms": ["martwego", "martwym"]
+    },
+    {
+      "canonical": "ciag",
+      "forms": ["ciąg", "ciągu", "ciągi", "ciągiem"]
+    },
+    {
+      "canonical": "rumunski",
+      "forms": ["rumuński", "rumuńskiego", "rumuńskim", "romanian"]
+    },
+    {
+      "canonical": "sciaganie",
+      "forms": ["ściąganie", "ściągania", "ściąganiem", "ściąganiu"]
+    },
+    {
+      "canonical": "bokiem",
+      "forms": ["boczny", "boczna", "boczną", "boku", "lateral"]
+    },
+    {
+      "canonical": "rower",
+      "forms": ["rowerze", "roweru", "rowerem", "bike", "cycling"]
+    },
+    {
+      "canonical": "mlotkowy",
+      "forms": ["młotkowy", "młotkowe", "młotkowego", "młotkowym", "hammer"]
+    }
+  ],
+  "phrases": [
+    {
+      "canonical": "nad-glowe",
+      "forms": ["nad głowę", "nad głową", "nad glowa", "overhead"]
+    },
+    {
+      "canonical": "zza-glowy",
+      "forms": ["zza głowy", "za głową", "behind neck", "behind the neck", "behind head"]
+    },
+    {
+      "canonical": "pompka",
+      "forms": ["push up", "push ups"]
+    },
+    {
+      "canonical": "jednonoz",
+      "forms": ["na jednej nodze", "jedną nogą", "single leg"]
+    },
+    {
+      "canonical": "jednoracz",
+      "forms": ["jedną ręką", "jednym ramieniem", "one arm", "single arm"]
+    },
+    {
+      "canonical": "obunoz",
+      "forms": ["na obu nogach", "dwiema nogami", "two legs"]
+    },
+    {
+      "canonical": "oburacz",
+      "forms": ["obiema rękami", "dwoma ramionami", "two arms"]
+    },
+    {
+      "canonical": "opad",
+      "forms": ["bent over"]
+    },
+    {
+      "canonical": "martwy-ciag",
+      "forms": ["martwy ciąg", "martwego ciągu", "martwym ciągiem", "deadlift"]
+    },
+    {
+      "canonical": "mini-band",
+      "forms": ["mini band", "mini banda", "mini bandem", "miniband", "minibandem"]
+    }
+  ],
+  "qualifierGroups": [
+    ["nad-glowe", "zza-glowy"],
+    ["siedzac", "stojac", "lezac", "opad"],
+    ["jednonoz", "obunoz"],
+    ["jednoracz", "oburacz"],
+    ["hantla", "guma", "mini-band"]
+  ],
+  "movements": [
+    {
+      "id": "push-vertical",
+      "allOf": ["wyciskanie"],
+      "anyOf": ["nad-glowe", "zza-glowy"],
+      "muscles": ["shoulders", "triceps"]
+    },
+    {
+      "id": "push",
+      "allOf": ["wyciskanie"],
+      "anyOf": [],
+      "muscles": ["chest", "triceps"]
+    },
+    {
+      "id": "push-up",
+      "allOf": ["pompka"],
+      "anyOf": [],
+      "muscles": ["chest", "triceps"]
+    },
+    {
+      "id": "row",
+      "allOf": ["wioslowanie"],
+      "anyOf": [],
+      "muscles": ["back", "lats", "biceps"]
+    },
+    {
+      "id": "squat",
+      "allOf": ["przysiad"],
+      "anyOf": [],
+      "muscles": ["quads", "glutes"]
+    },
+    {
+      "id": "lunge",
+      "allOf": ["wykrok"],
+      "anyOf": [],
+      "muscles": ["quads", "glutes"]
+    },
+    {
+      "id": "hinge",
+      "allOf": ["martwy-ciag"],
+      "anyOf": [],
+      "muscles": ["hamstrings", "glutes", "back"]
+    },
+    {
+      "id": "core",
+      "allOf": ["deska"],
+      "anyOf": [],
+      "muscles": ["core"]
+    }
+  ]
+}

@@ -69,6 +69,21 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Obserwacja D22 pozostaje do benchmarku P8: compound 3 serie wcześniej wyczerpuje maksima tygodniowe; krótszy
   legalny dzień albo praktyka/mobilność po wyczerpaniu limitów są dopuszczalne. Nie podnoszono limitów dla testów.
 
+### 2c. P4b.1 — nazwy i aliasy (2026-10-09)
+
+- `resolveExerciseRef` przyjmuje jawny słownik jako trzeci argument, a fabryka `createExerciseResolver`
+  przygotowuje indeks do wielu zapytań. Spec. 13 §11 pokazuje dwa argumenty; dodatkowe wejście zachowuje
+  granicę czystej domeny (bez importu JSON) i pozwala odtwarzać wersję słownika.
+- Przed przybliżonym Jaccardem rozpoznawane są równoważne zbiory tokenów ze słownika. Dzięki temu odmiana
+  „wyciskania siedząco” odpowiada aliasowi „wyciskanie siedząc” mimo dłuższej oficjalnej nazwy wariantu.
+  Kierunek, pozycja, strona i sprzęt są zachowywane przy dopasowaniu; „zza głowy” nie jest synonimem „nad głowę”.
+  To doprecyzowanie T70, a nie dodanie nowego ćwiczenia ani obejście kwalifikacji.
+- Not_found zwraca do trzech kandydatów o **dodatnim** podobieństwie; dla pustego i całkiem obcego zapytania
+  lista jest pusta. Wskazówka `movement` jest jawna i może być null. Archived nie jest rozpoznawane jako active.
+- Katalog v6: 109 aliasów dla 63 ćwiczeń. Wersja podniesiona, żeby seed dostarczył pola do istniejącej bazy;
+  poza wersją zmieniono tylko aliasy. Historia nie jest resetowana. Katalog może być dalej rozszerzany o
+  sprawdzone potoczne nazwy; equivalenceGroup i secondaryWeights zachowują dotychczasowe wartości domyślne.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon
@@ -86,7 +101,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | Q-2 ✔ 2026-10-09 (start dany) | Termin P2 (archiwizacja i reset danych treningowych na telefonie): P2 kasuje historię treningów z aplikacji po zrobieniu pliku archiwum. Plan zakłada zgodę (D21), ale uruchomienie to osobna decyzja | przed P2 |
 | Q-3 ✔ 2026-10-09 | Potwierdzone przez użytkownika; regulowane w Ustawieniach (§2: przełącznik „Uwzględniaj ograniczenia kolana” i „Ostrożny zakres powtórzeń”, pole `KneeProfile.cautiousReps`; sufit stosuje się tylko, gdy profil kolana istnieje i przełącznik nie jest wyłączony — `repCapOf(ćwiczenie, profil)`). Pierwotne pytanie: Fizjoterapeuta: sufit powtórzeń 20 dla ćwiczeń obciążających kolano (D34) i brak celu RIR 0 powyżej 15 powtórzeń — zasada ostrożności do potwierdzenia. Wartość jest w `PROGRESSION_CONFIG.repCap.kneeLoading` | przed P3 |
 | Q-4 ✔ 2026-10-09 | Zgoda użytkownika na kolejność krawędzi; krawędzie zmieniające jednostkę: patrz §2. Pierwotne pytanie: przejrzeć 36 krawędzi wariantów w `data/exercises.json` (pole `progressions`; kolejność trudności to moja ocena: np. `pelvic-curl → glute-bridge → glute-bridge-march`, `push-up → deadstop-push-up → archer-push-up`, `crunch → pilates-roll-up → teaser → v-up`). Błędna kolejność oznacza złą propozycję „trudniejszy/łatwiejszy wariant” w P3 | przed P3 |
-| Q-5 | Aliasy nazw (do rozpoznawania „wyciskanie siedząc”, „pompki”) są polem w katalogu, ale **bez danych**; wypełnię je razem z `resolveExerciseRef` w P4b, gdzie da się je sprawdzić na prawdziwych zdaniach. `equivalenceGroup` i `secondaryWeights` też puste (zachowanie domyślne: heurystyka `nearEquivalent`, waga 0,5) | P4b |
+| Q-5 ✔ 2026-10-09 (nazwy) | P4b.1: resolver T70 i 109 sprawdzonych aliasów dla 63 ćwiczeń w katalogu v6. Wszystkie oficjalne nazwy są rozpoznawane, „wyciskanie siedząc” i „pompki” działają. `equivalenceGroup` i `secondaryWeights` zachowują domyślne zachowanie (heurystyka `nearEquivalent`, waga 0,5); nie są wymagane do rozpoznawania nazw | P4b |
 | Q-6 ✔ 2026-10-09 | Rozstrzygnięte przez agenta na prośbę użytkownika („wybierz poprawnie”): zostaje wydłużenie zakresu przed dodatkową serią, bo D29 (v1.2, najnowsza decyzja, potwierdzona w E9 i 14 §3) wskazuje wydłużony zakres jako sposób oczyszczenia, a dodatkową serię tylko tam, gdzie zakres stoi na suficie. Pierwotne pytanie: P3: oś pośrednia po nieudanym szczeblu — najpierw wydłużenie zakresu o krok na ekspozycję (do góry + 5 powt. albo + 15 s), potem dodatkowa seria (UWAGI §2a). Czy tak ma być? Alternatywa ze spec. v1.1: najpierw dodatkowa seria (wtedy trzeba zmienić kryterium oczyszczenia na „kompletna `top_met` z dodatkową serią”) | przed P5 |
 | Q-7 ✔ 2026-10-09 | Użytkownik: „ok”. Pierwotne pytanie: P3: tydzień deloadu nie jest oceniany, decyzja po nim bierze ostatnią ekspozycję sprzed deloadu; kompletna ekspozycja z porzuconej sesji jest dowodem. Czy to zgodne z oczekiwaniem? | przed P5 |
 

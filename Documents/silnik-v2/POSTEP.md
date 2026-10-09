@@ -30,7 +30,7 @@ opisany inny dowód) i commit.
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
-| P4b | Konsultacja zmian w sesji (domena) | ☐ | | P3, P4 |
+| P4b | Konsultacja zmian w sesji (domena) | ◐ resolver nazw i aliasy gotowe; ocena zmian i zapis przed nami | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
@@ -129,7 +129,32 @@ Dokumentacja: DOKUMENTACJA §4.14–4.15 i UWAGI §2b.
 
 Obserwacja D22 nadal czeka na benchmark P8: przy 3 seriach compound maksima pośladków i pleców (8) wyczerpują się
 w 4–5 dniu; później możliwa jest głównie praktyka/mobilność albo krótszy legalny dzień. Nie zmieniono limitów.
-Następny etap: **P4b — konsultacja zmian w sesji**, zaczynając od resolvera nazw/aliasów (P4b.1, Q-5).
+Kontynuacja: **P4b — konsultacja zmian w sesji** (stan i następny krok poniżej).
+
+## P4b — konsultacja zmian w sesji (w toku, niescalona)
+
+| Zadanie | Zakres | Dowód | Status |
+|---|---|---|---|
+| P4b.1 | `catalog/resolve.ts`: resolver ID/nazw/aliasów, polskie odmiany, literówka jednego znaku w długim słowie, ambiguous/not_found z najbliższymi i wzorcem ruchu; `data/movement-terms.json` v1, katalog v6 ze 109 aliasami dla 63 ćwiczeń | T70: `resolveExerciseRef.test.ts`, `movementLexicon.test.ts`; resolver 100% statements/branches/functions/lines; wszystkie 151 nazw i 109 aliasów sprawdzone na prawdziwym katalogu; `validate:data` | ☑ |
+| P4b.2 | `assessSessionChange`: hipotetyczny plan, wspólny audyt resume, efekty dnia/tygodnia/czasu/jutra | T61–T66 | ☐ |
+| P4b.3 | `rankAlternatives`: werdykt → biomechanika → preferencja; każda alternatywa oceniona | T67, T75 | ☐ |
+| P4b.4 | `applySessionChange`: ponowna ocena i zapis w transakcji, idempotencja, rewizje, ACK_REQUIRED/STALE_INPUT | T68, T69 | ☐ |
+| P4b.5 | `feel` → ocenione opcje, USER_REDUCED, FeelReport | T71, T72 | ☐ |
+| P4b.6 | Deterministyczne polskie teksty `assessmentText` | T72, snapshoty kodów | ☐ |
+
+Resolver jest czystą domeną; nie podłączono go jeszcze do UI, głosu ani AI. Rozpoznanie ćwiczenia nie zastępuje
+kwalifikacji i audytu sesji. Kierunek „zza głowy” pozostaje odrębny od „nad głowę”; pozycja/sprzęt/strona podane
+w zapytaniu nie są gubione dla uzyskania lepszego score. Puste i całkiem nieznane zapytanie nie dostaje losowych
+„najbliższych” nazw. Zmiana katalogu poza wersją obejmuje tylko aliasy; dawny golden baseline bez zmian.
+Szczegóły: DOKUMENTACJA §4.16, UWAGI §2c.
+
+**Odbiór P4b.1 2026-10-09:** pełne `npm run verify` zielone: **171 zestawów, 3677 testów, 4 snapshoty**,
+bez pominiętych. Domena i warstwy AI mają 100% statements/branches/functions/lines. Golden baseline
+dotychczasowego silnika identyczny. Znane 18 ostrzeżeń katalogu `NO_EASIER_VARIANT` bez zmian.
+
+Następny krok P4b.2: budowa rewizji niewykonanej części z zachowaniem ID i recept już wykonanych serii,
+a następnie `assessSessionChange` na wspólnym audycie `resume_session`. Nie używać `planWithRepair` do cichego
+zmieniania jawnej prośby; advice ma wracać z liczbami i patchem do potwierdzenia (D18/D19).
 
 ## P5–P9
 
@@ -140,6 +165,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P4b.1 gotowe, P4b w toku**: resolver nazw/aliasów T70, wersjonowany słownik, katalog v6 (109 aliasów dla 63 ćwiczeń), walidacja spójności. `npm run verify`: 3677 testów, 171 zestawów; domena/AI 100%, golden baseline identyczny. Następne: rewizja niewykonanej części i `assessSessionChange` | |
 | 2026-10-09 | **P4 domena odebrana**: dwa testy odblokowane, pełne pokrycie, ślad score, metadane planu po naprawie, poprawny kontekst deloadu w symulacji. `npm run verify`: 3641 testów, 169 zestawów; domena i AI 100%. Konsumenci aplikacji nadal P5/P6 | `77f739c`, `544d66a`, `87858ec` |
 | 2026-10-09 | **P4 w toku** (niescalone): kompilator, audyt, naprawa, `planDayV2`, blok v2, symulacja v2, sygnały v2. Domena: 1771 testów zielone; pokrycie 100% nie domknięte dla dayV2/simulateV2. Q-6/Q-7 zamknięte. P3 scalony do main | |
 | 2026-10-09 | **P3 zamknięty** (reszta: rotacja z ciągłością, deload reaktywny, dźwignia objętości i wagi mięśni). Q-6 rozstrzygnięte (wydłużenie zakresu przed dodatkową serią, zgodnie z D29), Q-7 potwierdzone. `npm run verify`: 3446 testów, pokrycie domeny 100% | |

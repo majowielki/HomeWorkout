@@ -9,7 +9,7 @@
  * info line is a fact worth knowing (an exercise at its ceiling).
  */
 
-import { fold } from '../coach/text';
+import { normalizeExerciseName } from './resolve';
 import { unitOf } from '../progression/prescribe';
 import type { Slot } from '../plan/types';
 import type { Exercise } from '../types';
@@ -112,12 +112,12 @@ export function catalogueProblems(
   // -------------------------------------------------------------- aliases
   const owner = new Map<string, string>();
   for (const e of exercises) {
-    owner.set(fold(e.name), e.id);
-    owner.set(fold(e.id), e.id);
+    owner.set(normalizeExerciseName(e.name), e.id);
+    owner.set(normalizeExerciseName(e.id), e.id);
   }
   for (const e of exercises) {
     for (const alias of e.aliases ?? []) {
-      const key = fold(alias.trim());
+      const key = normalizeExerciseName(alias);
       if (key === '') {
         errors.push(`${e.id}: an empty alias`);
         continue;
