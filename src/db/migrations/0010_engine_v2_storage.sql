@@ -82,7 +82,7 @@ CREATE TABLE `set_dispositions` (
 	FOREIGN KEY (`workout_id`) REFERENCES `workouts`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `set_dispositions_command_uq` ON `set_dispositions` (`command_id`);--> statement-breakpoint
+CREATE INDEX `set_dispositions_command_idx` ON `set_dispositions` (`command_id`);--> statement-breakpoint
 CREATE TABLE `set_log_revisions` (
 	`set_log_id` text NOT NULL,
 	`revision` integer NOT NULL,

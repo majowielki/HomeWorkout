@@ -213,7 +213,8 @@ export const setDispositions = sqliteTable(
   },
   (t) => [
     primaryKey({ columns: [t.workoutId, t.plannedSetId] }),
-    uniqueIndex('set_dispositions_command_uq').on(t.commandId),
+    // One command may skip several sets, so the command is not unique here; the ledger is what stops a repeat.
+    index('set_dispositions_command_idx').on(t.commandId),
   ],
 );
 

@@ -47,7 +47,6 @@ const blockState = {
   selections: {},
 };
 
-
 /** A completed main session on 2026-10-01 with one working and one warm-up set. */
 function completedSession(exerciseId, workoutId = 'inside') {
   current.db

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fd87597a-d00c-4df6-b10b-9acaa6edfee6",
+  "id": "5a605648-a936-40f5-b0c6-0d3949c85275",
   "prevId": "755a8f6c-1fb1-41f6-b2e1-9c9663747659",
   "tables": {
     "ai_exchanges": {
@@ -1271,12 +1271,12 @@
         }
       },
       "indexes": {
-        "set_dispositions_command_uq": {
-          "name": "set_dispositions_command_uq",
+        "set_dispositions_command_idx": {
+          "name": "set_dispositions_command_idx",
           "columns": [
             "command_id"
           ],
-          "isUnique": true
+          "isUnique": false
         }
       },
       "foreignKeys": {

@@ -32,7 +32,12 @@ export type CommandResult<T> =
   | { kind: 'committed'; result: T; sessionRevision: number }
   | { kind: 'already_committed'; result: T; sessionRevision: number }
   | { kind: 'conflict'; code: ConflictCode; actualRevision: number | null; detail?: string }
-  | { kind: 'rejected'; code: RejectionCode; detail: string };
+  | { kind: 'rejected'; code: RejectionCode; detail: string }
+  /**
+   * The store failed and nothing was written. The client cannot tell whether the answer was lost or the write
+   * was; sending the same command again is safe either way.
+   */
+  | { kind: 'storage_error'; retryable: boolean; commandId: string; detail: string };
 
 export const isDone = <T>(r: CommandResult<T>): r is Extract<CommandResult<T>, { result: T }> =>
   r.kind === 'committed' || r.kind === 'already_committed';
