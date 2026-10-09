@@ -323,3 +323,4 @@ Worker wdrożony. Pozostaje samodzielny odbiór telefonu; etap nadal niescalony.
 Szczegóły i checklista: [ODBIOR-P6](ODBIOR-P6.md).
 
 **P6 — poprawki po przeglądzie 2026-10-09 (gałąź `fix/review-2026-10-09`, niescalona).** Naprawione: SES-01/02/03, ENG-01…08 (profil objętości podłączony do silnika), DAT-01…06, Q-04, martwy kod i opisy; szczegóły i to, co zostało decyzją, w UWAGI §2p. Kontrakt AI **8** (`confirmRecovery`): Worker trzeba wdrożyć razem z APK. Silnik: `policy-2.1`.
+**P6 — po decyzjach użytkownika 2026-10-09.** Podłączone do aplikacji: kalibracja nowego ćwiczenia w sesji, „za ciężko / za łatwo” na karcie ćwiczenia zrobionego i karty dźwigni objętości na ekranie planu; próba zaliczona + robocze serie na jej ciężarze = awans osoby. Backup bez dodatkowej kontroli semantycznej (decyzja). `verify`: 172 zestawy / 3849 testów, domena i AI 100%. Szczegóły: UWAGI §2p.
