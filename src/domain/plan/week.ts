@@ -501,7 +501,7 @@ export function recordsBefore(
   for (const day of week.days) {
     if (day.date >= date) break;
     if (day.forecast !== null) {
-      out.push(...recordsOf(day.forecast, athlete, day.output?.phase === 'deload'));
+      out.push(...recordsOf(day.forecast, athlete, day.output!.phase === 'deload'));
     }
   }
   return out;

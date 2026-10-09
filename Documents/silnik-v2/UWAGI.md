@@ -257,7 +257,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Spec. 11 §8 mówi o odpowiedzi „z liczbami z `checks.data`” i receptach z kilogramami, a obecny prompt zakazuje cytowania obciążeń planu. Rozstrzygnięcie: recepta z
   `assessSessionChange` jest policzona przez silnik dla dokładnie tej zmiany i wolno ją cytować; reszta narzędzi planu nadal nie niesie obciążeń.
 - Pole `position` żądania zmiany nazwałem `placement`, bo test architektury (ADR 0001) zabrania w wejściu modelu pól o nazwach kojarzących się z obciążeniem (`position`, `target`, `rep…`).
-- Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie i podpięcie `createPhoneSessionTools` do `useCoachChat` czekają na etap UI (decyzja: UI bez zmian).
+- Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie jest w P6 (narzędzia sesji wiąże `createProposalController`; dawne `createPhoneSessionTools` usunięto).
 - Przypadki ewaluacji dla narzędzi sesji (`evals/cases/chat`) wymagają syntetycznej sesji v2 w środowisku ewaluacji i nagrania na żywym modelu — do zrobienia przy testach na działającej aplikacji.
 
 ### 2m. P5.6b — symulacja i adnotacje (2026-10-09)
@@ -282,9 +282,34 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 
 - Ekrany, które czytają `workouts.plan` (JSON pierwszego silnika) — podgląd planu sesji, wznowienie, historia „plan vs wykonane” — dla sesji v2 mają `plan = null` i `plan_v2`; trzeba je przestawić na `plan_v2` przy pracy nad UI.
   Liczby i serie historii są w kolumnach starego formatu (`legacyColumns`), więc listy, wykresy i kontekst trenera działają bez zmian.
-- Wywołania do wpięcia w P6: `syncWeek` na wejściu do ekranów i po zamknięciu sesji; `previewDay`/`acceptDay` zamiast `computeToday`/`startPlannedWorkout`; `createPhoneSessionTools`, `createPhonePlanTools`, kontroler
+- Wywołania do wpięcia w P6: `syncWeek` na wejściu do ekranów i po zamknięciu sesji; `previewDay`/`acceptDay` zamiast `computeToday`/`startPlannedWorkout`; `createPhonePlanTools`, kontroler
   `createProposalControllerV2` i `createSimulationHook(loadSimulationBase)` w środowisku narzędzi czatu (`useCoachChat`); `matchSessionIntent` obok `matchCommand`; `buildObservation` w loggerze; `answerPrescription` pod pytaniem o awans.
 - Kontrakt 7 jest w repozytorium, wdrożony Worker ma 6: APK zbudowany z `main` po scaleniu P5 wymaga wdrożenia Workera (i odwrotnie). Czat nie zadziała z niezgodnym Workerem (czytelny błąd „zaktualizuj aplikację”).
+
+### 2p. Poprawki po przeglądzie 2026-10-09 (gałąź `fix/review-2026-10-09`)
+
+Raport: `D:ProjektyHomeWorkouteview-2026-10-09` (7 MAJOR, 14 MINOR, 4 pytania). Co zmieniono i co zostało decyzją:
+
+- **SES-01.** Seria próbna ma etykietę „Seria próbna” i krótką podpowiedź w loggerze. Ciężar poprzedniej serii przechodzi na następną tylko, gdy plan prosił o ten sam opór (`suggestedValues(…, previousPlanned)`): po próbie 6 kg robocze serie podpowiadają planowane 4 kg. **Nie zrobione (opcjonalny punkt 3 raportu):** robocze serie świadomie wykonane na ciężarze próby nadal są `PRESCRIPTION_DEVIATION`, nie awansem — do rozważenia po teście na telefonie.
+- **ENG-01.** `planDayIn` i `planWeek` biorą żądanie dnia z jednego miejsca (`composedRequest`): dzień ułożony z trenerem startuje jako `compose` z tymi samymi ruchami, nie regułami dnia automatycznego. Podsumowanie „Dziś” czyta `composed` z intencji planu.
+- **ENG-02 / ENG-05.** Zachowany dzień (`kept`) idzie za deloadem i „lżejszym dniem”: te same ćwiczenia, mniej serii, nadal `held`. Liczba serii w `KeptItem` obejmuje serię próbną. Nowy powód zmiany tygodnia `block` (baner: zmienił się blok/deload).
+- **ENG-03 (D18).** Regeneracja jest radą także dla próśb jawnych (`only`): ruch odradzany jest pomijany z powodem `RECOVERING`, chyba że `acknowledged` zawiera `RECOVERING`. Ból (`PAIN_TODAY`, hard) nie jest chowany za regeneracją i nie da się go potwierdzić. Dodatkowy trening: ruchy odradzane są wybieralne z ostrzeżeniem (wybór = potwierdzenie). Czat: `proposeDayPlan` przyjmuje `confirmRecovery` na ruchu (kontrakt **8**, wymaga wdrożenia Workera razem z APK), zapisywane w `ComposedItem`. `getDayOptions` planuje dzień po poprzednich dniach tygodnia (`recordsBefore`), więc raportuje `RECOVERING` zgodnie z tygodniem.
+- **ENG-04 (decyzja użytkownika: podłączyć).** `volumeProfile` i `volumeOverrides` czyta `resolveDayPolicy` (`volumeTargets`): `higher` = 4/6/10, własne maksimum mięśnia wygrywa z profilem. Użyte przez planer dnia, ocenę zmian sesji, symulację i licznik objętości na ekranie planu. Wersja polityk `policy-2.1`. Ustawienie profilu w UI nadal nie istnieje (tylko model i symulacja trenera). Dźwignia objętości (`volume/lever.ts`) nadal bez konsumenta — Q-01.
+- **SES-02.** Odpowiedź głosu/AI jest wykonywana tylko, gdy ekran nadal jest na tej samej serii i rewizji planu (`transcriptStillApplies`, `VoiceTarget`). „Cofnij” po zapisie głosem cofa dokładnie tę serię albo mówi, że nie jest już ostatnia.
+- **SES-03.** Nieudane zakończenie treningu pokazuje błąd; skok do pominiętego ćwiczenia, którego nie da się otworzyć, zostaje na miejscu.
+- **DAT-01.** Backup odrzuca sesję v2 bez planu i plan innej sesji niż wiersz. Start aplikacji nie rzuca ze sweepu: sesji nie do zamknięcia poleceniem oznacza `abandoned`; błąd zapisu zostawia sesję i próbuje przy kolejnym starcie.
+- **DAT-02.** Walidacja backupu zna wszystkie relacje wewnątrz pliku. Problemy normalizacji niosą `sessionId`; konsultacja sesji bierze pod uwagę tylko problemy bieżącej sesji. **Nie zrobione:** semantyczna kontrola obserwacji (`plannedSetId` należy do planu) przy imporcie — zbyt łatwo odrzuciłaby prawdziwy plik; skutki zagradza filtr problemów.
+- **DAT-03.** `replay` sprawdza rodzaj polecenia i sesję (`INVALID_COMMAND`).
+- **DAT-04.** Restore podnosi rewizje wszystkich domen i buduje na nowo `exposure_outcomes`.
+- **DAT-05.** Księga poleceń jest przycinana (90 dni) po sweepie startowym.
+- **DAT-06.** Cofnięcie i poprawka serii z gumą korygują licznik zużycia gumy.
+- **ENG-06.** W superserii seria próbna idzie pierwsza, osobno, a rundy liczą się bez niej.
+- **ENG-07.** Pominięcie z powodem `pain` ustawia `skippedForPain` na rekordzie serii: liczy się do bólu dnia i do reguły bólu progresji.
+- **ENG-08.** `logSet` odrzuca serię spoza planu, która nie należy do ćwiczenia planu (nie ma już "niczyjej" pracy).
+- **Q-04.** Sesja rozpoczęta wczoraj i wciąż w toku nie jest „opuszczonym dniem”; tydzień jest liczony od jutra.
+- **DEAD-01 / DEAD-02 / DOC-01 / DOC-02.** Usunięto kod bez konsumenta (`createPhoneSessionTools`, `addBandCycles`, `readRevisions`, `getTrainingWeek`, `SLOT_NAMES`); poprawiono mapę modułów i opis bloku w słowniku. **Zostaje do decyzji/po odbiorze:** API używane tylko przez testy (`rankSubstitutes`, `unacknowledged`, `canPlanAutomatically`, `STEP_DOWN_CODES`, `MAX_CALIBRATION_MASS_KG`, `previewWeek`, `saveBlockAdvance`, `loadWindow` i pokrewne), podział `applySessionChange`/`reportSessionFeel`, tabela `exposure_outcomes` bez czytelnika, nieaktualne ścieżki w dokumentach historycznych (`IMPLEMENTACJA.md`, `PLAN-TYGODNIA-I-POPRAWKI.md`, `AI-INTEGRACJA.md`).
+- **Q-01 (bez decyzji).** Kalibracja w sesji, raport „za ciężko/za łatwo” i dźwignia objętości mają domenę i testy, ale nie mają konsumenta w aplikacji; w POSTEP są oznaczone ☑ jako „domena gotowa”.
+- **Q-02, Q-03.** Bez zmian (zapis `read_back` bez odczytu na głos; odczyt całej historii przy „Dziś”): pomiar T-2 na telefonie.
 
 ## 3. Do sprawdzenia
 
@@ -293,7 +318,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | # | Co sprawdzić | Etap | Status |
 |---|---|---|---|
 | T-1 | `Intl.DateTimeFormat` z opcją `timeZone` w Hermesie na Pixelu (13 §1 każe sprawdzić w P0). Obecna implementacja `trainingDate` używa tylko getterów lokalnej daty, więc **nie zależy** od tego; sprawdzenie dotyczy `trainingDateOf` ze strefą, gdy zacznie być używana w aplikacji | P0 | ☐ |
-| T-2 | Czas planowania tygodnia i dnia na telefonie (p50/p95) dla historii: mała (4 tygodnie), roczna, trzyletnia — tak jak mierzy go `scripts/engine-bench.ts` w node. Procedura po zbudowaniu APK z profilem czasu | P0 | ☐ |
+| T-2 | Czas planowania tygodnia i dnia na telefonie (p50/p95) dla historii: mała (4 tygodnie), roczna, trzyletnia — mierzone na bieżącym API (`readToday`, `syncWeek`, `describeDayOptions`). Skrypt `scripts/engine-bench.ts` usunięto w P6 razem ze starym silnikiem; nowy pomiar do napisania przy odbiorze telefonu | P0 | ☐ |
 
 ### 3.2 Decyzje i pytania do użytkownika
 

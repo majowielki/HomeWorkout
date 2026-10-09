@@ -66,7 +66,7 @@ P6 nie jest oznaczony jako zamknięty przed potwierdzeniem tego odbioru.
 | Sprzęt i opór | `resistance/*`, `equipment/*`, `inventory.ts`, obliczenia drabinek i kalibracji |
 | Sesja | `session/{progress,setEntry,evaluate,effects,revision,assessmentText}.ts` |
 | Odczyt i zapis | `db/repositories/{planning,weekPlan,sessions,history,planningInputs,constraints,sessionChanges}.ts` |
-| Sterowanie czatem | `app-services/coach/proposals.ts`, `ai/tools/{planPreview,sessionTools,simulationTools}.ts` |
+| Sterowanie czatem | `app-services/coach/proposals.ts`, `ai/tools/{planPreview,sessionEnvironment,simulationEnvironment}.ts` (kontrakty w `ai/contract/`) |
 
 Nazwy API nie mają przyrostka `V2`. Numery wersji planu, promptu, backupu i migracji są
 zachowane, ponieważ identyfikują faktycznie zapisane lub wysłane kontrakty.
@@ -130,7 +130,7 @@ przy sprzątaniu P6.
 - `ladderModel.ts`: `createLadderModel` — wspólna budowa modelu dla sprzętu o stałych krokach; kierunek trudności daje funkcja `effort` (dla wspomagania odwrotna do liczby na tarczy).
 - `models.ts`: `dumbbell.paired`, `dumbbell.single`, `band.long`, `bodyweight` zbudowane **na** drabinkach v1 (`dumbbellLadder`, `bandLoadLadder`), więc nie mogą się z nimi rozjechać; test przechodzi po wszystkich szczeblach obu.
 - `registry.ts`: statyczny rejestr (`createResistanceRegistry`, `defineModel`); nieznany identyfikator = `unknown_model`, a nie zastępczy model. Nowy sprzęt = jeden wpis, bez zmian w doborze dnia (test: sztanga dodana tylko przez rejestr).
-- `legacy.ts`: `specFromLoad` / `loadFromSpec`; sprzęt, którego v1 nie wyrazi (sztanga, stos, wspomaganie, kamizelka, inna geometria gumy), daje `null`, nigdy „0 kg”.
+- `persistedLoad.ts`: `specFromLoad` / `loadFromSpec`; sprzęt, którego v1 nie wyrazi (sztanga, stos, wspomaganie, kamizelka, inna geometria gumy), daje `null`, nigdy „0 kg”.
 - `compare.ts`: `resistanceComparisonKey` i `compareSpecs` — inna maszyna, przełożenie wyciągu (`configurationKey`), geometria gumy albo konwencja hantli dają `incomparable` mimo tej samej liczby (T49).
 - `relativeStep(from, to)`: ułamek, o jaki `to` jest cięższe (hantle: stosunek mas; guma: stosunek szczytowych sił, **null** bez kalibracji; masa ciała, wspomaganie, stos: null). Podstawa próby szczebla (P3).
 
@@ -138,7 +138,7 @@ Wspólny zestaw testów kontraktu (`__tests__/resistanceContract.ts`) działa na
 
 ### 4.7 Plan i wynik v2 (P1.1–P1.3)
 
-`src/domain/plan/sessionPlan.ts`, `ids.ts`, `src/domain/observations/`
+`src/domain/plan/plan.ts`, `ids.ts`, `src/domain/observations/`
 
 - Identyfikatory: `s1/r1/e1` (ekspozycja), `s1/r1/e1/2` (seria logiczna), `s1/r1/e1/2L` (jedna strona). Rewizja w identyfikatorze to rewizja, w której element **powstał**; późniejsza rewizja może dodać serię do ekspozycji (identyfikator serii nowszy niż ekspozycji, nigdy starszy).
 - `sessionPlanSchema` sprawdza spójność wewnętrzną: unikalne identyfikatory, serie należą do sesji i ekspozycji, żadna z przyszłej rewizji, strona w id = strona serii, role (tylko seria `work` bywa `requiredForProgression`: rozgrzewka, `backoff`, praktyka, mobilność i próba nie zastępują serii roboczej), **każda zaplanowana seria jest wykonywana dokładnie raz** w krokach, czas: części sumują się do `exerciseTotal`, a `overall` = ćwiczenia + rower (niezmiennik 12). Czy plan jest *dozwolony* (sprzęt, limity, profil), rozstrzyga audyt (P4), nie schemat.
@@ -606,7 +606,7 @@ zakres powtórzeń/czasu, pogrupowane), do 3 alternatyw z własnym `assessmentId
 zmianę stojącą za każdym `assessmentId` (także alternatyw i opcji feel). `proposeSessionChange` ocenia zmianę **jeszcze raz** na aktualnej sesji: inny `assessmentId` to
 `stale_assessment`, brak patcha albo inny `patchId` — `invalid_input`. Karta (`SessionProposal`) niesie zmianę, `patchId`, oczekiwane rewizje i listę rad do zaakceptowania; jej
 zatwierdzenie to istniejące `applySessionChange` z kanałem `ai_proposal` (ponowna ocena w transakcji, ACK_REQUIRED). Model niczego nie zapisuje (T72, T60).
-`app-services/queries/sessionTools.ts` wiąże to z bazą (`loadActiveSessionSource`); `session/overview.ts` wyodrębnia z oceny budżet czasu i sumę serii dnia.
+`app-services/coach/proposals.ts` wiąże to z bazą (`loadActiveSessionSource`; przy czytaniu pomija problemy innych sesji niż bieżąca); `session/overview.ts` wyodrębnia z oceny budżet czasu i sumę serii dnia.
 
 **Prompt** `chat/v7` (v6 pozostaje nietknięte): blok `<session_rules>` (kiedy konsultować, werdykty, odpowiedź do 80 słów z liczbami z kontroli, nieznane ćwiczenie = silnik go nie
 ocenia, karta dopiero po „tak”, nic nie jest zrobione przez model), `<session_guide>` (znaczenie kodów kontroli i opcji) i `<decision_codes>` (zdanie `decisionText` dla każdego z 42 kodów).
@@ -646,10 +646,9 @@ Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zap
 
 - Jest (`jest-expo`), pliki `src/**/__tests__/*.test.ts`. Pokrycie `src/domain/**` i `src/ai/**` = 100% (próg w `jest.config.js`).
 - Testy są nazwane numerami z korpusu: `describe('T01 …')`, żeby da się było odnaleźć przypadek odbioru ze specyfikacji (08 §3).
-- Fixtury domeny: `src/domain/__tests__/fixtures.ts`, `extraFixtures.ts`. Nie importować `Date.now()` w kodzie domeny; testy podają daty jawnie.
+- Fixtury domeny: `src/domain/__tests__/fixtures.ts`. Nie importować `Date.now()` w kodzie domeny; testy podają daty jawnie.
 - `npm run verify` = lint + format:check + routes:types + typecheck + validate:data + test:coverage. Przed zamknięciem etapu zielony.
-- Golden baseline silnika: `src/domain/__tests__/engineBaseline.test.ts` (§4.4). Zmiana wyniku wymaga świadomej regeneracji
-  skrótu i wpisu w UWAGI.
+- Golden baseline sprzed przebudowy został usunięty razem ze starym silnikiem (P6); zmianę wyniku silnika opisuje się w UWAGI.
 
 ### P6 — odbiór testów biegnącej sesji (2026-10-09)
 

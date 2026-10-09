@@ -4,6 +4,7 @@ import { planDay, selectionOf } from '../plan/day';
 import {
   completedAsPlanned,
   planWeek,
+  recordsBefore,
   sameSelection,
   summaryOf,
   syncWeek,
@@ -428,6 +429,25 @@ describe('P5.1: bringing the stored week up to date', () => {
     const running = syncWeek(sync({ stored: first.rows, running: live }));
     expect(running.from).toBe('2026-10-06');
     expect(running.statusUpdates).toEqual([]);
+  });
+
+  it('a deload that begins inside the stored week gives its days fewer sets and says the block changed (ENG-02)', () => {
+    const first = syncWeek(sync());
+    const deload = syncWeek(sync({ stored: first.rows, deloadRequests: new Set(['2026-10-07']) }));
+    expect(deload.trigger).toBe('block');
+    const setsOn = (r: typeof first, date: string) =>
+      r.rows.find((d) => d.date === date)!.selection!.reduce((sum, k) => sum + k.sets, 0);
+    expect(setsOn(deload, '2026-10-07')).toBeLessThan(setsOn(first, '2026-10-07'));
+    expect(setsOn(deload, '2026-10-06')).toBe(setsOn(first, '2026-10-06'));
+  });
+
+  it('what a day is planned after: the history and the training days before it, done as planned', () => {
+    const plan = planWeek(week({ days: 4, week: { restWeekdays: [1] } }));
+    expect(plan.days[1]!.rest).toBe(true);
+    const after = recordsBefore(plan, '2026-10-08', []);
+    const dates = new Set(after.map((r) => r.trainingDate));
+    expect(dates).toEqual(new Set(['2026-10-05', '2026-10-07']));
+    expect(recordsBefore(plan, FROM, [])).toEqual([]);
   });
 
   it('a session begun yesterday and still under way is not a missed day (Q-04)', () => {

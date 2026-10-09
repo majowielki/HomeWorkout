@@ -321,3 +321,5 @@ i eksport literałów schematu funkcji Google (`enum`, walidacja Zod bez zmian).
 Verify **166 / 3774 / 5, domena i AI 100%**; Worker **5 / 146**. APK arm64 gotowy,
 Worker wdrożony. Pozostaje samodzielny odbiór telefonu; etap nadal niescalony.
 Szczegóły i checklista: [ODBIOR-P6](ODBIOR-P6.md).
+
+**P6 — poprawki po przeglądzie 2026-10-09 (gałąź `fix/review-2026-10-09`, niescalona).** Naprawione: SES-01/02/03, ENG-01…08 (profil objętości podłączony do silnika), DAT-01…06, Q-04, martwy kod i opisy; szczegóły i to, co zostało decyzją, w UWAGI §2p. Kontrakt AI **8** (`confirmRecovery`): Worker trzeba wdrożyć razem z APK. Silnik: `policy-2.1`.

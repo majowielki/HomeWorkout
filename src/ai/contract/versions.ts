@@ -14,5 +14,7 @@
  * 7 (engine): the tools that consult the running session (getActiveSession, assessSessionChange,
  *   proposeSessionChange), the tool errors no_active_session and stale_assessment, and the decision
  *   codes of the engine among the reasons of a prescription.
+ * 8 (review 2026-10-09): `confirmRecovery` on a movement of proposeDayPlan, so that a movement the
+ *   engine advises against (RECOVERING) can be composed once the person was told and agreed (D18).
  */
-export const CONTRACT_VERSION = 7;
+export const CONTRACT_VERSION = 8;

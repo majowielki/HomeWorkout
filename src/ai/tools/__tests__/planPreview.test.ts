@@ -410,7 +410,11 @@ describe('P5.6c the plan tools on the week of engine', () => {
 
     it('a rest day takes none of it', () => {
       const ctx = context({ constraints: [rest('2026-10-06')] });
-      const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2, 1), 'd4');
+      const preview = previewDayPlan(
+        { ...ctx, stored: stored(ctx) },
+        intent(compound.id, 2, 1),
+        'd4',
+      );
       expect(preview.summary.days[0]).toMatchObject({
         applied: false,
         conflicts: [{ movement: compound.name, reason: 'REST_DAY' }],
@@ -430,7 +434,11 @@ describe('P5.6c the plan tools on the week of engine', () => {
         items: [{ slotId: compound.id, sets: 1 }],
       };
       const ctx = context({ constraints: [earlier] });
-      const preview = previewDayPlan({ ...ctx, stored: stored(ctx) }, intent(compound.id, 2, 1), 'd5');
+      const preview = previewDayPlan(
+        { ...ctx, stored: stored(ctx) },
+        intent(compound.id, 2, 1),
+        'd5',
+      );
       expect(preview.replaced).toEqual(['c-old']);
     });
   });
