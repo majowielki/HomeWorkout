@@ -239,7 +239,11 @@ dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu k
 | P5.6d | Przypadki ewaluacji dla narzędzi v2 i zgodność klient N/N−1 | wymaga żywego modelu i wdrożenia | ⏸ przy testach na działającej aplikacji |
 | P5.7b | Ekrany: historia (plan wykonany vs zaplanowany), Ustawienia → Preferencje, „Zamienniki”, „Dodaj ćwiczenie”, karta propozycji w czacie, baner zmian tygodnia, pytanie o awans | przepływ na telefonie | ⏸ po zakończeniu silnika (UI bez zmian) |
 
-## P6–P9
+## P6 (w toku, gałąź `refactor/engine-p6-activation`)
+
+Aktywacja nowego silnika w aplikacji i usunięcie starego bez pozostałości. **Stan, lista zadań i pułapki: [PRZEKAZANIE-P6.md](PRZEKAZANIE-P6.md).** Zrobione: biegnąca sesja, historia serii, podsumowanie (commit `f6e673a`); reszta w przekazaniu.
+
+## P7–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą
 rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany.
