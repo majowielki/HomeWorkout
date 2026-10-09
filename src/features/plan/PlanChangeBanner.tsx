@@ -4,10 +4,11 @@ import { Card } from '@/components/ui/card';
 import { RefreshCw, X } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { PlanBanner } from '@/db/repositories/weekPlan';
+import type { SlotRegion } from '@/domain/plan/types';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 
-import { planTitle } from './format';
+import { dayTitle } from './format';
 
 type Props = {
   banner: PlanBanner;
@@ -21,8 +22,8 @@ type Props = {
  */
 export function PlanChangeBanner({ banner, onClose, expanded = false }: Props) {
   const t = pl.plan.banner;
-  const title = (regions: Parameters<typeof planTitle>[0]['regions'] | null) =>
-    regions === null ? t.rest : planTitle({ regions });
+  const title = (regions: readonly SlotRegion[] | null) =>
+    regions === null ? t.rest : dayTitle(regions);
   return (
     <Card className="gap-3 border-primary p-5">
       <View className="flex-row items-start gap-3">

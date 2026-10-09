@@ -6,7 +6,7 @@
 import { assess } from '../progression/assessed';
 import type { NextInput } from '../progression/draft';
 import { DEFAULT_PROGRESSION_POLICY } from '../progression/policy';
-import { PIPELINE_V2, prescribeNext } from '../progression/next';
+import { PIPELINE, prescribeNext } from '../progression/next';
 import { probeVerdict } from '../progression/probe';
 import { normalizeRule, setsRule } from '../progression/rules';
 import { addDays } from '../time/trainingDate';
@@ -155,7 +155,7 @@ describe('a probe in seconds', () => {
 });
 
 describe('a pipeline missing its rules', () => {
-  const without = (...ids: string[]) => PIPELINE_V2.filter((r) => !ids.includes(r.id));
+  const without = (...ids: string[]) => PIPELINE.filter((r) => !ids.includes(r.id));
 
   it('leaves an empty history alone when nothing says where to start', () => {
     const { draft } = prescribeNext(inputOf([]), without('first_exposure'));

@@ -1,161 +1,230 @@
-import { fatigueSignals } from '../autoregulation/fatigue';
-import { TRAINING_CONFIG } from '../config/training';
-import type { Ride } from '../progression/bike';
-import type { HistorySession, HistorySet } from '../progression/history';
-import { addDays } from '../time/trainingDate';
-import type { Exercise, MuscleGroup } from '../types';
-import { weeklyVolume } from '../volume/weekly';
-import { advanceBlock } from './block';
-import { planDay } from './dayPlanner';
-import { type EligibilityContext, slotByExercise } from './eligibility';
-import type { BlockEvent } from './reasons';
-import type { BlockState, DailyReadiness, PlannedExercise, SessionPlan, Slot } from './types';
+/**
+ * The engine run day by day against a synthetic person (engine, 08):
+ * the same idea as `simulate` of historical sessions, on the engine's parts
+ * — the block with its rotation by evidence and its reactive deload, the day
+ * from `planDay`, and the results written as the exposures the progression
+ * reads. Pure. It is how the properties of the plan are tested over weeks, and
+ * how the rules are compared with one another before anyone trains (P7, P8).
+ */
 
-/** How the synthetic person performs a planned exercise. */
+import type { IsoDate } from '../observations/date';
+import type { ExposureRecord } from '../observations/exposure';
+import type { SetObservation } from '../observations/types';
+import { type TrainingPreferences, defaultPreferences } from '../preferences/preferences';
+import type { Ride } from '../progression/bike';
+import { DEFAULT_MODEL_CONTEXT, type ModelContext } from '../resistance/registry';
+import { addDays } from '../time/trainingDate';
+import type { Exercise } from '../types';
+import { fingerprint } from '../fingerprint';
+import { blockContext } from './blockContext';
+import { advanceBlock } from './block';
+import { type DayOutput, planDay } from './day';
+import type { EligibilityContext } from './eligibility';
+import type { PlannedExposure, PlannedSet, SessionPlan } from './plan';
+import type { BlockEvent } from './reasons';
+import type { BlockState, DailyReadiness, Slot } from './types';
+import { planVersions } from './versions';
+
+/** How the synthetic person performs a planned set. */
 export interface Athlete {
-  /** Reps (or seconds) achieved in each set. Default: exactly the target. */
-  amount(planned: PlannedExercise, setNumber: number): number;
-  /** RIR logged for each set. Default: the lower end of the planned range. */
-  rir(planned: PlannedExercise): number;
+  /** Reps (or seconds) done in the set. Default: exactly the target. */
+  amount(set: PlannedSet, exposure: PlannedExposure): number;
+  /** Reps in reserve given for the set. Default: the lower end of the planned range. */
+  rir(set: PlannedSet, exposure: PlannedExposure): number | null;
 }
 
 export const FOLLOWS_THE_PLAN: Athlete = {
-  amount: (planned) => planned.target,
-  rir: (planned) => planned.targetRirMin,
+  amount: (set) => {
+    if (set.target.kind === 'distance')
+      throw new Error('The v2 simulator does not support distance targets');
+    return set.target.kind === 'reps' ? set.target.target : set.target.targetSec;
+  },
+  rir: (set) => set.targetRir?.min ?? 2,
 };
 
 export interface SimulationOptions {
-  start: string;
+  start: IsoDate;
   days: number;
   catalog: Readonly<Record<string, Exercise>>;
   slots: readonly Slot[];
   eligibility: EligibilityContext;
   /** Dates without a session; the block still advances. */
   restDays?: ReadonlySet<string>;
-  /** The morning log for a date; none by default. */
+  /** The morning log of a date; none by default. */
   daily?: (date: string) => DailyReadiness | null;
   athlete?: Athlete;
+  preferences?: TrainingPreferences;
+  models?: ModelContext;
+  /** Dates on which the person asks for a deload. */
+  deloadRequests?: ReadonlySet<string>;
 }
 
 export interface SimulatedDay {
-  date: string;
+  date: IsoDate;
   block: BlockState;
   events: BlockEvent[];
-  /** Null on a rest day. */
+  /** Null on a rest day or when there was nothing to plan. */
   plan: SessionPlan | null;
-  /** Weekly working sets per muscle at the end of the day, the plan done. */
-  volume: Record<MuscleGroup, number>;
-  /** The same, counting only sets where the muscle is primary. */
-  primaryVolume: Record<MuscleGroup, number>;
+  output: DayOutput | null;
+  /** What the person did that day, as the progression reads it. */
+  records: ExposureRecord[];
 }
 
-/**
- * Runs the engine day by day against a synthetic person who does what the
- * plan says. Pure: it is how the properties of SPEC §10.6 are tested, and
- * how `scripts/simulate-plan.ts` prints a calendar before anyone trains.
- */
+const shown = {
+  confirmedAt: null,
+  channel: 'touch' as const,
+};
+
+/** The result of a set as the logger would store it: the person entered the amount and the effort. */
+export function observationOf(
+  set: PlannedSet,
+  exposure: PlannedExposure,
+  sessionId: string,
+  date: IsoDate,
+  amount: number,
+  rir: number | null,
+): SetObservation {
+  if (set.target.kind === 'distance')
+    throw new Error('The v2 simulator does not support distance targets');
+  const edited = {
+    ...shown,
+    origin: 'user_reported' as const,
+    presentedDefault: false,
+    confirmation: 'edited' as const,
+  };
+  const suggestion = {
+    ...shown,
+    origin: 'user_confirmed' as const,
+    presentedDefault: true,
+    confirmation: 'visible' as const,
+  };
+  const at = `${date}T08:00:00.000Z`;
+  return {
+    id: `obs-${set.id}`,
+    commandId: `cmd-${set.id}`,
+    revision: 1,
+    sessionId,
+    exposureId: exposure.id,
+    plannedSetId: set.id,
+    logicalSetId: set.logicalSetId,
+    side: set.side,
+    status: 'performed',
+    amount: {
+      ...edited,
+      value:
+        set.target.kind === 'duration'
+          ? { kind: 'duration', seconds: amount }
+          : { kind: 'reps', reps: amount },
+    },
+    resistance: { ...suggestion, value: set.resistance },
+    rir: { ...edited, value: rir },
+    shortfall: null,
+    performedAt: at,
+    recordedAt: at,
+  };
+}
+
+/** The exposures a plan makes once it has been done: every set performed as the athlete does it. */
+export function recordsOf(plan: SessionPlan, athlete: Athlete, deload = false): ExposureRecord[] {
+  return plan.exposures.map((exposure) => ({
+    exposureId: exposure.id,
+    sessionId: plan.sessionId,
+    trainingDate: plan.trainingDate,
+    exerciseId: exposure.exercise.id,
+    slotId: exposure.slotId,
+    comparisonKey: exposure.comparisonKey,
+    progressionScope: exposure.progressionScope,
+    sets: exposure.sets.map((planned) => ({
+      planned,
+      disposition: 'performed' as const,
+      observation: observationOf(
+        planned,
+        exposure,
+        plan.sessionId,
+        plan.trainingDate,
+        athlete.amount(planned, exposure),
+        athlete.rir(planned, exposure),
+      ),
+    })),
+    extra: [],
+    context: { abandoned: false, userReduced: false, feel: null, deload },
+  }));
+}
+
 export function simulate(opts: SimulationOptions): SimulatedDay[] {
   const athlete = opts.athlete ?? FOLLOWS_THE_PLAN;
-  const slotOf = slotByExercise(opts.slots);
-  const sessions: HistorySession[] = [];
+  const preferences = opts.preferences ?? defaultPreferences();
+  const models = opts.models ?? DEFAULT_MODEL_CONTEXT;
+  const records: ExposureRecord[] = [];
   const rides: Ride[] = [];
+  const blocks: BlockState[] = [];
   const daily: DailyReadiness[] = [];
   const out: SimulatedDay[] = [];
   let block: BlockState | null = null;
 
   for (let i = 0; i < opts.days; i += 1) {
     const date = addDays(opts.start, i);
-    const morning = opts.daily?.(date) ?? null;
-    if (morning) daily.push(morning);
-
-    const signals = fatigueSignals({ asOf: date, sessions, catalog: opts.catalog, slotOf, daily });
-    const advance = advanceBlock(block, {
-      asOf: date,
-      lastSessionDate: sessions[sessions.length - 1]?.date ?? null,
-      signals,
-      slots: opts.slots,
-      catalog: opts.catalog,
-      eligibility: opts.eligibility,
-    });
+    const today = opts.daily?.(date) ?? null;
+    if (today !== null) daily.push(today);
+    const advance = advanceBlock(
+      block,
+      blockContext({
+        asOf: date,
+        block,
+        records,
+        daily,
+        slots: opts.slots,
+        catalog: opts.catalog,
+        eligibility: opts.eligibility,
+        preferences,
+        models,
+        recentBlocks: [...blocks].reverse().map((b) => b.selections),
+        deloadRequested: opts.deloadRequests?.has(date) ?? false,
+      }),
+    );
+    if (advance.closed !== null) blocks.push(advance.closed);
     block = advance.block;
 
-    let plan: SessionPlan | null = null;
-    if (!opts.restDays?.has(date)) {
-      plan = planDay({
-        asOf: date,
-        catalog: opts.catalog,
-        slots: opts.slots,
-        eligibility: opts.eligibility,
-        block,
-        sessions,
-        rides,
-        daily,
-      });
-      sessions.push({ date, sets: perform(plan, athlete, opts.catalog) });
+    if (opts.restDays?.has(date)) {
+      out.push({ date, block, events: advance.events, plan: null, output: null, records: [] });
+      continue;
+    }
+    const fingerprintOf = fingerprint({ date, records: records.length, block: block.index });
+    const output = planDay({
+      asOf: date,
+      catalog: opts.catalog,
+      slots: opts.slots,
+      eligibility: opts.eligibility,
+      block,
+      records,
+      rides,
+      daily,
+      preferences,
+      models,
+      session: {
+        sessionId: `s${date.replaceAll('-', '')}`,
+        planRevision: 1,
+        kind: 'main',
+        versions: planVersions('catalog-1'),
+        snapshotFingerprint: fingerprintOf,
+        inputFingerprint: fingerprintOf,
+      },
+    });
+    const plan =
+      output.result.kind === 'ready' || output.result.kind === 'adjusted'
+        ? output.result.plan
+        : null;
+    const made = plan === null ? [] : recordsOf(plan, athlete, output.phase === 'deload');
+    if (plan !== null) {
+      records.push(...made);
       rides.push({
         date,
-        minutes: plan.bike.minutes,
-        resistance: plan.bike.resistance ?? 3,
-        rpe: 5,
+        minutes: output.bike.minutes,
+        resistance: output.bike.resistance,
+        rpe: null,
       });
     }
-
-    out.push({
-      date,
-      block,
-      events: advance.events,
-      plan,
-      volume: volumeOn(date, sessions, opts.catalog, false),
-      primaryVolume: volumeOn(date, sessions, opts.catalog, true),
-    });
+    out.push({ date, block, events: advance.events, plan, output, records: made });
   }
   return out;
-}
-
-/** The plan done as written; an exercise done one side per set logs each set twice, left and right. */
-export function perform(
-  plan: SessionPlan,
-  athlete: Athlete,
-  catalog: Readonly<Record<string, Exercise>>,
-): HistorySet[] {
-  const sets: HistorySet[] = [];
-  for (const p of plan.exercises) {
-    const base = { exerciseId: p.exerciseId, load: p.load };
-    const amount = (n: number) =>
-      p.unit === 'sec'
-        ? { reps: null, timeSec: athlete.amount(p, n) }
-        : { reps: athlete.amount(p, n), timeSec: null };
-    const sides = catalog[p.exerciseId]?.sides === 'perSet' ? (['left', 'right'] as const) : [null];
-    for (let n = 1; n <= p.sets; n += 1) {
-      for (const side of sides) {
-        sets.push({ ...base, ...amount(n), isWarmup: false, rir: athlete.rir(p), side });
-      }
-    }
-  }
-  return sets;
-}
-
-function volumeOn(
-  date: string,
-  sessions: readonly HistorySession[],
-  catalog: Readonly<Record<string, Exercise>>,
-  primaryOnly: boolean,
-): Record<MuscleGroup, number> {
-  const exercises = primaryOnly
-    ? Object.fromEntries(Object.values(catalog).map((e) => [e.id, { ...e, secondaryMuscles: [] }]))
-    : catalog;
-  return weeklyVolume(
-    sessions.flatMap((s) =>
-      s.sets.map((set) => ({
-        exerciseId: set.exerciseId,
-        date: s.date,
-        isWarmup: set.isWarmup,
-        rir: set.rir,
-        side: set.side ?? null,
-      })),
-    ),
-    exercises,
-    date,
-    TRAINING_CONFIG,
-  );
 }

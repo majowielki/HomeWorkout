@@ -1,5 +1,5 @@
 /**
- * What resists the lifter, as data (engine v2, 05 §5-§6).
+ * What resists the lifter, as data (engine, 05 §5-§6).
  *
  * v1 knew three loads — a dumbbell mass, a band position, bodyweight — and the
  * planner, the logger and the history were all written against exactly those.

@@ -30,7 +30,7 @@ describe('chat/v7', () => {
    * use it is a draft, and re-pinning this hash is how a change is made visible in review.
    */
   it('is pinned, so any change shows in review', () => {
-    expect(sha(chatInstructions())).toBe('c43ee1b31fa916bc');
+    expect(sha(chatInstructions())).toBe('ea273d632dea46bf');
   });
 
   it('carries its version', () => {

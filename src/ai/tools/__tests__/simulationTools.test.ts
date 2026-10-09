@@ -1,8 +1,8 @@
 import { defaultPreferences } from '../../../domain/preferences/preferences';
 import type { SimulationBase } from '../../../domain/session/simulateProposal';
-import { CATALOG, ELIGIBILITY, SELECTIONS, SLOTS } from '../../../domain/__tests__/dayV2Fixtures';
+import { CATALOG, ELIGIBILITY, SELECTIONS, SLOTS } from '../../../domain/__tests__/dayFixtures';
 import { VERSIONS } from '../../../domain/__tests__/compileFixtures';
-import { HASH_A } from '../../../domain/__tests__/planV2Fixtures';
+import { HASH_A } from '../../../domain/__tests__/planFixtures';
 import { perform, recipe, world } from '../../../domain/__tests__/sessionChangeFixtures';
 import type { ToolInput } from '../../contract/chatTools';
 import { simulateInputSchema, simulateOutputSchema } from '../../contract/simulationTools';
@@ -138,13 +138,13 @@ describe('simulateProposal, the phone side', () => {
           ],
         }),
       },
-      { load: undefined as never, plan: undefined as never, simulate },
+      { load: undefined as never, simulate },
     );
     expect(result.output).toMatchObject({ horizonDays: 7, athlete: 'follows_plan' });
     // Without a phone side the tool says it failed, like the others.
     const missing = await executeTool(
       { id: 'c2', name: 'simulateProposal', input: ask({ kind: 'policy_change' }) },
-      { load: undefined as never, plan: undefined as never },
+      { load: undefined as never },
     );
     expect(missing.output).toEqual({ error: 'failed' });
   });

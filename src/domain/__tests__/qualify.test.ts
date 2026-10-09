@@ -232,6 +232,19 @@ describe('T31 what the person said fell short is kept', () => {
     expect(isFailure(ev)).toBe(true);
   });
 
+  it('a set left out because it hurt counts as pain too (ENG-07)', () => {
+    const rec = at([12, null]);
+    const skipped = {
+      ...rec,
+      sets: rec.sets.map((s, i) =>
+        i === 1 ? { ...s, disposition: 'skipped' as const, skippedForPain: true as const } : s,
+      ),
+    };
+    const ev = qualifyExposure(skipped, policy, PAIRED);
+    expect(ev.shortfalls).toEqual(['pain']);
+    expect(ev.reasons).toContain('PAIN_REPORTED');
+  });
+
   it('pain on a set outside the plan counts too', () => {
     const extra = at([12]).sets[0]!.observation!;
     const rec = {

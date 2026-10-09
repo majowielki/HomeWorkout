@@ -1,4 +1,4 @@
-import { APICallError } from 'ai';
+import { APICallError, asSchema } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,6 +9,7 @@ import { estimateInputTokens } from '../src/chatRoute';
 import { reasonMessages } from './helpers';
 import { MEDICAL_REFERRAL } from '../../src/ai/prompts/weeklySummary/v1';
 import { createHandler } from '../src/index';
+import { chatTools, invalidToolMetadata } from '../src/chat';
 import {
   ask,
   callStep,
@@ -26,6 +27,65 @@ import {
   testEnv,
   textStep,
 } from './helpers';
+
+describe('invalid tool diagnostics', () => {
+  it('records schema fields and known enums without recording their values', () => {
+    expect(
+      invalidToolMetadata('assessSessionChange', {
+        kind: 'reduce_remaining',
+        exposureId: 'private-session',
+        dropSets: 1,
+        privateNote: 'private note',
+      }),
+    ).toEqual({
+      name: 'assessSessionChange',
+      kind: 'reduce_remaining',
+      fields: ['kind', 'exposureId', 'dropSets'],
+      extraFields: 1,
+    });
+  });
+  it('does not record unrecognized model-supplied names or primitive inputs', () => {
+    expect(invalidToolMetadata('private-name', { kind: 'private-kind' })).toEqual({
+      name: 'unknown',
+      kind: 'unknown',
+      fields: ['kind'],
+      extraFields: 0,
+    });
+    expect(invalidToolMetadata('unknown', 'private text')).toEqual({
+      name: 'unknown',
+      kind: 'unknown',
+      fields: [],
+      extraFields: 0,
+    });
+  });
+});
+
+describe('function schemas sent to Google', () => {
+  it('uses enum literals for every session change and keeps the exact runtime contract', async () => {
+    const schema = asSchema(chatTools().assessSessionChange!.inputSchema);
+    const json = await schema.jsonSchema;
+    expect(JSON.stringify(json)).not.toContain('"const":');
+    expect(json.oneOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          properties: expect.objectContaining({
+            kind: { type: 'string', enum: ['reduce_remaining'] },
+          }),
+        }),
+      ]),
+    );
+    expect(
+      await schema.validate!({ kind: 'reduce_remaining', exposureId: 's/r1/e1', dropSets: 1 }),
+    ).toMatchObject({ success: true });
+    for (const input of [
+      { kind: 'reduce_sets', exposureId: 's/r1/e1', dropSets: 1 },
+      { kind: 'reduce_remaining', dropSets: 1 },
+      { kind: 'reduce_remaining', exposureId: 's/r1/e1', dropSets: 7 },
+      { kind: 'reduce_remaining', exposureId: 's/r1/e1', dropSets: 1, weightKg: 12 },
+    ])
+      expect(await schema.validate!(input)).toMatchObject({ success: false });
+  });
+});
 
 const handlerWith = (model: MockLanguageModelV4 | null, extra = {}) =>
   createHandler({ model: () => model, now: () => day, ...extra });

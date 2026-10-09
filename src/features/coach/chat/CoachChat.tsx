@@ -20,7 +20,7 @@ import { useCoachBrief } from '../useCoachBrief';
 import { ChatView } from './ChatView';
 import { toolEnvironment } from './environment';
 import { useCoachChat } from './useCoachChat';
-import { createProposalController, ProposalChangedError } from './proposals';
+import { createProposalController, ProposalChangedError } from '@/app-services/coach/proposals';
 
 /**
  * The chat, wired to the real switch, the real server, the real database

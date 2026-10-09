@@ -9,7 +9,7 @@ import {
   setObservationSchema,
 } from '../observations/types';
 import { z } from 'zod';
-import { legalObservation } from './planV2Fixtures';
+import { legalObservation } from './planFixtures';
 
 const parses = (candidate: unknown) => setObservationSchema.safeParse(candidate).success;
 const messages = (candidate: unknown) => {

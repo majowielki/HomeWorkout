@@ -1,7 +1,7 @@
 /** Record a report and return options based on the resulting history in one transaction. */
 import { z } from 'zod';
 import type { CommandResult } from '@/domain/commands/result';
-import { sessionPlanV2Schema } from '@/domain/plan/planV2';
+import { sessionPlanSchema } from '@/domain/plan/plan';
 import { assessSessionChange } from '@/domain/session/assess';
 import type { ChangeAssessment } from '@/domain/session/types';
 import { findCommand, readRevision } from './ledger';
@@ -11,7 +11,7 @@ import {
   persistFeelReport,
   sessionCommandStore as store,
   type FeelCommand,
-} from './sessionsV2';
+} from './sessions';
 
 export interface ReportSessionFeelCommand extends FeelCommand {
   expected: { planRevision: number; historyRevision: number };
@@ -49,7 +49,7 @@ export function reportSessionFeel(
     const found = store.sessionFor(tx, cmd.sessionId, true);
     if (!found.ok) return found.result;
     const { workout, plan } = found;
-    if (!sessionPlanV2Schema.safeParse(plan).success || plan.planRevision !== workout.planRevision)
+    if (!sessionPlanSchema.safeParse(plan).success || plan.planRevision !== workout.planRevision)
       return {
         kind: 'rejected',
         code: 'INVALID_PLAN',

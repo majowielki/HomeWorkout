@@ -13,7 +13,7 @@ import {
   loadFromSpec,
   modelIdOf,
   specFromLoad,
-} from '../resistance/legacy';
+} from '../resistance/persistedLoad';
 import {
   BAND_GEOMETRY,
   createBandModel,

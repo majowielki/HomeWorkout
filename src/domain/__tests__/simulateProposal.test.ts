@@ -1,17 +1,17 @@
 import type { ExposureRecord } from '../observations/exposure';
 import { defaultPreferences } from '../preferences/preferences';
 import type { PlanConstraint } from '../plan/constraints';
-import { FOLLOWS_THE_PLAN_V2, recordsOf } from '../plan/simulateV2';
-import { planWeekV2 } from '../plan/weekV2';
+import { FOLLOWS_THE_PLAN, recordsOf } from '../plan/simulate';
+import { planWeek } from '../plan/week';
 import {
   observedAthlete,
   simulateProposal,
   weekWarnings,
   type SimulationBase,
 } from '../session/simulateProposal';
-import { CATALOG, ELIGIBILITY, SELECTIONS, SLOTS } from './dayV2Fixtures';
+import { CATALOG, ELIGIBILITY, SELECTIONS, SLOTS } from './dayFixtures';
 import { VERSIONS } from './compileFixtures';
-import { HASH_A } from './planV2Fixtures';
+import { HASH_A } from './planFixtures';
 import { perform, recipe, world } from './sessionChangeFixtures';
 
 const FROM = '2026-10-05';
@@ -98,6 +98,31 @@ describe('P5.6b T-simulate: what a proposal does, before the person is asked', (
     expect(Object.keys(r.diff.musclesWeek).length).toBeGreaterThan(0);
   });
 
+  it('the higher volume profile raises the aim and the maxima, and the week gets more work (ENG-04)', () => {
+    const r = simulateProposal(
+      base(),
+      { kind: 'policy_change', preferences: { volumeProfile: 'higher' } },
+      follows,
+    );
+    const chest = (x: typeof r.baseline) => x.musclesWeek.chest;
+    expect(chest(r.baseline)).toMatchObject({ min: 3, max: 6 });
+    expect(chest(r.withProposal)).toMatchObject({ min: 4, max: 10 });
+    expect(r.withProposal.musclesWeek.glutes!.max).toBe(10);
+    const total = (x: typeof r.baseline) =>
+      Object.values(x.musclesWeek).reduce((sum, m) => sum + m.sets, 0);
+    expect(total(r.withProposal)).toBeGreaterThanOrEqual(total(r.baseline));
+  });
+
+  it('a maximum the person set for one muscle is that muscle’s maximum in the week', () => {
+    const r = simulateProposal(
+      base(),
+      { kind: 'policy_change', preferences: { volumeOverrides: { biceps: 8 } } },
+      follows,
+    );
+    expect(r.baseline.musclesWeek.biceps!.max).toBe(6);
+    expect(r.withProposal.musclesWeek.biceps!.max).toBe(8);
+  });
+
   it('puts a muscle over its weekly maximum on the list of warnings, with the figures', () => {
     const r = simulateProposal(base(), { kind: 'week_change', constraints: [] }, follows);
     const over = {
@@ -148,9 +173,9 @@ describe('P5.6b T-simulate: what a proposal does, before the person is asked', (
     expect(JSON.stringify(input)).toBe(before);
   });
 
-  it('is the planner of the week, not another one: the baseline is planWeekV2 itself', () => {
+  it('is the planner of the week, not another one: the baseline is planWeek itself', () => {
     const r = simulateProposal(base(), { kind: 'week_change', constraints: [] }, follows);
-    const week = planWeekV2({ ...base(), from: FROM, days: 7 });
+    const week = planWeek({ ...base(), from: FROM, days: 7 });
     expect(r.baseline.minutesPerDay).toEqual(
       week.days.map((d) =>
         d.forecast === null ? 0 : Math.round(d.forecast.time.exerciseTotal / 60),
@@ -227,7 +252,7 @@ describe('P5.6b T-simulate: what a proposal does, before the person is asked', (
 
 describe('the athlete the forecast assumes', () => {
   const doneAt = (reps: number): ExposureRecord[] => {
-    const plan = planWeekV2({ ...base(), from: FROM, days: 1 }).days[0]!.forecast!;
+    const plan = planWeek({ ...base(), from: FROM, days: 1 }).days[0]!.forecast!;
     return recordsOf(
       plan,
       { amount: (s) => (s.target.kind === 'reps' ? reps : 30), rir: () => 2 },
@@ -236,7 +261,7 @@ describe('the athlete the forecast assumes', () => {
   };
 
   it('follows the plan exactly, or drifts by what the last four weeks showed', () => {
-    const plan = planWeekV2({ ...base(), from: '2026-10-06', days: 1 }).days[0]!.forecast!;
+    const plan = planWeek({ ...base(), from: '2026-10-06', days: 1 }).days[0]!.forecast!;
     const set = plan.exposures[0]!.sets.find((s) => s.target.kind === 'reps')!;
     const target = set.target.kind === 'reps' ? set.target.target : 0;
     expect(observedAthlete([], FROM).amount(set, plan.exposures[0]!)).toBe(target);
@@ -260,9 +285,7 @@ describe('the athlete the forecast assumes', () => {
       target: { kind: 'duration' as const, minSec: 20, targetSec: 30, maxSec: 40 },
     };
     expect(observedAthlete([], FROM).amount(time as typeof set, plan.exposures[0]!)).toBe(30);
-    expect(over.rir(set, plan.exposures[0]!)).toBe(
-      FOLLOWS_THE_PLAN_V2.rir(set, plan.exposures[0]!),
-    );
+    expect(over.rir(set, plan.exposures[0]!)).toBe(FOLLOWS_THE_PLAN.rir(set, plan.exposures[0]!));
   });
 
   it('the observed trend changes the forecast of the days that follow the days it was observed on', () => {

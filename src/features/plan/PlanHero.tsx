@@ -12,6 +12,7 @@ import { pl } from '@/strings/pl';
 
 import { DayDoneCard } from './DayDoneCard';
 import { PlanChangeBanner } from './PlanChangeBanner';
+import { PlanningFeedback } from './PlanningFeedback';
 import { planTitle } from './format';
 import type { usePlanToday } from './usePlanToday';
 
@@ -63,10 +64,20 @@ export function PlanHero({ today, exerciseMap }: Props) {
   if (state.done || !state.plan) {
     const upcoming = state.week.find((d) => d.date > state.asOf && d.forecast)?.forecast ?? null;
     const next = state.done ? (state.tomorrow ?? upcoming) : upcoming;
+    const summary = state.week.find((d) => d.date === next?.trainingDate)?.summary;
     return (
       <>
         {banner}
-        {state.done ? <DayDoneCard recovery={state.recovery} /> : <RestDayCard />}
+        {!state.done ? <PlanningFeedback result={state.preview.output.result} /> : null}
+        {state.done ? (
+          <DayDoneCard recovery={state.recovery} />
+        ) : state.rest ? (
+          <RestDayCard />
+        ) : (
+          <Card>
+            <Text variant="title">{pl.calendar.noPlan}</Text>
+          </Card>
+        )}
         {state.done ? (
           <Link href="/plan/extra" asChild>
             <Button label={pl.extra.title} variant="outline" />
@@ -76,17 +87,17 @@ export function PlanHero({ today, exerciseMap }: Props) {
           <SessionHero
             eyebrow={
               state.done && state.tomorrow
-                ? pl.plan.tomorrowEyebrow(formatDate(next.date))
-                : pl.plan.restDay.next(formatDate(next.date))
+                ? pl.plan.tomorrowEyebrow(formatDate(next.trainingDate))
+                : pl.plan.restDay.next(formatDate(next.trainingDate))
             }
             title={planTitle(next)}
             badge={
-              next.phase === 'deload'
-                ? pl.plan.deloadBadge(next.blockIndex)
-                : pl.plan.blockBadge(next.blockIndex)
+              summary?.phase === 'deload'
+                ? pl.plan.deloadBadge(summary?.blockIndex ?? 1)
+                : pl.plan.blockBadge(summary?.blockIndex ?? 1)
             }
-            meta={pl.plan.meta(next.estimatedMinutes)}
-            blocks={next.exercises}
+            meta={pl.plan.meta(Math.ceil(next.time.exerciseTotal / 60))}
+            plan={next}
             exerciseMap={exerciseMap}
           >
             {details}
@@ -100,16 +111,17 @@ export function PlanHero({ today, exerciseMap }: Props) {
   return (
     <>
       {banner}
+      <PlanningFeedback result={state.preview.output.result} />
       <SessionHero
-        eyebrow={pl.plan.eyebrow(formatDate(plan.date))}
+        eyebrow={pl.plan.eyebrow(formatDate(plan.trainingDate))}
         title={planTitle(plan)}
         badge={
-          plan.phase === 'deload'
-            ? pl.plan.deloadBadge(plan.blockIndex)
-            : pl.plan.blockBadge(plan.blockIndex)
+          state.summary.phase === 'deload'
+            ? pl.plan.deloadBadge(state.summary.blockIndex ?? 1)
+            : pl.plan.blockBadge(state.summary.blockIndex ?? 1)
         }
-        meta={pl.plan.meta(plan.estimatedMinutes)}
-        blocks={plan.exercises}
+        meta={pl.plan.meta(Math.ceil(plan.time.exerciseTotal / 60))}
+        plan={plan}
         exerciseMap={exerciseMap}
       >
         <Button

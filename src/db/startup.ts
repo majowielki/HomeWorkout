@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { db } from './client';
 import migrations from './migrations/migrations';
+import { pruneLedger } from './repositories/ledger';
 import { abandonStaleWorkouts } from './repositories/workouts';
 import { seedDatabase } from './seed';
 
@@ -24,6 +25,10 @@ export function useDatabaseStartup(): DatabaseStartup {
     let cancelled = false;
     seedDatabase()
       .then(() => abandonStaleWorkouts())
+      // A retry of a command comes seconds later: the ledger of months ago only grows. Never a reason not to start.
+      .then(() =>
+        pruneLedger(new Date()).catch((e: unknown) => console.warn('ledger not pruned', e)),
+      )
       .then(() => {
         if (!cancelled) setState({ status: 'ready' });
       })

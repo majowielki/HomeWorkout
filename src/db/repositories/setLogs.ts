@@ -1,154 +1,24 @@
-import { randomUUID } from 'expo-crypto';
-
-import { and, desc, eq, isNull } from 'drizzle-orm';
-
-import { stepKey } from '@/domain/session/steps';
-import type { AnchorPosition, DumbbellMode, ShortfallReason, Side } from '@/domain/types';
+import { and, eq, isNull } from 'drizzle-orm';
 
 import { db } from '../client';
 import { setLogs } from '../schema';
-import { addBandCycles } from './bands';
 
-export interface LogSetInput {
-  workoutId: string;
-  exerciseId: string;
-  exerciseOrder: number;
-  setIndex: number;
-  isWarmup?: boolean;
-  reps?: number | null;
-  timeSec?: number | null;
-  rir?: number | null;
-  weightKg?: number | null;
-  dumbbellMode?: DumbbellMode | null;
-  bandId?: string | null;
-  anchorPosition?: AnchorPosition | null;
-  estimatedLoadKg?: number | null;
-  /** The side of a one-sided set; null for two-sided work. */
-  side?: Side | null;
-  /** Why the set fell short of its target, when the person said. */
-  shortfall?: ShortfallReason | null;
-}
+export type SetLogRow = typeof setLogs.$inferSelect;
 
-export async function logSet(input: LogSetInput): Promise<string> {
-  const id = randomUUID();
-  await db.insert(setLogs).values({
-    id,
-    workoutId: input.workoutId,
-    exerciseId: input.exerciseId,
-    exerciseOrder: input.exerciseOrder,
-    setIndex: input.setIndex,
-    isWarmup: input.isWarmup ?? false,
-    reps: input.reps ?? null,
-    timeSec: input.timeSec ?? null,
-    rir: input.rir ?? null,
-    weightKg: input.weightKg ?? null,
-    dumbbellMode: input.dumbbellMode ?? null,
-    bandId: input.bandId ?? null,
-    anchorPosition: input.anchorPosition ?? null,
-    estimatedLoadKg: input.estimatedLoadKg ?? null,
-    side: input.side ?? null,
-    shortfall: input.shortfall ?? null,
-    loggedAt: new Date().toISOString(),
-  });
-  // Wear counter for the recalibration nudge. Edits and deletes in history
-  // do not adjust it — it is a rough odometer, not an audit trail.
-  if (input.bandId && input.reps) await addBandCycles(input.bandId, input.reps);
-  return id;
-}
-
-export async function getSetsForWorkout(workoutId: string) {
-  // A result taken back stays as a tombstone (engine v2); it is no longer a set.
+/** The sets of a workout as stored; a result that was taken back stays as a tombstone and is no longer a set. */
+export async function getSetsForWorkout(workoutId: string): Promise<SetLogRow[]> {
   return db
     .select()
     .from(setLogs)
     .where(and(eq(setLogs.workoutId, workoutId), isNull(setLogs.deletedAt)));
 }
 
-/**
- * Which (blockIndex, setNumber) pairs already have a log for this workout —
- * used by domain/session/steps.findResumeIndex to pick up where a killed
- * app left off, without trusting any in-memory state.
- */
-export async function getLoggedStepKeys(workoutId: string): Promise<Set<string>> {
-  const rows = await db
-    .select({ exerciseOrder: setLogs.exerciseOrder, setIndex: setLogs.setIndex })
-    .from(setLogs)
-    .where(
-      and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false), isNull(setLogs.deletedAt)),
-    );
-  return new Set(rows.map((r) => stepKey(r.exerciseOrder, r.setIndex)));
-}
-
-/** Most recent non-warmup log for this exercise, for prefilling the next session. */
-export async function getLastSetForExercise(exerciseId: string) {
-  const [row] = await db
-    .select()
-    .from(setLogs)
-    .where(
-      and(
-        eq(setLogs.exerciseId, exerciseId),
-        eq(setLogs.isWarmup, false),
-        isNull(setLogs.deletedAt),
-      ),
-    )
-    .orderBy(desc(setLogs.loggedAt))
-    .limit(1);
-  return row ?? null;
-}
-
-export async function countWorkingSets(workoutId: string): Promise<number> {
-  const rows = await getSetsForWorkout(workoutId);
-  return rows.filter((r) => !r.isWarmup).length;
-}
-
-export type SetLogRow = typeof setLogs.$inferSelect;
-
-export async function getSet(id: string): Promise<SetLogRow | null> {
-  const [row] = await db.select().from(setLogs).where(eq(setLogs.id, id)).limit(1);
-  return row ?? null;
-}
-
-export type SetPatch = Pick<
-  SetLogRow,
-  | 'reps'
-  | 'timeSec'
-  | 'rir'
-  | 'weightKg'
-  | 'dumbbellMode'
-  | 'bandId'
-  | 'anchorPosition'
-  | 'estimatedLoadKg'
-  | 'shortfall'
->;
-
-/**
- * Corrects what was performed. Position in the session (exercise, index)
- * and the timestamp stay as logged — history edits fix a typo in the
- * numbers, they do not rewrite when things happened.
- */
-export async function updateSet(id: string, patch: SetPatch): Promise<void> {
-  await db.update(setLogs).set(patch).where(eq(setLogs.id, id));
-}
-
-export async function deleteSet(id: string): Promise<void> {
-  await db.delete(setLogs).where(eq(setLogs.id, id));
-}
-
-/**
- * "Cofnij serię": takes back the newest working set of a workout — the one
- * just logged by mistake — and returns it, so the logger can show its
- * numbers again for a correction. Null when nothing is logged.
- */
-export async function takeBackLastSet(workoutId: string): Promise<SetLogRow | null> {
-  const [row] = await db
-    .select()
-    .from(setLogs)
-    .where(
-      and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false), isNull(setLogs.deletedAt)),
-    )
-    .orderBy(desc(setLogs.loggedAt))
-    .limit(1);
-  if (!row) return null;
-  await db.delete(setLogs).where(eq(setLogs.id, row.id));
-  return row;
+export function getSet(id: string): SetLogRow | null {
+  return (
+    db
+      .select()
+      .from(setLogs)
+      .where(and(eq(setLogs.id, id), isNull(setLogs.deletedAt)))
+      .get() ?? null
+  );
 }

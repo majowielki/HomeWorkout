@@ -1,5 +1,5 @@
 /**
- * Medical screening per joint (engine v2, 05 §12, 13 §10).
+ * Medical screening per joint (engine, 05 §12, 13 §10).
  *
  * Today only the knee is screened, by `screenExercise`. A new exercise or
  * implement loads other joints too — the shoulder, the lower back, the wrist —
@@ -14,16 +14,16 @@
  */
 
 import { type ExclusionCode, screenExercise } from '../exercises/screen';
-import type { Exercise, JointId, MedicalProfile } from '../types';
+import type { Exercise, JointId, MedicalProfile as KneeMedicalProfile } from '../types';
 import { loadsJoint } from '../catalog/attributes';
 
 /** What the person's profile says, per joint; a joint that is absent is a joint nobody described. */
-export interface MedicalProfileV2 {
+export interface MedicalProfile {
   joints: Partial<Record<JointId, unknown>>;
 }
 
 /** The profile of v1 (the knee only) read as a v2 profile, unchanged. */
-export function medicalProfileV2(profile: MedicalProfile): MedicalProfileV2 {
+export function medicalProfile(profile: KneeMedicalProfile): MedicalProfile {
   return { joints: profile.knee === null ? {} : { knee: profile.knee } };
 }
 
@@ -52,7 +52,8 @@ export const kneeScreener: Screener = {
     'highAnteriorTibialShear',
   ],
   loads: (exercise) => loadsJoint(exercise, 'knee'),
-  screen: (exercise, knee) => screenExercise(exercise, { knee: knee as MedicalProfile['knee'] }),
+  screen: (exercise, knee) =>
+    screenExercise(exercise, { knee: knee as KneeMedicalProfile['knee'] }),
 };
 
 export const SCREENERS: readonly Screener[] = [kneeScreener];
@@ -71,7 +72,7 @@ export interface ScreenResult {
  */
 export function screenAll(
   exercise: Exercise,
-  profile: MedicalProfileV2,
+  profile: MedicalProfile,
   screeners: readonly Screener[] = SCREENERS,
 ): ScreenResult {
   const codes: ScreenCode[] = [];

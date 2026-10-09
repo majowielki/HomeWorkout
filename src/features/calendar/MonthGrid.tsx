@@ -76,9 +76,12 @@ export function MonthGrid({ month, asOf, horizon, data, selected, onMonth, onSel
         {Array.from({ length: 6 }, (_, row) => {
           const week = dates.slice(row * 7, row * 7 + 7);
           const deload =
-            data.days.some((d) => week.includes(d.date) && d.selection?.phase === 'deload') ||
+            data.days.some((d) => week.includes(d.date) && d.summary?.phase === 'deload') ||
             data.sessions.some(
-              (s) => week.includes(s.workout.trainingDate) && s.workout.plan?.phase === 'deload',
+              (s) =>
+                week.includes(s.workout.trainingDate) &&
+                data.days.find((d) => d.date === s.workout.trainingDate)?.summary?.phase ===
+                  'deload',
             );
           return (
             <View key={week[0]} className={cn('flex-row rounded-xl', deload && 'bg-secondary/60')}>

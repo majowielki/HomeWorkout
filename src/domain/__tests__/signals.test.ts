@@ -1,88 +1,136 @@
-import { deriveSignals, type SignalInput } from '../coach/signals';
-import { addDays } from '../time/trainingDate';
+/**
+ * Engine v2, P4 (SPEC §6.1): the overload signals, read from what was done.
+ */
+import { fatigueSignals, type SignalsInput } from '../autoregulation/signals';
+import type { DailyReadiness } from '../plan/types';
+import { PAIRED, day, exposureOf, kg } from './progressionFixtures';
+import { modelOf } from './compileFixtures';
 
-const ASOF = '2026-10-01';
+const AS_OF = day(13);
+const slotOf = new Map([
+  ['ex-squat', { kind: 'compound' as const }],
+  ['ex-curl', { kind: 'accessory' as const }],
+]);
+const input = (
+  records: SignalsInput['records'],
+  patch: Partial<SignalsInput> = {},
+): SignalsInput => ({
+  asOf: AS_OF,
+  records,
+  slotOf,
+  daily: [],
+  modelOf,
+  ...patch,
+});
+const at = (
+  date: number,
+  sets: Parameters<typeof exposureOf>[0]['sets'],
+  slotId = 'squat',
+  mass = 4,
+) => ({
+  ...exposureOf({
+    date: day(date),
+    spec: kg(mass),
+    sets,
+    key: `k-${slotId}-${mass}`,
+    exerciseId: `ex-${slotId}`,
+  }),
+});
 
-function input(patch: Partial<SignalInput> = {}): SignalInput {
-  return {
-    asOf: ASOF,
-    completedSessionCount: 12,
-    lastSessionDate: addDays(ASOF, -2),
-    sleep: [],
-    ...patch,
-  };
-}
+describe('FATIGUE_HIGH: to the limit on a compound lift two days running', () => {
+  const limit = [{ amount: 10, rir: 0 }, 10];
 
-const sleepOn = (offsets: number[], hours: number) =>
-  offsets.map((o) => ({ date: addDays(ASOF, o), value: hours }));
-
-describe('deriveSignals — history', () => {
-  it('is silent for an active, established lifter', () => {
-    expect(deriveSignals(input())).toEqual([]);
+  it('on each of the last two days that had one', () => {
+    expect(fatigueSignals(input([at(10, limit), at(12, limit)]))).toEqual(['FATIGUE_HIGH']);
   });
 
-  it.each([
-    [0, true],
-    [3, true],
-    [4, false],
-  ])('flags SPARSE_HISTORY at the boundary: %i sessions -> %s', (count, flagged) => {
-    expect(deriveSignals(input({ completedSessionCount: count }))).toEqual(
-      flagged ? ['SPARSE_HISTORY'] : [],
+  it('not when the second day was not to the limit, or it was the only one', () => {
+    expect(fatigueSignals(input([at(10, limit), at(12, [10, 10])]))).toEqual([]);
+    expect(fatigueSignals(input([at(12, limit)]))).toEqual([]);
+  });
+
+  it('a second session the same day is not a second day', () => {
+    expect(fatigueSignals(input([at(12, limit), at(12, limit)]))).toEqual([]);
+  });
+
+  it('only compound lifts, only work, only what is recent', () => {
+    expect(fatigueSignals(input([at(10, limit, 'curl'), at(12, limit, 'curl')]))).toEqual([]);
+    const noSlot = { ...at(12, limit), exerciseId: 'unknown' };
+    expect(fatigueSignals(input([at(10, limit), noSlot]))).toEqual([]);
+    const nothing = at(12, [null, null]);
+    expect(fatigueSignals(input([at(10, limit), nothing]))).toEqual([]);
+    expect(fatigueSignals(input([at(-5, limit), at(12, limit)]))).toEqual([]);
+    expect(fatigueSignals(input([at(10, limit), at(14, limit)]))).toEqual([]);
+  });
+
+  it('a warm-up to the limit is not grinding', () => {
+    const warm = [
+      { amount: 10, rir: 0, planned: { role: 'warmup' as const, requiredForProgression: false } },
+      null,
+    ];
+    expect(fatigueSignals(input([at(10, warm), at(12, warm)]))).toEqual([]);
+  });
+});
+
+describe('PERFORMANCE_DROP: fewer at the same resistance, twice', () => {
+  const exposures = (...bests: number[]) => bests.map((b, i) => at(8 + i * 2, [b, b - 1], 'squat'));
+
+  it('three exposures, each worse than the one before', () => {
+    expect(fatigueSignals(input(exposures(12, 11, 10)))).toEqual(['PERFORMANCE_DROP']);
+  });
+
+  it('not when one was no worse, or there are too few', () => {
+    expect(fatigueSignals(input(exposures(12, 12, 10)))).toEqual([]);
+    expect(fatigueSignals(input(exposures(12, 11)))).toEqual([]);
+  });
+
+  it('a lighter resistance is not a drop', () => {
+    const list = [at(8, [12, 12]), at(10, [11, 11]), at(12, [10, 10], 'squat', 2)];
+    const keyed = list.map((r) => ({ ...r, comparisonKey: 'same' }));
+    expect(fatigueSignals(input(keyed))).toEqual([]);
+  });
+
+  it('only the first exposure of the day counts, and only a model that is known', () => {
+    const secondary = exposures(12, 11, 10).map((r) => ({
+      ...r,
+      progressionScope: 'supplemental' as const,
+    }));
+    expect(fatigueSignals(input(secondary))).toEqual([]);
+    expect(fatigueSignals(input(exposures(12, 11, 10), { modelOf: () => null }))).toEqual([]);
+    expect(PAIRED).toBeDefined();
+  });
+
+  it('exposures with nothing done say nothing', () => {
+    const list = [...exposures(12, 11), at(12, [null, null])];
+    expect(fatigueSignals(input(list))).toEqual([]);
+  });
+});
+
+describe('RECOVERY_LOW: poor sleep three days running, or one muscle sore for four', () => {
+  const night = (
+    date: number,
+    sleepHours: number | null,
+    soreness: DailyReadiness['soreness'] = null,
+  ): DailyReadiness => ({
+    date: day(date),
+    sleepHours,
+    energy: 3,
+    soreness,
+  });
+
+  it('is read from the log of the days', () => {
+    const poor = [11, 12, 13].map((d) => night(d, 5));
+    expect(fatigueSignals(input([], { daily: poor }))).toEqual(['RECOVERY_LOW']);
+    const sore = [10, 11, 12, 13].map((d) => night(d, 8, { quads: 4 }));
+    expect(fatigueSignals(input([], { daily: sore }))).toEqual(['RECOVERY_LOW']);
+    expect(fatigueSignals(input([], { daily: [night(13, 5)] }))).toEqual([]);
+  });
+
+  it('can come with the others', () => {
+    const limit = [{ amount: 10, rir: 0 }, 10];
+    const out = fatigueSignals(
+      input([at(10, limit), at(12, limit)], { daily: [11, 12, 13].map((d) => night(d, 5)) }),
     );
-  });
-});
-
-describe('deriveSignals — layoff tiers (SPEC §6.3)', () => {
-  it.each([
-    [7, []],
-    [8, ['LAYOFF_SHORT']],
-    [14, ['LAYOFF_SHORT']],
-    [15, ['LAYOFF_MEDIUM']],
-    [30, ['LAYOFF_MEDIUM']],
-    [31, ['LAYOFF_LONG']],
-    [90, ['LAYOFF_LONG']],
-  ])('%i days since the last session -> %j', (gap, expected) => {
-    expect(deriveSignals(input({ lastSessionDate: addDays(ASOF, -gap) }))).toEqual(expected);
-  });
-
-  it('says nothing about layoff when there has never been a session', () => {
-    expect(deriveSignals(input({ lastSessionDate: null, completedSessionCount: 0 }))).toEqual([
-      'SPARSE_HISTORY',
-    ]);
-  });
-
-  it('reports sparse history first, then layoff', () => {
-    expect(
-      deriveSignals(input({ completedSessionCount: 2, lastSessionDate: addDays(ASOF, -20) })),
-    ).toEqual(['SPARSE_HISTORY', 'LAYOFF_MEDIUM']);
-  });
-});
-
-describe('deriveSignals — sleep streak (SPEC §6.1)', () => {
-  it('needs three consecutive short nights ending today', () => {
-    expect(deriveSignals(input({ sleep: sleepOn([0, -1, -2], 5) }))).toEqual(['SLEEP_LOW_STREAK']);
-  });
-
-  it('accepts a run that ended yesterday, because today is not logged yet', () => {
-    expect(deriveSignals(input({ sleep: sleepOn([-1, -2, -3], 5.5) }))).toEqual([
-      'SLEEP_LOW_STREAK',
-    ]);
-  });
-
-  it('does not count a run that ended two days ago', () => {
-    expect(deriveSignals(input({ sleep: sleepOn([-2, -3, -4], 5) }))).toEqual([]);
-  });
-
-  it('is broken by one good night', () => {
-    const sleep = [...sleepOn([0, -2], 5), ...sleepOn([-1], 7.5)];
-    expect(deriveSignals(input({ sleep }))).toEqual([]);
-  });
-
-  it('is broken by a missing day', () => {
-    expect(deriveSignals(input({ sleep: sleepOn([0, -2], 5) }))).toEqual([]);
-  });
-
-  it('treats exactly the threshold as enough sleep', () => {
-    expect(deriveSignals(input({ sleep: sleepOn([0, -1, -2], 6) }))).toEqual([]);
+    expect(out).toEqual(['FATIGUE_HIGH', 'RECOVERY_LOW']);
   });
 });

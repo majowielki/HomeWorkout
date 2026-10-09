@@ -59,7 +59,10 @@ export const LOAD_STEMS = [
 const PAST_TENSE = /l(a|o|i|y|es|as|em|am|ismy|ysmy|iscie|yscie)?$/;
 
 const urges = (word: string) =>
-  PRESCRIBING_STEMS.some((stem) => word.startsWith(stem)) && !PAST_TENSE.test(word);
+  // "Pozostają do zrobienia" reports pending work; the noun is not "zrób".
+  word !== 'zrobienia' &&
+  PRESCRIBING_STEMS.some((stem) => word.startsWith(stem)) &&
+  !PAST_TENSE.test(word);
 
 const tokens = (sentence: string) =>
   fold(sentence)

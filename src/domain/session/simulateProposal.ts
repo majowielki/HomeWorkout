@@ -1,22 +1,22 @@
 /**
- * What a proposal would do, before the person is asked (engine v2, 11 §13, D36).
+ * What a proposal would do, before the person is asked (engine, 11 §13, D36).
  *
  * The model checks a change with a deterministic simulation instead of guessing at its
  * effect: the same week planner that makes the plan is run twice, once as it stands and
  * once with the proposal, and the two are set side by side. The forecast is a forecast —
- * it lives inside `planWeekV2` and never becomes a result — and nothing here writes.
+ * it lives inside `planWeek` and never becomes a result — and nothing here writes.
  *
  * `follows_plan` assumes the person does exactly what is planned; `observed_trend` lets
  * the reps drift by what the last four weeks showed they usually do over or under the target.
  */
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
-import { TRAINING_CONFIG } from '../config/training';
 import type { ExposureRecord } from '../observations/exposure';
 import { isPerformed } from '../observations/qualify';
 import type { PlanConstraint } from '../plan/constraints';
-import type { PlannedSet } from '../plan/planV2';
-import { type AthleteV2, FOLLOWS_THE_PLAN_V2 } from '../plan/simulateV2';
-import { type WeekInputV2, type WeekPlanV2, planWeekV2 } from '../plan/weekV2';
+import type { PlannedSet } from '../plan/plan';
+import { type Athlete, FOLLOWS_THE_PLAN } from '../plan/simulate';
+import { type WeekInput, type WeekPlan, planWeek } from '../plan/week';
+import { volumeTargets } from '../policy/dayPolicy';
 import { finding, type AssessmentCheck } from '../policy/hardAdvice';
 import type { TrainingPreferences } from '../preferences/preferences';
 import { STEP_UP_CODES } from '../progression/codes';
@@ -80,17 +80,17 @@ export interface SimulateProposalResult {
   assessment: ChangeAssessment | null;
 }
 
-/** Everything the week is planned from, apart from its dates; see `WeekInputV2`. */
-export type SimulationBase = Omit<WeekInputV2, 'from' | 'days' | 'kept'> & {
+/** Everything the week is planned from, apart from its dates; see `WeekInput`. */
+export type SimulationBase = Omit<WeekInput, 'from' | 'days' | 'kept'> & {
   asOf: string;
   /** Days stored so far; the days that still hold stay as they are (04 §5). */
-  kept?: WeekInputV2['kept'];
+  kept?: WeekInput['kept'];
   /** For a change to the running session. */
   session?: { snap: SessionChangeSnapshot; state: ActiveSessionState };
 };
 
 /** How much over or under the target the person has lately been, in reps (the last four weeks). */
-export function observedAthlete(records: readonly ExposureRecord[], asOf: string): AthleteV2 {
+export function observedAthlete(records: readonly ExposureRecord[], asOf: string): Athlete {
   const from = addDays(asOf, -27);
   const deltas: number[] = [];
   for (const r of records) {
@@ -107,14 +107,14 @@ export function observedAthlete(records: readonly ExposureRecord[], asOf: string
     amount: (set: PlannedSet) =>
       set.target.kind === 'reps'
         ? Math.max(1, set.target.target + drift)
-        : FOLLOWS_THE_PLAN_V2.amount(set, {} as never),
-    rir: FOLLOWS_THE_PLAN_V2.rir,
+        : FOLLOWS_THE_PLAN.amount(set, {} as never),
+    rir: FOLLOWS_THE_PLAN.rir,
   };
 }
 
-function summarize(week: WeekPlanV2): SimulationSummary {
-  const { min, max } = TRAINING_CONFIG.weeklyWorkingSetsPerMuscle;
-  const maxOf = (m: MuscleGroup) => TRAINING_CONFIG.maxDirectSetsOverride[m] ?? max;
+function summarize(week: WeekPlan, preferences: TrainingPreferences): SimulationSummary {
+  const { weekly, maxOf } = volumeTargets(preferences);
+  const { min } = weekly;
   const exposures = week.days.flatMap((d) => d.forecast?.exposures ?? []);
   return {
     musclesWeek: Object.fromEntries(
@@ -133,8 +133,8 @@ function summarize(week: WeekPlanV2): SimulationSummary {
 function difference(
   a: SimulationSummary,
   b: SimulationSummary,
-  ab: WeekPlanV2,
-  bb: WeekPlanV2,
+  ab: WeekPlan,
+  bb: WeekPlan,
 ): SimulationDiff {
   const days = ab.days.map((d, i) => ({ before: d, after: bb.days[i]! }));
   return {
@@ -199,14 +199,14 @@ export function simulateProposal(
 ): SimulateProposalResult {
   const athlete =
     options.athlete === 'follows_plan'
-      ? FOLLOWS_THE_PLAN_V2
+      ? FOLLOWS_THE_PLAN
       : observedAthlete(base.records, base.asOf);
   const from = base.running != null ? addDays(base.asOf, 1) : base.asOf;
-  const plan = (patch: Partial<WeekInputV2>) =>
-    planWeekV2({ ...base, from, days: options.horizonDays, athlete, ...patch });
+  const plan = (patch: Partial<WeekInput>) =>
+    planWeek({ ...base, from, days: options.horizonDays, athlete, ...patch });
 
-  let withInput: Partial<WeekInputV2> = {};
-  let baselineInput: Partial<WeekInputV2> = {};
+  let withInput: Partial<WeekInput> = {};
+  let baselineInput: Partial<WeekInput> = {};
   let assessment: ChangeAssessment | null = null;
   if (input.kind === 'week_change') {
     withInput = {
@@ -234,8 +234,8 @@ export function simulateProposal(
   }
   const before = plan(baselineInput);
   const after = plan(withInput);
-  const a = summarize(before);
-  const b = summarize(after);
+  const a = summarize(before, baselineInput.preferences ?? base.preferences);
+  const b = summarize(after, withInput.preferences ?? base.preferences);
   return {
     baseline: a,
     withProposal: b,

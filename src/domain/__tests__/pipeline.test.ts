@@ -3,12 +3,12 @@
  * the pipeline of rules that turns the history of one exercise into the next
  * prescription.
  */
-import { decisionTraceSchema } from '../plan/planV2';
+import { decisionTraceSchema } from '../plan/plan';
 import type { SetsRecommendation } from '../plan/sets';
 import { STEP_DOWN_CODES, type DecisionCode } from '../progression/codes';
 import { emptyDraft, type NextInput, type RuleCtx } from '../progression/draft';
 import { levelIdOf } from '../progression/levels';
-import { contextOf, PIPELINE_V2, prescribeNext, type Prescribed } from '../progression/next';
+import { contextOf, PIPELINE, prescribeNext, type Prescribed } from '../progression/next';
 import { DEFAULT_PROGRESSION_POLICY } from '../progression/policy';
 import { normalizeRule } from '../progression/rules';
 import { RESISTANCE_REGISTRY } from '../resistance/registry';
@@ -242,6 +242,23 @@ describe('T89, T90 what the probe showed', () => {
     const { draft } = plan(H(...TOP4, [4, 4, [probe(10), 6]]));
     expect(draft.codes).not.toContain('PROBE_PASSED');
     expect(draft.resistance).toEqual(kg(4));
+  });
+
+  it('passed, and the person took the work sets at the step of the probe too: their own step up', () => {
+    const { draft } = plan(H(...TOP4, [4, 4, [probe(10), { amount: 7, spec: kg(6) }]]));
+    expect(draft).toMatchObject({
+      resistance: kg(6),
+      targets: [8, 8],
+      codes: ['PROBE_PASSED'],
+      decision: 'advance',
+    });
+  });
+
+  it('passed, work sets at the step of the probe, but only some of them: judged as they are', () => {
+    const { draft } = plan(
+      H(...TOP4, [4, 4, [probe(10), { amount: 7, spec: kg(6) }, { amount: 6, spec: kg(4) }]]),
+    );
+    expect(draft.codes).not.toContain('PROBE_PASSED');
   });
 
   it('passed, but the person was confounded: held', () => {
@@ -826,7 +843,7 @@ describe('the pipeline itself', () => {
         eligible: false,
         sets: SETS,
       },
-      PIPELINE_V2.filter((r) => r.id !== 'eligibility'),
+      PIPELINE.filter((r) => r.id !== 'eligibility'),
     );
     expect(draft.codes).toEqual(['PROBE_PLANNED']);
   });

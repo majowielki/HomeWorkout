@@ -1,39 +1,51 @@
+import { randomUUID } from 'expo-crypto';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { getExcludedExerciseIds, getProfile, setExerciseExcluded } from '@/db/repositories/profile';
 import {
-  getLoggedStepKeys,
-  getSetsForWorkout,
+  getExcludedExerciseIds,
+  getMedicalProfile,
+  setExerciseExcluded,
+} from '@/db/repositories/profile';
+import {
   logSet,
-  takeBackLastSet,
-} from '@/db/repositories/setLogs';
-import { getTemplate } from '@/db/repositories/templates';
-import { getCurrentBlock, setBlockSelection } from '@/db/repositories/trainingBlocks';
-import { getWorkout } from '@/db/repositories/workouts';
-import type { SessionPlan } from '@/domain/plan/types';
+  readSessionState,
+  recordFeel,
+  reopenSets,
+  type SessionState,
+  skipSets,
+  undoSet,
+} from '@/db/repositories/sessions';
+import { applySessionChange } from '@/db/repositories/sessionChanges';
+import { type CommandResult, isDone } from '@/domain/commands/result';
+import type { SetObservation } from '@/domain/observations/types';
+import type { PlannedSet } from '@/domain/plan/plan';
+import { buildObservation, type EntryContext, type SetEntry } from '@/domain/observations/entry';
 import {
   buildSessionSteps,
   findResumeIndex,
-  groupBlockIndices,
-  groupKey,
+  groupExposureIndices,
   isGroupComplete,
-  nextUnloggedIndex,
+  latestResult,
+  nextPendingFrom,
+  nextPendingIndex,
   type SessionStep,
-  stepKey,
-} from '@/domain/session/steps';
-import type { Exercise, MedicalProfile, TemplateBlock } from '@/domain/types';
-import { describeSet } from '@/features/history/describeSet';
+} from '@/domain/session/progress';
+import type { Exercise, MedicalProfile } from '@/domain/types';
+import { describeResult } from '@/features/history/describeSet';
 import { planTitle } from '@/features/plan/format';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
-import type { GroupDoneExercise } from './GroupDoneCard';
-import type { SavedSetData } from './SetLogger';
-import { sessionSides } from './sessionSides';
-import type { SubstituteChoice } from './SubstituteModal';
-import { takeUndone, type UndoneSet, undoneFromRow } from './undoneSet';
+import type { Feel, GroupDoneExercise } from './GroupDoneCard';
+import {
+  type CalibrationMemories,
+  type CalibrationOffer,
+  NO_MEMORY,
+  readCalibrationOffer,
+} from './calibration';
+import { takeUndone, type UndoneSet } from './undoneSet';
 
 export type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'groupDone' | 'notFound';
 
@@ -46,34 +58,32 @@ export interface EndedRest {
 
 /** What skipping an exercise did. */
 export type SkipOutcome =
-  | { kind: 'skipped'; blockIndex: number; name: string }
+  | { kind: 'skipped'; exposureIndex: number; name: string; plannedSetIds: string[] }
   /** Nothing would be left to do: skipping it ends the workout, which asks first. */
   | { kind: 'last' }
   | { kind: 'none' };
 
-export type LoadedSession = {
-  workoutId: string;
-  trainingDate: string;
-  title: string;
-  /** The engine's plan the session was started from; null for a template session. */
-  plan: SessionPlan | null;
-  /** What the steps are built from: the plan's exercises or the template's blocks. */
-  blocks: readonly TemplateBlock[];
-};
+/** What the logger hands over when a set is saved: the entry and how the person gave it. */
+export interface LoggedEntry {
+  entry: SetEntry;
+  channel: EntryContext['channel'];
+  shown: EntryContext['shown'];
+}
 
 /** Everything the session reads and writes outside React; the defaults are the database. */
 export interface ActiveSessionDeps {
-  getWorkout: typeof getWorkout;
-  getTemplate: typeof getTemplate;
-  getProfile: typeof getProfile;
+  readSession: typeof readSessionState;
+  getProfile: typeof getMedicalProfile;
   getExcludedExerciseIds: typeof getExcludedExerciseIds;
   setExerciseExcluded: typeof setExerciseExcluded;
-  getLoggedStepKeys: typeof getLoggedStepKeys;
-  getSetsForWorkout: typeof getSetsForWorkout;
   logSet: typeof logSet;
-  takeBackLastSet: typeof takeBackLastSet;
-  getCurrentBlock: typeof getCurrentBlock;
-  setBlockSelection: typeof setBlockSelection;
+  skipSets: typeof skipSets;
+  reopenSets: typeof reopenSets;
+  undoSet: typeof undoSet;
+  recordFeel: typeof recordFeel;
+  applySessionChange: typeof applySessionChange;
+  /** The offer to calibrate the sets that remain, after a set of an exercise new to the person. */
+  offerCalibration: typeof readCalibrationOffer;
   startRest: (seconds: number, notificationBody: string) => Promise<void>;
   /** Adds to the rest running now; a negative amount takes an extension back. */
   extendRest: (seconds: number, notificationBody: string) => Promise<void>;
@@ -81,34 +91,37 @@ export interface ActiveSessionDeps {
   /** When the rest running now ends, or null. */
   restEndsAt: () => number | null;
   now: () => number;
+  newId: () => string;
   alert: (message: string) => void;
 }
 
 const defaultDeps: ActiveSessionDeps = {
-  getWorkout,
-  getTemplate,
-  getProfile,
+  readSession: readSessionState,
+  getProfile: getMedicalProfile,
   getExcludedExerciseIds,
   setExerciseExcluded,
-  getLoggedStepKeys,
-  getSetsForWorkout,
-  logSet,
-  takeBackLastSet,
-  getCurrentBlock,
-  setBlockSelection,
+  logSet: logSet,
+  skipSets: skipSets,
+  reopenSets,
+  undoSet: undoSet,
+  recordFeel,
+  applySessionChange,
+  offerCalibration: readCalibrationOffer,
   startRest: (seconds, body) => useRestTimerStore.getState().start(seconds, body),
   extendRest: (seconds, body) => useRestTimerStore.getState().extend(seconds, body),
   stopRest: () => useRestTimerStore.getState().stop(),
   restEndsAt: () => useRestTimerStore.getState().restEndsAt,
   now: Date.now,
+  newId: randomUUID,
   alert: (message) => Alert.alert(message),
 };
 
 /**
- * The active session (IMPLEMENTACJA §2.3): which step is up, what was logged,
- * rest and the done card, taking a set back, swaps for the session or the
- * block. Progress is always read back from set_logs, never trusted from
- * memory (SPEC §7.1), so a killed app resumes where it was. The route only draws.
+ * The active session: which set is up, what was done, rest and the done card,
+ * taking a set back, skipping an exercise. Everything that happened is read
+ * back from the database after each command, never trusted from memory, so a
+ * killed app resumes where it was; this hook keeps only where the person is.
+ * The route only draws.
  */
 export function useActiveSession(
   id: string,
@@ -117,79 +130,76 @@ export function useActiveSession(
 ) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('loading');
-  const [loaded, setLoaded] = useState<LoadedSession | null>(null);
-  const [steps, setSteps] = useState<SessionStep[]>([]);
-  const [loggedKeys, setLoggedKeys] = useState<Set<string>>(new Set());
+  const [session, setSession] = useState<SessionState | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [profile, setProfile] = useState<MedicalProfile>({ knee: null });
-  // blockIndex -> exercise swapped in for the rest of this session.
-  const [substitutes, setSubstitutes] = useState<Record<number, string>>({});
-  // blockIndex -> slot whose block selection the swap also changed, so a restore can undo it.
-  const [blockSwaps, setBlockSwaps] = useState<Record<number, string>>({});
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [saving, setSaving] = useState(false);
-  // What the just-finished exercise or superset looked like, for the groupDone card.
-  const [groupDone, setGroupDone] = useState<GroupDoneExercise[]>([]);
-  // A set taken back with "Cofnij serię": its step shows the logged numbers again.
+  // The offer of one step up or down for the sets that remain of a new exercise, while the rest runs.
+  const [calibration, setCalibration] = useState<CalibrationOffer | null>(null);
+  const calibrated = useRef<CalibrationMemories>({});
+  // What the person said about how each exercise felt, by exposure: the last word.
+  const [feels, setFeels] = useState<Readonly<Record<string, Feel>>>({});
+  // A set taken back with "Cofnij serię": its step shows the recorded numbers again.
   const [restored, setRestored] = useState<UndoneSet | null>(null);
-  // Blocks passed over with "Pomiń ćwiczenie": not offered again this session, never logged.
-  const [skipped, setSkipped] = useState<ReadonlySet<number>>(new Set());
+  // The revision every command is checked against: what the last read of the session said.
+  const revision = useRef(0);
 
-  // Initial load: workout -> template -> steps -> where to resume.
+  const steps = useMemo(
+    () => (session ? buildSessionSteps(session.plan, session.states) : []),
+    [session],
+  );
+
+  /** Reads the session again; the steps the new state makes are returned for the caller to act on. */
+  function reload(): { state: SessionState; steps: SessionStep[] } | null {
+    const state = deps.readSession(id);
+    if (state === null) {
+      setPhase('notFound');
+      return null;
+    }
+    revision.current = state.workout.revision;
+    setSession(state);
+    return { state, steps: buildSessionSteps(state.plan, state.states) };
+  }
+
+  // Initial load: the session, then where to resume.
   useEffect(() => {
     let cancelled = false;
 
     async function run() {
-      const workout = await deps.getWorkout(id);
-      const plan = workout?.plan ?? null;
-      const template =
-        workout && !plan && workout.templateId ? await deps.getTemplate(workout.templateId) : null;
-      if (!workout || (!plan && !template)) {
+      const state = deps.readSession(id);
+      if (state === null || state.workout.status !== 'in_progress') {
         if (!cancelled) setPhase('notFound');
         return;
       }
-
-      const profileRow = await deps.getProfile();
-      const knee: MedicalProfile = { knee: profileRow?.kneeProfile ?? null };
-      const blocks = plan ? plan.exercises : template!.blocks;
-      const builtSteps = buildSessionSteps(blocks, { sidesOf: sessionSides(knee) });
-      const keys = await deps.getLoggedStepKeys(id);
-      const resumeIndex = findResumeIndex(builtSteps, keys);
-      const excluded = await deps.getExcludedExerciseIds();
-      // A fresh session opens on the general warm-up; the bike is its own
-      // task on 'Dziś', done whenever suits the day.
-      const needsWarmup = resumeIndex === 0;
+      const built = buildSessionSteps(state.plan, state.states);
+      const resumeIndex = findResumeIndex(built);
+      const [medical, excluded] = await Promise.all([
+        deps.getProfile(),
+        deps.getExcludedExerciseIds(),
+      ]);
 
       if (cancelled) return;
 
-      if (resumeIndex >= builtSteps.length) {
+      if (resumeIndex >= built.length) {
         router.replace({ pathname: '/workout/summary/[id]', params: { id, back: 'undo' } });
         return;
       }
+      revision.current = state.workout.revision;
+      setSession(state);
+      setProfile(medical);
+      setExcludedIds(new Set(excluded));
       // Back from the summary with the last set taken back: open on that set.
       const undone = takeUndone(id);
-      const undoneIndex = undone
-        ? builtSteps.findIndex((s) => stepKey(s.blockIndex, s.setNumber) === undone.key)
-        : -1;
-
-      setLoaded({
-        workoutId: id,
-        trainingDate: workout.trainingDate,
-        title: plan ? planTitle(plan) : template!.name,
-        plan,
-        blocks,
-      });
-      setSteps(builtSteps);
-      setLoggedKeys(keys);
-      setProfile(knee);
-      setExcludedIds(new Set(excluded));
+      const undoneIndex = undone ? built.findIndex((s) => s.set.id === undone.plannedSetId) : -1;
       if (undone && undoneIndex >= 0) {
         setCurrentIndex(undoneIndex);
         setRestored(undone);
         setPhase('logging');
       } else {
         setCurrentIndex(resumeIndex);
-        setPhase(needsWarmup ? 'warmup' : 'logging');
+        // A fresh session opens on the general warm-up; the bike is its own task on 'Dziś'.
+        setPhase(resumeIndex === 0 && state.states.size === 0 ? 'warmup' : 'logging');
       }
     }
 
@@ -201,187 +211,220 @@ export function useActiveSession(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
 
-  const currentStep = steps[currentIndex] ?? null;
-  const templateExercise = currentStep ? exerciseMap[currentStep.block.exerciseId] : undefined;
-  const effectiveExercise: Exercise | undefined = currentStep
-    ? (exerciseMap[substitutes[currentStep.blockIndex] ?? ''] ?? templateExercise)
-    : undefined;
+  const currentStep: SessionStep | null = steps[currentIndex] ?? null;
+  const exerciseOf = (step: SessionStep): Exercise | undefined =>
+    exerciseMap[step.exposure.exercise.id];
+  const exercise = currentStep ? exerciseOf(currentStep) : undefined;
+  const title = session ? planTitle(session.plan) : '';
 
-  // Logged steps plus those of skipped exercises: what the session will not ask for again.
-  const passedKeys = useMemo(
-    () => passedWith(steps, loggedKeys, skipped),
-    [steps, loggedKeys, skipped],
-  );
-
-  // What the rest is for. Mirrors restDone — the first unlogged step from
-  // here, wrapping round — so after a warm-up (the same step comes back) and
-  // after a jump through the progress sheet it still names the right exercise.
-  const upcoming = useMemo(() => {
-    if (phase !== 'resting' && phase !== 'groupDone') return null;
-    const index = nextFrom(steps, passedKeys, currentIndex);
+  /** What the rest is for: the next step to do from here, wrapping round. */
+  function upcomingStep() {
+    if ((phase !== 'resting' && phase !== 'groupDone') || !session) return null;
+    const index = nextPendingFrom(steps, currentIndex);
     const step = index === null ? undefined : steps[index];
     if (!step) return null;
-    const exercise =
-      exerciseMap[substitutes[step.blockIndex] ?? ''] ?? exerciseMap[step.block.exerciseId];
+    const next = exerciseOf(step);
     const current = steps[currentIndex];
-    const supersetSwitch =
-      current !== undefined &&
-      current.blockIndex !== step.blockIndex &&
-      groupKey(current.block.label) === groupKey(step.block.label);
     const t = pl.workout.session;
-    const otherSide = current?.blockIndex === step.blockIndex && step.side !== null;
-    const name = exercise?.name ?? step.block.exerciseId;
+    const sameGroup =
+      current !== undefined &&
+      current.exposureIndex !== step.exposureIndex &&
+      groupExposureIndices(session.plan, step.exposureIndex).includes(current.exposureIndex);
+    const otherSide = current?.exposureIndex === step.exposureIndex && step.side !== null;
+    const name = next?.name ?? step.exposure.exercise.displayName;
     return {
-      blockIndex: step.blockIndex,
-      exercise: exercise ?? null,
-      label: `${step.block.label} · ${name}${step.side ? ` — ${t.side[step.side]}` : ''}`,
-      note: supersetSwitch ? t.supersetNext : otherSide ? t.otherSideNext : null,
+      exposureIndex: step.exposureIndex,
+      exercise: next ?? null,
+      label: `${step.label} · ${name}${step.side ? ` — ${t.side[step.side]}` : ''}`,
+      note: sameGroup ? t.supersetNext : otherSide ? t.otherSideNext : null,
     };
-  }, [phase, steps, passedKeys, currentIndex, substitutes, exerciseMap]);
+  }
+  const upcoming = upcomingStep();
+
+  // "Superseria z: …" on the set screen, naming the other halves of the group.
+  const supersetWith =
+    currentStep && session
+      ? groupExposureIndices(session.plan, currentStep.exposureIndex)
+          .filter(
+            (i) =>
+              i !== currentStep.exposureIndex &&
+              steps.some((s) => s.exposureIndex === i && s.state !== 'skipped'),
+          )
+          .map((i) => session.plan.exposures[i]!)
+          .map((e) => exerciseMap[e.exercise.id]?.name ?? e.exercise.displayName)
+          .join(', ')
+      : '';
+
+  /** What was done in the exercise or superset the person is on, set by set, for the done card. */
+  function doneInGroup(): GroupDoneExercise[] {
+    if (phase !== 'groupDone' || !currentStep || !session) return [];
+    return groupExposureIndices(session.plan, currentStep.exposureIndex).map((i) => {
+      const exposure = session.plan.exposures[i]!;
+      const sets = steps
+        .filter((s) => s.exposureIndex === i)
+        .flatMap((s) => {
+          const result = session.results.get(s.set.id);
+          return result ? [describeResult(result.observation)] : [];
+        });
+      return {
+        name: exerciseMap[exposure.exercise.id]?.name ?? exposure.exercise.displayName,
+        exposureId: exposure.id,
+        ...(feels[exposure.id] === undefined ? {} : { feel: feels[exposure.id] }),
+        sets,
+      };
+    });
+  }
+
+  const unfinishedCount = steps.filter((s) => s.state === 'pending').length;
+
+  /** The result of the set before this one in the same exercise: what the next set starts from. */
+  function previousInExposure(): { observation: SetObservation; planned: PlannedSet } | null {
+    if (!currentStep || !session) return null;
+    for (let i = currentIndex - 1; i >= 0; i -= 1) {
+      const step = steps[i]!;
+      const result =
+        step.exposureIndex === currentStep.exposureIndex
+          ? session.results.get(step.set.id)
+          : undefined;
+      if (result) return { observation: result.observation, planned: step.set };
+    }
+    return null;
+  }
+  const previous = previousInExposure();
 
   /**
-   * A swap can change whether the exercise is done one side per set, and so
-   * how many steps its block has. While nothing of the block is logged its
-   * steps are built again for the exercise now done; once a set is logged
-   * the layout stays as it is.
+   * Sends a command made from the revision the session had when it was read. When the session moved on
+   * under it (the voice and the touch screen are both writing), it is read again and sent once more.
    */
-  function resplit(blockIndex: number, swaps: Record<number, string>) {
-    if (!loaded) return;
-    const touched = steps.some(
-      (s) => s.blockIndex === blockIndex && loggedKeys.has(stepKey(s.blockIndex, s.setNumber)),
-    );
-    if (touched) return;
-    const next = buildSessionSteps(loaded.blocks, { sidesOf: sessionSides(profile, swaps) });
-    setSteps(next);
-    const first = next.findIndex((s) => s.blockIndex === blockIndex);
-    if (first >= 0) setCurrentIndex(first);
+  function send<T>(
+    command: (expectedSessionRevision: number) => CommandResult<T>,
+  ): CommandResult<T> {
+    let result = command(revision.current);
+    if (result.kind === 'conflict' && result.code === 'SESSION_CHANGED') {
+      reload();
+      result = command(revision.current);
+    }
+    return result;
   }
-
-  /** "For the rest of the block": the session already uses the swap; a failed write says so. */
-  function saveBlockChoice(slotId: string, exerciseId: string) {
-    void deps
-      .getCurrentBlock()
-      .then((block) => (block ? deps.setBlockSelection(block.id, slotId, exerciseId) : undefined))
-      .catch((error: unknown) => {
-        console.warn('could not save the swap for the block', error);
-        deps.alert(pl.workout.session.blockSwapError);
-      });
-  }
-
-  /** The exercise actually done for a block: today's swap, else the plan's. */
-  const exerciseFor = (blockIndex: number) => {
-    const block = steps.find((s) => s.blockIndex === blockIndex)?.block;
-    return exerciseMap[substitutes[blockIndex] ?? ''] ?? (block && exerciseMap[block.exerciseId]);
-  };
-
-  // "Superseria z: …" on the set screen, naming the other half of the pair.
-  const supersetWith = currentStep
-    ? groupBlockIndices(steps, currentStep.blockIndex)
-        .filter((i) => i !== currentStep.blockIndex && !skipped.has(i))
-        .map((i) => exerciseFor(i)?.name)
-        .filter(Boolean)
-        .join(', ')
-    : '';
-
-  const unloggedCount = steps.filter(
-    (s) => !loggedKeys.has(stepKey(s.blockIndex, s.setNumber)),
-  ).length;
 
   /**
    * `back` tells the summary what "Wróć do treningu" does there: take the
-   * last set back when everything is logged (the last tap may have been a
+   * last set back when everything is done (the last tap may have been a
    * mistake), or simply return when the workout was finished early.
    */
   function finish(back: 'undo' | 'resume' = 'undo') {
-    if (!loaded) return;
     // A rest still running would ring "back to training" after the workout ended.
     void deps.stopRest();
-    router.replace({
-      pathname: '/workout/summary/[id]',
-      params: { id: loaded.workoutId, back },
-    });
+    router.replace({ pathname: '/workout/summary/[id]', params: { id, back } });
   }
 
-  /** The finished exercise or superset, set by set, for the groupDone card. */
-  async function loadGroupDone(workoutId: string, blockIndex: number) {
-    const rows = await deps.getSetsForWorkout(workoutId);
-    const exercises: GroupDoneExercise[] = groupBlockIndices(steps, blockIndex).map((i) => {
-      const done = rows
-        .filter((r) => r.exerciseOrder === i && !r.isWarmup)
-        .sort((a, b) => a.setIndex - b.setIndex);
-      const exerciseId = done[0]?.exerciseId ?? exerciseFor(i)?.id ?? '';
-      return { name: exerciseMap[exerciseId]?.name ?? exerciseId, sets: done.map(describeSet) };
-    });
-    setGroupDone(exercises);
-  }
-
-  async function saveSet(data: SavedSetData) {
-    if (!loaded || !currentStep || !effectiveExercise || saving) return;
-
-    // The progress sheet only allows jumping onto unlogged steps, but this
-    // is the last line of defence against a duplicate (blockIndex, setNumber)
-    // row — which would corrupt resume and every future progression read.
-    const key = stepKey(currentStep.blockIndex, currentStep.setNumber);
-    if (loggedKeys.has(key)) return;
+  async function saveSet({ entry, channel, shown }: LoggedEntry) {
+    if (!session || !currentStep || saving) return;
+    if (currentStep.state === 'performed' || currentStep.state === 'interrupted') return;
 
     setSaving(true);
-    let freshKeys = loggedKeys;
+    let after: NonNullable<ReturnType<typeof reload>>;
     try {
-      await deps.logSet({
-        workoutId: loaded.workoutId,
-        exerciseId: effectiveExercise.id,
-        exerciseOrder: currentStep.blockIndex,
-        setIndex: currentStep.setNumber,
-        isWarmup: false,
-        reps: data.reps,
-        timeSec: data.timeSec,
-        rir: data.rir,
-        weightKg: data.weightKg,
-        dumbbellMode: data.dumbbellMode,
-        bandId: data.bandId,
-        anchorPosition: data.anchorPosition,
-        estimatedLoadKg: data.estimatedLoadKg,
-        side: currentStep.side,
-        shortfall: data.shortfall,
-      });
-      freshKeys = await deps.getLoggedStepKeys(loaded.workoutId);
-      setLoggedKeys(freshKeys);
+      const at = new Date(deps.now()).toISOString();
+      const observation = buildObservation(entry, { channel, shown, at });
+      const commandId = deps.newId();
+      const result = send((expectedSessionRevision) =>
+        deps.logSet({
+          commandId,
+          sessionId: id,
+          plannedSetId: currentStep.set.id,
+          expectedSessionRevision,
+          observation,
+        }),
+      );
+      if (!isDone(result)) {
+        // The logger keeps its numbers; the person can save again.
+        console.warn('could not log the set', result);
+        deps.alert(pl.workout.session.saveSetError);
+        return;
+      }
+      const fresh = reload();
+      if (fresh === null) return;
+      after = fresh;
       setRestored(null);
-    } catch (error) {
-      // The logger keeps its numbers; the person can save again.
-      console.warn('could not log the set', error);
-      deps.alert(pl.workout.session.saveSetError);
-      return;
     } finally {
       setSaving(false);
     }
 
     // Nothing left anywhere in the session (not just after this index) —
-    // the user may have jumped around, so scan the whole list.
-    const freshPassed = passedWith(steps, freshKeys, skipped);
-    if (nextUnloggedIndex(steps, freshPassed, 0) === null) {
+    // the person may have jumped around, so scan the whole list.
+    if (nextPendingIndex(after.steps, 0) === null) {
       finish();
       return;
     }
 
-    if (isGroupComplete(steps, freshPassed, currentStep.blockIndex)) {
+    if (
+      isGroupComplete(
+        after.steps,
+        groupExposureIndices(after.state.plan, currentStep.exposureIndex),
+      )
+    ) {
       // The exercise (or the whole superset) is done: show what was done and
       // let the person move on when ready, instead of a rest countdown.
-      await loadGroupDone(loaded.workoutId, currentStep.blockIndex);
       setPhase('groupDone');
       return;
     }
-    await deps.startRest(currentStep.block.restSec, pl.workout.session.restNotificationBody);
+    const rest = currentStep.set.restAfterSec;
+    if (rest <= 0) {
+      setCurrentIndex(nextPendingFrom(after.steps, currentIndex) ?? currentIndex);
+      return;
+    }
+    await deps.startRest(rest, pl.workout.session.restNotificationBody);
+    try {
+      setCalibration(deps.offerCalibration(id, currentStep.set.id, calibrated.current));
+    } catch (error) {
+      // An offer is a convenience: reading it must never keep the person from resting and going on.
+      console.warn('could not read the calibration offer', error);
+      setCalibration(null);
+    }
     setPhase('resting');
   }
 
+  /** "Tak": the sets that remain go one step up or down, through the engine's own change of the session. */
+  function acceptCalibration() {
+    const offer = calibration;
+    if (!offer) return;
+    const result = deps.applySessionChange({ commandId: deps.newId(), ...offer.command });
+    setCalibration(null);
+    if (!isDone(result)) {
+      console.warn('could not calibrate the sets that remain', result);
+      deps.alert(pl.workout.session.calibration.error);
+      return;
+    }
+    const memory = calibrated.current[offer.comparisonKey] ?? NO_MEMORY;
+    calibrated.current[offer.comparisonKey] =
+      offer.direction === 'up'
+        ? { ...memory, stepsUp: memory.stepsUp + 1 }
+        : { ...memory, stepsDown: memory.stepsDown + 1 };
+    const fresh = reload();
+    if (fresh === null) return;
+    // The step of the rest stays where it was: the set just done.
+    const done = fresh.steps.findIndex((s) => s.set.id === offer.plannedSetId);
+    if (done >= 0) setCurrentIndex(done);
+  }
+
+  /** "Nie": not offered again for this exercise in this session, and not a failure. */
+  function declineCalibration() {
+    const offer = calibration;
+    setCalibration(null);
+    if (!offer) return;
+    const memory = calibrated.current[offer.comparisonKey] ?? NO_MEMORY;
+    calibrated.current[offer.comparisonKey] = { ...memory, declined: true };
+  }
+
   function restDone() {
+    setCalibration(null);
     // Synchronous first so RestTimer unmounts immediately and its own
     // interval stops, before the async store cleanup below resolves.
     setPhase('logging');
-    // Advance to the next step that still needs a log. "index + 1" is not
-    // safe once the user has jumped around via the progress sheet.
-    const next = nextFrom(steps, passedKeys, currentIndex);
+    // Advance to the next step that still needs doing. "index + 1" is not
+    // safe once the person has jumped around via the progress sheet.
+    const next = nextPendingFrom(steps, currentIndex);
     if (next === null) {
       finish();
     } else {
@@ -420,7 +463,7 @@ export function useActiveSession(
     } else {
       // The rest had run out anyway; the next set is where it would have led.
       setPhase('logging');
-      const next = nextFrom(steps, passedKeys, ended.index);
+      const next = nextPendingFrom(steps, ended.index);
       if (next !== null) setCurrentIndex(next);
     }
   }
@@ -434,36 +477,84 @@ export function useActiveSession(
 
   /**
    * "Pomiń ćwiczenie": during a set, the exercise on screen; during a rest
-   * or on the done card, the one coming up. Its unlogged sets are passed
-   * over for the rest of the session and the next exercise opens at once,
-   * without a rest. Skipping the last thing left would end the workout, so
-   * that is only reported; the screen asks before finishing.
+   * or on the done card, the one coming up. Its sets still to do are passed
+   * over, and the next exercise opens at once, without a rest. Skipping the
+   * last thing left would end the workout, so that is only reported; the
+   * screen asks before finishing.
    */
   function skipExercise(): SkipOutcome {
-    const blockIndex =
+    const exposureIndex =
       phase === 'logging'
-        ? currentStep?.blockIndex
+        ? currentStep?.exposureIndex
         : phase === 'resting' || phase === 'groupDone'
-          ? upcoming?.blockIndex
+          ? upcoming?.exposureIndex
           : undefined;
-    if (blockIndex === undefined) return { kind: 'none' };
-    const skips = new Set(skipped).add(blockIndex);
-    const next = nextFrom(steps, passedWith(steps, loggedKeys, skips), currentIndex);
-    if (next === null) return { kind: 'last' };
-    const name = exerciseFor(blockIndex)?.name ?? '';
-    setSkipped(skips);
+    if (exposureIndex === undefined) return { kind: 'none' };
+    const skipped = steps.filter((s) => s.exposureIndex === exposureIndex && s.state === 'pending');
+    const left = steps.filter((s) => s.exposureIndex !== exposureIndex);
+    if (nextPendingIndex(left, 0) === null) return { kind: 'last' };
+    const commandId = deps.newId();
+    const result = send((expectedSessionRevision) =>
+      deps.skipSets({
+        commandId,
+        sessionId: id,
+        plannedSetIds: skipped.map((s) => s.set.id),
+        reason: 'user_skipped',
+        expectedSessionRevision,
+      }),
+    );
+    if (!isDone(result)) {
+      console.warn('could not skip the exercise', result);
+      deps.alert(pl.common.error);
+      return { kind: 'none' };
+    }
+    const fresh = reload();
+    if (fresh === null) return { kind: 'none' };
     setRestored(null);
-    setCurrentIndex(next);
+    setCurrentIndex(nextPendingFrom(fresh.steps, currentIndex) ?? currentIndex);
     setPhase('logging');
     void deps.stopRest();
-    return { kind: 'skipped', blockIndex, name };
+    const name =
+      exerciseMap[steps.find((s) => s.exposureIndex === exposureIndex)!.exposure.exercise.id]
+        ?.name ??
+      steps.find((s) => s.exposureIndex === exposureIndex)!.exposure.exercise.displayName;
+    return { kind: 'skipped', exposureIndex, name, plannedSetIds: skipped.map((s) => s.set.id) };
   }
 
-  /** Takes a skip back: the exercise opens again on its first unlogged set. */
-  function unskip(blockIndex: number) {
-    setSkipped((prev) => without(prev, blockIndex));
-    const first = steps.findIndex(
-      (s) => s.blockIndex === blockIndex && !loggedKeys.has(stepKey(s.blockIndex, s.setNumber)),
+  /** "Za ciężko" / "Za łatwo" for an exercise just done. It changes no plan; the next prescription reads it. */
+  function reportFeel(exposureId: string, feel: Feel) {
+    const result = deps.recordFeel({
+      commandId: deps.newId(),
+      sessionId: id,
+      exposureId,
+      feel,
+      channel: 'touch',
+    });
+    if (!isDone(result)) {
+      console.warn('could not record how it felt', result);
+      deps.alert(pl.workout.session.feel.error);
+      return;
+    }
+    setFeels((prev) => ({ ...prev, [exposureId]: feel }));
+  }
+
+  /** Takes a skip back: the exercise opens again on its first set still to do. */
+  function unskip(outcome: Extract<SkipOutcome, { kind: 'skipped' }>) {
+    const commandId = deps.newId();
+    const result = deps.reopenSets({
+      commandId,
+      sessionId: id,
+      plannedSetIds: outcome.plannedSetIds,
+    });
+    if (!isDone(result)) {
+      console.warn('could not take the skip back', result);
+      deps.alert(pl.common.error);
+      return;
+    }
+    const fresh = reload();
+    if (fresh === null) return;
+    const first = fresh.steps.findIndex(
+      (s) => s.exposureIndex === outcome.exposureIndex && s.state === 'pending',
     );
     if (first >= 0) setCurrentIndex(first);
     void deps.stopRest();
@@ -471,96 +562,109 @@ export function useActiveSession(
   }
 
   /**
-   * "Cofnij serię" on the rest timer or the done card: the set just logged
-   * is deleted and its step opens again with the logged numbers in it.
+   * "Cofnij serię" on the rest timer or the done card: the set just done is
+   * taken back and its step opens again with the recorded numbers in it.
    */
-  async function undo() {
-    if (!loaded || saving) return;
+  function undo(plannedSetId?: string) {
+    if (!session || saving) return;
+    setCalibration(null);
+    const last = latestResult(session.results.values());
+    if (last === null) return;
+    // "Cofnij" offered for a set that is no longer the last one would take back another set.
+    if (plannedSetId !== undefined && last.observation.plannedSetId !== plannedSetId) {
+      deps.alert(pl.workout.session.undoStale);
+      return;
+    }
     setSaving(true);
     try {
-      const row = await deps.takeBackLastSet(loaded.workoutId);
-      void deps.stopRest();
-      setLoggedKeys(await deps.getLoggedStepKeys(loaded.workoutId));
-      if (row) {
-        const undone = undoneFromRow(row);
-        const index = steps.findIndex((s) => stepKey(s.blockIndex, s.setNumber) === undone.key);
-        if (index >= 0) setCurrentIndex(index);
-        setRestored(undone);
+      const commandId = deps.newId();
+      const result = deps.undoSet({ commandId, sessionId: id, observationId: last.id });
+      if (!isDone(result)) {
+        console.warn('could not take the set back', result);
+        deps.alert(pl.workout.session.undoError);
+        return;
       }
+      void deps.stopRest();
+      const fresh = reload();
+      if (fresh === null) return;
+      const index = fresh.steps.findIndex((s) => s.set.id === last.observation.plannedSetId);
+      if (index >= 0) setCurrentIndex(index);
+      setRestored({ plannedSetId: last.observation.plannedSetId!, result: last.observation });
       setPhase('logging');
-    } catch (error) {
-      console.warn('could not take the set back', error);
-      deps.alert(pl.workout.session.undoError);
     } finally {
       setSaving(false);
     }
   }
 
-  /** From the progress sheet: straight to an unlogged step. */
+  /** From the progress sheet: straight to a step not done yet. */
   function jump(index: number) {
+    setCalibration(null);
     void deps.stopRest();
-    // Jumping onto a skipped exercise is changing one's mind about it.
-    const block = steps[index]?.blockIndex;
-    if (block !== undefined) setSkipped((prev) => without(prev, block));
+    const target = steps[index];
+    // Going to a skipped exercise is changing one's mind about it.
+    if (target?.state === 'skipped') {
+      const skipped = steps.filter(
+        (s) => s.exposureIndex === target.exposureIndex && s.state === 'skipped',
+      );
+      const reopened = deps.reopenSets({
+        commandId: deps.newId(),
+        sessionId: id,
+        plannedSetIds: skipped.map((s) => s.set.id),
+      });
+      if (!isDone(reopened)) {
+        // The exercise stays skipped: opening it would show a set that cannot be saved.
+        console.warn('could not reopen the exercise', reopened);
+        deps.alert(pl.common.error);
+        return;
+      }
+      reload();
+    }
     setCurrentIndex(index);
     setPhase('logging');
   }
 
-  function substitute(choice: SubstituteChoice) {
-    if (!currentStep) return;
-    const swaps = { ...substitutes, [currentStep.blockIndex]: choice.exercise.id };
-    setSubstitutes(swaps);
-    resplit(currentStep.blockIndex, swaps);
-    if (choice.forBlock && choice.slotId) {
-      const slotId = choice.slotId;
-      setBlockSwaps((prev) => ({ ...prev, [currentStep.blockIndex]: slotId }));
-      saveBlockChoice(slotId, choice.exercise.id);
-    }
+  /** The plan changed under the session (a swap, an added exercise): read it again and open on what is next. */
+  function planChanged() {
+    setCalibration(null);
+    const fresh = reload();
+    if (fresh === null) return;
+    void deps.stopRest();
+    setCurrentIndex(nextPendingFrom(fresh.steps, 0) ?? 0);
+    setRestored(null);
+    setPhase('logging');
   }
 
-  /** Back to the planned exercise; a swap for the block is undone with it. */
-  function restoreSubstitute() {
-    if (!currentStep || !templateExercise) return;
-    const blockIndex = currentStep.blockIndex;
-    const { [blockIndex]: _, ...swaps } = substitutes;
-    setSubstitutes(swaps);
-    resplit(blockIndex, swaps);
-    const slotId = blockSwaps[blockIndex];
-    if (slotId) {
-      setBlockSwaps(({ [blockIndex]: _, ...rest }) => rest);
-      saveBlockChoice(slotId, templateExercise.id);
-    }
-  }
-
-  function exclude(exercise: Exercise) {
-    void deps.setExerciseExcluded(exercise.id, true).catch((error: unknown) => {
+  function exclude(excluded: Exercise) {
+    void deps.setExerciseExcluded(excluded.id, true).catch((error: unknown) => {
       console.warn('could not save the exclusion', error);
       deps.alert(pl.common.error);
     });
-    setExcludedIds((prev) => new Set(prev).add(exercise.id));
+    setExcludedIds((prev) => new Set(prev).add(excluded.id));
   }
 
   return {
     phase,
-    loaded,
+    session,
+    title,
     steps,
-    loggedKeys,
     currentIndex,
     currentStep,
     profile,
     excludedIds,
     saving,
-    groupDone,
-    restored,
+    groupDone: doneInGroup(),
     upcoming,
-    templateExercise,
-    effectiveExercise,
+    exercise,
+    previousResult: previous?.observation ?? null,
+    /** What the plan asked of that set: the logger keeps its load only for a set that asks the same. */
+    previousPlanned: previous?.planned ?? null,
     supersetWith,
-    unloggedCount,
+    unfinishedCount,
+    /** A set taken back, until it is saved again. */
+    restored,
     warmupDone: () => setPhase('logging'),
     /** "Cofnij" after the warm-up was ended by voice. */
     backToWarmup: () => setPhase('warmup'),
-    skipped,
     saveSet,
     restDone,
     endRest,
@@ -568,42 +672,14 @@ export function useActiveSession(
     extendRest,
     skipExercise,
     unskip,
+    reportFeel,
+    calibration,
+    acceptCalibration,
+    declineCalibration,
     undo,
     jump,
     finish,
-    substitute,
-    restoreSubstitute,
+    planChanged,
     exclude,
   };
-}
-
-/** Logged steps plus every step of a skipped block. */
-function passedWith(
-  steps: readonly SessionStep[],
-  keys: ReadonlySet<string>,
-  skips: ReadonlySet<number>,
-): ReadonlySet<string> {
-  if (skips.size === 0) return keys;
-  const passed = new Set(keys);
-  for (const s of steps) {
-    if (skips.has(s.blockIndex)) passed.add(stepKey(s.blockIndex, s.setNumber));
-  }
-  return passed;
-}
-
-/** The next step still to do from `from`, wrapping round; null when nothing is left. */
-function nextFrom(
-  steps: readonly SessionStep[],
-  passed: ReadonlySet<string>,
-  from: number,
-): number | null {
-  return nextUnloggedIndex(steps, passed, from) ?? nextUnloggedIndex(steps, passed, 0);
-}
-
-/** The set without one block; the same set when it was not there, so nothing re-renders. */
-function without(set: ReadonlySet<number>, blockIndex: number): ReadonlySet<number> {
-  if (!set.has(blockIndex)) return set;
-  const rest = new Set(set);
-  rest.delete(blockIndex);
-  return rest;
 }

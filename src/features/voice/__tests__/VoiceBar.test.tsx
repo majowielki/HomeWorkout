@@ -234,6 +234,41 @@ describe('the AI fallback', () => {
     expect(screen.getByText(text)).toBeTruthy();
   });
 
+  it('an answer that comes back after the screen moved to another set is not done (T40)', async () => {
+    const run = jest.fn(() => ({ text: 'Zapisano', undo: jest.fn() }));
+    let answer!: (outcome: FallbackOutcome) => void;
+    const fallback = jest.fn(() => new Promise<FallbackOutcome>((resolve) => (answer = resolve)));
+    const target = (plannedSetId: string) => ({ sessionId: 's', planRevision: 1, plannedSetId });
+    const view = await render(
+      <VoiceBar available={REST} run={run} fallback={fallback} target={target('a')} />,
+    );
+    await listen();
+    await act(async () => speech.__emit('result', final('lecę z następną')));
+    // The set was saved by touch while the model was thinking: the screen is on the next one.
+    await view.rerender(
+      <VoiceBar available={REST} run={run} fallback={fallback} target={target('b')} />,
+    );
+    await act(async () => answer({ kind: 'command', command: { action: 'rest_end' } }));
+    expect(run).not.toHaveBeenCalled();
+    expect(screen.getByText(pl.voice.screenChanged)).toBeTruthy();
+  });
+
+  it('an answer for the set still on screen is done', async () => {
+    const run = jest.fn(() => ({ text: 'Zapisano', undo: jest.fn() }));
+    const target = { sessionId: 's', planRevision: 1, plannedSetId: 'a' };
+    await render(
+      <VoiceBar
+        available={REST}
+        run={run}
+        target={target}
+        fallback={async () => ({ kind: 'command', command: { action: 'rest_end' } })}
+      />,
+    );
+    await listen();
+    await act(async () => speech.__emit('result', final('lecę z następną')));
+    expect(run).toHaveBeenCalledWith({ action: 'rest_end' });
+  });
+
   it('a command the screen no longer offers is not done', async () => {
     await render(
       <VoiceBar

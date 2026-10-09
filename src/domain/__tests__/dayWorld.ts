@@ -1,17 +1,29 @@
 /**
- * A small, controlled world to plan a day in (engine v2, P4): a few exercises
+ * A small, controlled world to plan a day in (engine, P4): a few exercises
  * and slots whose every property the tests know. Not a suite and not counted in coverage.
  */
-import type { DayInputV2 } from '../plan/dayV2';
+import type { DayInput } from '../plan/day';
 import { resistanceOf } from '../plan/resistanceOf';
-import { rotateSelections } from '../plan/block';
+import { nextCandidate } from '../plan/blockSelection';
 import { defaultPreferences } from '../preferences/preferences';
 import type { Exercise, MuscleGroup } from '../types';
 import type { Slot } from '../plan/types';
 import { type ExposureOptions, exposureOf } from './progressionFixtures';
 import { VERSIONS } from './compileFixtures';
 import { exercise, HARD_ONLY, slot } from './fixtures';
-import { HASH_A } from './planV2Fixtures';
+import { HASH_A } from './planFixtures';
+const rotateSelections = (
+  _previous: null,
+  slots: readonly import('../plan/types').Slot[],
+  catalog: Readonly<Record<string, import('../types').Exercise>>,
+  eligibility: import('../plan/eligibility').EligibilityContext,
+) =>
+  Object.fromEntries(
+    slots.flatMap((slot) => {
+      const id = nextCandidate(slot, undefined, catalog, eligibility);
+      return id ? [[slot.id, id]] : [];
+    }),
+  );
 
 const dumbbell = (id: string, primary: MuscleGroup[], patch: Partial<Exercise> = {}) =>
   exercise({
@@ -166,7 +178,7 @@ export const PICK = Object.fromEntries(
 ) as Record<string, string>;
 export const SELECT = rotateSelections(null, SLOTS_W, CAT, ELIGIBLE);
 
-export function world(patch: Partial<DayInputV2> = {}): DayInputV2 {
+export function world(patch: Partial<DayInput> = {}): DayInput {
   return {
     asOf: '2026-10-14',
     catalog: CAT,

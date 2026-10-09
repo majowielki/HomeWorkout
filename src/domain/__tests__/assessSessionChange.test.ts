@@ -1,11 +1,11 @@
 import { assessSessionChange } from '../session/assess';
 import type { SessionChange } from '../session/types';
-import { sessionPlanV2Schema } from '../plan/planV2';
+import { sessionPlanSchema } from '../plan/plan';
 import { auditPlan } from '../plan/audit';
 import { modelFor, resistanceOf } from '../plan/resistanceOf';
 import { adviceToAcknowledge } from '../policy/hardAdvice';
 import { recipe, world, perform } from './sessionChangeFixtures';
-import { CATALOG, SLOTS } from './dayV2Fixtures';
+import { CATALOG, SLOTS } from './dayFixtures';
 import { stampPlan, compilePlannedSets } from '../plan/compile';
 import { exposureOf, body, kg } from './progressionFixtures';
 import { revisePending, revisionBase, setOrder, settledSets } from '../session/revision';
@@ -28,7 +28,7 @@ describe('P4b.2 T61-T66', () => {
     expect(a.prescription?.sets).toBe(a.recommendation?.sets.recommended);
     expect(a.patch?.basePlanRevision).toBe(1);
     expect(a.patch?.plan.planRevision).toBe(2);
-    expect(sessionPlanV2Schema.safeParse(a.patch?.plan).success).toBe(true);
+    expect(sessionPlanSchema.safeParse(a.patch?.plan).success).toBe(true);
     expect(a.patch?.plan.audit.mode).toBe('resume_session');
     expect(codes(a)).toContain('CALIBRATION_FIRST');
   });
@@ -164,7 +164,7 @@ describe('pending revisions and immutable results', () => {
       expect(a.patch).not.toBeNull();
       expect(a.patch!.plan.exposures.flatMap((e) => e.sets)).toContainEqual(done);
       expect(JSON.stringify(session.records)).toBe(actual);
-      expect(sessionPlanV2Schema.safeParse(a.patch!.plan).success).toBe(true);
+      expect(sessionPlanSchema.safeParse(a.patch!.plan).success).toBe(true);
     },
   );
 
@@ -182,7 +182,7 @@ describe('pending revisions and immutable results', () => {
     expect(set.id).toBe('s1/r2/crunch/3');
     expect(set.requiredForProgression).toBe(false);
     expect(codes(a)).toContain('SUPPLEMENTAL_ONLY');
-    expect(sessionPlanV2Schema.safeParse(a.patch!.plan).success).toBe(true);
+    expect(sessionPlanSchema.safeParse(a.patch!.plan).success).toBe(true);
   });
 
   it('reducing a unilateral exercise drops whole pending pairs and keeps the unperformed partner of a done side', () => {
@@ -251,7 +251,58 @@ describe('pending revisions and immutable results', () => {
     expect(replacement.sets).toHaveLength(2);
     expect(replacement.sets[0]!.resistance.value).toMatchObject({ massGrams: 2000 });
     expect(replacement.sets[0]!.comparisonGroupId).toBe(`${replacement.id}/work`);
-    expect(sessionPlanV2Schema.safeParse(a.patch!.plan).success).toBe(true);
+    expect(sessionPlanSchema.safeParse(a.patch!.plan).success).toBe(true);
+  });
+  it('raises only pending resistance by one step (calibration of the sets that remain)', () => {
+    const { snap, session } = world([recipe('db-floor-press', 3)]);
+    session.records = perform(session, 1);
+    const before = session.plan.exposures[0]!.sets[1]!.resistance.value as { massGrams: number };
+    const a = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId: session.plan.exposures[0]!.id,
+      harder: true,
+    });
+    expect(a.patch).not.toBeNull();
+    const replacement = a.patch!.plan.exposures.at(-1)!;
+    expect(replacement.id).toContain('harder');
+    expect(replacement.sets).toHaveLength(2);
+    expect(
+      (replacement.sets[0]!.resistance.value as { massGrams: number }).massGrams,
+    ).toBeGreaterThan(before.massGrams);
+    expect(replacement.trace.evidence.steppedUpFrom).toBeDefined();
+    expect(sessionPlanSchema.safeParse(a.patch!.plan).success).toBe(true);
+  });
+
+  it('a calibration step goes on as the evidence of the exercise, not as a supplement', () => {
+    const { snap, session } = world([recipe('db-floor-press', 3)]);
+    session.records = perform(session, 1);
+    const exposureId = session.plan.exposures[0]!.id;
+    const plain = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId,
+      harder: true,
+    });
+    const calibrated = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId,
+      harder: true,
+      calibrate: true,
+    });
+    expect(plain.patch!.plan.exposures.at(-1)!.progressionScope).toBe('supplemental');
+    const kept = calibrated.patch!.plan.exposures.at(-1)!;
+    expect(kept.progressionScope).toBe('primary');
+    expect(kept.trace.evidence.calibratedFrom).toBeDefined();
+    expect(kept.trace.evidence.steppedUpFrom).toBeUndefined();
+  });
+
+  it('cannot invent a heavier level for bodyweight', () => {
+    const { snap, session } = world([recipe('crunch')]);
+    const a = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId: session.plan.exposures[0]!.id,
+      harder: true,
+    });
+    expect(codes(a)).toContain('RESISTANCE_UNREACHABLE');
   });
 });
 
@@ -517,7 +568,7 @@ describe('edge cases of a concrete session change', () => {
     const { snap, session } = world();
     const a = assessSessionChange(snap, session, add('plank', 1));
     expect(a.prescription?.perSet[0]?.target.kind).toBe('duration');
-    expect(sessionPlanV2Schema.safeParse(a.patch?.plan).success).toBe(true);
+    expect(sessionPlanSchema.safeParse(a.patch?.plan).success).toBe(true);
   });
   it('mobility uses a mobility recipe and never becomes primary progression evidence or overlapping hard work', () => {
     const { snap, session } = world([recipe('db-romanian-deadlift', 3)]);
@@ -653,7 +704,7 @@ describe('the explicit-order compiler and pending reducer', () => {
     const a = revisePending(session, [], revisionBase(session.plan, modelFor));
     for (const step of historical) expect(a.plan.execution.steps).toContainEqual(step);
     expect(a.plan.time.warmup).toBe(session.plan.time.warmup);
-    expect(sessionPlanV2Schema.safeParse(a.plan).success).toBe(true);
+    expect(sessionPlanSchema.safeParse(a.plan).success).toBe(true);
   });
 });
 

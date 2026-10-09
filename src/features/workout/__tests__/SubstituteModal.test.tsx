@@ -1,77 +1,105 @@
-import catalogue from '@data/exercises.json';
-import { exerciseCatalogueSchema } from '@data/exercises.schema';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-
-import type { Exercise } from '@/domain/types';
-
+import { CATALOG } from '@/domain/__tests__/dayFixtures';
+import { recipe, world } from '@/domain/__tests__/sessionChangeFixtures';
+import { rankAlternatives } from '@/domain/session/assess';
+import { pl } from '@/strings/pl';
 import { SubstituteModal } from '../SubstituteModal';
+import { loadAlternatives, swapExercise } from '../alternatives';
 
-// The sheet itself is native-gesture driven; the suites only care what is inside it.
 jest.mock('@gorhom/bottom-sheet', () => ({
   __esModule: true,
   ...jest.requireActual('@gorhom/bottom-sheet/mock'),
 }));
+jest.mock('../alternatives', () => ({
+  loadAlternatives: jest.fn(),
+  swapExercise: jest.fn(),
+  adviceOf: () => [],
+}));
+const { snap, session } = world([recipe('goblet-squat')]);
+const exposure = session.plan.exposures[0]!;
+const alternatives = rankAlternatives(
+  { exerciseId: 'goblet-squat', slotId: exposure.slotId!, muscles: [] },
+  {
+    snap,
+    session,
+    change: { kind: 'swap_remaining', exposureId: exposure.id, exercise: { id: 'goblet-squat' } },
+  },
+);
+const data = { alternatives, expected: { planRevision: 1, historyRevision: 7 } };
 
-const exercises = exerciseCatalogueSchema.parse(catalogue).exercises as Exercise[];
-const exerciseMap = Object.fromEntries(exercises.map((e) => [e.id, e]));
-const goblet = exerciseMap['goblet-squat']!;
-const boxSquat = exerciseMap['box-squat']!;
-
-function renderModal(patch: Partial<Parameters<typeof SubstituteModal>[0]> = {}) {
+async function renderModal(patch: Partial<Parameters<typeof SubstituteModal>[0]> = {}) {
   const props = {
     visible: true,
-    current: goblet,
-    exerciseMap,
-    profile: { knee: null },
+    sessionId: 's1',
+    exposure,
+    current: CATALOG['goblet-squat']!,
+    exerciseMap: CATALOG,
     excludedIds: new Set<string>(),
-    planned: true,
-    onSelect: jest.fn(),
-    onRestore: jest.fn(),
+    onSwapped: jest.fn(),
     onExclude: jest.fn(),
     onClose: jest.fn(),
     ...patch,
   };
-  return { props, view: render(<SubstituteModal {...props} />) };
+  await render(<SubstituteModal {...props} />);
+  return props;
 }
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(loadAlternatives).mockReturnValue(data);
+  jest.mocked(swapExercise).mockResolvedValue({
+    result: { kind: 'committed', result: { planRevision: 2 }, sessionRevision: 2 },
+    blockSaved: true,
+  });
+});
 
 describe('SubstituteModal', () => {
-  it('lists replacements with their main muscles', async () => {
-    const { view } = renderModal();
-    await view;
-    expect(screen.getByText(boxSquat.name)).toBeTruthy();
+  it('shows alternatives ranked by the engine, with their muscles', async () => {
+    await renderModal();
+    expect(alternatives.length).toBeGreaterThan(0);
+    await screen.findByText(CATALOG[alternatives[0]!.exerciseId]!.name);
+    expect(loadAlternatives).toHaveBeenCalledWith('s1', exposure, undefined);
     expect(screen.getAllByText(/czworogłowe/).length).toBeGreaterThan(0);
   });
-
-  it('opens a preview on tap and swaps only from its button', async () => {
-    const { props, view } = renderModal();
-    await view;
-    await fireEvent.press(screen.getByText(boxSquat.name));
-    expect(props.onSelect).not.toHaveBeenCalled();
+  it('opens a preview and applies only after the person chooses its button', async () => {
+    const props = await renderModal();
+    const first = alternatives[0]!;
+    await fireEvent.press(await screen.findByText(CATALOG[first.exerciseId]!.name));
+    expect(swapExercise).not.toHaveBeenCalled();
     expect(screen.getByText(/Główne mięśnie:/)).toBeTruthy();
-
-    await fireEvent.press(screen.getByText('‹ Wróć do listy'));
-    expect(screen.getByText('Zamień ćwiczenie')).toBeTruthy();
-
-    await fireEvent.press(screen.getByText(boxSquat.name));
-    await fireEvent.press(screen.getByText('Zamień na to ćwiczenie'));
-    expect(props.onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ exercise: boxSquat, forBlock: true }),
-    );
+    await fireEvent.press(screen.getByText(pl.workout.session.substituteBack));
+    await fireEvent.press(screen.getByText(CATALOG[first.exerciseId]!.name));
+    await fireEvent.press(screen.getByText(pl.workout.session.substitutePick));
+    expect(swapExercise).toHaveBeenCalledWith('s1', exposure, first, data.expected, {
+      forBlock: true,
+      channel: 'touch',
+    });
+    expect(props.onSwapped).toHaveBeenCalledTimes(1);
+    expect(props.onClose).toHaveBeenCalledTimes(1);
   });
-
-  it('offers the way back to the planned exercise once swapped', async () => {
-    const { props, view } = renderModal({ swappedTo: boxSquat });
-    await view;
-    expect(screen.getByText('Wróć do ćwiczenia z planu')).toBeTruthy();
-    // The current swap is not offered again.
-    expect(screen.queryByText(boxSquat.name)).toBeNull();
-    await fireEvent.press(screen.getByText(goblet.name));
-    expect(props.onRestore).toHaveBeenCalledTimes(1);
+  it('can swap for today only', async () => {
+    await renderModal();
+    await fireEvent.press(screen.getByText(pl.workout.session.substituteForBlock));
+    await fireEvent.press(await screen.findByText(CATALOG[alternatives[0]!.exerciseId]!.name));
+    await fireEvent.press(screen.getByText(pl.workout.session.substitutePick));
+    expect(swapExercise).toHaveBeenCalledWith('s1', exposure, alternatives[0], data.expected, {
+      forBlock: false,
+      channel: 'touch',
+    });
   });
-
-  it('has no way back before any swap', async () => {
-    const { view } = renderModal();
-    await view;
-    expect(screen.queryByText('Wróć do ćwiczenia z planu')).toBeNull();
+  it('shows an unreadable session and an empty ranking distinctly', async () => {
+    jest.mocked(loadAlternatives).mockReturnValue(null);
+    const view = await renderModal();
+    await screen.findByText(pl.workout.session.substituteFailed);
+    await renderModal({ sessionId: 'empty' });
+    jest.mocked(loadAlternatives).mockReturnValue({ ...data, alternatives: [] });
+    // Changing the exposure triggers a fresh ranking.
+    await renderModal({ exposure: { ...exposure, id: 'empty' } });
+    await screen.findByText(pl.workout.session.noSubstitutes);
+    expect(view.onSwapped).not.toHaveBeenCalled();
+  });
+  it('excludes the current exercise through the caller', async () => {
+    const props = await renderModal();
+    await fireEvent.press(screen.getByText(pl.workout.session.excludeCurrent(props.current.name)));
+    expect(props.onExclude).toHaveBeenCalledWith(props.current);
   });
 });

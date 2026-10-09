@@ -1,5 +1,5 @@
 /**
- * What was done, and how we know (engine v2, 02 §3-§4, 13 §3).
+ * What was done, and how we know (engine, 02 §3-§4, 13 §3).
  *
  * A planned value becomes a result only through something the person did or a
  * sensor measured — never by being copied from the plan. So every field of a

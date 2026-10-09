@@ -1,5 +1,13 @@
-import { streamText, tool, type LanguageModel, type ModelMessage, type ToolSet } from 'ai';
-import type { z } from 'zod';
+import {
+  jsonSchema,
+  streamText,
+  tool,
+  type LanguageModel,
+  type ModelMessage,
+  type Schema,
+  type ToolSet,
+} from 'ai';
+import { z } from 'zod';
 
 import {
   CHAT_LIMITS,
@@ -28,6 +36,44 @@ export const CHAT_TEMPERATURE = 0.3;
  * cannot name in the next request.
  */
 export class InvalidToolCallError extends Error {}
+
+const CHANGE_KINDS = [
+  'add_exercise',
+  'add_sets',
+  'swap_remaining',
+  'reduce_remaining',
+  'skip_remaining',
+  'feel',
+] as const;
+const INPUT_FIELDS = [
+  'kind',
+  'exposureId',
+  'dropSets',
+  'easier',
+  'sets',
+  'query',
+  'placement',
+  'feel',
+  'assessmentId',
+  'patchId',
+  'weeksAgo',
+] as const;
+
+/** Only schema names and known enums; never values or model-supplied key names. */
+export function invalidToolMetadata(name: string, input: unknown) {
+  const data =
+    typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
+  return {
+    name: (TOOL_NAMES as readonly string[]).includes(name) ? name : 'unknown',
+    kind: (CHANGE_KINDS as readonly unknown[]).includes(data.kind)
+      ? (data.kind as string)
+      : 'unknown',
+    fields: INPUT_FIELDS.filter((field) => Object.hasOwn(data, field)),
+    extraFields: Object.keys(data).filter(
+      (field) => !(INPUT_FIELDS as readonly string[]).includes(field),
+    ).length,
+  };
+}
 
 /**
  * What a step did, filled in as it streams, for the log. Counts only: the
@@ -98,14 +144,31 @@ export function toModelMessages(messages: readonly ChatMessage[]): ModelMessage[
  */
 export function chatTools(): ToolSet {
   return Object.fromEntries(
-    TOOL_NAMES.map((name) => [
-      name,
-      tool({
-        description: CHAT_TOOLS[name].description,
-        // One schema per tool, but the lookup yields their union, which the SDK's generics cannot take.
-        inputSchema: CHAT_TOOLS[name].input as z.ZodObject<Record<string, z.ZodType>>,
-      }),
-    ]),
+    TOOL_NAMES.map((name) => {
+      const input: z.ZodType = CHAT_TOOLS[name].input;
+      return [
+        name,
+        tool({
+          description: CHAT_TOOLS[name].description,
+          // Google normalizes const for response schemas, but not function schemas.
+          // Draft 4 expresses literals as enum; validation still uses the exact Zod contract.
+          inputSchema: jsonSchema(
+            () =>
+              z.toJSONSchema(input, { target: 'draft-4', io: 'input' }) as Awaited<
+                Schema['jsonSchema']
+              >,
+            {
+              validate: async (value) => {
+                const parsed = await input.safeParseAsync(value);
+                return parsed.success
+                  ? { success: true, value: parsed.data }
+                  : { success: false, error: parsed.error };
+              },
+            },
+          ),
+        }),
+      ];
+    }),
   );
 }
 
@@ -171,7 +234,15 @@ export async function* streamChatStep(
         break;
 
       case 'tool-call':
-        if (part.invalid === true) throw new InvalidToolCallError();
+        if (part.invalid === true) {
+          console.log(
+            JSON.stringify({
+              event: 'invalid_tool',
+              ...invalidToolMetadata(part.toolName, part.input),
+            }),
+          );
+          throw new InvalidToolCallError();
+        }
         options.stats.toolCalls += 1;
         if (options.stats.toolCalls > CHAT_LIMITS.callsPerRound) {
           options.stats.droppedCalls += 1;

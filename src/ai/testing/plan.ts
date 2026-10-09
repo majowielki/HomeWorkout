@@ -1,67 +1,107 @@
-/**
- * The rules engine's plan for a synthetic history — what the chat's
- * `getPlanExplanation` reads in tests and evaluation cases. The plan is
- * computed by the real engine from the same rows the other tools read,
- * so a case about "why no squats today" is answered by the code that
- * decides it on the phone.
- */
+/** Synthetic logged work uses the same exposure index and planner as the phone. */
 import exercisesJson from '@data/exercises.json';
 import slotsJson from '@data/slots.json';
 import { slotCatalogueSchema } from '@data/slots.schema';
-
-import { planToday } from '@/domain/plan/today';
-import type { HistorySession } from '@/domain/progression/history';
+import { buildObservation } from '@/domain/observations/entry';
+import type { ExposureRecord } from '@/domain/observations/exposure';
+import { specFromLoad } from '@/domain/resistance/persistedLoad';
 import { loadOfSet } from '@/domain/progression/load';
+import { defaultPreferences } from '@/domain/preferences/preferences';
+import { fingerprint } from '@/domain/fingerprint';
+import { planVersions } from '@/domain/plan/versions';
+import { syncWeek } from '@/domain/plan/week';
 import type { Exercise } from '@/domain/types';
-
+import { describePlan, type WeekContext } from '../tools/planPreview';
 import type { CoachSource } from '../context/source';
-import type { PlanLookup } from '../tools/implementations';
+import type { ToolError, ToolOutput } from '../contract/chatTools';
 
-const CATALOG: Record<string, Exercise> = Object.fromEntries(
-  (exercisesJson as { exercises: Exercise[] }).exercises.map((e) => [e.id, e]),
-);
-const SLOTS = slotCatalogueSchema.parse(slotsJson).slots;
-const SLOT_NAMES = Object.fromEntries(SLOTS.map((s) => [s.id, s.name]));
-
-/** Today's plan for the history, as the phone would compute it before a session; other days have none. */
-export function syntheticPlan(source: CoachSource, daysAgo: number): PlanLookup | null {
-  if (daysAgo !== 0) return null;
-
-  const dateOf = new Map(source.completedWorkouts.map((w) => [w.id, w.trainingDate]));
-  const byDate = new Map<string, HistorySession>();
-  const sets = [...source.sets].sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
-  for (const set of sets) {
-    const date = dateOf.get(set.workoutId);
-    if (date === undefined) continue;
-    const session = byDate.get(date) ?? { date, sets: [] };
-    session.sets.push({
-      exerciseId: set.exerciseId,
-      isWarmup: set.isWarmup,
-      reps: set.reps,
-      timeSec: set.timeSec,
-      rir: set.rir,
-      load: loadOfSet(set),
-    });
-    byDate.set(date, session);
-  }
-  const sessions = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-  const dates = source.completedWorkouts.map((w) => w.trainingDate).filter((d) => d <= source.asOf);
-
-  const { plan } = planToday({
-    asOf: source.asOf,
-    catalog: CATALOG,
-    slots: SLOTS,
-    eligibility: { profile: { knee: source.knee }, excludedIds: new Set() },
-    block: null,
-    sessions,
-    lastSessionDate: dates.length > 0 ? dates.sort()[dates.length - 1]! : null,
-    rides: [],
-    daily: source.dailyLogs.map((d) => ({
-      date: d.date,
-      sleepHours: d.sleepHours,
-      energy: d.energy,
-      soreness: d.soreness,
-    })),
+/** Raw synthetic logs carry no frozen prescription: they count as work, not progression evidence. */
+export function syntheticWeekContext(source: CoachSource): WeekContext {
+  const catalog: Record<string, Exercise> = Object.fromEntries(
+    (exercisesJson.exercises as Exercise[]).map((e) => [
+      e.id,
+      { ...e, name: source.exercises.find((row) => row.id === e.id)?.name ?? e.name },
+    ]),
+  );
+  const slots = slotCatalogueSchema.parse(slotsJson).slots;
+  const dates = new Map(
+    source.completedWorkouts
+      .filter((w) => w.trainingDate <= source.asOf)
+      .map((w) => [w.id, w.trainingDate]),
+  );
+  const records: ExposureRecord[] = source.sets.flatMap((set) => {
+    const date = dates.get(set.workoutId);
+    if (date === undefined || set.isWarmup || (set.reps === null && set.timeSec === null))
+      return [];
+    const resistance = specFromLoad(loadOfSet(set), { variantId: set.exerciseId });
+    const result = buildObservation(
+      {
+        status: 'performed',
+        amount: {
+          edited: true,
+          value:
+            set.timeSec !== null
+              ? { kind: 'duration', seconds: set.timeSec }
+              : { kind: 'reps', reps: set.reps! },
+        },
+        resistance: { edited: true, value: resistance },
+        rir: { edited: true, value: set.rir },
+        shortfall: set.shortfall,
+      },
+      { channel: 'touch', at: set.loggedAt, shown: {} },
+    );
+    return [
+      {
+        exposureId: `synthetic-${set.id}`,
+        sessionId: set.workoutId,
+        trainingDate: date,
+        exerciseId: set.exerciseId,
+        slotId: slots.find((s) => s.exerciseIds.includes(set.exerciseId))?.id ?? null,
+        comparisonKey: set.exerciseId,
+        progressionScope: 'supplemental',
+        sets: [],
+        extra: [
+          {
+            ...result,
+            id: set.id,
+            commandId: set.id,
+            revision: 1,
+            sessionId: set.workoutId,
+            exposureId: null,
+            plannedSetId: null,
+            logicalSetId: null,
+            side: set.side ?? null,
+            recordedAt: set.loggedAt,
+          },
+        ],
+        context: { abandoned: false, userReduced: false, feel: null, deload: false },
+      },
+    ];
   });
-  return { plan, source: 'today', slotNames: SLOT_NAMES };
+  const context: WeekContext = {
+    asOf: source.asOf,
+    catalog,
+    slots,
+    eligibility: { profile: { knee: source.knee }, excludedIds: new Set() },
+    records,
+    block: null,
+    endedBlocks: [],
+    rides: [],
+    daily: source.dailyLogs,
+    preferences: defaultPreferences(),
+    constraints: [],
+    week: { restWeekdays: [] },
+    versions: planVersions(String(exercisesJson.version)),
+    snapshotFingerprint: fingerprint(source),
+    stored: [],
+    trainedDates: new Set(dates.values()),
+  };
+  context.stored = syncWeek(context).rows;
+  return context;
+}
+export function syntheticPlan(
+  source: CoachSource,
+  daysAgo: number,
+): ToolOutput<'getPlanExplanation'> | ToolError {
+  return describePlan(syntheticWeekContext(source), daysAgo, null);
 }

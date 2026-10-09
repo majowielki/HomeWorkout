@@ -6,7 +6,8 @@ import { HeroGlow } from '@/components/ui/hero-glow';
 import { IconBadge } from '@/components/ui/icon-badge';
 import { Dumbbell, Sparkles } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import type { Exercise, TemplateBlock } from '@/domain/types';
+import type { Exercise } from '@/domain/types';
+import type { SessionPlan } from '@/domain/plan/plan';
 
 import { ExercisePreview } from './ExercisePreview';
 
@@ -16,7 +17,7 @@ type Props = {
   meta?: string;
   /** Status pill top-left, e.g. "Sugerowane" or "w trakcie". */
   badge?: string;
-  blocks?: readonly TemplateBlock[];
+  plan?: SessionPlan;
   exerciseMap?: Record<string, Exercise>;
   /** Buttons — use the default (accent) variant for the main one. */
   children?: React.ReactNode;
@@ -26,7 +27,7 @@ type Props = {
  * The ink card with the lime glow: the one thing on "Dziś" and "Trening"
  * the eye should land on first — the next (or unfinished) session.
  */
-export function SessionHero({ eyebrow, title, meta, badge, blocks, exerciseMap, children }: Props) {
+export function SessionHero({ eyebrow, title, meta, badge, plan, exerciseMap, children }: Props) {
   return (
     <Card variant="inverse" className="gap-5 p-6">
       <HeroGlow />
@@ -53,8 +54,8 @@ export function SessionHero({ eyebrow, title, meta, badge, blocks, exerciseMap, 
         {meta ? <Text className="text-sm text-inverse-muted">{meta}</Text> : null}
       </View>
 
-      {blocks && exerciseMap && blocks.length > 0 ? (
-        <ExercisePreview blocks={blocks} exerciseMap={exerciseMap} onInverse />
+      {plan && exerciseMap && plan.exposures.length > 0 ? (
+        <ExercisePreview plan={plan} exerciseMap={exerciseMap} onInverse />
       ) : null}
 
       {children ? <View className="gap-2">{children}</View> : null}

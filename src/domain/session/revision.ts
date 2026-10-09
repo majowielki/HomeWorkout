@@ -1,7 +1,7 @@
 /** Revise only pending sets. Existing ids and recipes, including a completed side, survive. */
 import { compilePlannedSets, DEFAULT_TIMING, stampPlan } from '../plan/compile';
 import type { CompileInput } from '../plan/compile';
-import type { PlannedExposure, SessionPlanV2, TimeBreakdown } from '../plan/planV2';
+import type { PlannedExposure, SessionPlan, TimeBreakdown } from '../plan/plan';
 import type { ActiveSessionState, PatchOp } from './types';
 
 export function settledSets(session: ActiveSessionState): ReadonlySet<string> {
@@ -22,12 +22,12 @@ export function startedExposures(session: ActiveSessionState): ReadonlySet<strin
   );
 }
 
-export function setOrder(plan: SessionPlanV2): string[] {
+export function setOrder(plan: SessionPlan): string[] {
   return plan.execution.steps.flatMap((s) => (s.kind === 'perform' ? [s.plannedSetId] : []));
 }
 
 export function revisionBase(
-  plan: SessionPlanV2,
+  plan: SessionPlan,
   modelOf: CompileInput['modelOf'],
 ): Omit<CompileInput, 'exposures'> & { snapshotFingerprint: string } {
   return {
@@ -48,7 +48,7 @@ export function revisePending(
   session: ActiveSessionState,
   ops: readonly PatchOp[],
   base: Omit<CompileInput, 'exposures'> & { snapshotFingerprint: string },
-): { plan: SessionPlanV2; remainingSec: number } {
+): { plan: SessionPlan; remainingSec: number } {
   const settled = settledSets(session);
   let exposures = session.plan.exposures.map((e) => ({ ...e, sets: [...e.sets] }));
   let order = setOrder(session.plan).filter((id) => !settled.has(id));

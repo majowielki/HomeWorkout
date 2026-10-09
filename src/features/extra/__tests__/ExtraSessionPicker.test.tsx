@@ -1,54 +1,88 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { extraInput } from '@/domain/__tests__/extraFixtures';
-import { pl } from '@/strings/pl';
+import { dayInput } from '@/domain/__tests__/dayFixtures';
+import { planDay } from '@/domain/plan/day';
+import type { DayPreview } from '@/db/repositories/planning';
+import { extraOptions, type loadExtraSession } from '../actions';
 import { ExtraSessionPicker } from '../ExtraSessionPicker';
+import { pl } from '@/strings/pl';
 
-it('toggles only available movements, previews loads and explains omitted choices', async () => {
-  const input = extraInput({
-    daily: [{ date: '2026-10-08', sleepHours: 7, energy: 4, soreness: { quads: 4 } }],
+jest.mock('@/db/repositories/planning', () => ({}));
+jest.mock('@/db/repositories/weekPlan', () => ({}));
+jest.mock('@/db/repositories/workouts', () => ({}));
+function fixture() {
+  const input = dayInput({
+    daily: [{ date: '2026-10-05', sleepHours: 7, energy: 4, soreness: { quads: 4 } }],
   });
+  const data = {
+    input,
+    options: extraOptions(input),
+    inProgress: null,
+    done: true,
+    rest: false,
+  } satisfies Awaited<ReturnType<typeof loadExtraSession>>;
+  const output = planDay({
+    ...input,
+    only: [{ slotId: 'push-horizontal' }],
+    session: { ...input.session, kind: 'extra' },
+  });
+  const preview = { input, output } as DayPreview;
+  return { data, preview };
+}
+it('toggles available movements, explains soreness and shows the compiled prescription', async () => {
+  const { data, preview } = fixture();
+  const slot = data.input.slots.find((s) => s.id === 'push-horizontal')!;
+  const squat = data.input.slots.find((s) => s.id === 'squat')!;
   const onChange = jest.fn();
   const view = await render(
-    <ExtraSessionPicker input={input} selected={[]} onChange={onChange} busy={false} />,
+    <ExtraSessionPicker
+      data={data}
+      preview={null}
+      selected={[]}
+      onChange={onChange}
+      busy={false}
+    />,
   );
-  expect(screen.queryByRole('checkbox', { name: 'Nogi' })).toBeNull();
-  expect(screen.getByText(/Nogi · mocne zakwasy/)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('checkbox', { name: 'Pchanie' }));
-  expect(onChange).toHaveBeenCalledWith(['push']);
+  expect(screen.queryByRole('checkbox', { name: squat.name })).toBeNull();
+  expect(screen.getByText(new RegExp(`${squat.name} ·`))).toBeTruthy();
+  await fireEvent.press(screen.getByRole('checkbox', { name: slot.name }));
+  expect(onChange).toHaveBeenCalledWith(['push-horizontal']);
   await view.rerender(
-    <ExtraSessionPicker input={input} selected={['push']} onChange={onChange} busy={false} />,
+    <ExtraSessionPicker
+      data={data}
+      preview={preview}
+      selected={['push-horizontal']}
+      onChange={onChange}
+      busy={false}
+    />,
   );
   expect(screen.getByText(pl.extra.preview)).toBeTruthy();
   expect(screen.getByText(/RIR/)).toBeTruthy();
-  await fireEvent.press(screen.getByRole('checkbox', { name: 'Pchanie' }));
+  await fireEvent.press(screen.getByRole('checkbox', { name: slot.name }));
   expect(onChange).toHaveBeenLastCalledWith([]);
   await view.rerender(
-    <ExtraSessionPicker input={input} selected={['push']} onChange={onChange} busy />,
+    <ExtraSessionPicker
+      data={data}
+      preview={preview}
+      selected={['push-horizontal']}
+      onChange={onChange}
+      busy
+    />,
   );
   onChange.mockClear();
-  await fireEvent.press(screen.getByRole('checkbox', { name: 'Plecy' }));
+  await fireEvent.press(screen.getByRole('checkbox', { name: slot.name }));
   expect(onChange).not.toHaveBeenCalled();
 });
-it('shows recovery when no muscles are available', async () => {
-  const input = extraInput();
-  input.block.selections = {};
-  await render(
-    <ExtraSessionPicker input={input} selected={[]} onChange={jest.fn()} busy={false} />,
-  );
-  expect(screen.getByText(pl.extra.empty)).toBeTruthy();
-  expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-});
-it('previews a combined choice within limits and tells which movement was left out', async () => {
-  const input = extraInput();
-  input.catalog.pull!.primaryMuscles = ['chest'];
+it('explains when no movements are available', async () => {
+  const { data } = fixture();
+  data.options = [];
   await render(
     <ExtraSessionPicker
-      input={input}
-      selected={['push', 'pull']}
+      data={data}
+      preview={null}
+      selected={[]}
       onChange={jest.fn()}
       busy={false}
     />,
   );
-  expect(screen.getByText(pl.extra.reduced)).toBeTruthy();
-  expect(screen.getByText(/Plecy · ta partia pracuje/)).toBeTruthy();
+  expect(screen.getByText(pl.extra.empty)).toBeTruthy();
 });

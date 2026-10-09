@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
-import type { SessionPlan } from '@/domain/plan/types';
+import { compileInput, exposure, set, stamp } from '@/domain/__tests__/compileFixtures';
+import { compileSession } from '@/domain/plan/compile';
+import type { SlotRegion } from '@/domain/plan/types';
 
 import { PlanHero } from '../PlanHero';
 import type { usePlanToday } from '../usePlanToday';
@@ -9,20 +11,26 @@ jest.mock('expo-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-const plan = (date: string, regions: SessionPlan['regions']): SessionPlan => ({
-  version: 1,
-  date,
-  blockIndex: 1,
-  phase: 'work',
-  regions,
-  bike: { minutes: 12, resistance: 3, reasons: [] },
-  exercises: [],
-  skipped: [],
-  dayReasons: [],
-  signals: [],
-  estimatedMinutes: 22,
-  adjustments: [],
-});
+const slotByRegion = {
+  lower: 'squat',
+  arms: 'biceps',
+  push: 'push-horizontal',
+  pull: 'pull-horizontal',
+  shoulders: 'lateral-delts',
+  core: 'core-back',
+  mobility: 'mobility-upper',
+};
+const plan = (date: string, regions: SlotRegion[]) =>
+  stamp(
+    compileSession(
+      compileInput(
+        regions.map((region, i) =>
+          exposure(String(i), { slotId: slotByRegion[region], sets: [set()] }),
+        ),
+        { trainingDate: date },
+      ),
+    ),
+  );
 
 type Today = ReturnType<typeof usePlanToday>;
 
@@ -30,7 +38,20 @@ const today = (patch: Partial<Extract<Today['state'], { status: 'ready' }>>): To
   state: {
     status: 'ready',
     asOf: '2026-10-07',
-    blockId: 'b',
+    preview: {
+      output: {
+        result: { kind: 'ready', plan: plan('2026-10-07', ['lower']), changes: [], notes: [] },
+      },
+    } as never,
+    summary: {
+      phase: 'work',
+      regions: [],
+      composed: false,
+      estimatedMinutes: 22,
+      dayReasons: [],
+      skipped: [],
+      blockIndex: 1,
+    },
     plan: plan('2026-10-07', ['lower', 'arms']),
     events: [],
     volume: {} as never,

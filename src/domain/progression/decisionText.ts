@@ -1,5 +1,5 @@
 /**
- * Polish sentences for the reasons of a prescription (engine v2, 03 §10, P3.5).
+ * Polish sentences for the reasons of a prescription (engine, 03 §10, P3.5).
  *
  * The answer to "why this weight?": one sentence for each code of the closed
  * registry, from the code and, where the rule left them, the numbers of its
@@ -8,7 +8,7 @@
  * the one thing that made it do it; it names no number the evidence did not
  * carry and never says "lighter" for a resistance that did not change (D39 e).
  */
-import type { DecisionTrace } from '../plan/planV2';
+import type { DecisionTrace } from '../plan/plan';
 import { DECISION_CODES, type DecisionCode } from './codes';
 
 type Evidence = Readonly<Record<string, unknown>>;

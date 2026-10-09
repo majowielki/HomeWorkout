@@ -7,7 +7,7 @@ import { Bandage, RefreshCw } from '@/components/ui/icons';
 import { PageHeader, StatusBarScrim } from '@/components/ui/page-header';
 import { Text } from '@/components/ui/text';
 import { getCalendarRange, type CalendarData } from '@/db/repositories/calendar';
-import { revokeConstraints, setDayTraining } from '@/db/repositories/weekPlan';
+import { revokeConstraints, setDayTraining } from '@/db/repositories/constraints';
 import { WEEK_CONFIG } from '@/domain/config/training';
 import { addDays } from '@/domain/time/trainingDate';
 import { PlanChangeBanner } from '@/features/plan/PlanChangeBanner';

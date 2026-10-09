@@ -3,7 +3,7 @@ import { assessmentText, checkText, plural } from '../session/assessmentText';
 import type { AssessmentCheck, CheckData, CheckStatus, Verdict } from '../policy/hardAdvice';
 import { RULE_CODES, RULE_CLASS, finding } from '../policy/hardAdvice';
 import type { ChangeAssessment, FeelChange, PrescriptionSummary } from '../session/types';
-import { CATALOG } from './dayV2Fixtures';
+import { CATALOG } from './dayFixtures';
 import { recipe, world, perform } from './sessionChangeFixtures';
 
 const names = (id: string) => CATALOG[id]?.name;
@@ -26,6 +26,16 @@ const DATA: Partial<Record<(typeof RULE_CODES)[number], CheckData>> = {
   UNSUPPORTED_CAPABILITY: { capability: 'distance execution' },
   RESISTANCE_UNREACHABLE: { reason: 'no easier resistance' },
 };
+
+describe('P4b.6: the reasons a resistance cannot be reached', () => {
+  it('says there is no lighter and no heavier resistance, and otherwise that it cannot be set', () => {
+    const text = (reason: string) =>
+      checkText(finding('RESISTANCE_UNREACHABLE', 'fail', { reason }), (id) => id);
+    expect(text('no easier resistance')).toContain('lżejszego');
+    expect(text('no harder resistance')).toContain('cięższego');
+    expect(text('something else')).toContain('nie da się ustawić');
+  });
+});
 
 describe('P4b.6: every rule of the registry has a Polish sentence', () => {
   it('covers the whole registry, for each status, with and without data', () => {
@@ -192,6 +202,29 @@ describe('P4b.6 T72: the card for the same assessment, with no network', () => {
     const at = (needle: string) => lines.findIndex((l) => l.includes(needle));
     expect(at('ból')).toBeLessThan(at('Core dziś'));
     expect(at('Core dziś')).toBeLessThan(at('pierwsze podejście'));
+  });
+
+  it('shows repeated set findings once while retaining different setup times', () => {
+    const { snap, session } = world();
+    const a = assessSessionChange(snap, session, add('crunch'));
+    const lines = text({
+      ...a,
+      checks: [
+        finding('CALIBRATION_FIRST', 'pass'),
+        finding('CALIBRATION_FIRST', 'pass'),
+        finding('RESOURCE_CONFLICT', 'warn', { setupSec: 30 }),
+        finding('RESOURCE_CONFLICT', 'warn', { setupSec: 30 }),
+        finding('RESOURCE_CONFLICT', 'warn', { setupSec: 45 }),
+      ],
+    });
+    expect(lines[0]).toBe(text(a)[0]);
+    expect(lines.filter((line) => line.startsWith('To pierwsze podejście'))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes('około 30 s'))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes('około 45 s'))).toHaveLength(1);
+    expect(lines.findIndex((line) => line.includes('około 30 s'))).toBeLessThan(
+      lines.findIndex((line) => line.startsWith('To pierwsze podejście')),
+    );
+    expect(lines.some((line) => line.startsWith('Recepta:'))).toBe(true);
   });
 
   it('says the recommendation in the room the engine found, and when there is none', () => {

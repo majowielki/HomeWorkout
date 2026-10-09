@@ -1,21 +1,14 @@
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlan } from '@/domain/plan/types';
+import { compileInput, exposure, stamp } from '@/domain/__tests__/compileFixtures';
+import { compileSession } from '@/domain/plan/compile';
 import { calendarDay } from '../dayView';
 
-const plan = (date: string): SessionPlan => ({
-  version: 1,
-  date,
-  blockIndex: 1,
-  phase: 'work',
-  regions: ['push'],
-  bike: { minutes: 10, resistance: 1, reasons: [] },
-  exercises: [],
-  skipped: [],
-  dayReasons: [],
-  signals: [],
-  estimatedMinutes: 20,
-  adjustments: [],
-});
+const plan = (date: string) =>
+  stamp(
+    compileSession(
+      compileInput([exposure('a', { slotId: 'push-horizontal' })], { trainingDate: date }),
+    ),
+  );
 
 const session = (date: string, status: 'completed' | 'in_progress' | 'abandoned') =>
   ({
@@ -44,7 +37,9 @@ describe('a calendar day', () => {
   it('shows the live plan today and the forecast on a later day', () => {
     const live = plan('2026-10-07');
     expect(calendarDay(data, '2026-10-07', '2026-10-07', live).plan).toBe(live);
-    expect(calendarDay(data, '2026-10-09', '2026-10-07', live).plan?.date).toBe('2026-10-09');
+    expect(calendarDay(data, '2026-10-09', '2026-10-07', live).plan?.trainingDate).toBe(
+      '2026-10-09',
+    );
     expect(calendarDay(data, '2026-10-10', '2026-10-07', live).plan).toBeNull();
   });
 

@@ -1,6 +1,6 @@
 /**
  * What came of an exposure, worked out from its plan, what happened to each
- * set and what was recorded (engine v2, 02 §4). Never stored as the truth:
+ * set and what was recorded (engine, 02 §4). Never stored as the truth:
  * the stored copy (`exposure_outcomes`) is a projection that can be rebuilt
  * from this, and says which revisions it was built from.
  *
@@ -10,7 +10,7 @@
  * result — closing a session must not invent anything about the sets.
  */
 
-import type { PlannedExposure } from '../plan/planV2';
+import type { PlannedExposure } from '../plan/plan';
 import type { ExposureOutcome, ExposureOutcomeStatus } from './exposure';
 import type { SetDispositionStatus } from './types';
 

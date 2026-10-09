@@ -1,5 +1,5 @@
 /**
- * The one authority on whether a plan may be run (engine v2, 01 §5, 04, 12 §2).
+ * The one authority on whether a plan may be run (engine, 01 §5, 04, 12 §2).
  *
  * Every way a plan can come about — the engine, a template, the coach, an extra
  * session, a change in the middle of a session — is audited here and nowhere
@@ -24,9 +24,9 @@ import {
   type AUDIT_MODES,
   type PlannedExposure,
   type PlannedSet,
-  type SessionPlanV2,
-  sessionPlanV2Schema,
-} from './planV2';
+  type SessionPlan,
+  sessionPlanSchema,
+} from './plan';
 import type { ResistanceModel, ResistanceSpec } from '../resistance/types';
 import type { Exercise, MuscleGroup } from '../types';
 import { countsAsVolume } from '../volume/weekly';
@@ -120,9 +120,9 @@ function directSets(
 }
 
 /** Findings about the whole plan and its parts that do not depend on the day. */
-function structure(plan: SessionPlanV2, ctx: AuditContext): AuditIssue[] {
+function structure(plan: SessionPlan, ctx: AuditContext): AuditIssue[] {
   const out: AuditIssue[] = [];
-  const parsed = sessionPlanV2Schema.safeParse(plan);
+  const parsed = sessionPlanSchema.safeParse(plan);
   if (!parsed.success) {
     for (const problem of parsed.error.issues.slice(0, 10)) {
       out.push(
@@ -287,7 +287,7 @@ function setFindings(
 }
 
 export function auditPlan(
-  plan: SessionPlanV2,
+  plan: SessionPlan,
   ctx: AuditContext,
   acknowledged: readonly string[] = [],
 ): AuditResult {
@@ -365,7 +365,7 @@ function sortIssues(issues: readonly AuditIssue[]): AuditIssue[] {
 
 /** What depends on the day: requests, pain, recovery, the limits of volume and of time, the equipment. */
 function dayFindings(
-  plan: SessionPlanV2,
+  plan: SessionPlan,
   open: readonly PlannedExposure[],
   ctx: AuditContext,
   day: AuditDay,
@@ -448,7 +448,7 @@ function dayFindings(
 }
 
 /** An equipment set-up held for one exercise and needed in another, with no changeover planned: a second pair that is not there. */
-function resourceFindings(plan: SessionPlanV2, ctx: AuditContext): AuditIssue[] {
+function resourceFindings(plan: SessionPlan, ctx: AuditContext): AuditIssue[] {
   const sets = new Map(plan.exposures.flatMap((e) => e.sets.map((s) => [s.id, { e, s }] as const)));
   const held = new Map<string, string>();
   const begun = new Set<string>();

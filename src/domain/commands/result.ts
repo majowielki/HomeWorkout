@@ -1,5 +1,5 @@
 /**
- * What a command that changes something answers (engine v2, 10 §1).
+ * What a command that changes something answers (engine, 10 §1).
  *
  * The answer says whether the change happened *now*, happened *before* (the
  * same command was sent twice), was refused because the state had moved on,

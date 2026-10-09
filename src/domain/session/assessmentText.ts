@@ -1,5 +1,5 @@
 /**
- * Polish sentences for a session-change assessment (engine v2, 11 §8, P4b.6).
+ * Polish sentences for a session-change assessment (engine, 11 §8, P4b.6).
  *
  * The same card of facts is shown with or without the network: the AI tells
  * it in its own words, this file tells it from the codes and the numbers, and
@@ -108,7 +108,9 @@ const CHECK_TEXT: Record<RuleCode, CheckText> = {
   RESISTANCE_UNREACHABLE: (c) =>
     str(c.data, 'reason') === 'no easier resistance'
       ? 'Nie ma lżejszego obciążenia niż obecne.'
-      : 'Takiego obciążenia nie da się ustawić na dostępnym sprzęcie.',
+      : str(c.data, 'reason') === 'no harder resistance'
+        ? 'Nie ma cięższego obciążenia niż obecne.'
+        : 'Takiego obciążenia nie da się ustawić na dostępnym sprzęcie.',
   TECHNICAL_LIMIT: (c) => {
     const what = str(c.data, 'what');
     return what === 'sets' || what === 'added sets'
@@ -340,7 +342,9 @@ export function assessmentText(
   const shown = sortChecks(assessment.checks).filter(
     (c) => c.status !== 'pass' || c.class === 'info',
   );
-  for (const c of shown) out.push(checkText(c, name));
+  // The audit may report the same finding for several sets or steps.
+  // Keep distinct facts and their priority, but say each identical sentence once.
+  out.push(...new Set(shown.map((c) => checkText(c, name))));
 
   const rec = recommendationText(assessment);
   if (rec !== null) out.push(rec);

@@ -7,7 +7,7 @@
 import {
   LAYOFF_FROM_DAYS,
   PROGRESSION_CONFIG,
-  PROGRESSION_V2_CONFIG,
+  PRESCRIPTION_CONFIG,
   type Tunable,
 } from '../config/training';
 import { PROGRESSION_POLICIES } from '../policy/registry';
@@ -15,7 +15,7 @@ import { PROGRESSION_POLICIES } from '../policy/registry';
 /** What an exercise is counted in. Distance has no policy yet. */
 export type AmountUnit = 'reps' | 'duration';
 
-export interface ProgressionPolicy extends Tunable<typeof PROGRESSION_V2_CONFIG> {
+export interface ProgressionPolicy extends Tunable<typeof PRESCRIPTION_CONFIG> {
   id: string;
   version: string;
   /** The step of a target per unit (1 rep, 5 s) and the least a target may be. */
@@ -34,7 +34,7 @@ export interface ProgressionPolicy extends Tunable<typeof PROGRESSION_V2_CONFIG>
 const base = PROGRESSION_POLICIES.reps_then_resistance!;
 
 export const DEFAULT_PROGRESSION_POLICY: ProgressionPolicy = {
-  ...PROGRESSION_V2_CONFIG,
+  ...PRESCRIPTION_CONFIG,
   id: base.id,
   version: base.version,
   step: { reps: PROGRESSION_CONFIG.repStep, duration: PROGRESSION_CONFIG.timeStepSec },

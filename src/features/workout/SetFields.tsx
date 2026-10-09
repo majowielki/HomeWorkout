@@ -4,66 +4,28 @@ import { Chip } from '@/components/ui/chip';
 import { Stepper } from '@/components/ui/stepper';
 import { Text } from '@/components/ui/text';
 import { BAND_CONFIG } from '@/domain/config/training';
-import { BANDS, LADDER_PAIRED, LADDER_SINGLE, nextRung, previousRung } from '@/domain/inventory';
+import { BANDS, nextRung, previousRung } from '@/domain/inventory';
+import { estimateBandLoad, type LoadEstimate } from '@/domain/progression/calibration';
 import {
-  estimateBandLoad,
-  estimatedPeakKg,
-  type LoadEstimate,
-} from '@/domain/progression/calibration';
+  isTimed,
+  ladderFor,
+  type SetFieldValues,
+  usesBand,
+  usesDumbbell,
+} from '@/domain/session/setEntry';
 import {
   type AnchorPosition,
   type BandCalibrationMap,
-  type DumbbellMode,
   type Exercise,
   SHORTFALL_REASONS,
-  type ShortfallReason,
 } from '@/domain/types';
 import { bandSwatch } from '@/features/bands/bandSwatch';
 import { pl } from '@/strings/pl';
-
-/** What a set log stores about the effort — the shape both the live logger and the history editor save. */
-export interface SavedSetData {
-  reps: number | null;
-  timeSec: number | null;
-  rir: number;
-  weightKg: number | null;
-  dumbbellMode: DumbbellMode | null;
-  bandId: string | null;
-  anchorPosition: AnchorPosition | null;
-  /** Peak of the calibrated range, or null whenever no honest number exists. */
-  estimatedLoadKg: number | null;
-  /** Why the set fell short of its target, when the person said. */
-  shortfall: ShortfallReason | null;
-}
-
-/**
- * Every field the form can show, always populated. Which ones are rendered
- * — and which survive into `SavedSetData` — depends on the exercise, so a
- * dumbbell exercise carries a band value it never uses. Simpler than a
- * discriminated union that the steppers would have to narrow on every tap.
- */
-export interface SetFieldValues {
-  reps: number;
-  timeSec: number;
-  rir: number;
-  weightKg: number;
-  bandId: string;
-  position: AnchorPosition;
-  shortfall: ShortfallReason | null;
-}
 
 const RIR_OPTIONS = [0, 1, 2, 3, 4] as const;
 const POSITIONS: AnchorPosition[] = [0, 1, 2, 3];
 const REP_STEP = 1;
 const TIME_STEP = 5;
-
-export const usesDumbbell = (e: Exercise) => e.equipment.includes('dumbbell');
-export const usesBand = (e: Exercise) => e.equipment.includes('band');
-export const isTimed = (e: Exercise) => e.forceProfile === 'Isometric';
-
-export function ladderFor(exercise: Exercise): number[] {
-  return exercise.dumbbellMode === 'single' ? LADDER_SINGLE : LADDER_PAIRED;
-}
 
 /** What the band would deliver at this position over this exercise's range of motion. */
 export function bandEstimate(
@@ -77,27 +39,6 @@ export function bandEstimate(
     position,
     BAND_CONFIG.romCm[exercise.movementPattern],
   );
-}
-
-/** Drops the fields the exercise does not use, so nothing irrelevant reaches the database. */
-export function toSavedSet(
-  exercise: Exercise,
-  v: SetFieldValues,
-  calibrations?: BandCalibrationMap,
-): SavedSetData {
-  return {
-    reps: isTimed(exercise) ? null : v.reps,
-    timeSec: isTimed(exercise) ? v.timeSec : null,
-    rir: v.rir,
-    weightKg: usesDumbbell(exercise) ? v.weightKg : null,
-    dumbbellMode: usesDumbbell(exercise) ? (exercise.dumbbellMode ?? null) : null,
-    bandId: usesBand(exercise) ? v.bandId : null,
-    anchorPosition: usesBand(exercise) ? v.position : null,
-    estimatedLoadKg: usesBand(exercise)
-      ? estimatedPeakKg(bandEstimate(exercise, v.bandId, v.position, calibrations))
-      : null,
-    shortfall: v.shortfall,
-  };
 }
 
 type Props = {
@@ -259,14 +200,4 @@ export function SetFields({ exercise, values, onChange, calibrations, shortfall 
 export function effortLabel(rir: number): string {
   const levels = pl.workout.session.effort.level;
   return levels[Math.min(Math.max(rir, 0), levels.length - 1)]!;
-}
-
-/** Whether a set falls short of its block's target: reps under the range, or time under the goal. */
-export function isBelowTarget(
-  exercise: Exercise,
-  values: Pick<SetFieldValues, 'reps' | 'timeSec'>,
-  target: { repMin?: number; timeSec?: number },
-): boolean {
-  if (isTimed(exercise)) return target.timeSec !== undefined && values.timeSec < target.timeSec;
-  return target.repMin !== undefined && values.reps < target.repMin;
 }

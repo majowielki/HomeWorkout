@@ -1,10 +1,8 @@
 import type { ExecuteEnvironment } from '@/ai/tools/execute';
 import { loadCoachSource } from '@/db/repositories/coachSource';
-import { getDayBoundaryHour } from '@/db/repositories/profile';
-import { findPlannedWorkoutOn } from '@/db/repositories/workouts';
-import { addDays, trainingDate } from '@/domain/time/trainingDate';
-import { computeToday } from '@/features/plan/computeToday';
-import { SLOT_NAMES } from '@/features/plan/slots';
+import { loadSimulationBase } from '@/db/repositories/weekPlan';
+import { createPhonePlanTools } from '@/app-services/queries/planTools';
+import { createSimulationHook } from '@/ai/tools/simulationEnvironment';
 
 /**
  * The phone's side of the tools: its own database, read fresh for every
@@ -16,13 +14,7 @@ import { SLOT_NAMES } from '@/features/plan/slots';
  */
 export const toolEnvironment: ExecuteEnvironment = {
   load: (days) => loadCoachSource(new Date(), days),
-  async plan(daysAgo) {
-    const asOf = trainingDate(new Date(), await getDayBoundaryHour());
-    const row = await findPlannedWorkoutOn(addDays(asOf, -daysAgo));
-    if (row?.plan) return { plan: row.plan, source: 'session', slotNames: SLOT_NAMES };
-    if (daysAgo !== 0) return null;
-    const today = await computeToday({ persist: false });
-    return today.plan ? { plan: today.plan, source: 'today', slotNames: SLOT_NAMES } : null;
-  },
+  ...createPhonePlanTools(),
+  simulate: createSimulationHook(() => loadSimulationBase()),
   report: (tool, error) => console.warn(`chat tool ${tool} failed`, error),
 };

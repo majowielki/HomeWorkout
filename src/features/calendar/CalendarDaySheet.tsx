@@ -12,7 +12,9 @@ import { Card } from '@/components/ui/card';
 import { Bike, X } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlan } from '@/domain/plan/types';
+import type { SessionPlan } from '@/domain/plan/plan';
+import { labelsOf } from '@/domain/session/progress';
+import { workoutTitle } from '@/features/history/workoutTitle';
 import type { Exercise } from '@/domain/types';
 import { planTitle } from '@/features/plan/format';
 import { QuickCardioForm } from '@/features/workout/QuickCardioForm';
@@ -85,6 +87,7 @@ export function CalendarDaySheet(props: Props) {
     asOf,
     todayPlan,
   );
+  const labels = plan ? labelsOf(plan) : [];
   return (
     <BottomSheet
       ref={ref}
@@ -121,12 +124,10 @@ export function CalendarDaySheet(props: Props) {
           {day?.status === 'missed' ? (
             <Text className="text-destructive">{pl.calendar.missed}</Text>
           ) : null}
-          {sessions.map(({ workout: w, templateName, sets }) => (
+          {sessions.map(({ workout: w, sets }) => (
             <Link key={w.id} href={{ pathname: '/history/[id]', params: { id: w.id } }} asChild>
               <Pressable className="gap-1 rounded-2xl border border-border p-4" onPress={onClose}>
-                <Text className="font-display-semibold">
-                  {w.plan ? planTitle(w.plan) : (templateName ?? pl.history.noTemplate)}
-                </Text>
+                <Text className="font-display-semibold">{workoutTitle(w)}</Text>
                 <Text variant="muted">
                   {w.status === 'completed' ? pl.calendar.completed : pl.history.status[w.status]} ·{' '}
                   {pl.history.sets(sets)}
@@ -182,19 +183,29 @@ export function CalendarDaySheet(props: Props) {
               {plan ? (
                 <>
                   <Text variant="title">{planTitle(plan)}</Text>
-                  <Text variant="muted">{pl.plan.meta(plan.estimatedMinutes)}</Text>
+                  <Text variant="muted">
+                    {pl.plan.meta(Math.ceil(plan.time.exerciseTotal / 60))}
+                  </Text>
                   {date > asOf ? (
                     <Text variant="muted" className="text-sm">
                       {pl.calendar.forecastHint}
                     </Text>
                   ) : null}
-                  {plan.exercises.map((e) => (
-                    <Text key={`${e.label}-${e.exerciseId}`}>
-                      {e.label} · {exerciseMap[e.exerciseId]?.name ?? e.exerciseId} ·{' '}
-                      {pl.calendar.sets(e.sets, exerciseMap[e.exerciseId]?.sides === 'perSet')}
+                  {plan.exposures.map((e, i) => (
+                    <Text key={e.id}>
+                      {labels[i]} · {exerciseMap[e.exercise.id]?.name ?? e.exercise.displayName} ·{' '}
+                      {pl.calendar.sets(
+                        new Set(e.sets.map((s) => s.logicalSetId)).size,
+                        exerciseMap[e.exercise.id]?.sides === 'perSet',
+                      )}
                     </Text>
                   ))}
-                  <Text>{pl.plan.bikeLine(plan.bike.minutes, plan.bike.resistance)}</Text>
+                  <Text>
+                    {pl.plan.bikeLine(
+                      day?.summary?.bike?.minutes ?? Math.round(plan.time.bike / 60),
+                      null,
+                    )}
+                  </Text>
                   <Link href={{ pathname: '/plan', params: { date } }} asChild>
                     <Button label={pl.calendar.details} variant="outline" onPress={onClose} />
                   </Link>

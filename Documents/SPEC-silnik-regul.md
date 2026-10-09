@@ -1,5 +1,102 @@
 # SPEC: Silnik reguł (`src/domain`)
 
+## Obowiązujący kontrakt po aktywacji P6 — 2026-10-09
+
+Ta sekcja zastępuje opis implementacji w historycznych §1–§11 poniżej.
+Aktualna specyfikacja decyzji to pakiet
+[architektura-silnika-2026-10-08](../../architektura-silnika-2026-10-08/README.md),
+a mapa implementacji i przepływów jest w
+[DOKUMENTACJI-TECHNICZNEJ](silnik-v2/DOKUMENTACJA-TECHNICZNA.md).
+Sekcje historyczne zachowują uzasadnienia dawnych decyzji i istniejące odnośniki;
+ich przykłady API, algorytmy progresji oraz opis tabel nie określają obecnego zachowania.
+
+### Plan, wykonanie i dowód
+
+- Jedynym planem wykonywalnym jest `SessionPlan` (`domain/plan/plan.ts`),
+  `schemaVersion: 2`: ekspozycje, zaplanowane serie, kroki wykonania, czas,
+  wersje polityki i ślad decyzji. Plan nie stanowi dowodu wykonania.
+- Logger zapisuje obserwacje poleceniami `db/repositories/sessions.ts`.
+  Identyfikator polecenia zapewnia idempotencję; plan i jego rewizje pozwalają
+  odtworzyć receptę obowiązującą w chwili zapisu.
+- `observations/normalize.ts` wiąże obserwacje z planem. Kwalifikacja,
+  kompletność, wysiłek, porównywalność oporu oraz kontekst ekspozycji określają,
+  czego zapis jest dowodem. Brak wyniku albo wysiłku pozostaje brakiem danych.
+- Historia sprzed aktywacji pozostaje czytelna. Dawny plan `planSchema = 1`
+  nie staje się planem bieżącego silnika; zapis bez dowodu zachowuje
+  `legacy_unknown`. Dane nie są resetowane.
+
+### Progresja i opór — zastępuje §5.1, §5.4 i §5.8
+
+`progression/next.ts:prescribeNext` porządkuje porównywalne ekspozycje główne
+i uruchamia pipeline nad jednym projektem recepty. Kolejność reguł:
+kwalifikacja, ból, pierwsza ekspozycja, powrót, faza, wynik próby, dowód,
+niepowodzenie, budowanie do zakresu, sukces, progresja ilości, estymator pomocniczy,
+liczba serii i normalizacja. Rozstrzygnięcie zatrzymuje dalsze reguły decyzyjne;
+reguły oznaczone `always` nadal porządkują wynik.
+
+Pamięć nieudanego szczebla, próba wyższego oporu, jej okres oczekiwania,
+budowanie od uzyskanego wyniku i rozszerzenie zakresu są jawnymi częściami polityki.
+Nie należy odtwarzać starego algorytmu double progression z §5.1.
+Wynik zawiera receptę oraz ślad: politykę, dowód, kody i reguły, które zmieniły decyzję.
+
+`resistance/*` definiuje modele oporu i ich możliwości. Porównanie szczebli
+odbywa się przez model i klucz porównania, a nie przez wspólną liczbę kilogramów.
+Kalibracje gum, drabinki hantli i `estimatedPeakKg` nadal służą bieżącym modelom;
+usunięcie dawnego plannera nie usuwa tych danych ani obliczeń.
+Parametry polityki pozostają w `config/training.ts`, `progression/policy.ts`
+i rejestrze polityk.
+
+### Dzień, tydzień i audyt — zastępuje §4.3 i §10–§11
+
+`plan/day.ts:planDay` kwalifikuje sloty i ćwiczenia, przygotowuje recepty,
+wybiera pracę w granicach objętości i czasu oraz zapisuje składniki punktacji.
+Marginalny zysk jest przeliczany po każdym dodaniu. `recommendSets` uwzględnia
+bilans dnia i tygodnia. Lekka praca i mobilność mogą dopełnić krótki dzień.
+Zachowany wybór tygodnia pozostaje, dopóki przechodzi bieżące zasady;
+odrzucenie ma jawne powody w `keptViolations`.
+
+`compileSession` nadaje identyfikatory i układa kroki oraz czas wykonania.
+Nie zmienia oporu ani liczby serii z recepty. Planer używa tego samego kompilatora
+do oceny kosztu czasu i budowy wyniku. Serie na strony i wspólny sprzęt
+nie mogą być liczone według odrębnej ścieżki UI.
+
+`auditPlan` jest wspólną kontrolą planu i zmiany sesji. Reguły `hard`
+nie podlegają potwierdzeniu; niespełnione `advice` wymagają pokazania
+i potwierdzenia. `planWithRepair` po każdej naprawie ponownie kompiluje i audytuje:
+usuwa dopełnienie, rozdziela grupę, zmniejsza serie albo usuwa ekspozycję.
+Wynik ma rodzaj `ready`, `adjusted`, `no_feasible_plan` lub `unsupported_input`.
+
+`plan/week.ts` planuje i synchronizuje tydzień. Repozytorium `weekPlan.ts`
+przechowuje wybór i prognozę w `planned_days` / `plan_generations`.
+`planning.ts:previewDay` odczytuje spójne wejścia bez zapisu;
+`acceptDay` przelicza je w transakcji i rozpoczyna sesję dopiero po sprawdzeniu
+zgodności z podglądem. Zmiana wejść oznacza konflikt `STALE_INPUT`.
+Sesja dodatkowa korzysta z tego samego bilansu i audytu po ukończeniu dnia głównego.
+
+Zmiana biegnącej sesji przechodzi przez ocenę i transakcyjne zastosowanie
+w `sessionChanges.ts`; wykonane serie pozostają zapisane. AI korzysta z kontraktu 7,
+narzędzi oceny oraz kart propozycji. Tekst modelu nie uruchamia zmiany planu.
+Nie istnieją starty szablonów FBW A/B, `computeToday`, `dayPlanner` ani reset API.
+
+### Dane i odbiór
+
+Migracja `0014_activate_engine` zachowuje treningi i dane podrzędne przy FK ON,
+przenosi nazwy szablonów do tytułów historycznych planów, usuwa `template_id`,
+`workout_templates` i `app_state`, a bieżący plan przechowuje w `session_plan`.
+Backup 8 czyta wersje 1–7. Import dawnej aktywnej sesji zamyka ją,
+zachowując serie; `legacy_sessions` służy odczytowi dawnych backupów.
+
+Obowiązują testy obecnych modułów w `src/domain/__tests__`, `src/ai/**`
+i testy SQLite w `src/db/__tests__`, w tym `sqlite-check-activation.cjs`.
+Tabela dawnych testów w §9 nie jest listą wymaganych plików.
+Pokrycie domeny i AI pozostaje na poziomie 100%; `npm run verify` jest bramką kodu.
+Odbiór emulatora, wdrożenie Workera razem z APK i test telefonu są osobnymi
+dowodami, zapisanymi w [POSTEP](silnik-v2/POSTEP.md).
+
+---
+
+## Opis historyczny sprzed P6
+
 > Specyfikacja implementacyjna. Dokument nadrzędny: [PLAN.md](PLAN.md).
 > Wszystkie wartości liczbowe pochodzą z deep researchów w `Documents/Gemini deep research docs/`
 > i są **parametrami konfiguracyjnymi**, nie stałymi w kodzie — patrz §1.3.

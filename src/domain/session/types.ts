@@ -1,8 +1,8 @@
 import type { ExerciseRef, MovementLexicon, ResolvedExercise } from '../catalog/resolve';
 import type { EquipmentFamily } from '../catalog/attributes';
 import type { ExposureRecord } from '../observations/exposure';
-import type { DayInputV2 } from '../plan/dayV2';
-import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
+import type { DayInput } from '../plan/day';
+import type { PlannedExposure, PlannedSet, SessionPlan } from '../plan/plan';
 import type { SetsRecommendation } from '../plan/sets';
 import type { DaySelection, ViolationCode } from '../plan/types';
 import type { AssessmentCheck, Verdict } from '../policy/hardAdvice';
@@ -12,7 +12,19 @@ export type SessionPlanChange =
   | { kind: 'add_exercise'; exercise: ExerciseRef; sets?: number; position?: 'next' | 'end' }
   | { kind: 'add_sets'; exposureId: string; sets: number }
   | { kind: 'swap_remaining'; exposureId: string; exercise: ExerciseRef }
-  | { kind: 'reduce_remaining'; exposureId: string; dropSets?: number; easier?: boolean }
+  | {
+      kind: 'reduce_remaining';
+      exposureId: string;
+      dropSets?: number;
+      easier?: boolean;
+      /** The sets that remain one step up (calibration of a new exercise, D24): the phone offers it, the model cannot. */
+      harder?: boolean;
+      /**
+       * The step is the calibration of a new exercise (D24): the sets that remain go on as the exercise's
+       * evidence, and the sets that were done at the starting step are not a reduction.
+       */
+      calibrate?: boolean;
+    }
   | { kind: 'skip_remaining'; exposureId: string };
 
 export interface FeelChange {
@@ -44,7 +56,7 @@ export interface FeelConsultation {
 }
 
 /** Plain domain inputs; no database, UI, channel, or network dependency. */
-export interface SessionChangeSnapshot extends DayInputV2 {
+export interface SessionChangeSnapshot extends DayInput {
   historyRevision: number;
   prefsRevision: number;
   lexicon: MovementLexicon;
@@ -52,7 +64,7 @@ export interface SessionChangeSnapshot extends DayInputV2 {
 }
 
 export interface ActiveSessionState {
-  plan: SessionPlanV2;
+  plan: SessionPlan;
   /** Current normalized actual/dispositions, including pending and skipped sets. */
   records: readonly ExposureRecord[];
 }
@@ -68,7 +80,7 @@ export interface SessionPlanPatch {
   basePlanRevision: number;
   ops: PatchOp[];
   /** Concrete revision to show and re-assess before transactional acceptance (P4b.4). */
-  plan: SessionPlanV2;
+  plan: SessionPlan;
 }
 
 export interface PrescriptionSummary {

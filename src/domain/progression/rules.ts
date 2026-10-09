@@ -1,5 +1,5 @@
 /**
- * The rules of the progression pipeline (engine v2, 03 §4-§6, §12-§17, 13 §5).
+ * The rules of the progression pipeline (engine, 03 §4-§6, §12-§17, 13 §5).
  *
  * Each rule reads the history, the draft the earlier rules left and the
  * context, and either leaves the draft alone or settles it. A rule that
@@ -18,7 +18,7 @@ import { chooseIntermediateAxis } from './axes';
 import { buildUpState, buildUpTargets, shouldSuggestVariantDown } from './buildUp';
 import { withCode, type Draft, type Rule, type RuleCtx } from './draft';
 import { levelIdOf, nextEasierSpec, nextHarderSpec } from './levels';
-import { isProbe, probeVerdict, relativeStepOf, shouldProbe } from './probe';
+import { isProbe, probeVerdict, relativeStepOf, shouldProbe, workedAtProbeStep } from './probe';
 import { BLOCK_CONFIG } from '../config/training';
 import type { DecisionCode } from './codes';
 import type { ResistanceSpec } from '../resistance/types';
@@ -269,9 +269,11 @@ export const probeOutcomeRule: Rule = {
       };
     }
     const ev = a.ev;
+    // The work sets done at the step of the probe are the person's own step up: it is neither a changed
+    // setup nor a failure to reach the range of a step that was only just reached.
+    const own = workedAtProbeStep(a, ctx.model);
     const doubtful =
-      ev.comparability === 'changed' ||
-      ev.performance === 'below_range' ||
+      (!own && (ev.comparability === 'changed' || ev.performance === 'below_range')) ||
       ev.reasons.includes('CONTEXT_CONFOUNDED') ||
       ev.reasons.includes('USER_REDUCED');
     const to = a.rec.sets.find(isProbe)!.planned.resistance;

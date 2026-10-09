@@ -11,14 +11,12 @@ import type {
   BlockEvent,
   DayReason,
   FatigueSignal,
-  ProgressionReason,
   SkipReason,
-  ValidationCode,
 } from '@/domain/plan/reasons';
 import type { SlotRegion } from '@/domain/plan/types';
-import type { SyncTrigger } from '@/domain/plan/weekSync';
+import type { SyncTrigger } from '@/domain/plan/week';
 import type { LoadEstimate } from '@/domain/progression/calibration';
-import type { Unit } from '@/domain/progression/history';
+import type { Unit } from '@/domain/progression/prescribe';
 import type {
   BandSuitability,
   Equipment,
@@ -244,8 +242,12 @@ export const pl = {
       miniBandNote:
         'Mini band: używaj tego samego lekkiego oporu w kolejnych seriach. Zapisujemy powtórzenia lub czas, bez przeliczania oporu na kilogramy.',
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
+      /** The label of a probe set: one try at a new step; the sets after it stay at the known one. */
+      probe: 'Seria próbna',
+      probeHint: 'Jedna próba nowego ciężaru. Kolejne serie wracają do znanego.',
       targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
       targetTime: (sec: number) => `cel: ${sec} s`,
+      targetDistance: (meters: number) => `cel: ${meters} m`,
       /** The target effort as felt words, e.g. "odczucie: ciężko–spokojnie". */
       targetEffort: (from: string, to: string) =>
         from === to
@@ -292,12 +294,15 @@ export const pl = {
         `Siodełko: ${String(cm).replace('.', ',')} cm — sprawdź przed jazdą.`,
       substituteTitle: 'Zamień ćwiczenie',
       substituteHow:
-        'Propozycje z tego samego ruchu, ułożone od tych, które najbardziej pokrywają się z głównymi mięśniami ćwiczenia z planu. Tylko bezpieczne dla Twojego kolana. Dotknij, żeby zobaczyć.',
+        'Propozycje silnika: każda sprawdzona pod kątem kolana, tygodnia i czasu, z gotową receptą. Dotknij, żeby zobaczyć.',
       substitutePreviewHint: 'Pokazuje podgląd ćwiczenia',
       substituteBack: '‹ Wróć do listy',
       substituteMuscles: (list: string) => `Główne mięśnie: ${list}`,
       substitutePick: 'Zamień na to ćwiczenie',
-      restorePlanned: 'Wróć do ćwiczenia z planu',
+      substituteLoading: 'Sprawdzam zamienniki…',
+      substituteFailed: 'Nie udało się sprawdzić zamienników. Spróbuj ponownie.',
+      substituteAdvisedAgainst: 'odradzane',
+      substituteAnyway: 'Zamień mimo to',
       noSubstitutes: 'Brak dostępnych zamienników dla Twojego profilu.',
       substituteForBlock: 'Na resztę bloku',
       substituteForBlockHint: 'Zamiennik zostaje w planie do końca bloku.',
@@ -323,6 +328,24 @@ export const pl = {
       otherSideNext: 'Teraz druga strona',
       alternatingSides: 'Strony na zmianę w każdej serii.',
       groupDone: 'Ćwiczenie zrobione',
+      /** A new exercise, calibrated within the session: the sets that remain, one step up or down. */
+      calibration: {
+        upTitle: 'Poszło lekko',
+        downTitle: 'Poszło ciężko',
+        up: (sets: number, from: string, to: string) =>
+          `Pozostałe serie (${sets}) o stopień wyżej: ${from} → ${to}?`,
+        down: (sets: number, from: string, to: string) =>
+          `Pozostałe serie (${sets}) o stopień niżej: ${from} → ${to}?`,
+        accept: 'Tak, zmień',
+        decline: 'Zostaw jak jest',
+        error: 'Nie udało się zmienić ciężaru. Plan serii zostaje jak był.',
+      },
+      /** How an exercise just done felt: the next prescription reads it. */
+      feel: {
+        tooHard: 'Za ciężko',
+        tooEasy: 'Za łatwo',
+        error: 'Nie udało się zapisać odczucia. Spróbuj ponownie.',
+      },
       supersetDone: 'Superseria zrobiona',
       nextExercise: 'Następne ćwiczenie',
       undoSet: 'Cofnij serię',
@@ -336,6 +359,7 @@ export const pl = {
       notFound: 'Nie znaleziono treningu.',
       saveSetError: 'Nie udało się zapisać serii. Wpisane liczby zostały — spróbuj ponownie.',
       undoError: 'Nie udało się cofnąć serii. Spróbuj ponownie.',
+      undoStale: 'Ta seria nie jest już ostatnia. Cofnij ją z listy serii.',
       blockSwapError:
         'Zamiana działa w tej sesji, ale nie udało się zapisać jej do końca bloku. Spróbuj ponownie.',
     },
@@ -378,9 +402,6 @@ export const pl = {
       title: 'Podsumowanie',
       setsLogged: (n: number) =>
         `${n} ${n === 1 ? 'seria zalogowana' : n >= 2 && n <= 4 ? 'serie zalogowane' : 'serii zalogowanych'}`,
-      previousComparison: (daysAgo: number, previousSets: number, currentSets: number) =>
-        `Poprzednia sesja tego szablonu: ${daysAgo} ${daysAgo === 1 ? 'dzień' : 'dni'} temu, ${previousSets} serii (dziś: ${currentSets}).`,
-      noPrevious: 'To pierwsza sesja tego szablonu w historii.',
       plannedNext: 'Jutrzejszy plan uwzględni to, co dziś zapisane.',
       sessionRpe: 'Jak ciężko było całościowo? (RPE)',
       notes: 'Notatka (opcjonalnie)',
@@ -391,6 +412,7 @@ export const pl = {
     },
   },
   voice: {
+    screenChanged: 'Ekran się zmienił, zanim polecenie wróciło — powiedz je jeszcze raz.',
     mic: 'Polecenie głosowe',
     micStop: 'Przestań słuchać',
     listening: 'Słucham…',
@@ -496,118 +518,11 @@ export const pl = {
     choose: 'Wybierz przynajmniej jeden ruch.',
     reduced: 'Część wyboru nie mieści się w limitach. Poniżej pokazujemy to, co możesz wykonać.',
     weekHint: 'Po ukończeniu sesji plan kolejnych dni sprawdzi się automatycznie.',
+    advised: 'Odradzane',
+    advisedWhy: 'Ta partia pracowała dziś lub wczoraj i jeszcze się regeneruje.',
+    advisedConfirm: 'Wybierając ten ruch, robisz go mimo rady silnika.',
   },
   plan: {
-    eyebrow: (date: string) => `Plan na dziś · ${date}`,
-    tomorrowEyebrow: (date: string) => `Plan na jutro · ${date}`,
-    tomorrowScreenTitle: 'Plan na jutro',
-    nextScreenTitle: 'Następny trening',
-    noneAhead:
-      'Dziś zrobione, a w najbliższych dniach nie ma treningu — sprawdź dni treningowe w Ustawieniach.',
-    restDay: {
-      eyebrow: 'Dzień wolny',
-      title: 'Dziś odpoczywasz',
-      body: 'Ten dzień jest wolny — z Twojego tygodnia albo na Twoją prośbę. Rower i dziennik jak zwykle.',
-      next: (date: string) => `Następny trening · ${date}`,
-    },
-    recalculate: 'Przelicz tydzień',
-    recalculating: 'Liczę tydzień…',
-    recalculateHint:
-      'Silnik ułoży cały tydzień od nowa z tego, co już zapisane. Zwykle robi to sam, gdy coś się zmieni.',
-    banner: {
-      title: 'Plan tygodnia się zmienił',
-      trigger: {
-        horizon: 'Doszedł nowy dzień.',
-        missed_day: 'Pominięta sesja — reszta tygodnia ułożona od nowa.',
-        unsafe: 'Część dni przestała pasować do tego, co zrobione i zgłoszone.',
-        manual: 'Tydzień przeliczony na Twoją prośbę.',
-        constraint: 'Plan uwzględnia Twoją prośbę.',
-        coach: 'Plan uwzględnia propozycję trenera.',
-      } satisfies Record<SyncTrigger, string>,
-      change: (date: string, before: string, after: string) => `${date}: ${before} → ${after}`,
-      rest: 'wolne',
-      close: 'Zamknij',
-    },
-    done: {
-      eyebrow: 'Dziś zrobione',
-      title: 'Czas na regenerację',
-      readyFrom: (date: string) => `Odpoczywają, gotowe od ${date}:`,
-      nothingRests: 'Dzisiejsza praca była lekka — żadna partia nie potrzebuje przerwy.',
-    },
-    screenTitle: 'Plan dnia',
-    start: 'Rozpocznij plan',
-    details: 'Dlaczego taki plan?',
-    lightDayTitle: 'Lekki dzień',
-    blockBadge: (index: number) => `Blok ${index}`,
-    deloadBadge: (index: number) => `Blok ${index} · deload`,
-    meta: (minutes: number) => `ok. ${minutes} min ćwiczeń`,
-    loadError: 'Nie udało się ułożyć planu. Spróbuj ponownie.',
-    startError: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
-    retry: 'Spróbuj ponownie',
-    sections: {
-      day: 'Dzień',
-      bike: 'Rower',
-      exercises: 'Ćwiczenia',
-      skipped: 'Dziś bez',
-      volume: 'Serie bezpośrednie z 7 dni',
-      volumeHint: (min: number) =>
-        `Serie, w których partia pracuje jako główna. Norma: od ${min} do maksimum partii.`,
-      changes: 'Poprawki bezpieczeństwa',
-    },
-    region: {
-      lower: 'nogi',
-      push: 'pchanie',
-      pull: 'przyciąganie',
-      shoulders: 'barki',
-      arms: 'ramiona',
-      core: 'brzuch',
-      mobility: 'mobilność',
-    } satisfies Record<SlotRegion, string>,
-    bikeLine: (minutes: number, resistance: number | null) =>
-      resistance === null ? `${minutes} min, opór do wyboru` : `${minutes} min, opór ${resistance}`,
-    amount: (unit: Unit, target: number, range: [number, number] | null) =>
-      unit === 'sec'
-        ? `${target} s`
-        : range
-          ? `${target} powt. (zakres ${range[0]}–${range[1]})`
-          : `${target} powt.`,
-    sets: (n: number) => `${n} ${n === 1 ? 'seria' : n >= 2 && n <= 4 ? 'serie' : 'serii'}`,
-    rir: (min: number, max: number) => (min === max ? `RIR ${min}` : `RIR ${min}–${max}`),
-    load: {
-      miniBand: 'mini band — stały lekki opór',
-      paired: (kg: number) => `2 × ${kg} kg`,
-      single: (kg: number) => `${kg} kg`,
-      band: (label: string, position: number) => `guma ${label}, P${position}`,
-      bodyweight: 'masa ciała',
-    },
-    volumeValue: (sets: number, max: number) => `${sets} / ${max}`,
-    deloadNote:
-      'W tym tygodniu obniżamy objętość treningową. Kwestie żywieniowe w trakcie terapii omów z lekarzem prowadzącym.',
-    progression: {
-      FIRST_EXPOSURE:
-        'Pierwszy raz: zostaw ~4 powtórzenia w zapasie. Za lekko albo za ciężko — popraw obciążenie przy zapisie, plan się dostosuje.',
-      INTRO_EXPOSURE: 'Druga sesja tego ćwiczenia — nadal z zapasem RIR 4.',
-      RE_EXPOSURE: 'Dawno nierobione: krok lżej niż ostatnio, z zapasem.',
-      REP_TARGET_MET: 'Wszystkie serie na górze zakresu — o szczebel cięższe.',
-      BAND_MICRO_PROGRESSION: 'Cel osiągnięty — ta sama guma, o pozycję dalej.',
-      BAND_MACRO_PROGRESSION: 'Cel na P3 osiągnięty — mocniejsza guma, bliżej kotwicy.',
-      LOAD_CEILING_REACHED:
-        'Najcięższa możliwa konfiguracja: trzymaj górę zakresu i wolniej opuszczaj.',
-      BODYWEIGHT_CEILING:
-        'Górna granica dla masy ciała — trudniejszy wariant przyjdzie z nowym blokiem.',
-      PERFORMANCE_REGRESSION: 'Dwie sesje pod zakresem — szczebel lżej, żeby odbudować.',
-      REP_PROGRESSION: 'Ten sam ciężar, o powtórzenie więcej.',
-      RIR_BELOW_TARGET: 'Góra zakresu była na granicy — powtórz, zanim pójdziemy wyżej.',
-      WARMUP_MISSING:
-        'Ostatnio pierwsza seria z gumą bez rozgrzewki — nie liczy się do porównań. Zrób rozgrzewkową.',
-      LAYOFF_SHORT: 'Po krótkiej przerwie: powtórka ostatniej sesji, bez progresji.',
-      LAYOFF_MEDIUM: 'Po dłuższej przerwie: o krok lżej, od dołu zakresu.',
-      LAYOFF_RECALIBRATION: 'Powrót po długiej przerwie: spokojnie, RIR 4.',
-      DELOAD: 'Tydzień lżejszy: ten sam ciężar, mniej serii, daleko od odmowy.',
-      BILATERAL_SWAP: 'Sygnały zmęczenia: wariant obunóż zamiast jednonóż.',
-      LOW_READINESS: 'Gorsza noc albo mało energii: o powtórzenie więcej w zapasie.',
-      LIGHT_FILL: 'Lekko, technicznie — to nie seria robocza.',
-    } satisfies Record<ProgressionReason, string>,
     skip: {
       NO_CANDIDATE: 'brak dozwolonego ćwiczenia',
       DOMS_HIGH: 'mocne zakwasy w tej partii',
@@ -653,17 +568,110 @@ export const pl = {
       SELECTION_REPLACED:
         'Jedno z ćwiczeń bloku przestało być dostępne — zastąpione innym w tym samym ruchu.',
     } satisfies Record<BlockEvent, string>,
-    validation: {
-      UNKNOWN_EXERCISE: 'nieznane ćwiczenie — usunięte',
-      MEDICAL_EXCLUSION: 'niedozwolone dla kolana — usunięte',
-      USER_EXCLUDED: 'na Twojej liście „nie proponuj” — usunięte',
-      EXERCISE_UNAVAILABLE: 'niedostępne — usunięte',
-      LOAD_NOT_AVAILABLE: 'obciążenie poprawione na dostępne',
-      RANGE_CLAMPED: 'liczby poprawione do bezpiecznego zakresu',
-      LOAD_JUMP_CLAMPED: 'skok obciążenia ograniczony do jednego szczebla',
-      VOLUME_TRIMMED: 'mniej serii — tygodniowe maksimum partii',
-      TIME_TRIMMED: 'usunięte — nie mieści się w czasie',
-    } satisfies Record<ValidationCode, string>,
+    eyebrow: (date: string) => `Plan na dziś · ${date}`,
+    tomorrowEyebrow: (date: string) => `Plan na jutro · ${date}`,
+    tomorrowScreenTitle: 'Plan na jutro',
+    nextScreenTitle: 'Następny trening',
+    noneAhead:
+      'Dziś zrobione, a w najbliższych dniach nie ma treningu — sprawdź dni treningowe w Ustawieniach.',
+    restDay: {
+      eyebrow: 'Dzień wolny',
+      title: 'Dziś odpoczywasz',
+      body: 'Ten dzień jest wolny — z Twojego tygodnia albo na Twoją prośbę. Rower i dziennik jak zwykle.',
+      next: (date: string) => `Następny trening · ${date}`,
+    },
+    recalculate: 'Przelicz tydzień',
+    recalculating: 'Liczę tydzień…',
+    recalculateHint:
+      'Silnik ułoży cały tydzień od nowa z tego, co już zapisane. Zwykle robi to sam, gdy coś się zmieni.',
+    banner: {
+      title: 'Plan tygodnia się zmienił',
+      trigger: {
+        horizon: 'Doszedł nowy dzień.',
+        missed_day: 'Pominięta sesja — reszta tygodnia ułożona od nowa.',
+        unsafe: 'Część dni przestała pasować do tego, co zrobione i zgłoszone.',
+        block: 'Zmienił się blok treningowy (np. deload) — serie dni dopasowane.',
+        manual: 'Tydzień przeliczony na Twoją prośbę.',
+        constraint: 'Plan uwzględnia Twoją prośbę.',
+        coach: 'Plan uwzględnia propozycję trenera.',
+      } satisfies Record<SyncTrigger, string>,
+      change: (date: string, before: string, after: string) => `${date}: ${before} → ${after}`,
+      rest: 'wolne',
+      close: 'Zamknij',
+    },
+    done: {
+      eyebrow: 'Dziś zrobione',
+      title: 'Czas na regenerację',
+      readyFrom: (date: string) => `Odpoczywają, gotowe od ${date}:`,
+      nothingRests: 'Dzisiejsza praca była lekka — żadna partia nie potrzebuje przerwy.',
+    },
+    screenTitle: 'Plan dnia',
+    start: 'Rozpocznij plan',
+    details: 'Dlaczego taki plan?',
+    lightDayTitle: 'Lekki dzień',
+    blockBadge: (index: number) => `Blok ${index}`,
+    deloadBadge: (index: number) => `Blok ${index} · deload`,
+    meta: (minutes: number) => `ok. ${minutes} min ćwiczeń`,
+    loadError: 'Nie udało się ułożyć planu. Spróbuj ponownie.',
+    startError: 'Nie udało się rozpocząć treningu. Spróbuj ponownie.',
+    retry: 'Spróbuj ponownie',
+    sections: {
+      day: 'Dzień',
+      bike: 'Rower',
+      exercises: 'Ćwiczenia',
+      skipped: 'Dziś bez',
+      volume: 'Serie bezpośrednie z 7 dni',
+      volumeHint: (min: number) =>
+        `Serie, w których partia pracuje jako główna. Norma: od ${min} do maksimum partii.`,
+      changes: 'Poprawki bezpieczeństwa',
+    },
+    /** The volume lever (D32): a new weekly maximum of sets for a muscle, offered and never imposed. */
+    volumeLever: {
+      moreTitle: (muscle: string) => `${muscle}: więcej serii w tygodniu?`,
+      lessTitle: (muscle: string) => `${muscle}: mniej serii w tygodniu?`,
+      reason: {
+        STALLED_WELL_RECOVERED:
+          'Kluczowe ćwiczenia tej partii od kilku treningów stoją w miejscu, a regeneracja jest dobra.',
+        RECOVERY_LOW: 'Regeneracja jest ostatnio słaba.',
+        FREQUENT_SORENESS: 'Ta partia często mocno boli po treningu.',
+      },
+      change: (from: number, to: number) => `Tygodniowe maksimum: ${from} → ${to} serii.`,
+      raise: 'Zwiększ',
+      lower: 'Zmniejsz',
+      notNow: 'Nie teraz',
+      error: 'Nie udało się zmienić maksimum. Spróbuj ponownie.',
+    },
+    region: {
+      lower: 'nogi',
+      push: 'pchanie',
+      pull: 'przyciąganie',
+      shoulders: 'barki',
+      arms: 'ramiona',
+      core: 'brzuch',
+      mobility: 'mobilność',
+    } satisfies Record<SlotRegion, string>,
+    bikeLine: (minutes: number, resistance: number | null) =>
+      resistance === null ? `${minutes} min, opór do wyboru` : `${minutes} min, opór ${resistance}`,
+    amount: (unit: Unit, target: number, range: [number, number] | null) =>
+      unit === 'sec'
+        ? `${target} s`
+        : range
+          ? `${target} powt. (zakres ${range[0]}–${range[1]})`
+          : `${target} powt.`,
+    sets: (n: number) => `${n} ${n === 1 ? 'seria' : n >= 2 && n <= 4 ? 'serie' : 'serii'}`,
+    rir: (min: number, max: number) => (min === max ? `RIR ${min}` : `RIR ${min}–${max}`),
+    load: {
+      miniBand: 'mini band — stały lekki opór',
+      paired: (kg: number) => `2 × ${kg} kg`,
+      single: (kg: number) => `${kg} kg`,
+      band: (label: string, position: number) => `guma ${label}, P${position}`,
+      bodyweight: 'masa ciała',
+    },
+    volumeValue: (sets: number, max: number) => `${sets} / ${max}`,
+    uncertainSets: 'bez potwierdzonego odczucia',
+    adjustedPlan: 'Silnik skrócił lub uporządkował plan, aby zmieścić go w dostępnych limitach.',
+    deloadNote:
+      'W tym tygodniu obniżamy objętość treningową. Kwestie żywieniowe w trakcie terapii omów z lekarzem prowadzącym.',
   },
   body: {
     title: 'Ciało',
@@ -779,7 +787,7 @@ export const pl = {
     emptyTitle: 'Czysta karta',
     entries: (n: number) =>
       `${n} ${n === 1 ? 'wpis' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'wpisy' : 'wpisów'}`,
-    noTemplate: 'bez szablonu',
+    fallbackTitle: 'Trening z historii',
     ride: 'Rower',
     rideMeta: (minutes: number, resistance: number | null, rpe: number | null) =>
       [
@@ -1007,6 +1015,7 @@ export const pl = {
         simulateProposal: 'Sprawdzam skutki zmiany w kolejnych dniach…',
       } satisfies Record<ToolName, string>,
       proposal: {
+        sessionChange: 'Propozycja zmiany treningu',
         plan: 'Propozycja zmiany planu',
         compose: 'Ułożony dzień',
         composeHint: 'Ruchy wybrane razem z trenerem; obciążenia i serie liczy silnik.',
@@ -1073,7 +1082,7 @@ export const pl = {
         rateLimited: 'Za dużo zapytań w ostatniej minucie. Spróbuj za chwilę.',
         upstream: 'Dostawca modelu nie odpowiada.',
         invalidOutput:
-          'Nie udało się ułożyć podsumowania: model dwa razy odpowiedział nie tak, jak trzeba. Szczegóły są w diagnostyce.',
+          'Model zwrócił odpowiedź w niepoprawnym formacie. Spróbuj ponownie. Szczegóły są w diagnostyce.',
         budget: 'Limit na dziś wyczerpany. Wróć jutro.',
         unauthorized: 'Serwer odrzucił klucz aplikacji. Sprawdź konfigurację.',
         contractMismatch: 'Aplikacja i serwer są w różnych wersjach. Zaktualizuj aplikację.',
@@ -1124,7 +1133,6 @@ export const pl = {
     backup: 'Eksport / Import',
     settings: 'Ustawienia',
     glossary: 'Słownik pojęć',
-    comingSoon: 'Szablony dojdą w następnych kamieniach.',
     libraryEyebrow: 'Biblioteka',
     appEyebrow: 'Aplikacja',
     exercisesHint: 'Baza ruchów, zdjęcia, wykluczenia',
@@ -1398,12 +1406,12 @@ export const pl = {
       {
         term: 'FBW A / FBW B',
         definition:
-          'Full Body Workout — trening całego ciała w jednej sesji. A i B to dwa stałe szablony sprzed silnika, dostępne jako „Trening ręczny”. Na co dzień plan układa silnik: ruch po ruchu, z innym wariantem ćwiczenia w każdym bloku.',
+          'Full Body Workout — trening całego ciała w jednej sesji. A i B to nazwy dawnych szablonów, które możesz zobaczyć w historii. Bieżące treningi układa silnik: ruch po ruchu, z wariantami ćwiczeń wybieranymi na dany blok.',
       },
       {
         term: 'Blok i deload',
         definition:
-          'Blok to 4 tygodnie z tymi samymi ćwiczeniami — żeby było widać postęp — i tydzień deloadu: ten sam ciężar, mniej serii, daleko od odmowy. Potem nowy blok i nowe warianty ćwiczeń.',
+          'Blok to około 5 tygodni z tymi samymi wariantami ćwiczeń — żeby było widać postęp. Deload nie jest w kalendarzu: włącza się, gdy wyniki lub samopoczucie na to wskazują, i trwa tydzień — ten sam ciężar, połowa serii, daleko od odmowy. Potem nowy blok i nowe warianty ćwiczeń.',
       },
       {
         term: 'RIR',

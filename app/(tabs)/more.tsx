@@ -58,9 +58,6 @@ export default function MoreScreen() {
           ))}
         </Card>
 
-        <Text variant="muted" className="mt-4 text-center text-xs">
-          {pl.more.comingSoon}
-        </Text>
         <GlossaryModal visible={showGlossary} onClose={() => setShowGlossary(false)} />
       </ScrollView>
       <StatusBarScrim />

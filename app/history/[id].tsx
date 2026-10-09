@@ -8,7 +8,6 @@ import { Bike, ChevronRight } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { type CardioLogRow, getCardioForWorkout } from '@/db/repositories/cardioLogs';
 import { getSetsForWorkout, type SetLogRow } from '@/db/repositories/setLogs';
-import { getTemplate } from '@/db/repositories/templates';
 import { deleteWorkout, getWorkout, type WorkoutRow } from '@/db/repositories/workouts';
 import {
   countWorkingSets,
@@ -17,16 +16,16 @@ import {
   groupSetsByExercise,
 } from '@/domain/history/summary';
 import { describeSet } from '@/features/history/describeSet';
+import { workoutTitle } from '@/features/history/workoutTitle';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { cn } from '@/lib/cn';
 import { formatDate, formatTime } from '@/lib/format';
 import { syncReminders } from '@/lib/reminders';
-import { planTitle } from '@/features/plan/format';
 import { pl } from '@/strings/pl';
 
 type Loaded = {
   workout: WorkoutRow;
-  templateName: string;
+  title: string;
   sets: SetLogRow[];
   groups: ExerciseGroup<SetLogRow>[];
   cardio: CardioLogRow[];
@@ -47,17 +46,12 @@ export default function WorkoutDetailScreen() {
       setState({ kind: 'notFound' });
       return;
     }
-    const [template, sets, cardio] = await Promise.all([
-      workout.templateId ? getTemplate(workout.templateId) : null,
-      getSetsForWorkout(id),
-      getCardioForWorkout(id),
-    ]);
+    const [sets, cardio] = await Promise.all([getSetsForWorkout(id), getCardioForWorkout(id)]);
     setState({
       kind: 'ready',
       data: {
         workout,
-        templateName:
-          template?.name ?? (workout.plan ? planTitle(workout.plan) : pl.history.noTemplate),
+        title: workoutTitle(workout),
         sets,
         groups: groupSetsByExercise(sets),
         cardio,
@@ -114,7 +108,7 @@ export default function WorkoutDetailScreen() {
     );
   }
 
-  const { workout, templateName, sets, groups, cardio } = state.data;
+  const { workout, title, sets, groups, cardio } = state.data;
   const minutes = durationMinutes(workout.startedAt, workout.finishedAt);
   const meta = [
     formatTime(workout.startedAt),
@@ -131,7 +125,7 @@ export default function WorkoutDetailScreen() {
       <Stack.Screen options={{ title: formatDate(workout.trainingDate) }} />
 
       <Card>
-        <CardTitle>{templateName}</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>{meta}</CardDescription>
         {workout.notes ? (
           <CardContent className="mt-2">
@@ -164,9 +158,11 @@ export default function WorkoutDetailScreen() {
         </Text>
       ) : (
         <>
-          <Text variant="muted" className="px-1">
-            {pl.history.detail.editHint}
-          </Text>
+          {sets.some((set) => set.observation) ? (
+            <Text variant="muted" className="px-1">
+              {pl.history.detail.editHint}
+            </Text>
+          ) : null}
           {groups.map((group) => (
             <Card key={group.exerciseOrder} className="p-0">
               <View className="px-4 pb-1 pt-3">
@@ -175,28 +171,7 @@ export default function WorkoutDetailScreen() {
                 </Text>
               </View>
               {group.sets.map((set, i) => (
-                <Link
-                  key={set.id}
-                  href={{ pathname: '/history/set/[id]', params: { id: set.id } }}
-                  asChild
-                >
-                  <View
-                    accessibilityRole="button"
-                    className={cn(
-                      'flex-row items-center gap-3 px-4 py-3 active:bg-secondary',
-                      i < group.sets.length - 1 && 'border-b border-border',
-                    )}
-                  >
-                    <Text variant="muted" className="w-8 tabular-nums">
-                      #{set.setIndex}
-                    </Text>
-                    <Text className={cn('flex-1', set.isWarmup && 'text-muted-foreground')}>
-                      {describeSet(set)}
-                      {set.isWarmup ? ` · ${pl.history.detail.warmup}` : ''}
-                    </Text>
-                    <ChevronRight size={16} className="text-muted-foreground" />
-                  </View>
-                </Link>
+                <SetLine key={set.id} set={set} last={i === group.sets.length - 1} />
               ))}
             </Card>
           ))}
@@ -212,5 +187,35 @@ export default function WorkoutDetailScreen() {
         className="mt-4"
       />
     </ScrollView>
+  );
+}
+
+/** One set of the list. A set of the old engine has no record to correct and is only read. */
+function SetLine({ set, last }: { set: SetLogRow; last: boolean }) {
+  const line = (
+    <View
+      accessibilityRole={set.observation ? 'button' : undefined}
+      className={cn(
+        'flex-row items-center gap-3 px-4 py-3',
+        set.observation && 'active:bg-secondary',
+        !last && 'border-b border-border',
+      )}
+    >
+      <Text variant="muted" className="w-8 tabular-nums">
+        #{set.setIndex}
+      </Text>
+      <Text className={cn('flex-1', set.isWarmup && 'text-muted-foreground')}>
+        {describeSet(set)}
+        {set.isWarmup ? ` · ${pl.history.detail.warmup}` : ''}
+      </Text>
+      {set.observation ? <ChevronRight size={16} className="text-muted-foreground" /> : null}
+    </View>
+  );
+  return set.observation ? (
+    <Link href={{ pathname: '/history/set/[id]', params: { id: set.id } }} asChild>
+      {line}
+    </Link>
+  ) : (
+    line
   );
 }

@@ -11,12 +11,11 @@ import {
   deleteCardioLog,
   listStandaloneRides,
 } from '@/db/repositories/cardioLogs';
-import { listAllTemplates } from '@/db/repositories/templates';
 import { listWorkouts, type WorkoutListItem } from '@/db/repositories/workouts';
 import { durationMinutes } from '@/domain/history/summary';
 import { cn } from '@/lib/cn';
 import { formatDate } from '@/lib/format';
-import { planTitle } from '@/features/plan/format';
+import { workoutTitle } from '@/features/history/workoutTitle';
 import { pl } from '@/strings/pl';
 
 /**
@@ -25,28 +24,21 @@ import { pl } from '@/strings/pl';
  * (PLAN §4.3), so a ride is a first-class entry, not a footnote.
  */
 type Row =
-  | { kind: 'workout'; id: string; at: string; workout: WorkoutListItem; templateName: string }
+  | { kind: 'workout'; id: string; at: string; workout: WorkoutListItem; title: string }
   | { kind: 'ride'; id: string; at: string; ride: CardioLogRow };
 
 export default function HistoryScreen() {
   const [rows, setRows] = useState<Row[] | null>(null);
 
   const load = useCallback(async () => {
-    const [workouts, templates, rides] = await Promise.all([
-      listWorkouts(),
-      listAllTemplates(),
-      listStandaloneRides(),
-    ]);
-    const names = new Map(templates.map((t) => [t.id, t.name]));
+    const [workouts, rides] = await Promise.all([listWorkouts(), listStandaloneRides()]);
     const merged: Row[] = [
       ...workouts.map((w): Row => ({
         kind: 'workout',
         id: w.id,
         at: w.startedAt,
         workout: w,
-        templateName:
-          (w.templateId && names.get(w.templateId)) ||
-          (w.plan ? planTitle(w.plan) : pl.history.noTemplate),
+        title: workoutTitle(w),
       })),
       ...rides.map((r): Row => ({ kind: 'ride', id: r.id, at: r.loggedAt, ride: r })),
     ];
@@ -107,7 +99,7 @@ export default function HistoryScreen() {
         }
         renderItem={({ item }) =>
           item.kind === 'workout' ? (
-            <WorkoutRow item={item.workout} templateName={item.templateName} />
+            <WorkoutRow item={item.workout} title={item.title} />
           ) : (
             <RideRow ride={item.ride} onDelete={() => confirmDeleteRide(item.ride)} />
           )
@@ -118,7 +110,7 @@ export default function HistoryScreen() {
   );
 }
 
-function WorkoutRow({ item, templateName }: { item: WorkoutListItem; templateName: string }) {
+function WorkoutRow({ item, title }: { item: WorkoutListItem; title: string }) {
   const minutes = durationMinutes(item.startedAt, item.finishedAt);
   const dimmed = item.status !== 'completed';
   const meta = [
@@ -148,7 +140,7 @@ function WorkoutRow({ item, templateName }: { item: WorkoutListItem; templateNam
               </Text>
             ) : null}
           </View>
-          <Text variant="heading">{templateName}</Text>
+          <Text variant="heading">{title}</Text>
           <Text variant="muted">{meta}</Text>
         </View>
         <ChevronRight size={18} className="text-muted-foreground" />

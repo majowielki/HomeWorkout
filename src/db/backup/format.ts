@@ -4,8 +4,8 @@ import { muscleGroupSchema } from '@data/exercises.schema';
 import { templateBlockSchema } from '@data/templates.schema';
 import { CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
 import { setObservationSchema } from '@/domain/observations/types';
-import { sessionPlanV2Schema } from '@/domain/plan/planV2';
-import type { SessionPlan } from '@/domain/plan/types';
+import { sessionPlanSchema } from '@/domain/plan/plan';
+import { SLOT_REGIONS, type HistoricalPlan } from '@/domain/plan/types';
 import { SHORTFALL_REASONS } from '@/domain/types';
 
 import type {
@@ -14,8 +14,8 @@ import type {
   cardioLogs,
   dailyLogs,
   feelReports,
-  legacySessions,
   measurements,
+  legacySessions,
   planConstraints,
   preferences,
   sessionPlanRevisions,
@@ -25,7 +25,6 @@ import type {
   trainingBlocks,
   userProfile,
   workouts,
-  workoutTemplates,
 } from '../schema';
 
 /**
@@ -41,7 +40,7 @@ import type {
  * Bump BACKUP_SCHEMA_VERSION whenever a row shape changes and add a step
  * to MIGRATIONS in parse.ts that lifts the previous shape to the new one.
  */
-export const BACKUP_SCHEMA_VERSION = 7;
+export const BACKUP_SCHEMA_VERSION = 8;
 export const BACKUP_APP = 'homeworkout';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -108,7 +107,7 @@ export const workoutTemplateRowSchema = z.object({
   sortOrder: z.number().int(),
   warmupMinutes: nullableInt,
   isArchived: z.boolean(),
-}) satisfies z.ZodType<typeof workoutTemplates.$inferSelect>;
+});
 
 /**
  * A plan is the record of what the engine proposed that day (SPEC §10.5),
@@ -116,13 +115,14 @@ export const workoutTemplateRowSchema = z.object({
  * with the engine, and an old plan with a code this build does not know
  * is still history worth keeping.
  */
-const sessionPlanRecord = z.custom<SessionPlan>(
-  (v) =>
-    typeof v === 'object' &&
-    v !== null &&
-    (v as { version?: unknown }).version === 1 &&
-    Array.isArray((v as { exercises?: unknown }).exercises),
-  'not a session plan',
+const historicalPlanEnvelope = z.object({
+  regions: z.array(z.enum(SLOT_REGIONS)),
+  kind: z.literal('extra').optional(),
+  title: z.string().optional(),
+});
+const sessionPlanRecord = z.custom<HistoricalPlan>(
+  (value) => historicalPlanEnvelope.safeParse(value).success,
+  'not a historical plan',
 );
 
 export const workoutRowSchema = z.object({
@@ -131,13 +131,12 @@ export const workoutRowSchema = z.object({
   startedAt: instant,
   finishedAt: nullableString,
   status: z.enum(['in_progress', 'completed', 'abandoned']),
-  templateId: nullableString,
   sessionRpe: nullableInt,
   notes: nullableString,
   plan: sessionPlanRecord.nullable(),
-  // Engine v2 (backup v7). Every session before it is a session of the first engine.
+  // Plans before contract 2 remain historical records.
   planSchema: z.union([z.literal(1), z.literal(2)]),
-  planV2: sessionPlanV2Schema.nullable(),
+  sessionPlan: sessionPlanSchema.nullable(),
   planRevision: z.number().int().positive(),
   revision: z.number().int().nonnegative(),
   timeZone: nullableString,
@@ -206,7 +205,7 @@ export const setDispositionRowSchema = z.object({
 export const sessionPlanRevisionRowSchema = z.object({
   workoutId: z.string(),
   planRevision: z.number().int().positive(),
-  plan: sessionPlanV2Schema,
+  plan: sessionPlanSchema,
   reason: z.enum(['start', 'user_change', 'calibration_step', 'resume']),
   channel: z.enum(['touch', 'voice', 'ai_proposal', 'engine']),
   overrides: z.array(z.string()),
@@ -229,19 +228,6 @@ export const preferencesRowSchema = z.object({
   revision: z.number().int().nonnegative(),
   updatedAt: instant,
 }) satisfies z.ZodType<typeof preferences.$inferSelect>;
-
-export const legacySessionRowSchema = z.object({
-  id: z.string(),
-  trainingDate: isoDate,
-  startedAt: instant,
-  finishedAt: nullableString,
-  status: z.string(),
-  sessionRpe: nullableInt,
-  notes: nullableString,
-  plan: z.unknown(),
-  sets: z.array(z.unknown()),
-  archivedAt: instant,
-}) satisfies z.ZodType<typeof legacySessions.$inferSelect>;
 
 export const cardioLogRowSchema = z.object({
   id: z.string(),
@@ -300,10 +286,28 @@ export const planConstraintRowSchema = z.object({
   createdAt: instant,
   revokedAt: instant.nullable(),
   items: z
-    .array(z.object({ slotId: z.string().min(1), sets: z.number().int().positive() }))
+    .array(
+      z.object({
+        slotId: z.string().min(1),
+        sets: z.number().int().positive(),
+        confirmRecovery: z.boolean().optional(),
+      }),
+    )
     .nullable(),
 }) satisfies z.ZodType<typeof planConstraints.$inferSelect>;
 
+export const legacySessionRowSchema = z.object({
+  id: z.string(),
+  trainingDate: isoDate,
+  startedAt: instant,
+  finishedAt: nullableString,
+  status: z.string(),
+  sessionRpe: nullableInt,
+  notes: nullableString,
+  plan: z.unknown(),
+  sets: z.array(z.unknown()),
+  archivedAt: instant,
+}) satisfies z.ZodType<typeof legacySessions.$inferSelect>;
 export const backupTablesSchema = z.object({
   user_profile: z.array(userProfileRowSchema),
   bands: z.array(bandRowSchema),

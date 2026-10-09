@@ -13,10 +13,9 @@ import {
   trainingBlockRowSchema,
   userProfileRowSchema,
   workoutRowSchema,
-  workoutTemplateRowSchema,
 } from '../format';
-import { V1_SET_COLUMNS, V1_WORKOUT_COLUMNS } from '../../__tests__/rowDefaults';
-import { legalObservation, legalPlan } from '@/domain/__tests__/planV2Fixtures';
+import { HISTORICAL_SET_COLUMNS, HISTORICAL_WORKOUT_COLUMNS } from '../../__tests__/rowDefaults';
+import { legalObservation, legalPlan } from '@/domain/__tests__/planFixtures';
 import { parseBackup } from '../parse';
 import type {
   bands,
@@ -28,7 +27,6 @@ import type {
   trainingBlocks,
   userProfile,
   workouts,
-  workoutTemplates,
 } from '../../schema';
 
 /*
@@ -42,10 +40,6 @@ type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 const _profile: Equal<z.infer<typeof userProfileRowSchema>, typeof userProfile.$inferSelect> = true;
 const _bands: Equal<z.infer<typeof bandRowSchema>, typeof bands.$inferSelect> = true;
-const _templates: Equal<
-  z.infer<typeof workoutTemplateRowSchema>,
-  typeof workoutTemplates.$inferSelect
-> = true;
 const _workouts: Equal<z.infer<typeof workoutRowSchema>, typeof workouts.$inferSelect> = true;
 const _sets: Equal<z.infer<typeof setLogRowSchema>, typeof setLogs.$inferSelect> = true;
 const _cardio: Equal<z.infer<typeof cardioLogRowSchema>, typeof cardioLogs.$inferSelect> = true;
@@ -56,7 +50,7 @@ const _blocks: Equal<
   z.infer<typeof trainingBlockRowSchema>,
   typeof trainingBlocks.$inferSelect
 > = true;
-void [_profile, _bands, _templates, _workouts, _sets, _cardio, _body, _meas, _daily, _blocks];
+void [_profile, _bands, _workouts, _sets, _cardio, _body, _meas, _daily, _blocks];
 
 function validBackup(): BackupFile {
   return {
@@ -124,11 +118,10 @@ function validBackup(): BackupFile {
           startedAt: '2026-09-14T17:00:00.000Z',
           finishedAt: '2026-09-14T17:40:00.000Z',
           status: 'completed',
-          templateId: 'a',
           sessionRpe: 7,
           notes: null,
           plan: null,
-          ...V1_WORKOUT_COLUMNS,
+          ...HISTORICAL_WORKOUT_COLUMNS,
         },
       ],
       set_logs: [
@@ -150,7 +143,7 @@ function validBackup(): BackupFile {
           side: null,
           shortfall: null,
           loggedAt: '2026-09-14T17:05:00.000Z',
-          ...V1_SET_COLUMNS,
+          ...HISTORICAL_SET_COLUMNS,
         },
       ],
       cardio_logs: [],
@@ -222,6 +215,7 @@ function withoutPlanning(doc: BackupFile): BackupFile {
       ...doc.tables,
       user_profile: doc.tables.user_profile.map((r) => ({ ...r, restWeekdays: null })),
       plan_constraints: [],
+      workout_templates: [],
     },
   };
 }
@@ -270,7 +264,6 @@ describe('parseBackup', () => {
   it('rejects dangling references between tables and names them', () => {
     const doc = validBackup();
     doc.tables.set_logs[0]!.bandId = 'green';
-    doc.tables.workouts[0]!.templateId = 'gone';
     doc.tables.cardio_logs.push({
       id: 'c1',
       workoutId: 'w-missing',
@@ -288,8 +281,73 @@ describe('parseBackup', () => {
     if (result.ok) return;
     expect(result.reason).toBe('invalid');
     expect(result.detail).toContain('set_logs.s1.bandId -> green');
-    expect(result.detail).toContain('workouts.w1.templateId -> gone');
     expect(result.detail).toContain('cardio_logs.c1.workoutId -> w-missing');
+  });
+
+  it('names a session of engine without its plan, and one whose plan is another session’s (DAT-01)', () => {
+    const planless = validBackup();
+    Object.assign(planless.tables.workouts[0]!, { planSchema: 2, sessionPlan: null });
+    const a = parseBackup(JSON.stringify(planless));
+    expect(a.ok).toBe(false);
+    if (a.ok) return;
+    expect(a.detail).toContain('workouts.w1.sessionPlan -> missing for plan schema 2');
+
+    const other = validBackup();
+    Object.assign(other.tables.workouts[0]!, {
+      planSchema: 2,
+      sessionPlan: legalPlan(),
+    });
+    const b = parseBackup(JSON.stringify(other));
+    expect(b.ok).toBe(false);
+    if (b.ok) return;
+    expect(b.detail).toContain('workouts.w1.sessionPlan.sessionId -> s1');
+  });
+
+  it('names every relation inside the file that points nowhere (DAT-02)', () => {
+    const doc = validBackup();
+    doc.tables.set_log_revisions.push({
+      setLogId: 'gone',
+      revision: 1,
+      payload: null,
+      replacedAt: '2026-09-14T17:06:00.000Z',
+    });
+    doc.tables.set_dispositions.push({
+      workoutId: 'w-gone',
+      plannedSetId: 'p',
+      status: 'skipped',
+      reason: null,
+      commandId: 'skip-9',
+      at: '2026-09-14T17:10:00.000Z',
+    });
+    doc.tables.session_plan_revisions.push({
+      workoutId: 'w-gone',
+      planRevision: 1,
+      plan: legalPlan(),
+      reason: 'start',
+      channel: 'engine',
+      overrides: [],
+      createdAt: '2026-09-14T17:00:00.000Z',
+    });
+    doc.tables.feel_reports.push({
+      id: 'f9',
+      workoutId: 'w-gone',
+      exposureId: null,
+      feel: 'too_easy',
+      channel: 'touch',
+      commandId: 'feel-9',
+      at: '2026-09-14T17:20:00.000Z',
+    });
+    const result = parseBackup(JSON.stringify(doc));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    for (const part of [
+      'set_log_revisions.gone#1.setLogId -> gone',
+      'set_dispositions.skip-9.workoutId -> w-gone',
+      'session_plan_revisions.w-gone#1.workoutId -> w-gone',
+      'feel_reports.f9.workoutId -> w-gone',
+    ]) {
+      expect(result.detail).toContain(part);
+    }
   });
 
   it('lifts a version 1 file: no exclusions, no plans, no blocks', () => {
@@ -341,6 +399,7 @@ describe('parseBackup', () => {
 
   it('lifts a version 4 file: no request holds a composed day', () => {
     const v5 = validBackup();
+    v5.tables.workout_templates = [];
     const v4 = {
       ...v5,
       schemaVersion: 4,
@@ -367,6 +426,7 @@ describe('parseBackup', () => {
 
   it('lifts a version 5 file: no set says why it fell short', () => {
     const v6 = validBackup();
+    v6.tables.workout_templates = [];
     const v5 = {
       ...v6,
       schemaVersion: 5,
@@ -378,16 +438,23 @@ describe('parseBackup', () => {
     expect(parseBackup(JSON.stringify(v5))).toEqual({ ok: true, data: v6 });
   });
 
-  it('lifts a version 6 file: every session and set is of the first engine, with no skips or plan revisions', () => {
+  it('lifts a version 6 file: every session and set is of historical sessions, with no skips or plan revisions', () => {
     const v7 = validBackup();
+    v7.tables.workout_templates = [];
     const v6 = {
       ...v7,
       schemaVersion: 6,
       tables: {
         ...v7.tables,
         workouts: v7.tables.workouts.map(
-          ({ planSchema: _a, planV2: _b, planRevision: _c, revision: _d, timeZone: _e, ...row }) =>
-            row,
+          ({
+            planSchema: _a,
+            sessionPlan: _b,
+            planRevision: _c,
+            revision: _d,
+            timeZone: _e,
+            ...row
+          }) => row,
         ),
         set_logs: v7.tables.set_logs.map(
           ({
@@ -417,13 +484,14 @@ describe('parseBackup', () => {
     expect(parseBackup(JSON.stringify(v6))).toEqual({ ok: true, data: v7 });
   });
 
-  it('T53 keeps a session of engine v2 whole: its plan, its results with their provenance, skips, revisions', () => {
-    const doc = validBackup();
+  it('T53 keeps a session of engine whole: its plan, its results with their provenance, skips, revisions', () => {
+    // The workout is the session of its plan: they share an id.
+    const doc = JSON.parse(JSON.stringify(validBackup()).replaceAll('"w1"', '"s1"')) as BackupFile;
     const plan = legalPlan();
     doc.tables.workouts[0] = {
       ...doc.tables.workouts[0]!,
       planSchema: 2,
-      planV2: plan,
+      sessionPlan: plan,
       planRevision: 1,
       revision: 3,
       timeZone: 'Europe/Warsaw',
@@ -450,7 +518,7 @@ describe('parseBackup', () => {
       replacedAt: '2026-09-14T17:06:00.000Z',
     });
     doc.tables.set_dispositions.push({
-      workoutId: 'w1',
+      workoutId: 's1',
       plannedSetId: 's1/r1/e1/2R',
       status: 'skipped',
       reason: 'user_skipped',
@@ -458,7 +526,7 @@ describe('parseBackup', () => {
       at: '2026-09-14T17:10:00.000Z',
     });
     doc.tables.session_plan_revisions.push({
-      workoutId: 'w1',
+      workoutId: 's1',
       planRevision: 1,
       plan,
       reason: 'start',
@@ -468,7 +536,7 @@ describe('parseBackup', () => {
     });
     doc.tables.feel_reports.push({
       id: 'f1',
-      workoutId: 'w1',
+      workoutId: 's1',
       exposureId: null,
       feel: 'too_hard',
       channel: 'voice',
@@ -481,24 +549,12 @@ describe('parseBackup', () => {
       revision: 1,
       updatedAt: '2026-09-14T17:00:00.000Z',
     });
-    doc.tables.legacy_sessions.push({
-      id: 'old-1',
-      trainingDate: '2026-08-01',
-      startedAt: '2026-08-01T17:00:00.000Z',
-      finishedAt: null,
-      status: 'completed',
-      sessionRpe: null,
-      notes: null,
-      plan: null,
-      sets: [{ reps: 8 }],
-      archivedAt: '2026-10-09T10:00:00.000Z',
-    });
     expect(parseBackup(JSON.stringify(doc))).toEqual({ ok: true, data: doc });
   });
 
   it('refuses a v2 plan that is not consistent, and a result whose provenance contradicts itself', () => {
     const doc = validBackup();
-    doc.tables.workouts[0]!.planV2 = { ...legalPlan(), planRevision: 0 } as never;
+    doc.tables.workouts[0]!.sessionPlan = { ...legalPlan(), planRevision: 0 } as never;
     expect(parseBackup(JSON.stringify(doc))).toMatchObject({ ok: false, reason: 'invalid' });
     const second = validBackup();
     const bad = legalObservation();
@@ -528,7 +584,7 @@ describe('parseBackup', () => {
 
   it('keeps a stored plan as written, checking only its envelope', () => {
     const doc = validBackup();
-    const plan = { version: 1, exercises: [], somethingNewer: true };
+    const plan = { version: 1, regions: ['push'], exercises: [], somethingNewer: true };
     doc.tables.workouts[0]!.plan = plan as never;
     expect(parseBackup(JSON.stringify(doc))).toMatchObject({ ok: true });
     doc.tables.workouts[0]!.plan = { version: 2 } as never;

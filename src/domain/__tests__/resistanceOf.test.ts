@@ -1,6 +1,6 @@
 /**
  * Engine v2, P4 (05 §5-§8, T51): the resistance of a catalogue exercise in the
- * second engine's terms.
+ * resistance model's terms.
  */
 import { DEFAULT_MODEL_CONTEXT } from '../resistance/registry';
 import { modelFor, modelRefOf, resistanceOf } from '../plan/resistanceOf';

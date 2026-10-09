@@ -2,8 +2,6 @@ import { fold } from '../coach/text';
 import { BANDS } from '../inventory';
 import type { AnchorPosition } from '../types';
 
-export const DEFAULT_EFFORT_RIR = 2;
-
 export type ParameterCommand =
   | { action: 'set_reps'; reps: number }
   | { action: 'set_time'; seconds: number }

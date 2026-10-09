@@ -60,27 +60,16 @@ describe('ADR 0001: what a model writes has no field for a load', () => {
 });
 
 /** The repository functions that store a plan or start a session from one. */
-const PLAN_WRITERS = [
-  'saveWeek',
-  'saveCoachWeek',
-  'refreshForecasts',
-  'startExtraWorkout',
-  'startPlannedWorkout',
-  // Engine v2: the coach's accepted week, and the day that becomes a running session.
-  'saveCoachWeekV2',
-  'acceptDay',
-];
+const PLAN_WRITERS = ['saveCoachWeek', 'acceptDay'];
 
 /**
  * The only modules that may call them. Each takes its plans from the engine
  * (syncWeek, planCustom) on a fresh snapshot; none receives a plan from outside.
  */
 const PLAN_ORCHESTRATORS = [
-  'src/features/plan/computeToday.ts',
   'src/features/plan/usePlanToday.ts',
   'src/features/extra/actions.ts',
-  'src/features/coach/chat/proposals.ts',
-  'src/app-services/coach/proposalsV2.ts',
+  'src/app-services/coach/proposals.ts',
 ];
 
 describe('ADR 0001/0006: only the engine’s orchestration stores a plan', () => {

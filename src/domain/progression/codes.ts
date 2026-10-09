@@ -1,5 +1,5 @@
 /**
- * Why the second engine decided what it decided (03 §10, §14, §15, §17).
+ * Why the engine decided what it decided (03 §10, §14, §15, §17).
  * Codes, never sentences: the app turns each into Polish through an
  * exhaustive record, and the AI receives them as facts. A code is only
  * returned when it is true — a code that says "lighter" never goes with a

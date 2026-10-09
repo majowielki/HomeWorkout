@@ -1,210 +1,169 @@
-import {
-  advanceBlock,
-  type BlockContext,
-  nextCandidate,
-  phaseOf,
-  repairSelections,
-  rotateSelections,
-} from '../plan/block';
-import type { EligibilityContext } from '../plan/eligibility';
+/**
+ * Engine v2, P3/P4 (03 §9, §16, D31, T35, T93, T94): the block of the second
+ * engine — 35 days, rotation by evidence, a deload only when asked for.
+ */
+import { advanceBlock, type BlockContext, phaseOf } from '../plan/block';
+import { defaultPreferences } from '../preferences/preferences';
 import type { BlockState } from '../plan/types';
-import { byId, exercise, HARD_ONLY, slot } from './fixtures';
+import { addDays } from '../time/trainingDate';
+import { exercise, slot } from './fixtures';
 
-const catalog = byId(
-  ['a', 'b', 'c', 'x', 'y']
-    .map((id) => exercise({ id }))
-    .concat(exercise({ id: 'knee-bad', loadsKnee: true, planesOfMotion: ['Frontal'] })),
+const catalog = Object.fromEntries(
+  ['a', 'b', 'c'].map((id) => [id, exercise({ id, equipment: ['dumbbell'] })]),
 );
-const abc = slot({ id: 'abc', exerciseIds: ['a', 'b', 'c'] });
-const xy = slot({ id: 'xy', exerciseIds: ['x', 'y'] });
-const lonely = slot({ id: 'lonely', exerciseIds: ['knee-bad'] });
+const slots = [slot({ id: 'squat', exerciseIds: ['a', 'b', 'c'] })];
+const START = '2026-10-05';
 
-const eligibility = (excluded: string[] = []): EligibilityContext => ({
-  profile: HARD_ONLY,
-  excludedIds: new Set(excluded),
+const context = (patch: Partial<BlockContext> = {}): BlockContext => ({
+  asOf: START,
+  lastSessionDate: null,
+  slots,
+  catalog,
+  eligibility: { profile: { knee: null }, excludedIds: new Set() },
+  preferences: defaultPreferences(),
+  evidence: () => ({ qualifiedExposures: 6, progressing: false }),
+  recentBlocks: [],
+  deload: { signals: [], keyExercises: [], daily: [], requested: false },
+  ...patch,
+});
+const block = (patch: Partial<BlockState> = {}): BlockState => ({
+  index: 1,
+  startedOn: START,
+  deloadFrom: null,
+  deloadReason: null,
+  selections: { squat: 'a' },
+  ...patch,
 });
 
-describe('nextCandidate', () => {
-  it('starts at the first allowed candidate', () => {
-    expect(nextCandidate(abc, undefined, catalog, eligibility())).toBe('a');
-    expect(nextCandidate(abc, undefined, catalog, eligibility(['a']))).toBe('b');
-  });
-
-  it('moves on after the previous one, wrapping around', () => {
-    expect(nextCandidate(abc, 'a', catalog, eligibility())).toBe('b');
-    expect(nextCandidate(abc, 'c', catalog, eligibility())).toBe('a');
-    expect(nextCandidate(abc, 'a', catalog, eligibility(['b']))).toBe('c');
-  });
-
-  it('keeps the previous one only when nothing else is allowed', () => {
-    expect(nextCandidate(abc, 'a', catalog, eligibility(['b', 'c']))).toBe('a');
-    expect(nextCandidate(abc, 'a', catalog, eligibility(['a', 'b', 'c']))).toBeUndefined();
-  });
-
-  it('starts over for an id the slot does not know, and skips unknown ids', () => {
-    expect(nextCandidate(abc, 'zzz', catalog, eligibility())).toBe('a');
-    const holes = slot({ exerciseIds: ['ghost', 'b'] });
-    expect(nextCandidate(holes, undefined, catalog, eligibility())).toBe('b');
-    expect(nextCandidate(lonely, undefined, catalog, eligibility())).toBeUndefined();
-  });
-});
-
-describe('rotateSelections', () => {
-  it('takes the first allowed in the first block and leaves out an empty slot', () => {
-    expect(rotateSelections(null, [abc, xy, lonely], catalog, eligibility())).toEqual({
-      abc: 'a',
-      xy: 'x',
-    });
-  });
-
-  it('moves every slot one candidate on', () => {
-    expect(rotateSelections({ abc: 'a', xy: 'y' }, [abc, xy], catalog, eligibility())).toEqual({
-      abc: 'b',
-      xy: 'x',
-    });
-  });
-});
-
-describe('repairSelections', () => {
-  it('keeps what is still allowed', () => {
-    expect(repairSelections({ abc: 'b', xy: 'x' }, [abc, xy], catalog, eligibility())).toEqual({
-      selections: { abc: 'b', xy: 'x' },
-      replaced: [],
-    });
-  });
-
-  it('replaces what is not, fills a new slot and drops one with no candidate', () => {
-    expect(
-      repairSelections(
-        { abc: 'b', lonely: 'knee-bad', stale: 'x' },
-        [abc, xy, lonely],
-        catalog,
-        eligibility(['b']),
-      ),
-    ).toEqual({ selections: { abc: 'c', xy: 'x' }, replaced: ['abc', 'xy', 'lonely'] });
-  });
-
-  it('replaces an exercise that moved out of the slot', () => {
-    expect(repairSelections({ abc: 'x' }, [abc], catalog, eligibility())).toEqual({
-      selections: { abc: 'a' },
-      replaced: ['abc'],
-    });
-  });
-});
-
-describe('phaseOf', () => {
-  const block: BlockState = {
-    index: 1,
-    startedOn: '2026-10-01',
-    deloadFrom: '2026-10-29',
-    deloadReason: 'DELOAD_SCHEDULED',
-    selections: {},
-  };
-  it('is the deload from its first day on', () => {
-    expect(phaseOf(block, '2026-10-28')).toBe('work');
-    expect(phaseOf(block, '2026-10-29')).toBe('deload');
-    expect(phaseOf({ ...block, deloadFrom: null }, '2026-12-01')).toBe('work');
-  });
-});
-
-describe('advanceBlock', () => {
-  const ctx = (patch: Partial<BlockContext> = {}): BlockContext => ({
-    asOf: '2026-10-10',
-    lastSessionDate: '2026-10-09',
-    signals: [],
-    slots: [abc, xy],
-    catalog,
-    eligibility: eligibility(),
-    ...patch,
-  });
-  const block = (patch: Partial<BlockState> = {}): BlockState => ({
-    index: 1,
-    startedOn: '2026-10-01',
-    deloadFrom: null,
-    deloadReason: null,
-    selections: { abc: 'a', xy: 'x' },
-    ...patch,
-  });
-
-  it('starts block 1 today', () => {
-    expect(advanceBlock(null, ctx({ lastSessionDate: null }))).toEqual({
-      block: block({ startedOn: '2026-10-10' }),
+describe('the first block', () => {
+  it('starts today with the first allowed variant of every slot', () => {
+    const out = advanceBlock(null, context());
+    expect(out).toMatchObject({
+      block: { index: 1, startedOn: START, deloadFrom: null, selections: { squat: 'a' } },
       closed: null,
       events: ['BLOCK_STARTED'],
-      replacedSlots: [],
     });
   });
+});
 
-  it('changes nothing in an ordinary week', () => {
-    expect(advanceBlock(block(), ctx())).toEqual({
-      block: block(),
-      closed: null,
-      events: [],
-      replacedSlots: [],
-    });
-  });
-
-  it('starts the deload after 28 days of work', () => {
-    const out = advanceBlock(block(), ctx({ asOf: '2026-10-29', lastSessionDate: '2026-10-28' }));
-    expect(out.block).toMatchObject({ deloadFrom: '2026-10-29', deloadReason: 'DELOAD_SCHEDULED' });
-    expect(out.events).toEqual(['DELOAD_SCHEDULED']);
-  });
-
-  it('starts it early on two signals, but not in the first week', () => {
-    const tired = ['FATIGUE_HIGH', 'RECOVERY_LOW'] as const;
-    expect(advanceBlock(block(), ctx({ signals: tired })).events).toEqual(['DELOAD_REACTIVE']);
-    expect(
-      advanceBlock(
-        block(),
-        ctx({ asOf: '2026-10-05', lastSessionDate: '2026-10-04', signals: tired }),
-      ).events,
-    ).toEqual([]);
-    expect(advanceBlock(block(), ctx({ signals: ['FATIGUE_HIGH'] })).events).toEqual([]);
-  });
-
-  it('restarts the work clock after 8 days without a session in the block', () => {
-    const out = advanceBlock(block(), ctx({ asOf: '2026-10-20', lastSessionDate: '2026-10-11' }));
-    expect(out.block.startedOn).toBe('2026-10-20');
-    expect(out.events).toEqual(['BLOCK_CLOCK_RESET']);
-    // never trained since the block started
-    const idle = advanceBlock(block(), ctx({ asOf: '2026-10-09', lastSessionDate: '2026-09-20' }));
-    expect(idle.events).toEqual(['BLOCK_CLOCK_RESET']);
-    expect(
-      advanceBlock(block(), ctx({ asOf: '2026-10-08', lastSessionDate: null })).events,
-    ).toEqual([]);
-  });
-
-  it('keeps the deload week going, then rotates into the next block', () => {
-    const deloading = block({ deloadFrom: '2026-10-29', deloadReason: 'DELOAD_SCHEDULED' });
-    const during = advanceBlock(
-      deloading,
-      ctx({ asOf: '2026-11-04', lastSessionDate: '2026-10-20' }),
+describe('35 days is a block', () => {
+  it('nothing happens before, not even a deload after 28 days', () => {
+    const out = advanceBlock(
+      block(),
+      context({ asOf: addDays(START, 34), lastSessionDate: addDays(START, 33) }),
     );
-    expect(during.events).toEqual([]);
-    expect(during.block).toEqual(deloading);
+    expect(out.events).toEqual([]);
+    expect(out.block.deloadFrom).toBeNull();
+    expect(out.block.index).toBe(1);
+  });
 
-    const after = advanceBlock(
-      deloading,
-      ctx({ asOf: '2026-11-05', lastSessionDate: '2026-11-04' }),
+  it('then the block rotates, and the variant that did not give progress moves on', () => {
+    const out = advanceBlock(
+      block(),
+      context({ asOf: addDays(START, 35), lastSessionDate: addDays(START, 34) }),
     );
-    expect(after).toEqual({
-      block: {
-        index: 2,
-        startedOn: '2026-11-05',
-        deloadFrom: null,
-        deloadReason: null,
-        selections: { abc: 'b', xy: 'y' },
-      },
-      closed: deloading,
+    expect(out).toMatchObject({
+      block: { index: 2, selections: { squat: 'b' } },
       events: ['BLOCK_ROTATED'],
-      replacedSlots: [],
+    });
+    expect(out.closed).toMatchObject({ index: 1 });
+  });
+
+  it('a variant that works, or was not done enough to say, stays (T35)', () => {
+    const moving = context({
+      asOf: addDays(START, 35),
+      evidence: () => ({ qualifiedExposures: 6, progressing: true }),
+    });
+    expect(advanceBlock(block(), moving).block.selections).toEqual({ squat: 'a' });
+    const few = context({ asOf: addDays(START, 35), evidence: () => null });
+    expect(advanceBlock(block(), few).block.selections).toEqual({ squat: 'a' });
+  });
+
+  it('the person’s own choice is taken', () => {
+    const out = advanceBlock(
+      block(),
+      context({ asOf: addDays(START, 35), chosen: { squat: 'c' } }),
+    );
+    expect(out.block.selections).toEqual({ squat: 'c' });
+  });
+});
+
+describe('T93, T94 the deload', () => {
+  const tired = (asOf: string) =>
+    context({
+      asOf,
+      lastSessionDate: addDays(asOf, -1),
+      deload: {
+        signals: ['FATIGUE_HIGH', 'RECOVERY_LOW'],
+        keyExercises: [],
+        daily: [],
+        requested: false,
+      },
+    });
+
+  it('starts when the signals ask for it, not in the first week', () => {
+    expect(advanceBlock(block(), tired(addDays(START, 5))).events).toEqual([]);
+    const out = advanceBlock(block(), tired(addDays(START, 10)));
+    expect(out.events).toEqual(['DELOAD_REACTIVE']);
+    expect(out.block).toMatchObject({
+      deloadFrom: addDays(START, 10),
+      deloadReason: 'DELOAD_REACTIVE',
+      index: 1,
     });
   });
 
-  it('repairs a selection the person excluded mid-block', () => {
-    const out = advanceBlock(block(), ctx({ eligibility: eligibility(['a']) }));
-    expect(out.block.selections).toEqual({ abc: 'b', xy: 'x' });
+  it('once per block, and the block goes on after it', () => {
+    const begun = block({ deloadFrom: addDays(START, 10), deloadReason: 'DELOAD_REACTIVE' });
+    expect(advanceBlock(begun, tired(addDays(START, 20))).events).toEqual([]);
+    expect(phaseOf(begun, addDays(START, 10))).toBe('deload');
+    expect(phaseOf(begun, addDays(START, 16))).toBe('deload');
+    expect(phaseOf(begun, addDays(START, 17))).toBe('work');
+    expect(phaseOf(block(), START)).toBe('work');
+    expect(phaseOf(begun, addDays(START, 9))).toBe('work');
+  });
+
+  it('is asked for by the person at any time', () => {
+    const asked = context({
+      asOf: addDays(START, 2),
+      lastSessionDate: addDays(START, 1),
+      deload: { signals: [], keyExercises: [], daily: [], requested: true },
+    });
+    expect(advanceBlock(block(), asked).events).toEqual(['DELOAD_REACTIVE']);
+  });
+});
+
+describe('a break', () => {
+  it('restarts the clock of the block, and no deload comes straight after it', () => {
+    const away = context({
+      asOf: addDays(START, 12),
+      lastSessionDate: addDays(START, 2),
+      deload: {
+        signals: ['FATIGUE_HIGH', 'RECOVERY_LOW'],
+        keyExercises: [],
+        daily: [],
+        requested: false,
+      },
+    });
+    const out = advanceBlock(block(), away);
+    expect(out.events).toEqual(['BLOCK_CLOCK_RESET']);
+    expect(out.block).toMatchObject({ startedOn: addDays(START, 12), deloadFrom: null });
+  });
+
+  it('counts from the start of the block when nothing was done in it', () => {
+    const idle = context({ asOf: addDays(START, 9), lastSessionDate: addDays(START, -3) });
+    expect(advanceBlock(block(), idle).events).toEqual(['BLOCK_CLOCK_RESET']);
+  });
+});
+
+describe('what can no longer be planned', () => {
+  it('is replaced by the next variant of its slot', () => {
+    const excluded = context({
+      asOf: addDays(START, 3),
+      lastSessionDate: addDays(START, 2),
+      eligibility: { profile: { knee: null }, excludedIds: new Set(['a']) },
+    });
+    const out = advanceBlock(block(), excluded);
     expect(out.events).toEqual(['SELECTION_REPLACED']);
-    expect(out.replacedSlots).toEqual(['abc']);
+    expect(out).toMatchObject({ block: { selections: { squat: 'b' } }, replacedSlots: ['squat'] });
   });
 });

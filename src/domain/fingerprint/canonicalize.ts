@@ -1,6 +1,6 @@
 /**
  * A canonical text for a piece of data, so the same decision input always
- * hashes the same (engine v2, 01 §4).
+ * hashes the same (engine, 01 §4).
  *
  * Rules: object keys in code-point order; arrays keep their order, because
  * their order means something; a `Set` has no order of its own and is written

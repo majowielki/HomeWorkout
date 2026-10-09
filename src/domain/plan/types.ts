@@ -1,3 +1,4 @@
+import type { DayReason, SkipReason } from './reasons';
 /**
  * Vocabulary of the daily planner (SPEC-silnik-regul.md §10).
  *
@@ -8,17 +9,7 @@
  * twelve exercises on repeat.
  */
 
-import type { BikePrescription } from '../progression/bike';
-import type { Unit } from '../progression/history';
-import type { MuscleGroup, PlannedLoad, TemplateBlock } from '../types';
-import type {
-  Confidence,
-  DayReason,
-  FatigueSignal,
-  ProgressionReason,
-  SkipReason,
-  ValidationCode,
-} from './reasons';
+import type { MuscleGroup } from '../types';
 
 export type SlotKind = 'compound' | 'accessory' | 'core' | 'filler';
 
@@ -95,21 +86,11 @@ export interface BlockState {
   selections: Record<string, string>;
 }
 
-/**
- * One exercise of a day's plan. It is a `TemplateBlock`, so the active
- * session runs it exactly like a template; the rest says what to load and
- * why. For a hold, `timeSec` is the target; for reps, `repMin`/`repMax` is
- * the range and `target` the reps to aim for in the first set.
- */
-export interface PlannedExercise extends TemplateBlock {
-  slotId: string;
-  load: PlannedLoad;
-  unit: Unit;
-  target: number;
-  /** Start with a warm-up set (bands, SPEC §5.6). */
-  warmupSet: boolean;
-  reasons: ProgressionReason[];
-  confidence: Confidence;
+/** Only the title metadata of historical plans is read by the application. */
+export interface HistoricalPlan {
+  regions: SlotRegion[];
+  kind?: 'extra';
+  title?: string;
 }
 
 /** A slot that is not in the plan today, and why — "why no squats today?". */
@@ -118,35 +99,6 @@ export interface SkippedSlot {
   /** The block's exercise for the slot; null when it has none. */
   exerciseId: string | null;
   reason: SkipReason;
-}
-
-/** Something validatePlan changed. */
-export interface PlanAdjustment {
-  exerciseId: string;
-  code: ValidationCode;
-}
-
-/** The plan for one day, SPEC §10.5. Frozen into `workouts.plan` when the session starts. */
-export interface SessionPlan {
-  version: 1;
-  /** Omitted in main plans and historical plans. */
-  kind?: 'extra';
-  /** A coach preview accepted on the phone; the recipe still comes from the engine. */
-  source?: 'ai_accepted';
-  coachProposalId?: string;
-  date: string;
-  blockIndex: number;
-  phase: 'work' | 'deload';
-  /** Regions of the hard work, most sets first — the day's title. */
-  regions: SlotRegion[];
-  bike: BikePrescription;
-  exercises: PlannedExercise[];
-  skipped: SkippedSlot[];
-  dayReasons: DayReason[];
-  signals: FatigueSignal[];
-  /** Exercises only; the ride comes on top. */
-  estimatedMinutes: number;
-  adjustments: PlanAdjustment[];
 }
 
 /**

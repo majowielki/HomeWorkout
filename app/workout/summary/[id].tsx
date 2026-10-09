@@ -1,6 +1,7 @@
+import { randomUUID } from 'expo-crypto';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
@@ -8,84 +9,46 @@ import { Chip } from '@/components/ui/chip';
 import { Undo2 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
-import { countWorkingSets, takeBackLastSet } from '@/db/repositories/setLogs';
-import { getTemplate } from '@/db/repositories/templates';
-import { completeWorkout, findPreviousCompleted, getWorkout } from '@/db/repositories/workouts';
-import { daysBetween } from '@/domain/time/trainingDate';
+import { closeSession, readSessionState, undoSet } from '@/db/repositories/sessions';
+import { isDone } from '@/domain/commands/result';
+import { latestResult } from '@/domain/session/progress';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { planTitle } from '@/features/plan/format';
-import { rememberUndone, undoneFromRow } from '@/features/workout/undoneSet';
+import { rememberUndone } from '@/features/workout/undoneSet';
 import { syncReminders } from '@/lib/reminders';
 import { pl } from '@/strings/pl';
 
 const RPE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
-type Loaded = {
-  templateName: string;
-  currentSets: number;
-  comparison: { daysAgo: number; previousSets: number } | null;
-  /** A session from the engine's plan: no template to compare against. */
-  planned: boolean;
-};
-
-type State = { kind: 'loading' } | { kind: 'notFound' } | { kind: 'ready'; data: Loaded };
-
 export default function SessionSummaryScreen() {
   // `back`: what "Wróć do treningu" does — 'undo' takes the last set back
-  // (every set was logged, so the last tap may have been a mistake),
+  // (every set was done, so the last tap may have been a mistake),
   // 'resume' just returns to a workout finished early.
   const { id, back } = useLocalSearchParams<{ id: string; back?: 'undo' | 'resume' }>();
   const router = useRouter();
 
-  const [state, setState] = useState<State>({ kind: 'loading' });
+  // Read once: the summary is a short stop between the session and the day.
+  const [session] = useState(() => readSessionState(id));
   const [rpe, setRpe] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      const workout = await getWorkout(id);
-      const template = workout?.templateId ? await getTemplate(workout.templateId) : null;
-      if (!workout || (!template && !workout.plan)) {
-        if (!cancelled) setState({ kind: 'notFound' });
-        return;
-      }
-
-      const currentSets = await countWorkingSets(id);
-      const previous = template ? await findPreviousCompleted(template.id, id) : null;
-      const comparison = previous
-        ? {
-            daysAgo: daysBetween(previous.trainingDate, workout.trainingDate),
-            previousSets: await countWorkingSets(previous.id),
-          }
-        : null;
-
-      if (!cancelled) {
-        setState({
-          kind: 'ready',
-          data: {
-            templateName: template ? template.name : planTitle(workout.plan!),
-            currentSets,
-            comparison,
-            planned: !template,
-          },
-        });
-      }
-    }
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
 
   async function handleFinish() {
     if (saving) return;
     setSaving(true);
     try {
-      await completeWorkout(id, rpe, notes.trim().length > 0 ? notes.trim() : null);
+      const result = closeSession({
+        commandId: randomUUID(),
+        sessionId: id,
+        how: 'completed',
+        sessionRpe: rpe,
+        notes: notes.trim().length > 0 ? notes.trim() : null,
+      });
+      if (!isDone(result)) {
+        console.warn('could not close the session', result);
+        Alert.alert(pl.common.error);
+        return;
+      }
       await syncReminders();
       router.replace('/(tabs)/workout');
     } finally {
@@ -93,29 +56,22 @@ export default function SessionSummaryScreen() {
     }
   }
 
-  async function handleBack() {
+  function handleBack() {
     if (saving) return;
-    setSaving(true);
-    try {
-      if (back !== 'resume') {
-        const row = await takeBackLastSet(id);
-        if (row) rememberUndone(id, undoneFromRow(row));
+    const last = back === 'resume' || !session ? null : latestResult(session.results.values());
+    if (last !== null) {
+      const result = undoSet({ commandId: randomUUID(), sessionId: id, observationId: last.id });
+      if (isDone(result)) {
+        rememberUndone(id, {
+          plannedSetId: last.observation.plannedSetId!,
+          result: last.observation,
+        });
       }
-      router.replace({ pathname: '/workout/active/[id]', params: { id } });
-    } finally {
-      setSaving(false);
     }
+    router.replace({ pathname: '/workout/active/[id]', params: { id } });
   }
 
-  if (state.kind === 'loading') {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  if (state.kind === 'notFound') {
+  if (session === null || session.workout.status !== 'in_progress') {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <Stack.Screen options={{ title: '' }} />
@@ -124,27 +80,19 @@ export default function SessionSummaryScreen() {
     );
   }
 
-  const { templateName, currentSets, comparison, planned } = state.data;
+  const workingSets = session.plan.exposures
+    .flatMap((e) => e.sets)
+    .filter((s) => s.role !== 'warmup' && session.results.has(s.id)).length;
 
   return (
     <View className="flex-1 gap-4 bg-background p-4">
       <Stack.Screen options={{ title: pl.workout.summary.title }} />
 
       <Card>
-        <CardTitle>{templateName}</CardTitle>
-        <CardDescription>{pl.workout.summary.setsLogged(currentSets)}</CardDescription>
+        <CardTitle>{planTitle(session.plan)}</CardTitle>
+        <CardDescription>{pl.workout.summary.setsLogged(workingSets)}</CardDescription>
         <CardContent>
-          <Text variant="muted">
-            {comparison
-              ? pl.workout.summary.previousComparison(
-                  comparison.daysAgo,
-                  comparison.previousSets,
-                  currentSets,
-                )
-              : planned
-                ? pl.workout.summary.plannedNext
-                : pl.workout.summary.noPrevious}
-          </Text>
+          <Text variant="muted">{pl.workout.summary.plannedNext}</Text>
         </CardContent>
       </Card>
 
@@ -190,7 +138,7 @@ export default function SessionSummaryScreen() {
         variant="ghost"
         icon={<Undo2 size={16} className="text-muted-foreground" />}
         labelClassName="text-muted-foreground"
-        onPress={() => void handleBack()}
+        onPress={handleBack}
         disabled={saving}
       />
       {back !== 'resume' ? (

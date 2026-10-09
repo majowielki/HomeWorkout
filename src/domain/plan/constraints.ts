@@ -65,6 +65,8 @@ export interface PlanConstraint {
 export interface ComposedItem {
   slotId: string;
   sets: number;
+  /** The person was told the muscles of this movement have not recovered and wants it anyway (D18). */
+  confirmRecovery?: boolean;
 }
 
 /** The weekly pattern of training days. 0 = Monday … 6 = Sunday. */
@@ -201,6 +203,26 @@ export function overrideDay(
     note: null,
   });
   return { revoke, add };
+}
+
+/** What a composed day asks of the planner: the same for the week's forecast and for the day itself. */
+export interface ComposedRequest {
+  intent: 'compose';
+  only: { slotId: string; sets: number }[];
+  acknowledged: string[];
+}
+
+export function composedRequest(
+  constraints: readonly PlanConstraint[],
+  date: string,
+): ComposedRequest | null {
+  const items = composedOn(constraints, date);
+  if (items === null) return null;
+  return {
+    intent: 'compose',
+    only: items.map((i) => ({ slotId: i.slotId, sets: i.sets })),
+    acknowledged: items.some((i) => i.confirmRecovery === true) ? ['RECOVERING'] : [],
+  };
 }
 
 /** The movements composed for a date, or null when the engine chooses the day itself. */

@@ -326,6 +326,20 @@ describe('what the conversation remembers', () => {
 });
 
 describe('an answer that breaks a rule', () => {
+  it('keeps the active-session count returned in the emulator smoke test', async () => {
+    const reply =
+      'Aktywna sesja ma łącznie 3 zaplanowane serie pompki, z czego 0 zostało wykonanych, a 3 pozostają do zrobienia.';
+    const { deps } = harness([
+      toolStep({ id: 'active', name: 'getActiveSession', input: {} }),
+      answerStep(reply),
+    ]);
+    expect(await ask(deps, 'Ile serii ma aktywna sesja?')).toMatchObject({
+      kind: 'answered',
+      text: reply,
+      tools: ['getActiveSession'],
+    });
+  });
+
   it.each([
     ['talks about diet', 'Zjedz więcej białka po treningu.', 'out_of_scope'],
     ['gives advice about a complaint', 'Zrób rozciąganie i okład.', 'medical_advice'],

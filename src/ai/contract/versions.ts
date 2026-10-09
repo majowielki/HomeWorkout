@@ -11,8 +11,10 @@
  *   `composed` on a day summary, the tool error day_done.
  * 5 (voice): `POST /v1/voice-intent`, the fallback for a spoken command the phone did not understand.
  * 6 (shortfall): reported reasons on historical sets and per-exercise counts in recent sessions.
- * 7 (engine v2): the tools that consult the running session (getActiveSession, assessSessionChange,
+ * 7 (engine): the tools that consult the running session (getActiveSession, assessSessionChange,
  *   proposeSessionChange), the tool errors no_active_session and stale_assessment, and the decision
- *   codes of the second engine among the reasons of a prescription.
+ *   codes of the engine among the reasons of a prescription.
+ * 8 (review 2026-10-09): `confirmRecovery` on a movement of proposeDayPlan, so that a movement the
+ *   engine advises against (RECOVERING) can be composed once the person was told and agreed (D18).
  */
-export const CONTRACT_VERSION = 7;
+export const CONTRACT_VERSION = 8;

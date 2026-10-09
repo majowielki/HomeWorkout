@@ -7,8 +7,14 @@ import { Check, Undo2 } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';
 
+export type Feel = 'too_hard' | 'too_easy';
+
 export interface GroupDoneExercise {
   name: string;
+  /** The exposure of the plan, to say how it felt; absent where the card is shown without that question. */
+  exposureId?: string;
+  /** What the person already said about it. */
+  feel?: Feel;
   /** One line per working set, as the history shows it. */
   sets: string[];
 }
@@ -20,6 +26,8 @@ type Props = {
   onNext: () => void;
   /** Takes the set just logged back (a mis-tap on "Seria zrobiona"). */
   onUndo?: () => void;
+  /** "Za ciężko" / "Za łatwo" about an exercise just done: context for the next prescription (11 §7). */
+  onFeel?: (exposureId: string, feel: Feel) => void;
 };
 
 /**
@@ -27,7 +35,7 @@ type Props = {
  * logged: what was just done, then one button on to the next exercise.
  * It stands in for the rest timer, so moving on is always a choice.
  */
-export function GroupDoneCard({ exercises, nextLabel, onNext, onUndo }: Props) {
+export function GroupDoneCard({ exercises, nextLabel, onNext, onUndo, onFeel }: Props) {
   const s = pl.workout.session;
   return (
     <View className="flex-1 justify-center gap-4 p-5">
@@ -44,6 +52,20 @@ export function GroupDoneCard({ exercises, nextLabel, onNext, onUndo }: Props) {
                 {`${i + 1}. ${line}`}
               </Text>
             ))}
+            {onFeel && e.exposureId ? (
+              <View className="mt-2 flex-row items-center gap-2">
+                {(['too_hard', 'too_easy'] as const).map((feel) => (
+                  <Button
+                    key={feel}
+                    size="sm"
+                    variant={e.feel === feel ? 'default' : 'outline'}
+                    label={feel === 'too_hard' ? s.feel.tooHard : s.feel.tooEasy}
+                    accessibilityState={{ selected: e.feel === feel }}
+                    onPress={() => onFeel(e.exposureId!, feel)}
+                  />
+                ))}
+              </View>
+            ) : null}
           </View>
         ))}
       </Card>

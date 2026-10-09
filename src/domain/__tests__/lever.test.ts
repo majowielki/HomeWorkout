@@ -7,6 +7,7 @@ import type { DailyReadiness } from '../plan/types';
 import { assess } from '../progression/assessed';
 import { DEFAULT_PROGRESSION_POLICY } from '../progression/policy';
 import type { MuscleGroup } from '../types';
+import { volumeTargets } from '../policy/dayPolicy';
 import { volumeRecommendation, type LeverInput } from '../volume/lever';
 import { PAIRED, day, exposureOf, kg } from './progressionFixtures';
 
@@ -65,12 +66,30 @@ describe('T96 more: trained for a month, standing still, recovering well', () =>
   });
 
   it('from what the person set before, and never past the top of the higher profile', () => {
-    expect(volumeRecommendation(input({ overrides: { quads: 8 } }))[0]).toMatchObject({
+    expect(
+      volumeRecommendation(
+        input({
+          targets: volumeTargets({ volumeProfile: 'standard', volumeOverrides: { quads: 8 } }),
+        }),
+      )[0],
+    ).toMatchObject({
       fromMax: 8,
       toMax: 10,
     });
-    expect(volumeRecommendation(input({ overrides: { quads: 10 } }))).toEqual([]);
-    expect(volumeRecommendation(input({ overrides: { quads: 9 } }))[0]).toMatchObject({
+    expect(
+      volumeRecommendation(
+        input({
+          targets: volumeTargets({ volumeProfile: 'standard', volumeOverrides: { quads: 10 } }),
+        }),
+      ),
+    ).toEqual([]);
+    expect(
+      volumeRecommendation(
+        input({
+          targets: volumeTargets({ volumeProfile: 'standard', volumeOverrides: { quads: 9 } }),
+        }),
+      )[0],
+    ).toMatchObject({
       toMax: 10,
     });
   });
@@ -153,10 +172,20 @@ describe('T96 less: sore often, or recovery poor', () => {
 
   it('never under the minimum', () => {
     expect(
-      volumeRecommendation(input({ signals: ['RECOVERY_LOW'], overrides: { quads: 3 } })),
+      volumeRecommendation(
+        input({
+          signals: ['RECOVERY_LOW'],
+          targets: volumeTargets({ volumeProfile: 'standard', volumeOverrides: { quads: 3 } }),
+        }),
+      ),
     ).toEqual([]);
     expect(
-      volumeRecommendation(input({ signals: ['RECOVERY_LOW'], overrides: { quads: 4 } }))[0],
+      volumeRecommendation(
+        input({
+          signals: ['RECOVERY_LOW'],
+          targets: volumeTargets({ volumeProfile: 'standard', volumeOverrides: { quads: 4 } }),
+        }),
+      )[0],
     ).toMatchObject({ toMax: 3 });
   });
 });

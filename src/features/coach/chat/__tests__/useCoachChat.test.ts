@@ -26,6 +26,61 @@ const depsFor = (): TurnDeps => ({
   newRequestId: () => 'request-fresh-1',
   now: () => 1,
 });
+it('adds a session-change card only after the checked tool result and completed answer', async () => {
+  const deps = depsFor();
+  let round = 0;
+  deps.stream = jest.fn(async (_request, options) => {
+    if (++round === 1) {
+      options.onEvent({
+        type: 'tool_call',
+        call: {
+          id: 'session-tool',
+          name: 'proposeSessionChange',
+          input: { assessmentId: 'a'.repeat(64), patchId: 'b'.repeat(64) },
+        },
+      });
+      options.onEvent({
+        type: 'finish',
+        reason: 'tool_calls',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      });
+    } else {
+      options.onEvent({ type: 'text', delta: 'Oto podgląd zmiany.' });
+      options.onEvent({
+        type: 'finish',
+        reason: 'stop',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      });
+    }
+    return { kind: 'complete' as const };
+  });
+  deps.executeTool = jest.fn(async () => ({
+    callId: 'session-tool',
+    name: 'proposeSessionChange' as const,
+    output: {
+      proposalId: 'session-card',
+      kind: 'session_change',
+      requiresAcceptance: true,
+      verdict: 'ok',
+      patchId: 'b'.repeat(64),
+      acknowledge: [],
+    },
+  }));
+  const card = {
+    id: 'session-card',
+    note: '',
+    summary: { kind: 'session_change' as const, sentences: ['Pozostałe serie zostaną pominięte.'] },
+  };
+  const resolveProposal = jest.fn(() => card);
+  const view = await renderHook(() => useCoachChat({ facts: oldFacts, deps, resolveProposal }));
+  await act(() => view.result.current.send('Pomiń resztę ćwiczenia'));
+  expect(resolveProposal).toHaveBeenCalledWith('session-card');
+  expect(view.result.current.entries.at(-1)).toMatchObject({
+    kind: 'proposal',
+    proposal: card,
+    status: 'pending',
+  });
+});
 
 it('loads fresh facts for each question and gives the same date to the proposal environment and the log', async () => {
   const deps = depsFor();

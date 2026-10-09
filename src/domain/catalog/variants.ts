@@ -1,5 +1,5 @@
 /**
- * The graph of variants of one movement (engine v2, 05 §13): push-ups on the
+ * The graph of variants of one movement (engine, 05 §13): push-ups on the
  * knees → push-ups → push-ups with the hands close. It is how a bodyweight
  * exercise progresses once repetitions run out (a harder variant, D34), and
  * how it gets easier when the person cannot reach the bottom of the range

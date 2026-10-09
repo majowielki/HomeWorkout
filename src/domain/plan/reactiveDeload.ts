@@ -1,12 +1,12 @@
 /**
- * When a deload week starts (engine v2, 03 §16, 13 §17, D31). There is no
+ * When a deload week starts (engine, 03 §16, 13 §17, D31). There is no
  * planned deload after 28 days: a block of 35 days is the unit of rotation, and
  * the deload comes when the body asks — two different overload signals, or a
  * stall of key lifts together with poor sleep or low energy — or when the person
  * asks. Not in the first week of a block, and once per block.
  */
 
-import { AUTOREGULATION_CONFIG, DELOAD_V2_CONFIG } from '../config/training';
+import { AUTOREGULATION_CONFIG, DELOAD_CONFIG } from '../config/training';
 import type { Assessed } from '../progression/assessed';
 import { stalledRun } from '../progression/stall';
 import type { ResistanceModel } from '../resistance/types';
@@ -26,12 +26,12 @@ export interface DeloadInput {
   daily: readonly DailyReadiness[];
   /** The person asked for a deload. */
   requested: boolean;
-  cfg?: typeof DELOAD_V2_CONFIG;
+  cfg?: typeof DELOAD_CONFIG;
   signalCfg?: Pick<typeof AUTOREGULATION_CONFIG, 'reactiveDeloadSignals'>;
 }
 
 /** Sleep under the limit or low energy on any of the last days. */
-function wornOut(daily: readonly DailyReadiness[], asOf: string, cfg: typeof DELOAD_V2_CONFIG) {
+function wornOut(daily: readonly DailyReadiness[], asOf: string, cfg: typeof DELOAD_CONFIG) {
   const from = addDays(asOf, -(cfg.fatigueWindowDays - 1));
   return daily
     .filter((d) => d.date >= from && d.date <= asOf)
@@ -46,7 +46,7 @@ export function reactiveDeloadTrigger(input: DeloadInput): {
   trigger: boolean;
   reasons: DeloadReason[];
 } {
-  const cfg = input.cfg ?? DELOAD_V2_CONFIG;
+  const cfg = input.cfg ?? DELOAD_CONFIG;
   const signalCfg = input.signalCfg ?? AUTOREGULATION_CONFIG;
   if (input.block.deloadFrom !== null) return { trigger: false, reasons: [] };
 

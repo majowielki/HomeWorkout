@@ -1,7 +1,7 @@
-/* Shared by the scripts that run days of engine v2 against real SQLite. */
+/* Shared by the scripts that run days of engine against real SQLite. */
 const { assert, all } = require('./sqlite-harness.cjs');
-const sessions = require('../repositories/sessionsV2.ts');
-const { legalObservation } = require('../../domain/__tests__/planV2Fixtures.ts');
+const sessions = require('../repositories/sessions.ts');
+const { legalObservation } = require('../../domain/__tests__/planFixtures.ts');
 
 /** Does every set of the running session exactly as planned, and closes it. */
 function doTheSession(plan, when, amountOf) {
@@ -15,7 +15,7 @@ function doTheSession(plan, when, amountOf) {
         target.kind === 'duration'
           ? { kind: 'duration', seconds: amountOf ? amountOf(set) : target.targetSec }
           : { kind: 'reps', reps: amountOf ? amountOf(set) : target.target };
-      const r = sessions.logSetV2(
+      const r = sessions.logSet(
         {
           commandId: `log-${set.id}`,
           sessionId: plan.sessionId,
@@ -35,7 +35,7 @@ function doTheSession(plan, when, amountOf) {
       assert.equal(r.kind, 'committed', JSON.stringify(r));
     }
   }
-  const closed = sessions.closeSessionV2(
+  const closed = sessions.closeSession(
     { commandId: `close-${plan.sessionId}`, sessionId: plan.sessionId, how: 'completed' },
     when,
   );

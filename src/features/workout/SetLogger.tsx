@@ -1,24 +1,29 @@
 import * as Haptics from 'expo-haptics';
-import { type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { type Ref, useImperativeHandle, useRef, useState } from 'react';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { ymoveMedia } from '@/assets/ymove-media';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
-import { DEFAULT_EFFORT_RIR, type ParameterCommand } from '@/domain/voice/parameters';
-import type { PlannedExercise } from '@/domain/plan/types';
-import type {
-  AnchorPosition,
-  BandCalibrationMap,
-  Exercise,
-  ShortfallReason,
-  Side,
-  TemplateBlock,
-} from '@/domain/types';
+import { readBackText } from '@/domain/observations/entry';
+import type { PlannedSet } from '@/domain/plan/plan';
+import type { SetObservation } from '@/domain/observations/types';
+import type { SessionStep } from '@/domain/session/progress';
+import {
+  entryOf,
+  isBelowTarget,
+  isTimed,
+  ladderFor,
+  type SetFieldValues,
+  suggestedValues,
+  usesBand,
+  usesDumbbell,
+} from '@/domain/session/setEntry';
+import type { ParameterCommand } from '@/domain/voice/parameters';
+import type { BandCalibrationMap, Exercise } from '@/domain/types';
 import { ExerciseThumb } from '@/features/exercises/ExerciseThumb';
 import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
@@ -26,26 +31,17 @@ import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 import type { VoiceFeedback } from '@/features/voice/useVoiceCommands';
 
-import {
-  effortLabel,
-  isBelowTarget,
-  isTimed,
-  ladderFor,
-  type SavedSetData,
-  SetFields,
-  type SetFieldValues,
-  toSavedSet,
-  usesBand,
-  usesDumbbell,
-} from './SetFields';
+import { effortLabel, SetFields } from './SetFields';
 import { Stopwatch, type StopwatchHandle } from './Stopwatch';
-
-export type { SavedSetData } from './SetFields';
+import type { LoggedEntry } from './useActiveSession';
 
 /** What a voice command can do on the set screen; each is the same as its button. */
 export interface SetLoggerHandle {
-  /** "Seria zrobiona": a running stopwatch is stopped first and its time is the one saved. */
-  save(): boolean;
+  /**
+   * "Seria zrobiona": a running stopwatch is stopped first and its time is the one saved. Answers
+   * with the line that reads the set back, or null when it could not be saved.
+   */
+  save(): string | null;
   startStopwatch(): boolean;
   /** The seconds held, or null when it was not running. */
   stopStopwatch(): number | null;
@@ -55,123 +51,38 @@ export interface SetLoggerHandle {
   setParameter(command: ParameterCommand): VoiceFeedback | null;
 }
 
-export interface PrefillData {
-  reps: number | null;
-  timeSec: number | null;
-  rir: number | null;
-  weightKg: number | null;
-  bandId: string | null;
-  anchorPosition: AnchorPosition | null;
-  /** Only a set taken back carries one; a fresh set starts without a reason. */
-  shortfall?: ShortfallReason | null;
-}
-
 type Props = {
   exercise: Exercise;
-  block: TemplateBlock;
-  /**
-   * The engine's prescription for this step, when the session runs a plan.
-   * Its load and target prefill the first set of the planned exercise; later
-   * sets, and a substitute, prefill from the last logged set as before.
-   */
-  planned?: PlannedExercise;
-  setNumber: number;
-  totalSets: number;
-  /** Which set of the block this is; defaults to `setNumber`. */
-  round?: number;
-  /** The side of a one-sided set; null or absent for two-sided work. */
-  side?: Side | null;
-  /** The step's position among its block's steps and their count — the segments under the clip. */
-  stepOfBlock?: number;
-  stepsInBlock?: number;
-  onSave: (data: SavedSetData) => void;
+  /** The set to do, with its place in the exercise and in the superset. */
+  step: SessionStep;
+  /** The result of the set before this one in the exercise, which the suggestion follows. */
+  previous?: SetObservation | null;
+  /** The plan's own set behind `previous`, to tell a probe from the work sets after it. */
+  previousPlanned?: PlannedSet | null;
+  /** The numbers of a set just taken back ("Cofnij serię"): shown again for a correction. */
+  restore?: SetFieldValues;
+  onSave: (logged: LoggedEntry) => void;
   saving?: boolean;
   calibrations?: BandCalibrationMap;
   /** Opens the exercise's full description; the link only shows next to a clip. */
   onShowDetails?: () => void;
   /** Names of the other exercises in this superset; absent for a lone exercise. */
   supersetWith?: string;
-  /** The numbers of a set just taken back ("Cofnij serię"): shown again for a correction. */
-  restore?: PrefillData;
   /** A timed set's stopwatch started or stopped. */
   onStopwatchChange?: (running: boolean) => void;
   ref?: Ref<SetLoggerHandle>;
 };
 
 /**
- * The first set of a planned exercise starts from the plan; every other
- * set starts from the last one logged for the exercise. Felt effort starts
- * at "Ciężko" each time, independent of the prescription or previous effort.
- * A set taken back starts from what was logged for it, including its effort.
+ * The set screen. It starts from what the plan prescribes for the set — or, after a
+ * set of the same exercise, from the load and effort the person gave — and hands over
+ * an entry that says which of the numbers they changed.
  */
-export function SetLogger(props: Props) {
-  if (props.restore) return <SetLoggerFields {...props} prefill={props.restore} />;
-  const fromPlan =
-    props.planned !== undefined &&
-    props.planned.exerciseId === props.exercise.id &&
-    props.setNumber === 1
-      ? props.planned
-      : null;
-  if (fromPlan) return <SetLoggerFields {...props} prefill={plannedPrefill(fromPlan)} />;
-  return <SetLoggerFromHistory {...props} />;
-}
-
-/**
- * Fetches the previous log for this exercise before rendering the fields.
- *
- * This owns its own loading state rather than accepting `prefill` as a
- * prop that a parent resets on exercise change — resetting state
- * synchronously inside an effect is exactly what the render-purity lint
- * rejects. Because the caller mounts a fresh `<SetLogger key={exerciseId}>`
- * per step, this component's initial `undefined` already *is* the reset;
- * nothing needs to synchronously clear a stale value.
- */
-function SetLoggerFromHistory(props: Props) {
-  const [prefill, setPrefill] = useState<PrefillData | null | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    getLastSetForExercise(props.exercise.id).then((row) => {
-      if (cancelled) return;
-      setPrefill(
-        row
-          ? {
-              reps: row.reps,
-              timeSec: row.timeSec,
-              rir: row.rir,
-              weightKg: row.weightKg,
-              bandId: row.bandId,
-              anchorPosition: row.anchorPosition,
-            }
-          : null,
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [props.exercise.id]);
-
-  if (prefill === undefined) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator />
-      </View>
-    );
-  }
-
-  return <SetLoggerFields {...props} prefill={prefill} />;
-}
-
-function SetLoggerFields({
+export function SetLogger({
   exercise,
-  block,
-  setNumber,
-  totalSets,
-  round = setNumber,
-  side = null,
-  stepOfBlock = setNumber - 1,
-  stepsInBlock = totalSets,
-  prefill,
+  step,
+  previous = null,
+  previousPlanned = null,
   restore,
   onSave,
   saving,
@@ -180,36 +91,36 @@ function SetLoggerFields({
   supersetWith,
   onStopwatchChange,
   ref,
-}: Props & { prefill: PrefillData | null }) {
+}: Props) {
+  const { set } = step;
   const stopwatch = useRef<StopwatchHandle>(null);
-  const [values, setValues] = useState<SetFieldValues>(() => ({
-    reps: prefill?.reps ?? block.repMin ?? 10,
-    timeSec: prefill?.timeSec ?? block.timeSec ?? 30,
-    rir: restore?.rir ?? DEFAULT_EFFORT_RIR,
-    weightKg: prefill?.weightKg ?? ladderFor(exercise)[0]!,
-    bandId: prefill?.bandId ?? BANDS[0]!.id,
-    position: prefill?.anchorPosition ?? 1,
-    shortfall: prefill?.shortfall ?? null,
-  }));
-  const below = isBelowTarget(exercise, values, block);
+  const [suggested] = useState(() => suggestedValues(exercise, set, previous, previousPlanned));
+  const [values, setValues] = useState<SetFieldValues>(() => restore ?? suggested);
+  const below = isBelowTarget(exercise, values, set.target);
   // A band is stiffer for its first few stretches (Mullins effect, SPEC
-  // §5.6): a cue before the first set instead of a logged warm-up set.
-  const bandPrestretch = setNumber === 1 && usesBand(exercise);
+  // §5.6): the plan asks for a few stretches first instead of a logged warm-up set.
+  const bandPrestretch = step.cues.includes('BAND_WARMUP');
 
-  const handleSave = (current: SetFieldValues = values) => {
+  /** A confirmed form is the suggestion confirmed, with what the person changed noted; a spoken one is read back. */
+  const handleSave = (current: SetFieldValues, channel: LoggedEntry['channel']): string => {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // A reason is kept only while the set is still short of the target.
-    const saved = toSavedSet(exercise, current, calibrations);
-    const short = isBelowTarget(exercise, current, block);
-    onSave({ ...saved, shortfall: short ? saved.shortfall : null });
+    const entry = entryOf(exercise, set, current, suggested);
+    onSave({
+      entry,
+      channel,
+      shown:
+        channel === 'voice'
+          ? { amount: 'read_back', rir: 'read_back' }
+          : { amount: 'visible', resistance: 'visible', rir: 'visible' },
+    });
+    return readBackText(entry);
   };
 
   useImperativeHandle(ref, () => ({
     save() {
-      if (saving) return false;
+      if (saving) return null;
       const seconds = stopwatch.current?.stop() ?? null;
-      handleSave(seconds === null ? values : { ...values, timeSec: seconds });
-      return true;
+      return handleSave(seconds === null ? values : { ...values, timeSec: seconds }, 'voice');
     },
     startStopwatch: () => stopwatch.current?.start() ?? false,
     stopStopwatch: () => stopwatch.current?.stop() ?? null,
@@ -280,12 +191,24 @@ function SetLoggerFields({
   const heading = (
     <View className="flex-1 gap-1">
       <Text variant="eyebrow" className="text-highlight">
-        {block.label} · {pl.workout.session.setOf(round, totalSets)}
+        {step.label} · {pl.workout.session.setOf(step.round, step.rounds)}
       </Text>
-      {side ? (
+      {set.role === 'probe' ? (
+        <View className="self-start rounded-full bg-highlight px-3 py-1">
+          <Text className="font-display-semibold text-sm uppercase tracking-wider text-background">
+            {pl.workout.session.probe}
+          </Text>
+        </View>
+      ) : null}
+      {set.role === 'probe' ? (
+        <Text variant="muted" className="text-sm leading-5">
+          {pl.workout.session.probeHint}
+        </Text>
+      ) : null}
+      {step.side ? (
         <View className="self-start rounded-full bg-foreground px-3 py-1">
           <Text className="font-display-semibold text-sm uppercase tracking-wider text-background">
-            {pl.workout.session.side[side]}
+            {pl.workout.session.side[step.side]}
           </Text>
         </View>
       ) : null}
@@ -297,14 +220,16 @@ function SetLoggerFields({
 
   const targets = (
     <View className="flex-row flex-wrap gap-2">
-      <Badge variant="outline" label={targetLabel(block)} />
-      <Badge
-        variant="outline"
-        label={pl.workout.session.targetEffort(
-          effortLabel(block.targetRirMin),
-          effortLabel(block.targetRirMax),
-        )}
-      />
+      <Badge variant="outline" label={targetLabel(set.target)} />
+      {set.targetRir ? (
+        <Badge
+          variant="outline"
+          label={pl.workout.session.targetEffort(
+            effortLabel(set.targetRir.min),
+            effortLabel(set.targetRir.max),
+          )}
+        />
+      ) : null}
     </View>
   );
 
@@ -318,7 +243,7 @@ function SetLoggerFields({
 
   const progress = (
     <View className="flex-row gap-2">
-      <SetProgress current={stepOfBlock} total={stepsInBlock} />
+      <SetProgress current={step.stepOfExposure} total={step.stepsInExposure} />
     </View>
   );
 
@@ -356,7 +281,7 @@ function SetLoggerFields({
       {isTimed(exercise) ? (
         <Stopwatch
           ref={stopwatch}
-          targetSec={block.timeSec}
+          targetSec={set.target.kind === 'duration' ? set.target.targetSec : undefined}
           onRunningChange={onStopwatchChange}
           onStop={(seconds) => setValues((v) => ({ ...v, timeSec: seconds }))}
         />
@@ -373,7 +298,7 @@ function SetLoggerFields({
       <Button
         label={pl.workout.session.saveSet}
         size="lg"
-        onPress={() => handleSave()}
+        onPress={() => handleSave(values, 'touch')}
         disabled={saving}
       />
     </>
@@ -454,7 +379,7 @@ function SetLoggerFields({
 }
 
 /**
- * One segment per set of the block; only the current one is lit. Done and
+ * One segment per set of the exercise; only the current one is lit. Done and
  * waiting sets look the same — the eyebrow already says which set this is,
  * and a lit first segment on set 2 read as the current one.
  */
@@ -474,19 +399,8 @@ function SetProgress({ current, total }: { current: number; total: number }) {
   );
 }
 
-/** The engine's load and first-set target as the logger's starting values. */
-function plannedPrefill(p: PlannedExercise): PrefillData {
-  return {
-    reps: p.unit === 'reps' ? p.target : null,
-    timeSec: p.unit === 'sec' ? p.target : null,
-    rir: p.targetRirMin,
-    weightKg: p.load.kind === 'dumbbell' ? p.load.kg : null,
-    bandId: p.load.kind === 'band' ? p.load.bandId : null,
-    anchorPosition: p.load.kind === 'band' ? p.load.position : null,
-  };
-}
-
-function targetLabel(block: TemplateBlock): string {
-  if (block.timeSec !== undefined) return pl.workout.session.targetTime(block.timeSec);
-  return pl.workout.session.targetReps(block.repMin ?? 0, block.repMax ?? block.repMin ?? 0);
+function targetLabel(target: SessionStep['set']['target']): string {
+  if (target.kind === 'duration') return pl.workout.session.targetTime(target.targetSec);
+  if (target.kind === 'reps') return pl.workout.session.targetReps(target.min, target.max);
+  return pl.workout.session.targetDistance(target.targetMeters);
 }

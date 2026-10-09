@@ -1,5 +1,5 @@
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlan } from '@/domain/plan/types';
+import type { SessionPlan } from '@/domain/plan/plan';
 
 /**
  * One date of the calendar as the day sheet shows it — what happened, what

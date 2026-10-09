@@ -1,5 +1,5 @@
 /**
- * What the catalogue says about an exercise, read in one place (engine v2,
+ * What the catalogue says about an exercise, read in one place (engine,
  * 05 §3, §12-§14). Most of it is derived from the fields the catalogue
  * already had; the new optional fields only refine it. A missing answer is
  * never `false`: for a joint nobody classified, the exercise is `unknown`.

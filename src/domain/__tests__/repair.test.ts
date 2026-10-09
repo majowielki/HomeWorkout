@@ -6,7 +6,7 @@ import { planWithRepair, type PlanningResult } from '../plan/repair';
 import type { ExposureSpec } from '../plan/compile';
 import { catalogOf, context, day, exposure, kg, set } from './auditFixtures';
 import { compileInput, single } from './compileFixtures';
-import { HASH_A } from './planV2Fixtures';
+import { HASH_A } from './planFixtures';
 
 const plan = (
   specs: readonly ExposureSpec[],

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlan } from '@/domain/plan/types';
+import type { SessionPlan } from '@/domain/plan/plan';
 import { pl } from '@/strings/pl';
 import { MonthGrid } from '../MonthGrid';
 
@@ -63,13 +63,14 @@ describe('MonthGrid', () => {
         {
           date: '2026-10-08',
           status: 'planned',
-          selection: {
-            date: '2026-10-08',
-            blockIndex: 1,
+          selection: [],
+          summary: {
             phase: 'deload',
-            items: [],
-            skipped: [],
+            regions: [],
+            composed: false,
+            estimatedMinutes: 20,
             dayReasons: [],
+            skipped: [],
           },
           forecast: {} as SessionPlan,
         },

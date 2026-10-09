@@ -1,36 +1,20 @@
-import type { PlanningSnapshot } from '@/features/plan/planningSnapshot';
-import { extraInput } from '@/domain/__tests__/extraFixtures';
-import { syncWeek } from '@/domain/plan/weekSync';
+import { dayInput } from '@/domain/__tests__/dayFixtures';
+import type { WeekContext } from '@/ai/tools/planPreview';
+import { syncWeek } from '@/domain/plan/week';
 
-export function proposalSnapshot(done = false): PlanningSnapshot {
-  const day = extraInput();
-  const source: PlanningSnapshot['source'] = {
-    asOf: day.asOf,
-    catalog: { ...day.catalog },
-    profile: day.eligibility.profile,
-    excludedIds: [],
-    sessions: [],
-    rides: [],
-    daily: [],
-    calibrations: {},
-    lastSessionDate: done ? day.asOf : null,
-  };
-  const input: PlanningSnapshot['input'] = {
-    ...day,
-    lastSessionDate: source.lastSessionDate,
+export function proposalSnapshot(done = false): WeekContext {
+  const input = dayInput();
+  const context: WeekContext = {
+    ...input,
+    endedBlocks: [],
+    versions: input.session.versions,
+    snapshotFingerprint: input.session.snapshotFingerprint,
     stored: [],
-    trainedDates: new Set(done ? [day.asOf] : []),
-    week: { restWeekdays: [] },
+    trainedDates: new Set(done ? [input.asOf] : []),
   };
-  input.stored = syncWeek(input).rows;
-  return {
-    source,
-    input,
-    current: { id: 'block', state: day.block },
-    advance: { block: day.block, closed: null, events: [], replacedSlots: [] },
-  };
+  context.stored = syncWeek(context).rows;
+  return context;
 }
-
 export const restIntent = {
   constraints: [
     { kind: 'rest_day' as const, muscles: [], fromDaysAhead: 1, days: 1, reason: 'busy' as const },

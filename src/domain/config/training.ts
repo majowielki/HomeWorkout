@@ -69,7 +69,24 @@ export const BAND_CONFIG: BandConfig = {
  * tuning parameter. SPEC-silnik-regul.md §4.1 lists more keys — they join
  * this object with the modules that read them (M7).
  */
-export const TRAINING_CONFIG = {
+export interface WeeklySets {
+  min: number;
+  target: number;
+  max: number;
+}
+
+export interface TrainingConfig {
+  weeklyWorkingSetsPerMuscle: WeeklySets;
+  workingSetMaxRir: number;
+  secondaryMuscleWeight: number;
+  maxDirectSetsOverride: Partial<Record<MuscleGroup, number>>;
+  volumeExcludedPatterns: readonly MovementPattern[];
+}
+
+/** The weekly volume profiles the person can choose (12 §5.4): `standard` is the config's own. */
+export const HIGHER_VOLUME: WeeklySets = { min: 4, target: 6, max: 10 };
+
+export const TRAINING_CONFIG: TrainingConfig = {
   weeklyWorkingSetsPerMuscle: { min: 3, target: 4, max: 6 },
   /** A set counts as "working" up to and including this RIR. SPEC §4.2. */
   workingSetMaxRir: 4,
@@ -84,10 +101,10 @@ export const TRAINING_CONFIG = {
    * of each pair below its minimum on most days. The upper bound is the
    * tunable one (SPEC §4.1).
    */
-  maxDirectSetsOverride: { glutes: 8, back: 8 } as Partial<Record<MuscleGroup, number>>,
+  maxDirectSetsOverride: { glutes: 8, back: 8 },
   /** Never hard sets for a muscle, whatever the catalogue lists as primary. SPEC §4.2 v1.2. */
-  volumeExcludedPatterns: ['Mobility', 'Cardio'] as readonly MovementPattern[],
-} as const;
+  volumeExcludedPatterns: ['Mobility', 'Cardio'],
+};
 
 /**
  * Ranking of a replacement exercise, SPEC §3.4. The weights favour what
@@ -105,7 +122,7 @@ export const SUBSTITUTE_CONFIG = {
 } as const;
 
 /**
- * What a preference of the person may decide (engine v2, 12 §3-§4). It breaks
+ * What a preference of the person may decide (engine, 12 §3-§4). It breaks
  * ties between near-equivalent options; it never breaks a rule.
  */
 export const PREFERENCE_CONFIG = {
@@ -142,18 +159,11 @@ export const PROGRESSION_CONFIG = {
   recalibrationSessions: 2,
   /** A never-done band exercise starts here. SPEC §5.4. */
   bandStartPosition: 1 as const,
-  /**
-   * SPEC §5.6 asked for a logged warm-up set before the first band set and
-   * set aside a first set without one (WARMUP_MISSING). Off since v1.3
-   * (2026-10-07): logging warm-up sets felt pointless in use; the Mullins
-   * effect is met by a cue to stretch the band a few times first.
-   */
-  requireBandWarmup: false as boolean,
   /** Above this jump in estimated force, a new band starts at P0, not P1. SPEC §5.4. */
   bandMacroMaxJump: 0.15,
   /**
    * The most repetitions a set may be pushed to before the next step is a harder variant, not more
-   * repetitions (engine v2, D34). Lower where the knee is loaded: a long set at a high rep count is a
+   * repetitions (engine, D34). Lower where the knee is loaded: a long set at a high rep count is a
    * different kind of stress than the rep range was chosen for; to be confirmed with the physiotherapist.
    */
   repCap: { default: 25, kneeLoading: 20 },
@@ -163,11 +173,11 @@ export const PROGRESSION_CONFIG = {
 } as const;
 
 /**
- * What the second engine's progression decides with (03 §5-§7, §12-§17, 13 §4-§8, §16, §20). The
- * numbers it shares with the first engine (rep step, intro RIR, layoff tiers) stay in
+ * What the engine's progression decides with (03 §5-§7, §12-§17, 13 §4-§8, §16, §20). The
+ * shared rep steps, intro RIR and layoff tiers stay in
  * `PROGRESSION_CONFIG` and `LAYOFF_FROM_DAYS`. Tuning parameters, not research results.
  */
-export const PROGRESSION_V2_CONFIG = {
+export const PRESCRIPTION_CONFIG = {
   /** The first set must reach the top of the range; the others may fall short of it by this much (D30). */
   dropOffAllowance: 1,
   /** Comparable failures in a row, at one resistance and one range, that bring the resistance a step down (03 §6). */
@@ -197,9 +207,8 @@ export const PROGRESSION_V2_CONFIG = {
 } as const;
 
 /**
- * Sets of an exposure (engine v2, 12 §5): fewer, longer exposures of the same weekly volume give each
- * a fuller body of evidence and leave room for the `add_set` axis. The first engine plans 2 everywhere
- * (`PLANNER_CONFIG.setsPerExercise`); this takes its place when the second engine is switched on.
+ * Sets of an exposure (engine, 12 §5): fewer, longer exposures of the same weekly volume give each
+ * a fuller body of evidence and leave room for the `add_set` axis.
  */
 export const SETS_CONFIG = {
   byKind: { compound: 3, accessory: 2, core: 2, filler: 2 },
@@ -212,10 +221,10 @@ export const SETS_CONFIG = {
 } as const;
 
 /**
- * The reactive deload of the second engine (03 §16, D31): there is no planned deload week; one
+ * The reactive deload of the engine (03 §16, D31): there is no planned deload week; one
  * starts when the signals ask for it. Tuning parameters.
  */
-export const DELOAD_V2_CONFIG = {
+export const DELOAD_CONFIG = {
   /** Not before this many days into a block (the request of the person excepted). */
   minDaysIntoBlock: 7,
   /** A key exercise has stalled after this many exposures in a row with no progress. */
@@ -274,13 +283,7 @@ export const AUTOREGULATION_CONFIG = {
 
 /** Mesocycle and deload, SPEC §6.2 and §10.2. */
 export const BLOCK_CONFIG = {
-  /** Calendar days of work before the deload week. */
-  workDays: 28,
   deloadDays: 7,
-  /** A reactive deload never comes in the first week of a block. */
-  reactiveDeloadMinDays: 7,
-  /** Volume during the deload: −50%, but never below one set. */
-  deloadSetFactor: 0.5,
   deloadRir: [4, 5] as [number, number],
 } as const;
 
@@ -302,9 +305,6 @@ export const PLANNER_CONFIG = {
   /** Exercises only; the ride comes on top. */
   sessionMinutes: { min: 20, target: 20, max: 30 },
   maxExercisesPerSession: 6,
-  setsPerExercise: 2,
-  /** Sets of each light-fill and mobility exercise when the day needs filling. */
-  fillerSets: 2,
   /** Light fill is practice: far from failure, so it is not a working set. */
   lightFillRir: 5,
   /**
@@ -351,7 +351,7 @@ export const TECHNICAL_LIMITS = {
 } as const;
 
 /**
- * Executing a plan (engine v2, 04 §6-§7): what a change of set-up costs. The time of a set and of a
+ * Executing a plan (engine, 04 §6-§7): what a change of set-up costs. The time of a set and of a
  * changeover between exercises stay in `PLANNER_CONFIG`, so the two engines count them alike.
  */
 export const EXECUTION_CONFIG = {

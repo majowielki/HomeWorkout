@@ -3,6 +3,44 @@
 Trzy części: **(1)** stan repozytorium i decyzje robocze, **(2)** odstępstwa od specyfikacji, **(3)** do sprawdzenia przez człowieka
 (telefon, fizjoterapeuta, decyzje produktowe). Pozycje zamknięte nie są usuwane, tylko oznaczane ✔ z datą.
 
+## Aktualne decyzje P6 — 2026-10-09
+
+- **Brak resetu danych.** Kod archiwizacji/resetu jest usunięty. Historyczne workouts i set_logs
+  zostają, a planowanie ignoruje planSchema = 1. Dawne aktywne sesje przechodzą do historii jako
+  abandoned. Wiersze bez observation są tylko do odczytu i nadal stanowią legacy_unknown.
+- **Baza:** przebudowa workouts usuwa template_id z FK; nazwa szablonu trafia do historycznego
+  plan.title. Dane podrzędne przeżywają kaskadę przy DROP dzięki kopiom tymczasowym w tej samej
+  transakcji. Test obejmuje FK ON i rollback w środku odtwarzania. legacy_sessions zostaje dla
+  archiwalnych backupów; usunięcie nieużywanego kodu resetu nie uzasadnia kasowania tych danych.
+- **Nazwy:** kod używa SessionPlan, planDay, syncWeek, sessions, planning, history i proposals.
+  Wersje migracji i JSON oraz nazwy pól czytanych z dawnych backupów pozostają rozpoznawalne.
+- **Shared code:** modele oporu używają kalibracji i drabinek sprzętu. estimatedPeakKg jest
+  nadal wywoływane. Dane A/B służą deterministycznej syntetycznej historii ewaluacji; nie są
+  instalowane do SQLite ani nie służą startowi sesji. Nie usuwamy używanych obliczeń sprzętowych.
+- **UI:** brak osobnego przycisku „Przywróć ćwiczenie z planu” — powrót przez ponowną zamianę.
+  Ranking zwraca najwyżej trzy zamienniki. Dodaj ćwiczenie, pełny ekran alternatyw, preferencje,
+  pytania o awans i konsument matchSessionIntent są kolejną pracą po odbiorze aktywacji.
+- **Prompty i baseline:** dawne chat/v1–v6 i weekly-summary/v2 oraz testy usunięte; historia w Git.
+  Porównanie baseline P0 nie jest już bramką. Spadek liczby testów wynika z usunięcia tych
+  implementacji; progi pokrycia zostają 100% i bieżący silnik ma własne testy.
+- **Odbiór i wydanie:** po wyraźnej zgodzie użytkownika test ADB/UI został wykonany na
+  emulatorze, a Worker kontraktu 7 wdrożony razem z przygotowaniem APK. Dowody są w
+  [ODBIOR-P6](ODBIOR-P6.md). Test telefonu użytkownik wykonuje sam; do jego potwierdzenia
+  P6 pozostaje otwarty i niescalony.
+- **Poprawki z odbioru:** identyczne zdania oceny są prezentowane raz; opis
+  „pozostają do zrobienia” nie jest poleceniem zmiany obciążenia. Polecenia „zrób”,
+  „polecam” i zwiększanie obciążenia nadal przechodzą przez strażnika odpowiedzi.
+  Usunięto nieaktualną obietnicę szablonów i opis startu FBW A/B.
+- **Schemat narzędzi Workera:** model powtarzał niepoprawny rodzaj zmiany sesji.
+  Eksport Zod do draft 4 przekazuje literały jako `enum`, zamiast `const`;
+  SDK Google normalizuje `const` dla odpowiedzi, ale nie dla funkcji. Po zmianie
+  ten sam test przeszedł: odczyt → ocena → karta → akceptacja 3 → 2 serie.
+  Oryginalny ścisły schemat nadal waliduje wywołania. Diagnostyka zapisuje wyłącznie
+  znane nazwy pól, znane rodzaje i liczbę dodatkowych pól, nigdy ich wartości.
+
+Poniższe wpisy to zapis decyzji z wcześniejszych etapów. Zdania o wyłączonym resecie albo UI
+na dawnym silniku są historyczne; bieżący stan opisują powyższe decyzje i PRZEKAZANIE-P6.
+
 ## 1. Stan repozytorium i decyzje robocze
 
 | Data | Uwaga |
@@ -219,7 +257,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Spec. 11 §8 mówi o odpowiedzi „z liczbami z `checks.data`” i receptach z kilogramami, a obecny prompt zakazuje cytowania obciążeń planu. Rozstrzygnięcie: recepta z
   `assessSessionChange` jest policzona przez silnik dla dokładnie tej zmiany i wolno ją cytować; reszta narzędzi planu nadal nie niesie obciążeń.
 - Pole `position` żądania zmiany nazwałem `placement`, bo test architektury (ADR 0001) zabrania w wejściu modelu pól o nazwach kojarzących się z obciążeniem (`position`, `target`, `rep…`).
-- Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie i podpięcie `createPhoneSessionTools` do `useCoachChat` czekają na etap UI (decyzja: UI bez zmian).
+- Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie jest w P6 (narzędzia sesji wiąże `createProposalController`; dawne `createPhoneSessionTools` usunięto).
 - Przypadki ewaluacji dla narzędzi sesji (`evals/cases/chat`) wymagają syntetycznej sesji v2 w środowisku ewaluacji i nagrania na żywym modelu — do zrobienia przy testach na działającej aplikacji.
 
 ### 2m. P5.6b — symulacja i adnotacje (2026-10-09)
@@ -244,9 +282,37 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 
 - Ekrany, które czytają `workouts.plan` (JSON pierwszego silnika) — podgląd planu sesji, wznowienie, historia „plan vs wykonane” — dla sesji v2 mają `plan = null` i `plan_v2`; trzeba je przestawić na `plan_v2` przy pracy nad UI.
   Liczby i serie historii są w kolumnach starego formatu (`legacyColumns`), więc listy, wykresy i kontekst trenera działają bez zmian.
-- Wywołania do wpięcia w P6: `syncWeek` na wejściu do ekranów i po zamknięciu sesji; `previewDay`/`acceptDay` zamiast `computeToday`/`startPlannedWorkout`; `createPhoneSessionTools`, `createPhonePlanTools`, kontroler
+- Wywołania do wpięcia w P6: `syncWeek` na wejściu do ekranów i po zamknięciu sesji; `previewDay`/`acceptDay` zamiast `computeToday`/`startPlannedWorkout`; `createPhonePlanTools`, kontroler
   `createProposalControllerV2` i `createSimulationHook(loadSimulationBase)` w środowisku narzędzi czatu (`useCoachChat`); `matchSessionIntent` obok `matchCommand`; `buildObservation` w loggerze; `answerPrescription` pod pytaniem o awans.
 - Kontrakt 7 jest w repozytorium, wdrożony Worker ma 6: APK zbudowany z `main` po scaleniu P5 wymaga wdrożenia Workera (i odwrotnie). Czat nie zadziała z niezgodnym Workerem (czytelny błąd „zaktualizuj aplikację”).
+
+### 2p. Poprawki po przeglądzie 2026-10-09 (gałąź `fix/review-2026-10-09`)
+
+Raport: `D:ProjektyHomeWorkouteview-2026-10-09` (7 MAJOR, 14 MINOR, 4 pytania). Co zmieniono i co zostało decyzją:
+
+- **SES-01.** Seria próbna ma etykietę „Seria próbna” i krótką podpowiedź w loggerze. Ciężar poprzedniej serii przechodzi na następną tylko, gdy plan prosił o ten sam opór (`suggestedValues(…, previousPlanned)`): po próbie 6 kg robocze serie podpowiadają planowane 4 kg. Decyzja użytkownika (2026-10-09): jeśli próba się udała, a **wszystkie** zrobione serie robocze osoba wzięła na ciężarze próby, to jest jej własny awans (`PROBE_PASSED`, `workedAtProbeStep`), a niedobicie zakresu na nowym stopniu nie jest porażką. Gdy choć jedna robocza seria była na innym oporze — ocena jak dotąd.
+- **ENG-01.** `planDayIn` i `planWeek` biorą żądanie dnia z jednego miejsca (`composedRequest`): dzień ułożony z trenerem startuje jako `compose` z tymi samymi ruchami, nie regułami dnia automatycznego. Podsumowanie „Dziś” czyta `composed` z intencji planu.
+- **ENG-02 / ENG-05.** Zachowany dzień (`kept`) idzie za deloadem i „lżejszym dniem”: te same ćwiczenia, mniej serii, nadal `held`. Liczba serii w `KeptItem` obejmuje serię próbną. Nowy powód zmiany tygodnia `block` (baner: zmienił się blok/deload).
+- **ENG-03 (D18).** Regeneracja jest radą także dla próśb jawnych (`only`): ruch odradzany jest pomijany z powodem `RECOVERING`, chyba że `acknowledged` zawiera `RECOVERING`. Ból (`PAIN_TODAY`, hard) nie jest chowany za regeneracją i nie da się go potwierdzić. Dodatkowy trening: ruchy odradzane są wybieralne z ostrzeżeniem (wybór = potwierdzenie). Czat: `proposeDayPlan` przyjmuje `confirmRecovery` na ruchu (kontrakt **8**, wymaga wdrożenia Workera razem z APK), zapisywane w `ComposedItem`. `getDayOptions` planuje dzień po poprzednich dniach tygodnia (`recordsBefore`), więc raportuje `RECOVERING` zgodnie z tygodniem.
+- **ENG-04 (decyzja użytkownika: podłączyć).** `volumeProfile` i `volumeOverrides` czyta `resolveDayPolicy` (`volumeTargets`): `higher` = 4/6/10, własne maksimum mięśnia wygrywa z profilem. Użyte przez planer dnia, ocenę zmian sesji, symulację i licznik objętości na ekranie planu. Wersja polityk `policy-2.1`. Ustawienie profilu w UI nadal nie istnieje (tylko model i symulacja trenera). Dźwignia objętości (`volume/lever.ts`) nadal bez konsumenta — Q-01.
+- **SES-02.** Odpowiedź głosu/AI jest wykonywana tylko, gdy ekran nadal jest na tej samej serii i rewizji planu (`transcriptStillApplies`, `VoiceTarget`). „Cofnij” po zapisie głosem cofa dokładnie tę serię albo mówi, że nie jest już ostatnia.
+- **SES-03.** Nieudane zakończenie treningu pokazuje błąd; skok do pominiętego ćwiczenia, którego nie da się otworzyć, zostaje na miejscu.
+- **DAT-01.** Backup odrzuca sesję v2 bez planu i plan innej sesji niż wiersz. Start aplikacji nie rzuca ze sweepu: sesji nie do zamknięcia poleceniem oznacza `abandoned`; błąd zapisu zostawia sesję i próbuje przy kolejnym starcie.
+- **DAT-02.** Walidacja backupu zna wszystkie relacje wewnątrz pliku. Problemy normalizacji niosą `sessionId`; konsultacja sesji bierze pod uwagę tylko problemy bieżącej sesji. **Nie zrobione:** semantyczna kontrola obserwacji (`plannedSetId` należy do planu) przy imporcie — zbyt łatwo odrzuciłaby prawdziwy plik; skutki zagradza filtr problemów.
+- **DAT-03.** `replay` sprawdza rodzaj polecenia i sesję (`INVALID_COMMAND`).
+- **DAT-04.** Restore podnosi rewizje wszystkich domen i buduje na nowo `exposure_outcomes`.
+- **DAT-05.** Księga poleceń jest przycinana (90 dni) po sweepie startowym.
+- **DAT-06.** Cofnięcie i poprawka serii z gumą korygują licznik zużycia gumy.
+- **ENG-06.** W superserii seria próbna idzie pierwsza, osobno, a rundy liczą się bez niej.
+- **ENG-07.** Pominięcie z powodem `pain` ustawia `skippedForPain` na rekordzie serii: liczy się do bólu dnia i do reguły bólu progresji.
+- **ENG-08.** `logSet` odrzuca serię spoza planu, która nie należy do ćwiczenia planu (nie ma już "niczyjej" pracy).
+- **Q-04.** Sesja rozpoczęta wczoraj i wciąż w toku nie jest „opuszczonym dniem”; tydzień jest liczony od jutra.
+- **DEAD-01 / DEAD-02 / DOC-01 / DOC-02.** Usunięto kod bez konsumenta (`createPhoneSessionTools`, `addBandCycles`, `readRevisions`, `getTrainingWeek`, `SLOT_NAMES`); poprawiono mapę modułów i opis bloku w słowniku. **Zostaje do decyzji/po odbiorze:** API używane tylko przez testy (`rankSubstitutes`, `unacknowledged`, `canPlanAutomatically`, `STEP_DOWN_CODES`, `MAX_CALIBRATION_MASS_KG`, `previewWeek`, `saveBlockAdvance`, `loadWindow` i pokrewne), podział `applySessionChange`/`reportSessionFeel`, tabela `exposure_outcomes` bez czytelnika, nieaktualne ścieżki w dokumentach historycznych (`IMPLEMENTACJA.md`, `PLAN-TYGODNIA-I-POPRAWKI.md`, `AI-INTEGRACJA.md`).
+- **Q-01 (decyzja użytkownika 2026-10-09: podłączyć wszystkie trzy) — zrobione.**
+  - *Kalibracja w sesji (D24).* Po serii nowego ćwiczenia (ślad `FIRST_COMPARABLE_EXPOSURE`, ekspozycja główna), gdy wyszła daleko za lekko albo za ciężko, karta nad zegarem odpoczynku proponuje pozostałe serie o stopień wyżej/niżej. Zmiana to `reduce_remaining` z `harder`/`easier` i `calibrate` (tylko telefon, model AI tego nie widzi), oceniona i sprawdzona jeszcze raz przy zatwierdzeniu; oferta znika, gdy silnik ją odradza. Maks. 2 kroki, „Zostaw jak jest” = więcej nie pyta o to ćwiczenie w tej sesji. Pozostałe serie zostają **główną ekspozycją** (`calibratedFrom`), a serie zrobione na starcie nie są „zmniejszeniem” (`reducedExposures`), więc następna sesja startuje od skalibrowanego stopnia i idzie zwykłą progresją. Nie oferujemy: wariantu łatwiejszego i obniżenia celu (to sprawa kolejnej sesji), oferty przy superserii bez przerwy.
+  - *„Za ciężko / za łatwo”.* Dwa przyciski przy każdym ćwiczeniu na karcie „Ćwiczenie zrobione”; zapis przez `recordFeel` (zmienia kontekst następnej recepty, nie plan). Opcje ze `reportSessionFeel` (łatwiejszy opór, mniej serii…) nie mają ekranu — to osobna, większa decyzja UI.
+  - *Dźwignia objętości (D32).* Karty „więcej/mniej serii w tygodniu” pod licznikiem objętości na ekranie planu (`volumeCardsFor` z tych samych danych co planer). „Zwiększ/Zmniejsz” zapisuje własne maksimum partii (`volumeOverrides`) i podnosi rewizję preferencji; karta jest sprawdzana jeszcze raz przy zapisie. „Nie teraz” działa do zamknięcia aplikacji (nie jest zapisywane). Pojedynczy dzień treningu partii nie wystarcza do karty (rozciągłość 0 dni) — zgodnie z dotychczasową domeną.
+- **Q-02, Q-03.** Bez zmian (zapis `read_back` bez odczytu na głos; odczyt całej historii przy „Dziś”): pomiar T-2 na telefonie.
 
 ## 3. Do sprawdzenia
 
@@ -255,7 +321,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | # | Co sprawdzić | Etap | Status |
 |---|---|---|---|
 | T-1 | `Intl.DateTimeFormat` z opcją `timeZone` w Hermesie na Pixelu (13 §1 każe sprawdzić w P0). Obecna implementacja `trainingDate` używa tylko getterów lokalnej daty, więc **nie zależy** od tego; sprawdzenie dotyczy `trainingDateOf` ze strefą, gdy zacznie być używana w aplikacji | P0 | ☐ |
-| T-2 | Czas planowania tygodnia i dnia na telefonie (p50/p95) dla historii: mała (4 tygodnie), roczna, trzyletnia — tak jak mierzy go `scripts/engine-bench.ts` w node. Procedura po zbudowaniu APK z profilem czasu | P0 | ☐ |
+| T-2 | Czas planowania tygodnia i dnia na telefonie (p50/p95) dla historii: mała (4 tygodnie), roczna, trzyletnia — mierzone na bieżącym API (`readToday`, `syncWeek`, `describeDayOptions`). Skrypt `scripts/engine-bench.ts` usunięto w P6 razem ze starym silnikiem; nowy pomiar do napisania przy odbiorze telefonu | P0 | ☐ |
 
 ### 3.2 Decyzje i pytania do użytkownika
 
@@ -288,3 +354,22 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | Nowe pola katalogu (`progressions` …) trafiają do aplikacji dopiero po podniesieniu `version` w `data/exercises.json` (dziś 5): seed zapisuje ćwiczenia do bazy per wersja, a planer czyta je z bazy | P3 (podnieść w pierwszym etapie, który je czyta) | bez wpływu na dzisiejsze plany: silnik ich nie czyta |
 | 18 ostrzeżeń `NO_EASIER_VARIANT` w `validate:data` (ćwiczenia core bez łatwiejszego wariantu) | P3/P5 (uzupełnianie katalogu) | część to najłatwiejsze ćwiczenia swoich łańcuchów |
 | Zapis serii generuje nowe UUID przy każdym wywołaniu (brak idempotencji) | P2 | |
+
+### P6 — testy loggera (2026-10-09)
+
+Usunięte założenie starych testów „zawsze Ciężko” nie opisuje już aplikacji: pierwszy wynik zaczyna od `defaultEffort(previous, targetRir)`, kolejne serie zachowują wysiłek poprzedniej obserwacji. Pochodzenie sugestii i zmian sprawdza nowy kontrakt testów. Karta zamiennika nie ma osobnego „Wróć do ćwiczenia z planu”; powrót odbywa się przez ponowną zamianę z oceną silnika. `GroupDoneCard` nie potrzebował zmiany API.
+### P6 — decyzje i obserwacje aktywacji konsumentów (2026-10-09)
+
+- Start dnia zachowuje tygodniowy wybór ćwiczeń, ale przelicza ilości i opór z bieżącej historii. Zmiana utrzymanego wyboru po podglądzie jest konfliktem tak samo jak zmiana historii. SQLite sprawdza odmowę bez zapisania sesji/bloku.
+- Brak legalnego planu nie jest automatycznie dniem wolnym: ekran pokazuje powód audytu. Naprawiony plan jest opisany. Pewne i niepewne serie są oddzielone w bilansie; odziedziczone dane bez potwierdzonego wysiłku nie stają się pewnym dowodem.
+- Szablony nie służą już do prezentacji planów w „Dziś” i kalendarzu. Dawne sesje bez rozpoznawalnego planu otrzymują nazwę zastępczą, a ich dane pozostają do odczytu/backupowania. Tabele szablonów nadal czekają na migrację porządkową.
+- Karta zmiany sesji jest akceptowana kanałem `ai_proposal` (kanał zapisany w istniejącym kontrakcie), wyłącznie po przycisku użytkownika. Nowe pytanie, inna rewizja lub zmiana sesji uniemożliwia zastosowanie dawnej karty. Spóźnione narzędzie nie może odtworzyć karty po rozpoczęciu nowej rozmowy.
+- Cztery nieaktualne przypadki SQLite wywoływały usunięte API loggera albo oczekiwały tygodnia v1 w kalendarzu. Zastąpione dowodami aktualnych odczytów i zachowania backupu historycznej serii; usunięte metody nie zostały przywrócone.
+- Bez resetu i bez wdrożenia. Pełne sprzątanie starego silnika, migracja nazw/tabel i test urządzenia są następnym fragmentem P6. Worker i APK nadal mają być wdrożone razem dopiero po jego zamknięciu.
+### P6 — porządki w punktach integracji planowania (2026-10-09)
+
+Syntetyczne dzienniki ewaluacji nie zawierają zamrożonych recept. Są więc pracą supplemental (objętość/regeneracja), a nie pierwotnymi ekspozycjami dla progresji. Adapter nie wymyśla planowanych celów na podstawie wyniku. Przy usuwaniu pozostałych typów starego planu trzeba zachować minimalne dane dawnych sesji i kopii zapasowych.
+
+Ocena jutra nie korzysta już z `dayPlanner`. Przeniesiony strażnik używa fazy bloku bieżącego silnika i jego limitu 3 serii na mięsień w dniu, zamiast dawnego limitu 2. Testy sprawdzają kwalifikację, zmianę wyboru/fazy/żądania, zakwasy, projekcję regeneracji, pracę lekką i mobilność oraz oba budżety.
+
+Usunięte prompty `chat/v1`–`chat/v6` nie mają już odbiorców w produkcji; obecny prompt to `chat/v7`. Historyczne metadane wymian (np. wpisane wersje promptów w zapisanych rekordach) nadal mogą opisywać wcześniejsze odpowiedzi i nie wymagają plików dawnych promptów.

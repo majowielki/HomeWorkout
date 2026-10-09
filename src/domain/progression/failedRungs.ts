@@ -1,5 +1,5 @@
 /**
- * A step that was tried and failed (engine v2, 03 §12, 13 §6, D23).
+ * A step that was tried and failed (engine, 03 §12, 13 §6, D23).
  *
  * With dumbbells that grow by 25-100% a step, plain double progression goes
  * up, fails twice, goes down and goes straight up again. The remedy needs no

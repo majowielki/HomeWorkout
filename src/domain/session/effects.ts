@@ -4,11 +4,11 @@ import { buildHistoryIndex, type HistoryIndex } from '../history';
 import type { ExposureRecord } from '../observations/exposure';
 import { isPerformed } from '../observations/qualify';
 import { avoidedOn, isTrainingDay, TRAIN_DAILY } from '../plan/constraints';
-import { DAY_V2_CONFIG, painToday, weekWork } from '../plan/dayV2';
+import { DAY_CONFIG, painToday, weekWork } from '../plan/day';
 import type { AuditDay } from '../plan/audit';
-import { checkSelection } from '../plan/dayPlanner';
-import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
-import { phaseOfV2 } from '../plan/blockV2';
+import { checkSelection } from '../plan/selectionGuard';
+import type { PlannedExposure, PlannedSet, SessionPlan } from '../plan/plan';
+import { phaseOf } from '../plan/block';
 import { BASE_POLICY, resolveDayPolicy } from '../policy/dayPolicy';
 import { finding, type AssessmentCheck } from '../policy/hardAdvice';
 import { addDays, daysBetween } from '../time/trainingDate';
@@ -17,7 +17,7 @@ import { countsAsVolume } from '../volume/weekly';
 import type { ActiveSessionState, ChangeEffects, SessionChangeSnapshot } from './types';
 
 export function remainingVolume(
-  plan: Pick<SessionPlanV2, 'exposures'>,
+  plan: Pick<SessionPlan, 'exposures'>,
   settled: ReadonlySet<string>,
   snap: SessionChangeSnapshot,
 ): Partial<Record<MuscleGroup, number>> {
@@ -43,7 +43,7 @@ export function assessmentDay(
   records: readonly ExposureRecord[],
   maxSec: number,
 ): { day: AuditDay; idx: HistoryIndex; previous: HistoryIndex } {
-  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change');
+  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change', snap.preferences);
   const idx = buildHistoryIndex(records, snap.catalog, {
     muscleWeights: snap.preferences.muscleWeights,
   });
@@ -70,12 +70,12 @@ export function assessmentDay(
       }),
     ),
     week: weekWork(idx, snap.asOf),
-    dayMax: DAY_V2_CONFIG.maxDirectSetsPerMuscleDay,
+    dayMax: DAY_CONFIG.maxDirectSetsPerMuscleDay,
     weekMax: (m) =>
       policy.training.maxDirectSetsOverride[m] ?? policy.training.weeklyWorkingSetsPerMuscle.max,
     sessionSecMax: maxSec,
     lastResistance: new Map(),
-    deload: phaseOfV2(snap.block, snap.asOf) === 'deload',
+    deload: phaseOf(snap.block, snap.asOf) === 'deload',
   };
   return { day, idx, previous };
 }
@@ -91,15 +91,15 @@ export interface ProjectedExposure {
 function tomorrowEffect(
   snap: SessionChangeSnapshot,
   records: readonly ExposureRecord[],
-  before: SessionPlanV2,
-  after: SessionPlanV2,
+  before: SessionPlan,
+  after: SessionPlan,
   settled: ReadonlySet<string>,
 ): ChangeEffects['tomorrow'] {
   const stored = snap.tomorrow;
   if (stored === null || stored.date !== addDays(snap.asOf, 1)) return null;
   const actual = buildHistoryIndex(records, snap.catalog);
   const actualWeek = weekWork(actual, stored.date);
-  const facts = (plan: SessionPlanV2) => {
+  const facts = (plan: SessionPlan) => {
     const projected: ProjectedExposure[] = plan.exposures.map((e) => ({
       kind: 'projected',
       trainingDate: plan.trainingDate,
@@ -122,11 +122,11 @@ function tomorrowEffect(
     return { volume, lastPrimary };
   };
   const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'auto_day');
-  const check = (plan: SessionPlanV2) =>
+  const check = (plan: SessionPlan) =>
     checkSelection(
       stored,
-      { ...snap, asOf: stored.date, sessions: [] },
-      policy.planner,
+      { ...snap, asOf: stored.date },
+      { ...policy.planner, maxDirectSetsPerMuscleDay: DAY_CONFIG.maxDirectSetsPerMuscleDay },
       policy.training,
       facts(plan),
     );
@@ -151,7 +151,7 @@ export function changeEffects(
   session: ActiveSessionState,
   records: readonly ExposureRecord[],
   settled: ReadonlySet<string>,
-  plan: SessionPlanV2,
+  plan: SessionPlan,
   day: AuditDay,
   previous: HistoryIndex,
   subject: PlannedExposure | null,
@@ -175,7 +175,7 @@ export function changeEffects(
     progressionScope: subject?.progressionScope ?? 'none',
     tomorrow: tomorrowEffect(snap, records, session.plan, plan, settled),
   };
-  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change');
+  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change', snap.preferences);
   const today = snap.daily.find((d) => d.date === snap.asOf);
   const before = remainingVolume(session.plan, settled, snap);
   for (const m of MUSCLE_GROUPS) {

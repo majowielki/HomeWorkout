@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
-import { getLastSetForExercise } from '@/db/repositories/setLogs';
-import type { Exercise, TemplateBlock } from '@/domain/types';
+import { loggerStep } from './loggerFixtures';
+import type { Exercise } from '@/domain/types';
 
 import { SetLogger } from '../SetLogger';
 
@@ -19,10 +19,6 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => undefined),
   NotificationFeedbackType: { Success: 'success' },
-}));
-
-jest.mock('@/db/repositories/setLogs', () => ({
-  getLastSetForExercise: jest.fn(),
 }));
 
 const exercise: Exercise = {
@@ -46,33 +42,16 @@ const exercise: Exercise = {
   cues: ['cue'],
 };
 
-const block: TemplateBlock = {
-  label: 'A1',
-  exerciseId: 'goblet-squat',
-  sets: 2,
-  repMin: 10,
-  repMax: 20,
-  targetRirMin: 2,
-  targetRirMax: 3,
-  restSec: 120,
-};
-
 describe('SetLogger with a clip', () => {
-  beforeEach(() => {
-    jest.mocked(getLastSetForExercise).mockResolvedValue(null);
-  });
-
   it('shows the looping clip next to the title and the targets', async () => {
     await render(
       <SetLogger
         exercise={exercise}
-        block={block}
-        setNumber={1}
-        totalSets={2}
+        step={loggerStep({}, { lo: 10, target: 10, hi: 20 })}
         onSave={jest.fn()}
       />,
     );
-    await screen.findByText('2 kg');
+    await screen.findByText('4 kg');
 
     expect(screen.getByLabelText('Film pokazujący: Przysiad goblet')).toBeTruthy();
     expect(screen.getByText('Przysiad goblet')).toBeTruthy();
@@ -85,14 +64,12 @@ describe('SetLogger with a clip', () => {
     await render(
       <SetLogger
         exercise={exercise}
-        block={block}
-        setNumber={1}
-        totalSets={2}
+        step={loggerStep({}, { lo: 10, target: 10, hi: 20 })}
         onSave={jest.fn()}
         onShowDetails={onShowDetails}
       />,
     );
-    await screen.findByText('2 kg');
+    await screen.findByText('4 kg');
 
     await fireEvent.press(screen.getByText('Opis i mięśnie'));
     expect(onShowDetails).toHaveBeenCalledTimes(1);
@@ -102,13 +79,11 @@ describe('SetLogger with a clip', () => {
     await render(
       <SetLogger
         exercise={exercise}
-        block={block}
-        setNumber={1}
-        totalSets={2}
+        step={loggerStep({}, { lo: 10, target: 10, hi: 20 })}
         onSave={jest.fn()}
       />,
     );
-    await screen.findByText('2 kg');
+    await screen.findByText('4 kg');
 
     expect(screen.queryByText('Opis i mięśnie')).toBeNull();
   });
@@ -117,14 +92,12 @@ describe('SetLogger with a clip', () => {
     await render(
       <SetLogger
         exercise={{ ...exercise, id: 'no-clip' }}
-        block={{ ...block, exerciseId: 'no-clip' }}
-        setNumber={1}
-        totalSets={2}
+        step={loggerStep({}, { lo: 10, target: 10, hi: 20 })}
         onSave={jest.fn()}
         onShowDetails={jest.fn()}
       />,
     );
-    await screen.findByText('2 kg');
+    await screen.findByText('4 kg');
 
     expect(screen.getByLabelText('Brak zdjęcia')).toBeTruthy();
     expect(screen.queryByText('Opis i mięśnie')).toBeNull();

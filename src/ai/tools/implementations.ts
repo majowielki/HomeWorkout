@@ -1,16 +1,12 @@
 import { exerciseTrend } from '@/domain/coach/exerciseTrend';
 import { fold } from '@/domain/coach/text';
 import { countWorkingSets, durationMinutes, groupSetsByExercise } from '@/domain/history/summary';
-import { type DayReason, type SkipReason } from '@/domain/plan/reasons';
-import type { SessionPlan } from '@/domain/plan/types';
 import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
 import { SHORTFALL_REASONS } from '@/domain/types';
 
 import {
   TOOL_LIMITS,
-  PLAN_DAY_REASONS,
-  PLAN_SKIP_REASONS,
   type ToolError,
   type ToolInput,
   type ToolName,
@@ -19,32 +15,11 @@ import {
 import { bodySummary, volumeWeek } from '../context/derive';
 import type { CoachSource, SourceSet } from '../context/source';
 
-/*
- * Codes known to contract v3, including requests. Unknown historical codes
- * remain on the phone instead of breaking an otherwise readable plan.
- */
-function inContractDay(code: DayReason): code is (typeof PLAN_DAY_REASONS)[number] {
-  return (PLAN_DAY_REASONS as readonly string[]).includes(code);
-}
-
-function inContractSkip(code: SkipReason): code is (typeof PLAN_SKIP_REASONS)[number] {
-  return (PLAN_SKIP_REASONS as readonly string[]).includes(code);
-}
-
 /**
  * What the tools need from the outside: rows, in domain terms. The phone
  * reads them from SQLite; a test hands over a synthetic history. Nothing
  * here is a Drizzle type, so every tool runs in a test with no database.
  */
-/** A day's plan from the rules engine, as the phone has it (SPEC §10.5). */
-export interface PlanLookup {
-  plan: SessionPlan;
-  /** `session`: frozen when that day's session started; `today`: computed now. */
-  source: 'session' | 'today';
-  /** Slot id to its Polish name, from the shipped data. */
-  slotNames: Readonly<Record<string, string>>;
-}
-
 export interface ToolEnvironment {
   /**
    * Rows for the `days` days ending today. Completed sessions are always
@@ -52,8 +27,6 @@ export interface ToolEnvironment {
    * the window.
    */
   load(days: number): Promise<CoachSource>;
-  /** The plan for the day `daysAgo` days before today, or null when that day has none. */
-  plan(daysAgo: number): Promise<PlanLookup | null>;
   week?(): Promise<ToolOutput<'getWeekPlan'> | ToolError>;
   proposeChange?(
     input: ToolInput<'proposePlanChange'>,
@@ -67,7 +40,7 @@ export interface ToolEnvironment {
   proposeDay?(
     input: ToolInput<'proposeDayPlan'>,
   ): Promise<ToolOutput<'proposeDayPlan'> | ToolError>;
-  /** The explanation of a day's plan on the week of engine v2 (contract 7); the first engine's goes through `plan`. */
+  /** The explanation of a day's plan from the current planner. */
   explainPlan?(
     input: ToolInput<'getPlanExplanation'>,
   ): Promise<ToolOutput<'getPlanExplanation'> | ToolError>;
@@ -247,37 +220,6 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
 
   async getPlanExplanation({ daysAgo }, env) {
-    if (env.explainPlan) return env.explainPlan({ daysAgo });
-    const found = await env.plan(daysAgo);
-    if (!found) return { error: 'no_plan' };
-    const source = await env.load(1);
-    const ref = (id: string) => ({ id, name: nameOf(source, id) });
-    const movement = (slotId: string) => found.slotNames[slotId] ?? slotId;
-    const { plan } = found;
-    return {
-      date: plan.date,
-      source: found.source,
-      blockIndex: plan.blockIndex,
-      phase: plan.phase,
-      dayReasons: plan.dayReasons.filter(inContractDay),
-      signals: plan.signals,
-      bike: { minutes: plan.bike.minutes, reasons: plan.bike.reasons },
-      exercises: plan.exercises.slice(0, TOOL_LIMITS.planExercisesShown).map((e) => ({
-        exercise: ref(e.exerciseId),
-        movement: movement(e.slotId),
-        sets: e.sets,
-        reasons: e.reasons,
-      })),
-      skipped: plan.skipped
-        .flatMap(({ slotId, exerciseId, reason }) =>
-          inContractSkip(reason) ? [{ slotId, exerciseId, reason }] : [],
-        )
-        .slice(0, TOOL_LIMITS.planSkippedShown)
-        .map((s) => ({
-          movement: movement(s.slotId),
-          exercise: s.exerciseId === null ? null : ref(s.exerciseId),
-          reason: s.reason,
-        })),
-    };
+    return env.explainPlan ? env.explainPlan({ daysAgo }) : { error: 'no_plan' };
   },
 };

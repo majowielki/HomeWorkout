@@ -2,15 +2,15 @@ import { ActivityIndicator, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import { planTitle } from '@/features/plan/format';
+import { dayTitle as formatDayTitle } from '@/features/plan/format';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
-import type { ProposalStatus, ProposalSummary, ProposalView } from './proposals';
+import type { ProposalStatus, ProposalSummary, ProposalView } from '@/app-services/coach/proposals';
 
 type Changes = Extract<ProposalSummary, { kind: 'plan' | 'compose' }>['changes'];
 type Day = Changes[number]['after'];
 
-const dayTitle = (day: Day) => (day.rest ? pl.plan.banner.rest : planTitle(day));
+const dayTitle = (day: Day) => (day.rest ? pl.plan.banner.rest : formatDayTitle(day.regions));
 const exercisesOf = (day: Day) =>
   day.exercises
     .map((e) => `${e.exercise.name} (${pl.calendar.sets(e.sets, e.perSide)})`)
@@ -50,12 +50,23 @@ type Props = {
 export function ProposalCard({ proposal, status, busy, onApply, onReject }: Props) {
   const t = pl.coach.chat.proposal;
   const summary = proposal.summary;
-  const title = { plan: t.plan, extra: pl.extra.title, compose: t.compose }[summary.kind];
+  const title = {
+    plan: t.plan,
+    extra: pl.extra.title,
+    compose: t.compose,
+    session_change: t.sessionChange,
+  }[summary.kind];
   return (
     <Card className="gap-3 border-primary">
       <Text variant="eyebrow">{title}</Text>
       {proposal.note ? <Text>{proposal.note}</Text> : null}
-      {summary.kind === 'plan' ? (
+      {summary.kind === 'session_change' ? (
+        <>
+          {summary.sentences.map((line) => (
+            <Text key={line}>{line}</Text>
+          ))}
+        </>
+      ) : summary.kind === 'plan' ? (
         <>
           {summary.constraints.map((c, i) => (
             <View key={i} className="gap-1">

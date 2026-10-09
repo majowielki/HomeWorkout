@@ -10,6 +10,7 @@ import {
   relativeStepOf,
   rirBias,
   shouldProbe,
+  workedAtProbeStep,
 } from '../progression/probe';
 import { RESISTANCE_REGISTRY } from '../resistance/registry';
 import {
@@ -33,6 +34,26 @@ const probe = (patch: Partial<SetResult> = {}, spec = kg(6)): SetResult => ({
 const assessed = (...records: ReturnType<typeof exposureOf>[]) => assess(records, policy, PAIRED);
 const withProbe = (set: SetResult, date = 0) =>
   assessed(exposureOf({ date: day(date), spec: kg(4), sets: [set, 12, 12] }))[0]!;
+
+describe('the work sets taken at the step of the probe', () => {
+  const at = (...sets: (SetResult | number | null)[]) =>
+    assessed(exposureOf({ date: day(0), spec: kg(4), sets }))[0]!;
+
+  it('are the person’s own step up when every one of them was done at the probe’s resistance', () => {
+    expect(
+      workedAtProbeStep(
+        at(probe(), { amount: 7, spec: kg(6) }, { amount: 6, spec: kg(6) }),
+        PAIRED,
+      ),
+    ).toBe(true);
+  });
+
+  it('are not, when one was at another resistance, when none was done, or when there was no probe', () => {
+    expect(workedAtProbeStep(at(probe(), { amount: 7, spec: kg(6) }, 6), PAIRED)).toBe(false);
+    expect(workedAtProbeStep(at(probe(), null, null), PAIRED)).toBe(false);
+    expect(workedAtProbeStep(at(12, 12), PAIRED)).toBe(false);
+  });
+});
 
 describe('T91 the size of a step', () => {
   it('is what the model says', () => {

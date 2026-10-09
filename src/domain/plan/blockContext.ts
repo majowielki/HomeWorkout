@@ -1,12 +1,12 @@
 /**
- * What the block of the second engine reads of the person's history (engine v2,
+ * What the block of the engine reads of the person's history (engine,
  * 03 §9, §16): how each slot's exercise has been doing, and the signals for a
  * reactive deload. One place for the app (which reads it from the database)
  * and the simulation (which makes it up), so the two cannot decide a block
  * differently.
  */
 
-import { fatigueSignalsV2 } from '../autoregulation/signalsV2';
+import { fatigueSignals } from '../autoregulation/signals';
 import { buildHistoryIndex } from '../history';
 import type { ExposureRecord } from '../observations/exposure';
 import { isPerformed } from '../observations/qualify';
@@ -17,7 +17,7 @@ import { blockEvidence } from '../progression/stall';
 import type { ModelContext } from '../resistance/registry';
 import type { ResistanceSpec } from '../resistance/types';
 import type { Exercise } from '../types';
-import type { BlockContextV2 } from './blockV2';
+import type { BlockContext } from './block';
 import type { EligibilityContext } from './eligibility';
 import { slotByExercise } from './eligibility';
 import { modelFor, resistanceOf } from './resistanceOf';
@@ -41,7 +41,7 @@ export interface BlockContextInputs {
   chosen?: Readonly<Record<string, string>>;
 }
 
-export function blockContextV2(i: BlockContextInputs): BlockContextV2 {
+export function blockContext(i: BlockContextInputs): BlockContext {
   const slotOf = slotByExercise(i.slots);
   const modelOf = (spec: ResistanceSpec) => modelFor(spec, i.models);
   const idx = buildHistoryIndex(i.records, i.catalog, {
@@ -77,7 +77,7 @@ export function blockContextV2(i: BlockContextInputs): BlockContextV2 {
           );
     },
     deload: {
-      signals: fatigueSignalsV2({
+      signals: fatigueSignals({
         asOf: i.asOf,
         records: i.records,
         slotOf,

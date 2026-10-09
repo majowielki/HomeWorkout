@@ -1,8 +1,8 @@
 /**
- * What the next exposure of an exercise should be (engine v2, 13 §5).
+ * What the next exposure of an exercise should be (engine, 13 §5).
  *
  * `prescribeNext` reads the primary exposures of one exercise on one setup,
- * works out what each is evidence of, and runs the rules of `PIPELINE_V2` in
+ * works out what each is evidence of, and runs the rules of `PIPELINE` in
  * their order over one draft. Pure: the same history and the same context give
  * the same draft and the same trace, whatever order the records came in (T56).
  * The draft says what to do and why; turning it into the sets of a plan, with
@@ -10,7 +10,7 @@
  */
 
 import { compareCodePoints } from '../fingerprint';
-import type { DecisionTrace } from '../plan/planV2';
+import type { DecisionTrace } from '../plan/plan';
 import { assess } from './assessed';
 import { extendedTop } from './axes';
 import { emptyDraft, type Draft, type NextInput, type Rule, type RuleCtx } from './draft';
@@ -35,7 +35,7 @@ import {
   successRule,
 } from './rules';
 
-export const PIPELINE_V2: readonly Rule[] = [
+export const PIPELINE: readonly Rule[] = [
   eligibilityRule,
   painRule,
   firstExposureRule,
@@ -108,10 +108,7 @@ export interface Prescribed {
   trace: DecisionTrace;
 }
 
-export function prescribeNext(
-  input: NextInput,
-  pipeline: readonly Rule[] = PIPELINE_V2,
-): Prescribed {
+export function prescribeNext(input: NextInput, pipeline: readonly Rule[] = PIPELINE): Prescribed {
   const ctx = contextOf(input);
   let draft = emptyDraft(ctx);
   const applied: { rule: string; codes: string[]; final: boolean }[] = [];

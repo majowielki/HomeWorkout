@@ -3,14 +3,14 @@ import { z } from 'zod';
 import type { CommandResult } from '@/domain/commands/result';
 import { compareCodePoints } from '@/domain/fingerprint';
 import { stampPlan } from '@/domain/plan/compile';
-import { sessionPlanV2Schema } from '@/domain/plan/planV2';
+import { sessionPlanSchema } from '@/domain/plan/plan';
 import { adviceToAcknowledge, RULE_CODES, type RuleCode } from '@/domain/policy/hardAdvice';
 import { assessSessionChange } from '@/domain/session/assess';
 import type { SessionChange } from '@/domain/session/types';
 import { sessionPlanRevisions, setDispositions, workouts } from '../schema';
 import { findCommand, readRevision } from './ledger';
 import { readSessionChangeSource } from './sessionChangeSource';
-import { sessionCommandStore as store } from './sessionsV2';
+import { sessionCommandStore as store } from './sessions';
 
 export interface ApplySessionChangeCommand {
   commandId: string;
@@ -45,6 +45,8 @@ const changeSchema = z.discriminatedUnion('kind', [
     exposureId: z.string().min(1),
     dropSets: z.number().optional(),
     easier: z.boolean().optional(),
+    harder: z.boolean().optional(),
+    calibrate: z.boolean().optional(),
   }),
   z.strictObject({ kind: z.literal('skip_remaining'), exposureId: z.string().min(1) }),
 ]);
@@ -85,7 +87,7 @@ export function applySessionChange(
     const found = store.sessionFor(tx, cmd.sessionId, true);
     if (!found.ok) return found.result;
     const { workout, plan } = found;
-    const validPlan = sessionPlanV2Schema.safeParse(plan);
+    const validPlan = sessionPlanSchema.safeParse(plan);
     if (!validPlan.success || plan.planRevision !== workout.planRevision)
       return {
         kind: 'rejected',
@@ -160,7 +162,7 @@ export function applySessionChange(
           .run();
     }
     tx.update(workouts)
-      .set({ planV2: revised, planRevision: revised.planRevision })
+      .set({ sessionPlan: revised, planRevision: revised.planRevision })
       .where(eq(workouts.id, cmd.sessionId))
       .run();
     // Pending prescriptions are the volume reservation read by the next snapshot; touch raises history.

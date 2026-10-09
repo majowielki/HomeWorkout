@@ -23,6 +23,36 @@ describe('GroupDoneCard', () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
+  it('asks how an exercise felt and shows the answer given', async () => {
+    const onFeel = jest.fn();
+    await render(
+      <GroupDoneCard
+        exercises={[
+          { name: 'Deska', exposureId: 'e1', sets: ['30 s'] },
+          { name: 'Pompka', exposureId: 'e2', feel: 'too_easy', sets: ['8'] },
+        ]}
+        nextLabel="C1"
+        onNext={jest.fn()}
+        onFeel={onFeel}
+      />,
+    );
+    await fireEvent.press(screen.getAllByText('Za ciężko')[0]!);
+    expect(onFeel).toHaveBeenCalledWith('e1', 'too_hard');
+    await fireEvent.press(screen.getAllByText('Za łatwo')[1]!);
+    expect(onFeel).toHaveBeenCalledWith('e2', 'too_easy');
+  });
+
+  it('does not ask without a way to answer', async () => {
+    await render(
+      <GroupDoneCard
+        exercises={[{ name: 'Deska', exposureId: 'e1', sets: ['30 s'] }]}
+        nextLabel="C1"
+        onNext={jest.fn()}
+      />,
+    );
+    expect(screen.queryByText('Za ciężko')).toBeNull();
+  });
+
   it('says a single exercise is done', async () => {
     await render(
       <GroupDoneCard

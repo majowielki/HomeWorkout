@@ -4,7 +4,7 @@ import { pl } from '@/strings/pl';
 
 import { chatReducer, initialChatState, isBusy, type ChatAction, type ChatState } from '../state';
 import { describeTurnFailure } from '../turnErrors';
-import type { ProposalView } from '../proposals';
+import type { ProposalView } from '@/app-services/coach/proposals';
 
 const meta = {
   requestIds: ['req-1-aaaaaaa'],

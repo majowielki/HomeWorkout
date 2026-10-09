@@ -1,5 +1,5 @@
 /**
- * The probe set (engine v2, 03 §15, 13 §16, D28, D33): when the next step
+ * The probe set (engine, 03 §15, 13 §16, D28, D33): when the next step
  * up is a big one, or its size is not known, the person first does one set of
  * it, fresh, and the others at the step they know. A whole session below the
  * range to find out that the step is too big is what this avoids; no model of
@@ -55,6 +55,24 @@ export function probeVerdict(a: Assessed, model: ResistanceModel): ProbeVerdict 
   const effort = effortOf(set.observation);
   if (effort === null) return null;
   return effort >= asked.min ? 'passed' : 'failed';
+}
+
+/**
+ * The person chose the step of a passed probe for the work sets as well: every work set that was done
+ * was done at the resistance of the probe. That is the step taken by the person, not a deviation, and
+ * falling short of the range on the first exposure at a heavier step says nothing against it.
+ */
+export function workedAtProbeStep(a: Assessed, model: ResistanceModel): boolean {
+  const probe = a.rec.sets.find(isProbe);
+  if (probe === undefined) return false;
+  const work = a.rec.sets.filter((s) => s.planned.role === 'work').filter(isPerformed);
+  return (
+    work.length > 0 &&
+    work.every((s) => {
+      const seen = s.observation.resistance.value;
+      return seen !== null && compareSpecs(seen, probe.planned.resistance, model) === 'equal';
+    })
+  );
 }
 
 /**

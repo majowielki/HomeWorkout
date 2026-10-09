@@ -53,6 +53,16 @@ describe('prescribesLoad', () => {
     expect(prescribesLoad('Powinieneś odpocząć. Hantle po 10 kg leżą w kącie.')).toBe(false);
   });
 
+  it('allows the observed active-session description but still refuses an instruction', () => {
+    const description =
+      'Aktywna sesja ma łącznie 3 zaplanowane serie pompki, z czego 0 zostało wykonanych, a 3 pozostają do zrobienia.';
+    expect(prescribesLoad(description)).toBe(false);
+    expect(checkReply(description, { sparse: false })).toEqual([]);
+    expect(prescribesLoad('Zrób 3 serie pompki.')).toBe(true);
+    expect(prescribesLoad('Polecam 3 serie pompki do zrobienia.')).toBe(true);
+    expect(prescribesLoad(`${description} Zwiększ ciężar do 12 kg.`)).toBe(true);
+  });
+
   it('lists the stems it works from, folded', () => {
     for (const stem of [...PRESCRIBING_STEMS, ...LOAD_STEMS]) {
       expect(stem).toBe(stem.toLowerCase());

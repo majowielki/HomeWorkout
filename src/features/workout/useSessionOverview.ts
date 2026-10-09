@@ -1,16 +1,12 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { listActiveTemplates } from '@/db/repositories/templates';
 import { findInProgressWorkout } from '@/db/repositories/workouts';
 
-type TemplateRow = Awaited<ReturnType<typeof listActiveTemplates>>[number];
 type InProgress = Awaited<ReturnType<typeof findInProgressWorkout>>;
 
 export interface SessionOverview {
   inProgress: InProgress;
-  /** For the name of a session in progress that was started from an old FBW template. */
-  templates: TemplateRow[];
 }
 
 /**
@@ -23,11 +19,8 @@ export function useSessionOverview() {
   const [data, setData] = useState<SessionOverview | null>(null);
 
   const load = useCallback(async () => {
-    const [templates, inProgress] = await Promise.all([
-      listActiveTemplates(),
-      findInProgressWorkout(),
-    ]);
-    setData({ templates, inProgress });
+    const inProgress = await findInProgressWorkout();
+    setData({ inProgress });
   }, []);
 
   useFocusEffect(

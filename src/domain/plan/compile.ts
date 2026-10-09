@@ -1,5 +1,5 @@
 /**
- * One compiler from recipes to a session plan (engine v2, 04 §6-§7, 01 §3).
+ * One compiler from recipes to a session plan (engine, 04 §6-§7, 01 §3).
  *
  * It takes the recipe of every exposure — each set with its role, resistance,
  * target and rest — and produces the plan the person will run: planned sets
@@ -23,10 +23,10 @@ import {
   type PlanVersions,
   type PlannedExposure,
   type PlannedSet,
-  type SessionPlanV2,
+  type SessionPlan,
   type SetRole,
   type TimeBreakdown,
-} from './planV2';
+} from './plan';
 
 /** How a set that has two sides is done. */
 export type SideMode =
@@ -92,8 +92,8 @@ export const DEFAULT_TIMING: Timing = {
 export interface CompileInput {
   sessionId: string;
   planRevision: number;
-  kind: SessionPlanV2['kind'];
-  source: SessionPlanV2['source'];
+  kind: SessionPlan['kind'];
+  source: SessionPlan['source'];
   trainingDate: string;
   versions: PlanVersions;
   inputFingerprint: string;
@@ -108,7 +108,7 @@ export interface CompileInput {
 }
 
 /** A plan before it has been audited: everything but the stamp that says it was. */
-export type PlanDraftV2 = Omit<SessionPlanV2, 'audit'>;
+export type PlanDraft = Omit<SessionPlan, 'audit'>;
 
 /** One unit of the order: a planned set with where it belongs. */
 interface Unit {
@@ -173,7 +173,9 @@ function plannedSetsOf(
 /**
  * The order of the sets: group by group, round by round, and inside a round the members of the
  * superset in the order of the plan. The same exercise twice in a row is avoided inside a group where
- * another member still has a set to do; a group of one runs its sets in order (04 §6).
+ * another member still has a set to do; a group of one runs its sets in order (04 §6). A probe set is
+ * done first and fresh, on its own, before the rounds of the superset (13 §16, D28): the members
+ * do not alternate with it, so no changeover is spent on a load that is tried once.
  */
 function ordered(units: readonly Unit[]): Unit[] {
   const groups = new Map<string, Unit[]>();
@@ -182,13 +184,26 @@ function ordered(units: readonly Unit[]): Unit[] {
     groups.set(key, [...(groups.get(key) ?? []), unit]);
   }
   const out: Unit[] = [];
-  for (const members of groups.values()) {
-    const rounds = Math.max(...members.map((u) => u.set.ordinal));
+  for (const all of groups.values()) {
+    const exposureIndices = [...new Set(all.map((u) => u.exposureIndex))];
+    const alone = exposureIndices.length === 1;
+    const probes = alone ? [] : all.filter((u) => u.set.role === 'probe');
+    const members = alone ? all : all.filter((u) => u.set.role !== 'probe');
+    // The round of a set is its place among the sets of its exposure that are not a probe.
+    const roundOf = (u: Unit) =>
+      alone
+        ? u.set.ordinal
+        : new Set(
+            members
+              .filter((m) => m.exposureIndex === u.exposureIndex && m.set.ordinal <= u.set.ordinal)
+              .map((m) => m.set.ordinal),
+          ).size;
+    const rounds = Math.max(0, ...members.map(roundOf));
     const raw: Unit[] = [];
     for (let round = 1; round <= rounds; round += 1) {
-      for (const exposureIndex of [...new Set(members.map((u) => u.exposureIndex))]) {
+      for (const exposureIndex of exposureIndices) {
         raw.push(
-          ...members.filter((u) => u.exposureIndex === exposureIndex && u.set.ordinal === round),
+          ...members.filter((u) => u.exposureIndex === exposureIndex && roundOf(u) === round),
         );
       }
     }
@@ -204,7 +219,7 @@ function ordered(units: readonly Unit[]): Unit[] {
           : rest.findIndex((u) => u.exposureIndex !== previous.exposureIndex);
       done.push(rest.splice(Math.max(0, other), 1)[0]!);
     }
-    out.push(...done);
+    out.push(...probes, ...done);
   }
   return out;
 }
@@ -214,7 +229,7 @@ const workSeconds = (u: Unit, t: Timing): number => {
   return Math.round(base * (u.exposure.sideMode === 'both' ? 2 : 1));
 };
 
-export function compileSession(input: CompileInput): PlanDraftV2 {
+export function compileSession(input: CompileInput): PlanDraft {
   const timing = input.timing ?? DEFAULT_TIMING;
   const exposures: PlannedExposure[] = [];
   const units: Unit[] = [];
@@ -243,7 +258,7 @@ export function compilePlannedSets(
   input: Omit<CompileInput, 'exposures'>,
   exposures: readonly PlannedExposure[],
   order: readonly string[],
-): PlanDraftV2 {
+): PlanDraft {
   const units = new Map<string, Unit>();
   exposures.forEach((e, exposureIndex) => {
     for (const s of e.sets) {
@@ -295,7 +310,7 @@ function compileSequence(
   exposures: PlannedExposure[],
   sequence: readonly Unit[],
   timing: Timing,
-): PlanDraftV2 {
+): PlanDraft {
   const steps: ExecutionStep[] = [];
   const time = {
     hardWork: 0,
@@ -415,8 +430,8 @@ function compileSequence(
  * confirmed, and the hash of the plan as audited. The hash is of everything but the stamp (01 §4).
  */
 export function stampPlan(
-  draft: PlanDraftV2,
-  stamp: { mode: SessionPlanV2['audit']['mode']; snapshotFingerprint: string; overrides: string[] },
-): SessionPlanV2 {
+  draft: PlanDraft,
+  stamp: { mode: SessionPlan['audit']['mode']; snapshotFingerprint: string; overrides: string[] },
+): SessionPlan {
   return { ...draft, audit: { ...stamp, planHash: fingerprint(draft) } };
 }

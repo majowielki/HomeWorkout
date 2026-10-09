@@ -1,12 +1,18 @@
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { planCustom } from '@/domain/plan/extra';
+
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
-import { ExtraSessionChangedError, loadExtraSession, startExtraSession } from './actions';
+import {
+  ExtraSessionChangedError,
+  RECOVERY_ADVICE,
+  loadExtraSession,
+  previewExtraSession,
+  startExtraSession,
+} from './actions';
 import { ExtraSessionPicker } from './ExtraSessionPicker';
 
 export function ExtraSessionScreen() {
@@ -37,7 +43,25 @@ export function ExtraSessionScreen() {
       };
     }, [load]),
   );
-  const preview = data ? planCustom(data.input, selected) : null;
+  const previewState = useMemo(() => {
+    if (!data || selected.length === 0) return { preview: null, failed: null };
+    try {
+      const advised = data.options.filter((o) => o.advised).map((o) => o.slotId);
+      const preview = previewExtraSession(
+        selected,
+        new Date(),
+        selected.some((id) => advised.includes(id)) ? RECOVERY_ADVICE : [],
+      );
+      return preview.asOf === data.input.asOf
+        ? { preview, failed: null }
+        : { preview: null, failed: 'changed' as const };
+    } catch {
+      return { preview: null, failed: 'error' as const };
+    }
+  }, [data, selected]);
+  const { preview } = previewState;
+  const planned = preview?.output.result;
+  const plan = planned?.kind === 'ready' || planned?.kind === 'adjusted' ? planned.plan : null;
   function open(id: string) {
     router.replace({ pathname: '/workout/active/[id]', params: { id } });
   }
@@ -46,7 +70,7 @@ export function ExtraSessionScreen() {
     guard.current = true;
     setBusy(true);
     try {
-      open(await startExtraSession(selected, preview));
+      open(await startExtraSession(preview));
     } catch (e) {
       if (e instanceof ExtraSessionChangedError) {
         await load();
@@ -60,9 +84,9 @@ export function ExtraSessionScreen() {
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="gap-5 px-5 pb-12 pt-4">
       <Stack.Screen options={{ title: pl.extra.title }} />
-      {error ? (
+      {error || previewState.failed ? (
         <>
-          <Text>{pl.extra.loadError}</Text>
+          <Text>{previewState.failed === 'changed' ? pl.extra.changed : pl.extra.loadError}</Text>
           <Button label={pl.plan.retry} onPress={() => void load()} />
         </>
       ) : !data ? (
@@ -79,14 +103,15 @@ export function ExtraSessionScreen() {
           ) : (
             <>
               <ExtraSessionPicker
-                input={data.input}
+                data={data}
+                preview={preview}
                 selected={selected}
                 onChange={setSelected}
                 busy={busy}
               />
               <Button
                 label={pl.extra.start}
-                disabled={busy || !preview?.exercises.length}
+                disabled={busy || !plan?.exposures.length}
                 onPress={() => void start()}
               />
               {busy ? <ActivityIndicator /> : null}

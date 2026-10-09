@@ -2,13 +2,11 @@ import { eq } from 'drizzle-orm';
 
 import catalogue from '@data/exercises.json';
 import { exerciseCatalogueSchema } from '@data/exercises.schema';
-import templateCatalogue from '@data/templates.json';
-import { templateCatalogueSchema } from '@data/templates.schema';
 import { BANDS } from '@/domain/inventory';
 
 import { db } from './client';
 import { ensureProfile } from './repositories/profile';
-import { bands, exercises, workoutTemplates } from './schema';
+import { bands, exercises } from './schema';
 
 /**
  * Loads the bundled reference data into SQLite on every app start.
@@ -22,12 +20,9 @@ import { bands, exercises, workoutTemplates } from './schema';
  *   exercise dropped from the JSON is marked archived instead.
  * - Bands are inserted only when missing, so a calibration is never
  *   overwritten by a reseed.
- * - Existing templates are refreshed for historical sessions. New installs
- *   use the rules engine and no longer receive the manual FBW templates.
  */
 export async function seedDatabase(): Promise<void> {
   const parsed = exerciseCatalogueSchema.parse(catalogue);
-  const parsedTemplates = templateCatalogueSchema.parse(templateCatalogue);
   const now = new Date().toISOString();
 
   db.transaction((tx) => {
@@ -89,25 +84,6 @@ export async function seedDatabase(): Promise<void> {
           calibration: null,
         })
         .run();
-    }
-
-    const knownTemplates = new Set(
-      tx
-        .select({ id: workoutTemplates.id })
-        .from(workoutTemplates)
-        .all()
-        .map((t) => t.id),
-    );
-    for (const template of parsedTemplates.templates) {
-      const values = {
-        name: template.name,
-        blocks: template.blocks,
-        sortOrder: template.sortOrder,
-        warmupMinutes: template.warmupMinutes ?? null,
-      };
-      if (knownTemplates.has(template.id)) {
-        tx.update(workoutTemplates).set(values).where(eq(workoutTemplates.id, template.id)).run();
-      }
     }
   });
 }

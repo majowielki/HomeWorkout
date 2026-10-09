@@ -1,5 +1,5 @@
 /**
- * Mending a plan the audit did not pass, and planning as a whole (engine v2,
+ * Mending a plan the audit did not pass, and planning as a whole (engine,
  * 01 §3, 04, T36, T37).
  *
  * The audit only says what is wrong and what could be done about it. Here the
@@ -20,7 +20,7 @@ import type { Exercise } from '../types';
 import { auditPlan, type AuditContext, type AuditIssue, type RepairKind } from './audit';
 import { compileSession, type CompileInput, type ExposureSpec, stampPlan } from './compile';
 import { parseExposureId } from './ids';
-import type { SessionPlanV2 } from './planV2';
+import type { SessionPlan } from './plan';
 import type { RuleCode } from '../policy/hardAdvice';
 
 export interface PlanChange {
@@ -32,7 +32,7 @@ export interface PlanChange {
 }
 
 export type PlanningResult =
-  | { kind: 'ready' | 'adjusted'; plan: SessionPlanV2; changes: PlanChange[]; notes: AuditIssue[] }
+  | { kind: 'ready' | 'adjusted'; plan: SessionPlan; changes: PlanChange[]; notes: AuditIssue[] }
   | {
       kind: 'no_feasible_plan' | 'unsupported_input';
       reasons: AuditIssue[];
@@ -69,7 +69,7 @@ function dropFiller(specs: Specs): { specs: Specs; key: string } | null {
 function splitSuperset(
   specs: Specs,
   issue: AuditIssue,
-  plan: SessionPlanV2,
+  plan: SessionPlan,
 ): { specs: Specs; key: string | null } | null {
   const named = keyOf(issue);
   const own = specs.find((s) => s.key === named)?.group ?? null;
@@ -135,7 +135,7 @@ function dropExposure(
 function mend(
   specs: Specs,
   issues: readonly AuditIssue[],
-  plan: SessionPlanV2,
+  plan: SessionPlan,
   catalog: Readonly<Record<string, Exercise>>,
 ): { specs: Specs; change: PlanChange } | null {
   for (const issue of issues) {

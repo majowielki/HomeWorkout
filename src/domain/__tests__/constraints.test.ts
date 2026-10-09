@@ -1,6 +1,7 @@
 import { PLANNER_CONFIG } from '../config/training';
 import {
   avoidedOn,
+  composedRequest,
   constraintsOn,
   dateRange,
   isAvoided,
@@ -184,5 +185,33 @@ describe('overriding one calendar day', () => {
       true,
     );
     expect(revoke).toEqual(['a', 'b', 'r']);
+  });
+});
+
+describe('the request of a composed day', () => {
+  const compose = (items: PlanConstraint['items']) =>
+    constraint({ kind: 'compose_day', from: '2026-10-08', until: '2026-10-08', items });
+
+  it('is the same movements and sets for the week and for the day, and none on another day', () => {
+    const c = [
+      compose([
+        { slotId: 'a', sets: 2 },
+        { slotId: 'b', sets: 1 },
+      ]),
+    ];
+    expect(composedRequest(c, '2026-10-08')).toEqual({
+      intent: 'compose',
+      only: [
+        { slotId: 'a', sets: 2 },
+        { slotId: 'b', sets: 1 },
+      ],
+      acknowledged: [],
+    });
+    expect(composedRequest(c, '2026-10-09')).toBeNull();
+  });
+
+  it('carries the confirmation of recovery only when a movement has it', () => {
+    const c = [compose([{ slotId: 'a', sets: 2, confirmRecovery: true }])];
+    expect(composedRequest(c, '2026-10-08')!.acknowledged).toEqual(['RECOVERING']);
   });
 });

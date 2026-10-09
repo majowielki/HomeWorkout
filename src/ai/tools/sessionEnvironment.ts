@@ -2,7 +2,7 @@
  * The phone's side of the tools that consult the running session (contract 7, 11 §8).
  *
  * `source()` hands over a fresh reading of the session and everything the assessment needs, or null
- * when no workout of engine v2 is running; each call to a tool reads it again, so an answer is about
+ * when no workout of engine is running; each call to a tool reads it again, so an answer is about
  * the session as it is now. The model asks with the words of the person; the engine assesses; the
  * assessments are remembered for the turn so that `proposeSessionChange` can name one by its id. A
  * proposal is accepted only if the session is still the one the assessment was about: it is assessed

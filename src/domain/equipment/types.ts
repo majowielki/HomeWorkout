@@ -1,5 +1,5 @@
 /**
- * Equipment as the person has it, and what an exercise needs of it (engine v2,
+ * Equipment as the person has it, and what an exercise needs of it (engine,
  * 05 §4). v1 knew a list of kinds ("dumbbell", "band") interpreted once as AND
  * and once as OR. The room has *things*: a bar with a mass, a number of plates,
  * a bench that adjusts. An exercise needs some of them together (a barbell

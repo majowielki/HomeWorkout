@@ -6,10 +6,10 @@
 import { buildHistoryIndex } from '../history';
 import type { ExposureRecord, ExposureSetRecord } from '../observations/exposure';
 import type { SetObservation } from '../observations/types';
-import type { PlannedSet } from '../plan/planV2';
+import type { PlannedSet } from '../plan/plan';
 import type { Exercise } from '../types';
 import { exercise } from './fixtures';
-import { legalObservation, plannedSet } from './planV2Fixtures';
+import { legalObservation, plannedSet } from './planFixtures';
 
 const catalog: Record<string, Exercise> = {
   row: exercise({ id: 'row', primaryMuscles: ['back', 'lats'], secondaryMuscles: ['biceps'] }),

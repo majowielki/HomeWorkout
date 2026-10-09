@@ -1,5 +1,5 @@
 /**
- * The volume lever (engine v2, 13 §19, 12 §5.5, D32). The engine does not raise
+ * The volume lever (engine, 13 §19, 12 §5.5, D32). The engine does not raise
  * or lower the weekly volume by itself; it notices — a muscle that has been
  * trained for a month and whose key lifts stand still while it recovers well
  * could take more; one that is sore too often should take less — and proposes
@@ -8,7 +8,7 @@
  */
 
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
-import { AUTOREGULATION_CONFIG, TRAINING_CONFIG, VOLUME_LEVER_CONFIG } from '../config/training';
+import { AUTOREGULATION_CONFIG, VOLUME_LEVER_CONFIG } from '../config/training';
 import type { HistoryIndex } from '../history';
 import type { FatigueSignal } from '../plan/reasons';
 import type { DailyReadiness } from '../plan/types';
@@ -17,7 +17,7 @@ import { stalledRun } from '../progression/stall';
 import type { ResistanceModel } from '../resistance/types';
 import { addDays, daysBetween } from '../time/trainingDate';
 import type { MuscleGroup } from '../types';
-import { maxDirectSets } from './weekly';
+import { volumeTargets, type VolumeTargets } from '../policy/dayPolicy';
 
 export type LeverReason = 'STALLED_WELL_RECOVERED' | 'RECOVERY_LOW' | 'FREQUENT_SORENESS';
 
@@ -38,8 +38,8 @@ export interface LeverInput {
   >;
   daily: readonly DailyReadiness[];
   signals: readonly FatigueSignal[];
-  /** What the person set before, per muscle (`volumeOverrides`). */
-  overrides?: Partial<Record<MuscleGroup, number>>;
+  /** The weekly sets as the person's profile and own maxima have them: where the lever starts from. */
+  targets?: VolumeTargets;
   cfg?: typeof VOLUME_LEVER_CONFIG;
 }
 
@@ -80,12 +80,13 @@ export function volumeRecommendation(input: LeverInput): VolumeCard[] {
   const cfg = input.cfg ?? VOLUME_LEVER_CONFIG;
   const level = AUTOREGULATION_CONFIG.highSorenessLevel;
   const recoveryLow = input.signals.includes('RECOVERY_LOW');
+  const targets = input.targets ?? volumeTargets(undefined);
   const cards: VolumeCard[] = [];
 
   for (const muscle of MUSCLE_GROUPS) {
     const stretch = trainingStretchDays(input.idx, muscle, input.asOf);
     if (stretch === 0) continue;
-    const from = input.overrides?.[muscle] ?? maxDirectSets(muscle);
+    const from = targets.maxOf(muscle);
     const soreRecently = sorenessDays(
       input.daily,
       muscle,
@@ -98,10 +99,7 @@ export function volumeRecommendation(input: LeverInput): VolumeCard[] {
     if (soreRecently >= cfg.soreDays) reasons.push('FREQUENT_SORENESS');
 
     if (reasons.length > 0) {
-      const to = Math.max(
-        TRAINING_CONFIG.weeklyWorkingSetsPerMuscle.min,
-        Math.round(from * (1 - cfg.change)),
-      );
+      const to = Math.max(targets.weekly.min, Math.round(from * (1 - cfg.change)));
       if (to < from) cards.push({ muscle, change: 'decrease', fromMax: from, toMax: to, reasons });
       continue;
     }

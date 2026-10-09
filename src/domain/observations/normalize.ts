@@ -1,6 +1,6 @@
 /**
  * From plans, results, skips and the person's remarks to the exposures the
- * progression reads (engine v2, 13 §3).
+ * progression reads (engine, 13 §3).
  *
  * The plan is what decides what a result is *for*. Every planned set gets
  * exactly what belongs to it — a current result, a skip, or nothing — and
@@ -12,7 +12,7 @@
  */
 
 import { compareCodePoints } from '../fingerprint';
-import type { SessionPlanV2 } from '../plan/planV2';
+import type { SessionPlan } from '../plan/plan';
 import type { ExposureRecord, ExposureSetRecord } from './exposure';
 import type { SetDisposition, SetObservation } from './types';
 
@@ -48,13 +48,15 @@ export interface NormalizationProblem {
   /** The id of the observation or disposition it is about. */
   recordId: string;
   detail: string;
+  /** The session the record belongs to; null when that cannot be told. */
+  sessionId: string | null;
 }
 
 export interface NormalizationInput {
   sessions: readonly SessionMeta[];
-  plans: readonly SessionPlanV2[];
+  plans: readonly SessionPlan[];
   observations: readonly ObservationRow[];
-  dispositions: readonly SetDisposition[];
+  dispositions: readonly (SetDisposition & { sessionId?: string })[];
   feel: readonly FeelReport[];
 }
 
@@ -66,15 +68,12 @@ const newer = (a: ObservationRow, b: ObservationRow) =>
 export function normalizeObservations(input: NormalizationInput): {
   records: ExposureRecord[];
   problems: NormalizationProblem[];
-  /** Sound work that belongs to no exposure of any plan: still work for the volume, evidence for nothing. */
+  /** Sound work that belongs to no exposure of any plan (the store no longer takes it; old data may hold it): neither volume nor evidence. */
   unassigned: SetObservation[];
 } {
   const problems: NormalizationProblem[] = [];
   const meta = new Map(input.sessions.map((s) => [s.sessionId, s]));
-  const planned = new Map<
-    string,
-    { plan: SessionPlanV2; exposureIndex: number; setIndex: number }
-  >();
+  const planned = new Map<string, { plan: SessionPlan; exposureIndex: number; setIndex: number }>();
   for (const plan of input.plans) {
     plan.exposures.forEach((exposure, exposureIndex) =>
       exposure.sets.forEach((set, setIndex) =>
@@ -98,7 +97,12 @@ export function normalizeObservations(input: NormalizationInput): {
   }
   for (const o of [...latest.values()].filter((r) => r.deletedAt === null).sort(newer)) {
     if (!meta.has(o.sessionId)) {
-      problems.push({ code: 'UNKNOWN_SESSION', recordId: o.id, detail: o.sessionId });
+      problems.push({
+        code: 'UNKNOWN_SESSION',
+        recordId: o.id,
+        detail: o.sessionId,
+        sessionId: o.sessionId,
+      });
       continue;
     }
     if (o.plannedSetId === null) {
@@ -107,7 +111,12 @@ export function normalizeObservations(input: NormalizationInput): {
     }
     const home = planned.get(o.plannedSetId);
     if (home === undefined || home.plan.sessionId !== o.sessionId) {
-      problems.push({ code: 'UNKNOWN_PLANNED_SET', recordId: o.id, detail: o.plannedSetId });
+      problems.push({
+        code: 'UNKNOWN_PLANNED_SET',
+        recordId: o.id,
+        detail: o.plannedSetId,
+        sessionId: o.sessionId,
+      });
       addExtra(o);
       continue;
     }
@@ -118,6 +127,7 @@ export function normalizeObservations(input: NormalizationInput): {
         code: 'UNIT_MISMATCH',
         recordId: o.id,
         detail: `${quantity.kind} recorded for a ${set.target.kind} target`,
+        sessionId: o.sessionId,
       });
       addExtra(o);
       continue;
@@ -128,6 +138,7 @@ export function normalizeObservations(input: NormalizationInput): {
         code: 'DUPLICATE_OBSERVATION',
         recordId: earlier.id,
         detail: `${o.plannedSetId} also has ${o.id}`,
+        sessionId: o.sessionId,
       });
       addExtra(earlier);
     }
@@ -138,7 +149,12 @@ export function normalizeObservations(input: NormalizationInput): {
   const skips = new Map<string, SetDisposition>();
   for (const d of [...input.dispositions].sort((a, b) => compareCodePoints(a.at, b.at))) {
     if (!planned.has(d.plannedSetId)) {
-      problems.push({ code: 'UNKNOWN_PLANNED_SET', recordId: d.plannedSetId, detail: d.commandId });
+      problems.push({
+        code: 'UNKNOWN_PLANNED_SET',
+        recordId: d.plannedSetId,
+        detail: d.commandId,
+        sessionId: d.sessionId ?? null,
+      });
       continue;
     }
     skips.set(d.plannedSetId, d);
@@ -164,6 +180,7 @@ export function normalizeObservations(input: NormalizationInput): {
         code: 'UNKNOWN_SESSION',
         recordId: plan.sessionId,
         detail: 'plan without a session',
+        sessionId: plan.sessionId,
       });
       continue;
     }
@@ -178,7 +195,12 @@ export function normalizeObservations(input: NormalizationInput): {
             : session.status === 'in_progress'
               ? 'pending'
               : 'skipped';
-        return { planned, disposition, observation };
+        return {
+          planned,
+          disposition,
+          observation,
+          ...(!observation && skip?.reason === 'pain' ? { skippedForPain: true as const } : {}),
+        };
       });
       records.push({
         exposureId: exposure.id,
