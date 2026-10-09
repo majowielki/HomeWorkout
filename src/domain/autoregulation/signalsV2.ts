@@ -29,6 +29,7 @@ import { recoveryLow } from './fatigue';
 export interface SignalsInput {
   asOf: string;
   records: readonly ExposureRecord[];
+  /** The slot of each exercise, by the id of the exercise (`slotByExercise`). */
   slotOf: ReadonlyMap<string, Pick<Slot, 'kind'>>;
   daily: readonly DailyReadiness[];
   modelOf: (spec: ResistanceSpec) => ResistanceModel | null;
@@ -56,7 +57,7 @@ function grindingCompounds(
   // Days, not sessions: an extra session the same day is not a second day of grinding.
   const days = new Map<string, boolean>();
   for (const rec of recent) {
-    if (rec.slotId === null || slotOf.get(rec.slotId)?.kind !== 'compound') continue;
+    if (slotOf.get(rec.exerciseId)?.kind !== 'compound') continue;
     const hard = rec.sets.filter(
       (s) => isPerformed(s) && s.planned.role !== 'warmup' && s.planned.role !== 'mobility',
     );

@@ -61,6 +61,8 @@ export interface ExposureOptions {
   context?: Partial<ExposureRecord['context']>;
   key?: string;
   exerciseId?: string;
+  /** The slot it filled (default `core`). */
+  slotId?: string | null;
   /** For an exposure the person added to beyond the plan. */
   extra?: SetObservation[];
 }
@@ -163,7 +165,7 @@ export function exposureOf(options: ExposureOptions): ExposureRecord {
     sessionId,
     trainingDate: options.date,
     exerciseId: options.exerciseId ?? 'crunch',
-    slotId: 'core',
+    slotId: options.slotId === undefined ? 'core' : options.slotId,
     comparisonKey: options.key ?? 'crunch|key',
     progressionScope: options.scope ?? 'primary',
     sets,

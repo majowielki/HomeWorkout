@@ -8,8 +8,8 @@ import { modelOf } from './compileFixtures';
 
 const AS_OF = day(13);
 const slotOf = new Map([
-  ['squat', { kind: 'compound' as const }],
-  ['curl', { kind: 'accessory' as const }],
+  ['ex-squat', { kind: 'compound' as const }],
+  ['ex-curl', { kind: 'accessory' as const }],
 ]);
 const input = (
   records: SignalsInput['records'],
@@ -28,8 +28,13 @@ const at = (
   slotId = 'squat',
   mass = 4,
 ) => ({
-  ...exposureOf({ date: day(date), spec: kg(mass), sets, key: `k-${slotId}-${mass}` }),
-  slotId,
+  ...exposureOf({
+    date: day(date),
+    spec: kg(mass),
+    sets,
+    key: `k-${slotId}-${mass}`,
+    exerciseId: `ex-${slotId}`,
+  }),
 });
 
 describe('FATIGUE_HIGH: to the limit on a compound lift two days running', () => {
@@ -50,7 +55,7 @@ describe('FATIGUE_HIGH: to the limit on a compound lift two days running', () =>
 
   it('only compound lifts, only work, only what is recent', () => {
     expect(fatigueSignalsV2(input([at(10, limit, 'curl'), at(12, limit, 'curl')]))).toEqual([]);
-    const noSlot = { ...at(12, limit), slotId: null };
+    const noSlot = { ...at(12, limit), exerciseId: 'unknown' };
     expect(fatigueSignalsV2(input([at(10, limit), noSlot]))).toEqual([]);
     const nothing = at(12, [null, null]);
     expect(fatigueSignalsV2(input([at(10, limit), nothing]))).toEqual([]);

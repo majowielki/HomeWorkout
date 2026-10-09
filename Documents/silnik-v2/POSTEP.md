@@ -29,7 +29,7 @@ opisany inny dowód) i commit.
 | P1 | Kontrakty v2, model oporu, katalog (aliasy, graf wariantów, screenery), preferencje | ☑ 2026-10-09 | `refactor/engine-p1-contracts` | P0 |
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
-| P4 | Audyt, kompilator, zasoby, czas | ☐ | | P1, P2 |
+| P4 | Audyt, kompilator, zasoby, czas | ◐ w toku (gałąź nie scalona, patrz sekcja P4) | `refactor/engine-p4-compile-audit` | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☐ | | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
@@ -107,7 +107,19 @@ Czysta domena: nic w aplikacji tego jeszcze nie woła (pipeline wchodzi do plano
 | P3.14 | Deload reaktywny `reactiveDeloadTrigger` (dwa sygnały / zastój z zmęczeniem / prośba; od 7. dnia bloku, raz na blok) | T93, T94; `reactiveDeload.test.ts` | ☑ | |
 | P3.15 | Dźwignia objętości `volumeRecommendation` (+20% / −20% jako karty, do profilu 10) i wagi mięśni pomocniczych w raporcie (`weeklyVolume`) | T95, T96; `lever.test.ts`, `secondaryWeights.test.ts` | ☑ | |
 
-## P4–P9
+## P4 — audyt, kompilator, dzień v2 (w toku, gałąź `refactor/engine-p4-compile-audit`, NIE scalona)
+
+| Zadanie | Zakres | Status |
+|---|---|---|
+| P4.3–P4.5 | `plan/compile.ts`: kompilator receptur do planu (id serii, strony, kroki, przezbrojenia zasobów, czas z kroków, superserie), `stampPlan` | ☑ 100% pokrycia |
+| P4.1 | `plan/audit.ts`: jeden audyt dla każdej ścieżki, klasy hard/advice z rejestru, tryby new_plan/start/resume/import/display | ☑ 100% |
+| P4.6 | `plan/repair.ts`: `planWithRepair` (drop_filler, split_superset, reduce_sets, drop_exposure, budżet kroków, ready/adjusted/no_feasible_plan/unsupported_input) | ☑ 100% |
+| P4.2 | `plan/dayV2.ts` `planDayV2` (wybór zachłanny z jawnym score, recommendSets, prescribeNext, wypełniacze, grupy), `blockV2.ts`, `resistanceOf.ts`, `autoregulation/signalsV2.ts`, `plan/simulateV2.ts` (symulacja tygodni) | ◐ działa na prawdziwym katalogu (6 tygodni, własności objętości i czasu zielone); **brakuje pokrycia 100% gałęzi** `dayV2.ts`, `simulateV2.ts`; 2 testy w `dayV2Worlds.test.ts` są `it.skip` z TODO (zamiennik jednonożny przy FATIGUE_HIGH; propozycje wariantu/CONFIRM_STEP_UP w planie dnia) |
+| P4.7 | tryby audytu start/resume/import | ☑ (w audycie) |
+
+**Do zrobienia przy wznowieniu:** (1) odblokować dwa `it.skip`; (2) `npm run verify` i dopisać testy do 100% gałęzi dla `dayV2.ts`/`simulateV2.ts` (lista: `npx jest src/domain --coverage`); (3) UWAGI + DOKUMENTACJA dla P4; (4) scalić `--no-ff`. Obserwacja: przy 3 seriach compound tygodniowe maksima mięśni (pośladki 8, plecy 8) są wyczerpane w 4–5 dniu, więc kolejne dni to głównie wypełniacze (skutek D22; do oceny w benchmarku P8).
+
+## P5–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą
 rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany.
@@ -116,6 +128,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P4 w toku** (niescalone): kompilator, audyt, naprawa, `planDayV2`, blok v2, symulacja v2, sygnały v2. Domena: 1771 testów zielone; pokrycie 100% nie domknięte dla dayV2/simulateV2. Q-6/Q-7 zamknięte. P3 scalony do main | |
 | 2026-10-09 | **P3 zamknięty** (reszta: rotacja z ciągłością, deload reaktywny, dźwignia objętości i wagi mięśni). Q-6 rozstrzygnięte (wydłużenie zakresu przed dodatkową serią, zgodnie z D29), Q-7 potwierdzone. `npm run verify`: 3446 testów, pokrycie domeny 100% | |
 | 2026-10-09 | **P3 (rdzeń) w domenie** (scalony do `main`): kwalifikacja dowodu, pipeline `prescribeNext` (14 reguł), pamięć nieudanego szczebla, próba szczebla, budowanie do zakresu, `recommendSets`, kalibracja w sesji jako propozycje. 40 kodów decyzji. `npm run verify` zielone: 3387 testów, pokrycie domeny 100%. Zostaje rotacja z ciągłością, deload reaktywny, dźwignia objętości; pytania Q-6, Q-7 | |
 | 2026-10-09 | Przeczytany pakiet architektury (v1.3). Założona gałąź `docs/engine-v2-tracking`; trzy dokumenty w `Documents/silnik-v2/`. Stan wyjściowy: `main` @ `33d0f1e` + niezatwierdzone zmiany użytkownika (głos/trener v6, 40 plików) — patrz UWAGI §1 | |

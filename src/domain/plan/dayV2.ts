@@ -808,8 +808,9 @@ function regionsOf(
 ): SlotRegion[] {
   const sets = new Map<SlotRegion, number>();
   for (const s of specs) {
-    const region = s.slotId === null ? undefined : slotById.get(s.slotId)?.region;
-    if (region === undefined || region === 'mobility') continue;
+    // Every recipe of a day is of a slot of the plan; mobility never titles a day.
+    const region = slotById.get(s.slotId!)!.region;
+    if (region === 'mobility') continue;
     sets.set(region, (sets.get(region) ?? 0) + s.sets.length);
   }
   return [...sets.entries()].sort((a, b) => b[1] - a[1]).map(([region]) => region);
