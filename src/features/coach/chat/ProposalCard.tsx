@@ -5,11 +5,7 @@ import { Text } from '@/components/ui/text';
 import { dayTitle as formatDayTitle } from '@/features/plan/format';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
-import type {
-  ProposalStatus,
-  ProposalSummary,
-  ProposalView,
-} from '@/app-services/coach/proposalsV2';
+import type { ProposalStatus, ProposalSummary, ProposalView } from '@/app-services/coach/proposals';
 
 type Changes = Extract<ProposalSummary, { kind: 'plan' | 'compose' }>['changes'];
 type Day = Changes[number]['after'];

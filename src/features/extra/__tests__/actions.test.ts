@@ -1,8 +1,8 @@
-import { acceptDay, previewDay, type DayPreview } from '@/db/repositories/planningV2';
-import { loadWeekContext } from '@/db/repositories/weekPlanV2';
+import { acceptDay, previewDay, type DayPreview } from '@/db/repositories/planning';
+import { loadWeekContext } from '@/db/repositories/weekPlan';
 import { findInProgressWorkout } from '@/db/repositories/workouts';
-import { dayInput } from '@/domain/__tests__/dayV2Fixtures';
-import { planDayV2 } from '@/domain/plan/dayV2';
+import { dayInput } from '@/domain/__tests__/dayFixtures';
+import { planDay } from '@/domain/plan/day';
 import {
   ExtraSessionChangedError,
   extraOptions,
@@ -12,8 +12,8 @@ import {
 } from '../actions';
 
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'extra' }));
-jest.mock('@/db/repositories/planningV2', () => ({ acceptDay: jest.fn(), previewDay: jest.fn() }));
-jest.mock('@/db/repositories/weekPlanV2', () => ({ loadWeekContext: jest.fn() }));
+jest.mock('@/db/repositories/planning', () => ({ acceptDay: jest.fn(), previewDay: jest.fn() }));
+jest.mock('@/db/repositories/weekPlan', () => ({ loadWeekContext: jest.fn() }));
 jest.mock('@/db/repositories/workouts', () => ({ findInProgressWorkout: jest.fn() }));
 const input = dayInput();
 const context = () =>
@@ -30,7 +30,7 @@ beforeEach(() => {
       only: request.only,
       session: { ...input.session, sessionId: request.sessionId, kind: request.kind ?? 'main' },
     };
-    const output = planDayV2(live);
+    const output = planDay(live);
     return { input: live, request, asOf: live.asOf, output, planHash: 'shown-hash' } as DayPreview;
   });
   jest

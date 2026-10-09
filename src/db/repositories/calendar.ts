@@ -2,8 +2,8 @@ import { and, count, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 
 import { db } from '../client';
 import { cardioLogs, dailyLogs, setLogs, workouts } from '../schema';
-import { getComposedDays } from './weekPlan';
-import { getWeek } from './weekPlanV2';
+import { getComposedDays } from './constraints';
+import { getWeek } from './weekPlan';
 
 /** Bounded reads for the visible grid; never loads the entire training history. */
 export async function getCalendarRange(from: string, until: string) {

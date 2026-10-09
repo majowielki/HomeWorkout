@@ -1,17 +1,17 @@
 import { randomUUID } from 'expo-crypto';
-import { acceptDay, previewDay, type DayPreview } from '@/db/repositories/planningV2';
-import { loadWeekContext } from '@/db/repositories/weekPlanV2';
+import { acceptDay, previewDay, type DayPreview } from '@/db/repositories/planning';
+import { loadWeekContext } from '@/db/repositories/weekPlan';
 import { findInProgressWorkout } from '@/db/repositories/workouts';
 import { isTrainingDay, TRAIN_DAILY } from '@/domain/plan/constraints';
-import { planDayV2, type DayInputV2 } from '@/domain/plan/dayV2';
+import { planDay, type DayInput } from '@/domain/plan/day';
 import { checkText } from '@/domain/session/assessmentText';
 
 /** Each option is assessed with the work already done today in the same engine input. */
-export function extraOptions(input: DayInputV2) {
+export function extraOptions(input: DayInput) {
   return input.slots
     .filter((s) => s.kind !== 'filler')
     .map((slot) => {
-      const output = planDayV2({
+      const output = planDay({
         ...input,
         only: [{ slotId: slot.id }],
         session: { ...input.session, kind: 'extra' },

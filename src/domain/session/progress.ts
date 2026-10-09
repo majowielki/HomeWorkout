@@ -1,5 +1,5 @@
 /**
- * Where a running session stands (engine v2, 04 §6): the sets of the plan in the order they are
+ * Where a running session stands (engine, 04 §6): the sets of the plan in the order they are
  * done, and what became of each.
  *
  * The order is the plan's own — the `perform` steps of its execution — so a superset goes round by
@@ -8,7 +8,7 @@
  * ones; nothing here is stored.
  */
 import type { SetDispositionStatus, SetObservation } from '../observations/types';
-import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
+import type { PlannedExposure, PlannedSet, SessionPlan } from '../plan/plan';
 
 /** What is known of each planned set: its result, its interruption or its skip. A set left out is pending. */
 export type SetStates = ReadonlyMap<string, SetDispositionStatus>;
@@ -37,7 +37,7 @@ export interface SessionStep {
  * The exposures that are done together. Two exposures are one superset when one has a set between
  * two sets of the other: that is how rounds look, and no exercise done one after the other has it.
  */
-export function groupsOf(plan: Pick<SessionPlanV2, 'exposures' | 'execution'>): number[][] {
+export function groupsOf(plan: Pick<SessionPlan, 'exposures' | 'execution'>): number[][] {
   const index = new Map(plan.exposures.flatMap((e, i) => e.sets.map((s) => [s.id, i] as const)));
   const sequence = plan.execution.steps.flatMap((step) =>
     step.kind === 'perform' ? [index.get(step.plannedSetId)!] : [],
@@ -61,7 +61,7 @@ export function groupsOf(plan: Pick<SessionPlanV2, 'exposures' | 'execution'>): 
 }
 
 /** "A1", "A2", "B1": the letter of the group in the plan, the number of the exercise in it. */
-export function labelsOf(plan: Pick<SessionPlanV2, 'exposures' | 'execution'>): string[] {
+export function labelsOf(plan: Pick<SessionPlan, 'exposures' | 'execution'>): string[] {
   const labels: string[] = [];
   groupsOf(plan).forEach((members, g) => {
     members.forEach((exposureIndex, n) => {
@@ -72,7 +72,7 @@ export function labelsOf(plan: Pick<SessionPlanV2, 'exposures' | 'execution'>): 
 }
 
 export function buildSessionSteps(
-  plan: Pick<SessionPlanV2, 'exposures' | 'execution'>,
+  plan: Pick<SessionPlan, 'exposures' | 'execution'>,
   states: SetStates,
 ): SessionStep[] {
   const home = new Map(
@@ -134,7 +134,7 @@ export function findResumeIndex(steps: readonly SessionStep[]): number {
 
 /** The exposures of the superset an exposure belongs to, in plan order (just itself when alone). */
 export function groupExposureIndices(
-  plan: Pick<SessionPlanV2, 'exposures' | 'execution'>,
+  plan: Pick<SessionPlan, 'exposures' | 'execution'>,
   exposureIndex: number,
 ): number[] {
   return groupsOf(plan).find((members) => members.includes(exposureIndex)) ?? [exposureIndex];

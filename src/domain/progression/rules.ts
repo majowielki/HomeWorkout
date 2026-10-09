@@ -1,5 +1,5 @@
 /**
- * The rules of the progression pipeline (engine v2, 03 §4-§6, §12-§17, 13 §5).
+ * The rules of the progression pipeline (engine, 03 §4-§6, §12-§17, 13 §5).
  *
  * Each rule reads the history, the draft the earlier rules left and the
  * context, and either leaves the draft alone or settles it. A rule that

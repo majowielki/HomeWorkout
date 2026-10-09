@@ -8,8 +8,8 @@
 import type { z } from 'zod';
 
 import { MUSCLE_GROUPS } from '../../domain/coach/vocabulary';
-import { DAY_V2_CONFIG } from '../../domain/plan/dayV2';
-import type { PlannedSet } from '../../domain/plan/planV2';
+import { DAY_CONFIG } from '../../domain/plan/day';
+import type { PlannedSet } from '../../domain/plan/plan';
 import { remainingVolume } from '../../domain/session/effects';
 import { sessionOverview } from '../../domain/session/overview';
 import { settledSets } from '../../domain/session/revision';
@@ -41,7 +41,7 @@ export function musclesTodaySummary(
     muscle,
     done: Math.round(doneToday[muscle] ?? 0),
     remainingPlanned: Math.round(remaining[muscle] ?? 0),
-    dayMax: DAY_V2_CONFIG.maxDirectSetsPerMuscleDay,
+    dayMax: DAY_CONFIG.maxDirectSetsPerMuscleDay,
   }))
     .filter((m) => m.done > 0 || m.remainingPlanned > 0)
     .slice(0, SESSION_LIMITS.musclesShown);

@@ -1,7 +1,7 @@
 /** What the session under way has used and has left: its time, and the sets each muscle has had today. */
 import { isPerformed, referenceResistance } from '../observations/qualify';
 import { compilePlannedSets } from '../plan/compile';
-import type { PlannedSet } from '../plan/planV2';
+import type { PlannedSet } from '../plan/plan';
 import { modelFor } from '../plan/resistanceOf';
 import { BASE_POLICY, resolveDayPolicy } from '../policy/dayPolicy';
 import { DEFAULT_MODEL_CONTEXT } from '../resistance/registry';

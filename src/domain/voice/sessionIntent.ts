@@ -3,7 +3,7 @@ import type { FeelChange, SessionPlanChange } from '../session/types';
 import { words } from './commands';
 
 /**
- * What a spoken phrase asks of the session while it is running (engine v2,
+ * What a spoken phrase asks of the session while it is running (engine,
  * 11 §9): to add or swap an exercise, to add a set, to say it was too hard or
  * too easy, to skip the rest of an exercise, or to answer a card that was just
  * read out. Decided on the phone from a fixed vocabulary, like the commands of

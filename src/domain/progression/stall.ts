@@ -1,5 +1,5 @@
 /**
- * Whether an exercise is getting anywhere (engine v2, 03 §9, 13 §17, §19).
+ * Whether an exercise is getting anywhere (engine, 03 §9, 13 §17, §19).
  * Three things read it — the reactive deload, the volume lever and the
  * rotation — so what "progress" means is said once: a harder resistance, or
  * more repetitions (seconds) at the same one. A change of setup is a change,

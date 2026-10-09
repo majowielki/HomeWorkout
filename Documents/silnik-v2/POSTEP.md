@@ -8,14 +8,45 @@ Odstępstwa od planu, rzeczy do sprawdzenia i pytania: [UWAGI.md](UWAGI.md).
 Aktualizowany w tym samym commicie, który zamyka zadanie. Status zadania zmienia się dopiero, gdy istnieje test (albo jawnie
 opisany inny dowód) i commit.
 
+## Stan bieżący — 2026-10-09, P6
+
+Aplikacja korzysta z jednego silnika. Plan dnia i tygodnia, sesja dodatkowa, logger,
+historia, kalendarz, zakwasy, narzędzia AI oraz ewaluacje używają skompilowanego planu.
+Stare planowanie i reset danych są usunięte. Numery kontraktów danych pozostają:
+plan ma `schemaVersion: 2`, Worker `contractVersion: 7`, backup `schemaVersion: 8`.
+
+Weryfikacja kodu: `npm run verify` — 166 zestawów / 3771 testów / 5 snapshotów,
+100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 143 testy.
+Usunięcie testów dawnych implementacji i promptu podsumowania v2 zmniejsza liczbę testów;
+progi pokrycia nie zostały zmienione.
+
+Migracja `0014_activate_engine` zachowuje historię, serie, korekty, pominięcia,
+oceny ekspozycji, rewizje planu, odczucia i jazdy. Zamyka historyczne sesje w toku,
+zachowuje nazwy dawnych szablonów w `workouts.plan.title`, usuwa `template_id`,
+`workout_templates`, dawny tydzień i `app_state`. Bieżący tydzień używa
+`planned_days` / `plan_generations`, plan sesji — `session_plan`.
+Przebudowa tabeli nadrzędnej przechowuje wszystkie dane podrzędne w tabelach tymczasowych,
+ponieważ migrator pracuje w transakcji z włączonymi kluczami obcymi. Test SQLite obejmuje
+zachowanie tych danych oraz rollback po błędzie przy odtwarzaniu.
+
+Pozostaje odbiór interfejsu na emulatorze, wspólne wydanie Workera i APK oraz test na
+telefonie. P6 nie jest oznaczony jako zamknięty przed tym odbiorem.
+
+APK arm64 zbudowany pomyślnie (`assembleRelease`, 1m 39s), kopia do wydania:
+`D:/Projekty/HomeWorkout/HomeWorkout-P6-arm64-2026-10-09.apk`. Nie wdrożono Workera
+ani nie zainstalowano APK na telefonie. Użytkownik poprosił o przekazanie Claude i commit;
+P6 pozostaje otwarty przed testem UI i wspólnym wydaniem.
+
 ## Zasady pracy
 
 - Jedna gałąź na etap (`refactor/engine-pN-…`), scalana lokalnie `--no-ff`; nic nie jest wypychane na GitHub.
 - Commity bez współautora. Małe, opisujące jedną zmianę.
 - Nowe kontrakty obok v1, konsumenci przenoszeni po kolei, stare API usuwane dopiero po sprawdzeniu użyć (07 §1).
-- Pokrycie 100% dla `src/domain/**` jest wymogiem repozytorium: nowy kod domeny ma testy w tym samym commicie.
+- Pokrycie 100% dla `src/domain/**` i `src/ai/**` jest wymogiem repozytorium: nowy kod domeny ma testy w tym samym commicie.
 - Każda zmiana zachowania obecnego silnika jest nazwana (decyzja Dxx, test Txx) i ma wpis w [UWAGI.md](UWAGI.md).
-- Etapy, które zmieniają dane użytkownika (P2: archiwizacja i reset), **nie są uruchamiane bez osobnej zgody** — patrz UWAGI.
+- P6 zachowuje dane użytkownika. Wcześniejszy plan archiwizacji i resetu został wycofany decyzją użytkownika; kod resetu jest usunięty.
+
+Wpisy P0–P5 poniżej są historią realizacji. Dawne nazwy plików i wyniki baseline wskazują na ówczesne commity, a nie na obecne API.
 
 ## Legenda
 
@@ -32,7 +63,7 @@ opisany inny dowód) i commit.
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☑ 2026-10-09: serwisy, domena i kontrakt gotowe i sprawdzone na SQLite; **ekrany czekają** (decyzja: UI bez zmian do końca implementacji), wdrożenie Workera przy testach | `refactor/engine-p5-integration` | P3, P4, P4b |
-| P6 | Aktywacja silnika bazowego | ◐ konsumenci przeniesieni; sprzątanie/migracja/wdrożenie czekają | `refactor/engine-p6-activation` | P0–P5 |
+| P6 | Aktywacja silnika bazowego | ◐ kod i migracja odebrane; emulator oraz wspólne wydanie czekają | `refactor/engine-p6-activation` | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
 | P8 | Eksperymenty warunkowe | ☐ | | P6 |
 | P9 | Pierwszy nowy sprzęt produkcyjny | ☐ | | P6 |
@@ -278,3 +309,4 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 **P6 — kontynuacja 2026-10-09: testy biegnącej sesji domknięte.** Logger i klipy testują krok planu oraz obserwację (pochodzenie wartości, wysiłek, dotyk/głos, przywrócenie korekty, stoper). Zamienniki testują ranking i akceptację patcha; osobne testy sprawdzają zapis wyboru bloku i odmowę po konflikcie. Głos przekazuje tekst odczytu zapisanej serii i cofa dokładne identyfikatory pominiętych serii. `GroupDoneCard` zachował poprawny kontrakt i jego testy przechodzą. Dodane testy tytułów historii; `dayTitle` przyjmuje brak `kind` w dawnych planach. Dowód: 13 zestawów / 106 testów sesji, historii, progress i setEntry. Pełny `verify` nadal czeka na pozostałych konsumentów P6.
 **P6 — odbiór aktywacji konsumentów 2026-10-09.** „Dziś”, plan dnia, kalendarz, zakwasy, sesja dodatkowa i czat są podłączone do bieżącego silnika. Nowe przypadki SQLite obejmują zachowanie tygodniowego wyboru przy starcie, konflikt po jego zmianie, ukończony dzień/regenerację, kartę sesji i wygaśnięcie/spóźnione narzędzie. `npm run verify`: **187 zestawów, 4129 testów, 9 snapshotów, domena/AI 100%**. Worker: **5 zestawów / 143 testy**. Gałąź nadal niescalona: pozostają sprzątanie dawnego silnika/ewaluacji, migracja i nazwy, emulator oraz wspólne wdrożenie.
 **P6 — odbiór odłączenia starego plannera 2026-10-09.** Ewaluacje korzystają z bieżącego tygodnia i dnia; syntetyczne wyniki bez zamrożonej recepty nie stają się dowodem progresji. Narzędzia AI mają wyłącznie `explainPlan` (dawny fallback, `PlanLookup` i pole `plan` usunięte). Konsultacja jutra używa `selectionGuard` i limitu obecnego silnika. `planningSnapshot` / `coachPreview` oraz prompty `chat/v1`–`chat/v6` i ich testy usunięte. Spadek liczby testów wynika z usunięcia testów nieużywanych promptów i starego wyjaśnienia planu; obecne API ma własne testy i nadal 100% pokrycia. `npm run verify`: **183 zestawy / 4018 testów / 9 snapshotów, domena i AI 100%**. Worker: **143 / 143**. Pozostałe prace P6 są w PRZEKAZANIE; etap nadal niescalony i niewdrożony.
+**P6 — sprzątanie, migracja i nazwy (2026-10-09).** Usunięte stare planowanie, progresja, reset, dawne starty sesji/tygodnia i ich testy, golden baseline i skrypty pomiarowe. Zachowane odczyty historii oraz aktualne obliczenia sprzętowe. Migracja 0014 i backup 8 mają testy zachowania danych, FK, rollbacku i importu. API oraz pliki silnika nie mają sufiksu V2; numery kontraktów zostają. Pełny verify: **166 / 3771 / 5, domena i AI 100%**; Worker **5 / 143**. Emulator/wspólne wydanie są nadal otwarte.

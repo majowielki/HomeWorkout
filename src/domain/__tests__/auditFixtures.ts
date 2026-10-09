@@ -1,9 +1,9 @@
 /**
- * A day, a catalogue and a plan to audit (engine v2, P4). Not a suite and not counted in coverage.
+ * A day, a catalogue and a plan to audit (engine, P4). Not a suite and not counted in coverage.
  */
 import { type AuditContext, type AuditDay } from '../plan/audit';
 import { compileSession, type ExposureSpec } from '../plan/compile';
-import type { SessionPlanV2 } from '../plan/planV2';
+import type { SessionPlan } from '../plan/plan';
 import type { Exercise } from '../types';
 import { compileInput, exposure, kg, modelOf, set, stamp } from './compileFixtures';
 import { exercise } from './fixtures';
@@ -57,7 +57,7 @@ export function context(patch: Partial<AuditContext> = {}): AuditContext {
 export function planOf(
   specs: readonly ExposureSpec[] = [exposure('e1')],
   patch: Partial<Parameters<typeof compileInput>[1]> = {},
-): SessionPlanV2 {
+): SessionPlan {
   return stamp(compileSession(compileInput(specs, patch)));
 }
 

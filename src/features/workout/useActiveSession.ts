@@ -9,13 +9,13 @@ import {
   setExerciseExcluded,
 } from '@/db/repositories/profile';
 import {
-  logSetV2,
+  logSet,
   readSessionState,
   reopenSets,
   type SessionState,
-  skipSetsV2,
-  undoSetV2,
-} from '@/db/repositories/sessionsV2';
+  skipSets,
+  undoSet,
+} from '@/db/repositories/sessions';
 import { type CommandResult, isDone } from '@/domain/commands/result';
 import type { SetObservation } from '@/domain/observations/types';
 import { buildObservation, type EntryContext, type SetEntry } from '@/domain/observations/entry';
@@ -67,10 +67,10 @@ export interface ActiveSessionDeps {
   getProfile: typeof getMedicalProfile;
   getExcludedExerciseIds: typeof getExcludedExerciseIds;
   setExerciseExcluded: typeof setExerciseExcluded;
-  logSet: typeof logSetV2;
-  skipSets: typeof skipSetsV2;
+  logSet: typeof logSet;
+  skipSets: typeof skipSets;
   reopenSets: typeof reopenSets;
-  undoSet: typeof undoSetV2;
+  undoSet: typeof undoSet;
   startRest: (seconds: number, notificationBody: string) => Promise<void>;
   /** Adds to the rest running now; a negative amount takes an extension back. */
   extendRest: (seconds: number, notificationBody: string) => Promise<void>;
@@ -87,10 +87,10 @@ const defaultDeps: ActiveSessionDeps = {
   getProfile: getMedicalProfile,
   getExcludedExerciseIds,
   setExerciseExcluded,
-  logSet: logSetV2,
-  skipSets: skipSetsV2,
+  logSet: logSet,
+  skipSets: skipSets,
   reopenSets,
-  undoSet: undoSetV2,
+  undoSet: undoSet,
   startRest: (seconds, body) => useRestTimerStore.getState().start(seconds, body),
   extendRest: (seconds, body) => useRestTimerStore.getState().extend(seconds, body),
   stopRest: () => useRestTimerStore.getState().stop(),

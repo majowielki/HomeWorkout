@@ -11,7 +11,7 @@ import { Chip } from '@/components/ui/chip';
 import { ChevronRight, Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { EquipmentFamily } from '@/domain/catalog/attributes';
-import type { PlannedExposure } from '@/domain/plan/planV2';
+import type { PlannedExposure } from '@/domain/plan/plan';
 import { assessmentText } from '@/domain/session/assessmentText';
 import type { RankedAlternative } from '@/domain/session/types';
 import type { Exercise } from '@/domain/types';

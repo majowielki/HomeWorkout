@@ -8,7 +8,7 @@ import { exerciseCatalogueSchema } from '@data/exercises.schema';
 import { screenExercise } from '../exercises/screen';
 import {
   kneeScreener,
-  medicalProfileV2,
+  medicalProfile,
   type Screener,
   screenAll,
   SCREENERS,
@@ -24,8 +24,8 @@ describe('the knee through the registry', () => {
   });
 
   it('reads a v1 profile as a v2 one without changing it', () => {
-    expect(medicalProfileV2({ knee: null })).toEqual({ joints: {} });
-    expect(medicalProfileV2(HARD_ONLY)).toEqual({ joints: { knee: HARD_ONLY.knee } });
+    expect(medicalProfile({ knee: null })).toEqual({ joints: {} });
+    expect(medicalProfile(HARD_ONLY)).toEqual({ joints: { knee: HARD_ONLY.knee } });
   });
 
   it.each([
@@ -34,7 +34,7 @@ describe('the knee through the registry', () => {
     ['the knee with hard exclusions only', HARD_ONLY],
   ])('excludes exactly what screenExercise excludes — %s, all %d exercises', (_, profile) => {
     for (const e of real) {
-      const result = screenAll(e, medicalProfileV2(profile));
+      const result = screenAll(e, medicalProfile(profile));
       expect({ id: e.id, codes: result.codes }).toEqual({
         id: e.id,
         codes: screenExercise(e, profile),
@@ -50,7 +50,7 @@ describe('the knee through the registry', () => {
 
   it('does not judge an exercise that does not load the knee', () => {
     const raise = exercise({ loadsKnee: false, planesOfMotion: ['Frontal'] });
-    expect(screenAll(raise, medicalProfileV2(CONSERVATIVE))).toEqual({ codes: [], missing: [] });
+    expect(screenAll(raise, medicalProfile(CONSERVATIVE))).toEqual({ codes: [], missing: [] });
   });
 
   it('will not call an exercise safe for the knee while a fact about it is missing', () => {
@@ -58,7 +58,7 @@ describe('the knee through the registry', () => {
       ...exercise({ loadsKnee: true }),
       isClosedKineticChain: undefined,
     } as unknown as Exercise;
-    expect(screenAll(broken, medicalProfileV2(HARD_ONLY))).toEqual({
+    expect(screenAll(broken, medicalProfile(HARD_ONLY))).toEqual({
       codes: ['MISSING_CLASSIFICATION'],
       missing: [{ joint: 'knee', fields: ['isClosedKineticChain'] }],
     });

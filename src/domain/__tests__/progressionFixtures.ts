@@ -1,14 +1,14 @@
 /**
- * Exposures to build progression examples from (engine v2, P3). A paired
+ * Exposures to build progression examples from (engine, P3). A paired
  * dumbbell ladder of 2-4-6-8-10 kg, a bodyweight exercise with no step in
  * either direction, and a builder that turns "12, 12, 11 at 4 kg, RIR 2" into
  * the record the normalizer would have made. Not a suite and not counted in coverage.
  */
 import { plannedSetId } from '../plan/ids';
-import type { PlannedSet } from '../plan/planV2';
+import type { PlannedSet } from '../plan/plan';
 import type { ExposureRecord, ExposureSetRecord } from '../observations/exposure';
 import type { SetObservation } from '../observations/types';
-import { specFromLoad } from '../resistance/legacy';
+import { specFromLoad } from '../resistance/persistedLoad';
 import { createBodyweightModel, createDumbbellModel } from '../resistance/models';
 import type { ResistanceSpec } from '../resistance/types';
 import type { ShortfallReason } from '../types';

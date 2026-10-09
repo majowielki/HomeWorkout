@@ -4,23 +4,23 @@ import lexiconJson from '@data/movement-terms.json';
 import { movementLexiconSchema } from '@data/movement-terms.schema';
 import { fingerprint } from '@/domain/fingerprint';
 import { addDays } from '@/domain/time/trainingDate';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import type { SessionPlan } from '@/domain/plan/plan';
 import type { SessionChangeSnapshot } from '@/domain/session/types';
 import { db, type Executor } from '../client';
-import { plannedDaysV2, trainingBlocks, workouts } from '../schema';
+import { plannedDays, trainingBlocks, workouts } from '../schema';
 import { DAY_REASONS, type DayReason } from '@/domain/plan/reasons';
 import { readPlanningInputs } from './planningInputs';
 
 const lexicon = movementLexiconSchema.parse(lexiconJson);
 
-export function readSessionChangeSource(tx: Executor, plan: SessionPlanV2) {
+export function readSessionChangeSource(tx: Executor, plan: SessionPlan) {
   const asOf = plan.trainingDate;
   const { common, history, catalogVersion } = readPlanningInputs(tx, asOf);
   const block = tx.select().from(trainingBlocks).where(isNull(trainingBlocks.closedOn)).get();
   const tomorrow = tx
     .select()
-    .from(plannedDaysV2)
-    .where(eq(plannedDaysV2.date, addDays(asOf, 1)))
+    .from(plannedDays)
+    .where(eq(plannedDays.date, addDays(asOf, 1)))
     .get();
   const inputs = {
     ...common,
@@ -82,12 +82,12 @@ export function readSessionChangeSource(tx: Executor, plan: SessionPlanV2) {
 export function loadSessionChangeSource(sessionId: string) {
   return db.transaction((tx) => {
     const row = tx.select().from(workouts).where(eq(workouts.id, sessionId)).get();
-    if (row?.planSchema !== 2 || row.planV2 === null) return null;
-    return readSessionChangeSource(tx, row.planV2);
+    if (row?.planSchema !== 2 || row.sessionPlan === null) return null;
+    return readSessionChangeSource(tx, row.sessionPlan);
   });
 }
 
-/** The workout under way, if it is a session of engine v2: the reading the session tools consult. */
+/** The workout under way, if it is a session of engine: the reading the session tools consult. */
 export function loadActiveSessionSource() {
   return db.transaction((tx) => {
     const row = tx
@@ -95,6 +95,6 @@ export function loadActiveSessionSource() {
       .from(workouts)
       .where(and(eq(workouts.status, 'in_progress'), eq(workouts.planSchema, 2)))
       .get();
-    return row?.planV2 ? readSessionChangeSource(tx, row.planV2) : null;
+    return row?.sessionPlan ? readSessionChangeSource(tx, row.sessionPlan) : null;
   });
 }

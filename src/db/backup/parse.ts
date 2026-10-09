@@ -94,9 +94,9 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
-  // v7 (engine v2): sessions and sets carry the ids of a plan, their revision and where their values came
+  // v7 (engine): sessions and sets carry the ids of a plan, their revision and where their values came
   // from; there are tables for skips, plan revisions, how it felt, preferences and the sessions of the first
-  // engine kept for display. A file before it has none of this: its sessions are sessions of the first engine.
+  // engine kept for display. A file before it has none of this: its sessions are sessions of historical sessions.
   6: (json) => {
     const doc = json as { tables: Record<string, Record<string, unknown>[]> };
     return {
@@ -107,7 +107,7 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
         workouts: (doc.tables.workouts ?? []).map((r) => ({
           ...r,
           planSchema: 1,
-          planV2: null,
+          sessionPlan: null,
           planRevision: 1,
           revision: 0,
           timeZone: null,
@@ -136,6 +136,27 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
+  // Current storage keeps historical rows in place and has no reset archive table.
+  7: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 8,
+      tables: {
+        ...doc.tables,
+        workout_templates: [],
+        workouts: (doc.tables.workouts ?? []).map((row) => {
+          const { templateId, planV2, ...rest } = row;
+          const template = (doc.tables.workout_templates ?? []).find((t) => t.id === templateId);
+          return {
+            ...rest,
+            sessionPlan: row.sessionPlan ?? planV2 ?? null,
+            plan: row.plan ?? (template ? { regions: [], title: template.name } : null),
+          };
+        }),
+      },
+    };
+  },
 };
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {
@@ -158,15 +179,9 @@ function migrateToCurrent(json: unknown, fromVersion: number): unknown {
 export function danglingReferences(data: BackupFile): string[] {
   const { tables } = data;
   const workoutIds = new Set(tables.workouts.map((w) => w.id));
-  const templateIds = new Set(tables.workout_templates.map((t) => t.id));
   const bandIds = new Set(tables.bands.map((b) => b.id));
   const problems: string[] = [];
 
-  for (const w of tables.workouts) {
-    if (w.templateId !== null && !templateIds.has(w.templateId)) {
-      problems.push(`workouts.${w.id}.templateId -> ${w.templateId}`);
-    }
-  }
   for (const s of tables.set_logs) {
     if (!workoutIds.has(s.workoutId)) problems.push(`set_logs.${s.id}.workoutId -> ${s.workoutId}`);
     if (s.bandId !== null && !bandIds.has(s.bandId)) {
@@ -200,7 +215,13 @@ export function parseBackup(text: string): ParseResult {
     return { ok: false, reason: 'newer_version' };
   }
 
-  const parsed = backupFileSchema.safeParse(migrateToCurrent(json, envelope.data.schemaVersion));
+  let migrated: unknown;
+  try {
+    migrated = migrateToCurrent(json, envelope.data.schemaVersion);
+  } catch (error) {
+    return { ok: false, reason: 'invalid', detail: String(error) };
+  }
+  const parsed = backupFileSchema.safeParse(migrated);
   if (!parsed.success) {
     return { ok: false, reason: 'invalid', detail: z.prettifyError(parsed.error) };
   }

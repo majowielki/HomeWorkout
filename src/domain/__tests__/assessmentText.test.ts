@@ -3,7 +3,7 @@ import { assessmentText, checkText, plural } from '../session/assessmentText';
 import type { AssessmentCheck, CheckData, CheckStatus, Verdict } from '../policy/hardAdvice';
 import { RULE_CODES, RULE_CLASS, finding } from '../policy/hardAdvice';
 import type { ChangeAssessment, FeelChange, PrescriptionSummary } from '../session/types';
-import { CATALOG } from './dayV2Fixtures';
+import { CATALOG } from './dayFixtures';
 import { recipe, world, perform } from './sessionChangeFixtures';
 
 const names = (id: string) => CATALOG[id]?.name;

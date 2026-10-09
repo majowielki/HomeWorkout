@@ -1,5 +1,5 @@
 /**
- * What the second engine reads of the database, as plain domain data (engine v2, 01 §2, §4).
+ * What the engine reads of the database, as plain domain data (engine, 01 §2, §4).
  *
  * One reader for the day, the extra session and the consultation in a session,
  * so that they cannot see different histories. It runs inside the caller's
@@ -9,7 +9,7 @@
 import { asc, eq, isNull } from 'drizzle-orm';
 import slotsJson from '@data/slots.json';
 import { slotCatalogueSchema } from '@data/slots.schema';
-import type { LoadedHistory } from './historyV2';
+import type { LoadedHistory } from './history';
 import { defaultPreferences, trainingPreferencesSchema } from '@/domain/preferences/preferences';
 import { DEFAULT_MODEL_CONTEXT } from '@/domain/resistance/registry';
 import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
@@ -24,7 +24,7 @@ import {
   userProfile,
   workouts,
 } from '../schema';
-import { readNormalizedHistory } from './historyV2';
+import { readNormalizedHistory } from './history';
 import { readAnswers } from './answers';
 import { readRevision } from './ledger';
 

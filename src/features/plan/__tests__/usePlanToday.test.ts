@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { useEffect as mockUseEffect } from 'react';
 import { Alert } from 'react-native';
-import { acceptDay } from '@/db/repositories/planningV2';
-import { markChangesSeen } from '@/db/repositories/weekPlanV2';
+import { acceptDay } from '@/db/repositories/planning';
+import { markChangesSeen } from '@/db/repositories/weekPlan';
 import { readToday, type PlanToday } from '../today';
 import { usePlanToday } from '../usePlanToday';
 
@@ -16,8 +16,8 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'command' }));
 jest.mock('../today', () => ({ readToday: jest.fn() }));
-jest.mock('@/db/repositories/planningV2', () => ({ acceptDay: jest.fn() }));
-jest.mock('@/db/repositories/weekPlanV2', () => ({ markChangesSeen: jest.fn() }));
+jest.mock('@/db/repositories/planning', () => ({ acceptDay: jest.fn() }));
+jest.mock('@/db/repositories/weekPlan', () => ({ markChangesSeen: jest.fn() }));
 const day = {
   plan: { sessionId: 'shown' },
   preview: { request: { sessionId: 'shown' }, planHash: 'hash' },

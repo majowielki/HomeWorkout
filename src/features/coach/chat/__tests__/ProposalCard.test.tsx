@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ProposalCard } from '../ProposalCard';
-import { previewDayPlan, previewPlanChange, summarizeDay } from '@/ai/tools/planPreviewV2';
-import { dayInput } from '@/domain/__tests__/dayV2Fixtures';
-import { planDayV2 } from '@/domain/plan/dayV2';
-import { summaryOf } from '@/domain/plan/weekV2';
+import { previewDayPlan, previewPlanChange, summarizeDay } from '@/ai/tools/planPreview';
+import { dayInput } from '@/domain/__tests__/dayFixtures';
+import { planDay } from '@/domain/plan/day';
+import { summaryOf } from '@/domain/plan/week';
 import { pl } from '@/strings/pl';
 import { proposalSnapshot, restIntent } from './proposalFixtures';
 
@@ -57,7 +57,7 @@ it('shows the engine diff and writes only through the apply action', async () =>
 });
 it('previews an additional session with set counts and tells what applying does', async () => {
   const s = proposalSnapshot(true);
-  const output = planDayV2({
+  const output = planDay({
     ...dayInput(),
     only: [{ slotId: 'push-horizontal' }],
     session: { ...dayInput().session, kind: 'extra' },

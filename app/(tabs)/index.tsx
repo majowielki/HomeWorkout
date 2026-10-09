@@ -136,7 +136,7 @@ export default function TodayScreen() {
             eyebrow={pl.today.inProgressEyebrow}
             title={workoutTitle(inProgress)}
             badge={pl.history.status.in_progress}
-            plan={inProgress.planV2 ?? undefined}
+            plan={inProgress.sessionPlan ?? undefined}
             exerciseMap={exerciseMap}
           >
             <Button

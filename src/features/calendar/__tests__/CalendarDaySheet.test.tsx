@@ -130,13 +130,13 @@ describe('CalendarDaySheet', () => {
       ],
     } as unknown as CalendarData;
     await render(<CalendarDaySheet {...base} date="2026-10-07" data={data} todayPlan={plan} />);
-    expect(screen.getByText(pl.history.noTemplate)).toBeTruthy();
+    expect(screen.getByText(pl.history.fallbackTitle)).toBeTruthy();
     expect(screen.getByText(pl.extra.title)).toBeTruthy();
     expect(screen.getByText(/Trening ukończony.*8 serii/)).toBeTruthy();
     expect(screen.queryByText(pl.calendar.restAction)).toBeNull();
     expect(screen.queryByText(pl.calendar.trainAction)).toBeNull();
     expect(screen.queryByText(pl.plan.start)).toBeNull();
-    await fireEvent.press(screen.getByText(pl.history.noTemplate));
+    await fireEvent.press(screen.getByText(pl.history.fallbackTitle));
     expect(base.onClose).toHaveBeenCalledTimes(1);
   });
   it('resumes an existing session and prevents starting or changing a day alongside it', async () => {

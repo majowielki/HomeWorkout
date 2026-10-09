@@ -12,13 +12,11 @@ import {
   exercises,
   exposureOutcomes,
   feelReports,
-  legacySessions,
   measurements,
+  legacySessions,
   planConstraints,
   plannedDays,
-  plannedDaysV2,
   planGenerations,
-  planGenerationsV2,
   prescriptionAnswers,
   preferences,
   sessionPlanRevisions,
@@ -28,7 +26,6 @@ import {
   trainingBlocks,
   userProfile,
   workouts,
-  workoutTemplates,
 } from '../schema';
 import { ensureProfile } from './profile';
 
@@ -55,7 +52,6 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
   const [
     profileRows,
     bandRows,
-    templateRows,
     workoutRows,
     setRows,
     cardioRows,
@@ -73,7 +69,6 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
   ] = await Promise.all([
     db.select().from(userProfile),
     db.select().from(bands),
-    db.select().from(workoutTemplates),
     db.select().from(workouts),
     db.select().from(setLogs),
     db.select().from(cardioLogs),
@@ -97,7 +92,7 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     tables: {
       user_profile: profileRows,
       bands: bandRows,
-      workout_templates: templateRows,
+      workout_templates: [],
       workouts: workoutRows,
       set_logs: setRows,
       cardio_logs: cardioRows,
@@ -157,7 +152,6 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     tx.delete(feelReports).run();
     tx.delete(cardioLogs).run();
     tx.delete(workouts).run();
-    tx.delete(workoutTemplates).run();
     tx.delete(bands).run();
     tx.delete(bodyMetrics).run();
     tx.delete(measurements).run();
@@ -167,8 +161,6 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     // The planned week follows from the logs being replaced: it is planned again.
     tx.delete(plannedDays).run();
     tx.delete(planGenerations).run();
-    tx.delete(plannedDaysV2).run();
-    tx.delete(planGenerationsV2).run();
     // The answers belong to exposures of the history that is being replaced.
     tx.delete(prescriptionAnswers).run();
     tx.delete(userProfile).run();
@@ -179,8 +171,15 @@ export async function restoreAll(data: BackupFile): Promise<void> {
 
     insertChunked(tx, userProfile, data.tables.user_profile);
     insertChunked(tx, bands, data.tables.bands);
-    insertChunked(tx, workoutTemplates, data.tables.workout_templates);
-    insertChunked(tx, workouts, data.tables.workouts);
+    insertChunked(
+      tx,
+      workouts,
+      data.tables.workouts.map((row) =>
+        row.planSchema === 1 && row.status === 'in_progress'
+          ? { ...row, status: 'abandoned' as const, finishedAt: row.finishedAt ?? data.exportedAt }
+          : row,
+      ),
+    );
     insertChunked(tx, setLogs, data.tables.set_logs);
     insertChunked(tx, setLogRevisions, data.tables.set_log_revisions);
     insertChunked(tx, setDispositions, data.tables.set_dispositions);

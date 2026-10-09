@@ -1,5 +1,5 @@
 /**
- * Settling the start of a new exercise in one session (engine v2, 03 §13,
+ * Settling the start of a new exercise in one session (engine, 03 §13,
  * 13 §8, §20; D24, D39 c). The first exposure begins at the start of the slot.
  * If a set comes out far too easy the person is offered the next step for the
  * sets that remain; if it comes out far too hard, an easier one — or an easier

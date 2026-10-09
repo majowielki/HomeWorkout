@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Bike, X } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import type { SessionPlan } from '@/domain/plan/plan';
 import { labelsOf } from '@/domain/session/progress';
 import { workoutTitle } from '@/features/history/workoutTitle';
 import type { Exercise } from '@/domain/types';
@@ -27,7 +27,7 @@ type Props = {
   date: string | null;
   asOf: string;
   data: CalendarData;
-  todayPlan: SessionPlanV2 | null;
+  todayPlan: SessionPlan | null;
   exerciseMap: Record<string, Exercise>;
   busy: boolean;
   starting: boolean;

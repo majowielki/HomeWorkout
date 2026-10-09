@@ -1,5 +1,5 @@
 /**
- * The answers to the questions a prescription asks (engine v2, 13 §12, P5.4).
+ * The answers to the questions a prescription asks (engine, 13 §12, P5.4).
  *
  * "Ostatnie dwa treningi bez zmian w podpowiedziach. Podnosimy do 6 kg?" — [Tak] / [Jeszcze nie].
  * The answer is a command with a `commandId`, like a set: a lost reply and a second tap write once.
@@ -13,9 +13,9 @@ import type { IsoDate } from '@/domain/observations/date';
 import type { ExposureRecord } from '@/domain/observations/exposure';
 import { type Executor, type Tx } from '../client';
 import { prescriptionAnswers, workouts } from '../schema';
-import { readNormalizedHistory } from './historyV2';
+import { readNormalizedHistory } from './history';
 import { bumpRevision, recordCommand } from './ledger';
-import { sessionCommandStore } from './sessionsV2';
+import { sessionCommandStore } from './sessions';
 
 export type PrescriptionAnswers = Record<
   string,

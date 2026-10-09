@@ -5,7 +5,7 @@ import { COACH_CONFIG } from '@/domain/config/training';
 import { addDays, trainingDate } from '@/domain/time/trainingDate';
 
 import { db } from '../client';
-import { dailyLogs, exercises, setLogs, workouts, workoutTemplates } from '../schema';
+import { dailyLogs, exercises, setLogs, workouts } from '../schema';
 import { getWeightSeries } from './bodyMetrics';
 import { getWaistSeries } from './measurements';
 import { getDayBoundaryHour, getMedicalProfile } from './profile';
@@ -33,9 +33,8 @@ export async function loadCoachSource(
       getMedicalProfile(),
       db.select({ id: exercises.id, name: exercises.name, data: exercises.data }).from(exercises),
       db
-        .select({ workout: workouts, templateName: workoutTemplates.name })
+        .select()
         .from(workouts)
-        .leftJoin(workoutTemplates, eq(workouts.templateId, workoutTemplates.id))
         .where(eq(workouts.status, 'completed'))
         .orderBy(asc(workouts.trainingDate)),
       db
@@ -65,13 +64,13 @@ export async function loadCoachSource(
       primaryMuscles: row.data.primaryMuscles,
       secondaryMuscles: row.data.secondaryMuscles,
     })),
-    completedWorkouts: workoutRows.map(({ workout, templateName }) => ({
+    completedWorkouts: workoutRows.map((workout) => ({
       id: workout.id,
       trainingDate: workout.trainingDate,
       startedAt: workout.startedAt,
       finishedAt: workout.finishedAt,
       // A session from the engine's plan has no template; it is still a session.
-      templateName: templateName ?? (workout.plan ? 'plan' : 'custom'),
+      templateName: workout.sessionPlan || workout.plan ? 'plan' : 'custom',
       sessionRpe: workout.sessionRpe,
       notes: workout.notes,
     })),

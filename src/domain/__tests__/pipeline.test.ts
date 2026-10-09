@@ -3,12 +3,12 @@
  * the pipeline of rules that turns the history of one exercise into the next
  * prescription.
  */
-import { decisionTraceSchema } from '../plan/planV2';
+import { decisionTraceSchema } from '../plan/plan';
 import type { SetsRecommendation } from '../plan/sets';
 import { STEP_DOWN_CODES, type DecisionCode } from '../progression/codes';
 import { emptyDraft, type NextInput, type RuleCtx } from '../progression/draft';
 import { levelIdOf } from '../progression/levels';
-import { contextOf, PIPELINE_V2, prescribeNext, type Prescribed } from '../progression/next';
+import { contextOf, PIPELINE, prescribeNext, type Prescribed } from '../progression/next';
 import { DEFAULT_PROGRESSION_POLICY } from '../progression/policy';
 import { normalizeRule } from '../progression/rules';
 import { RESISTANCE_REGISTRY } from '../resistance/registry';
@@ -826,7 +826,7 @@ describe('the pipeline itself', () => {
         eligible: false,
         sets: SETS,
       },
-      PIPELINE_V2.filter((r) => r.id !== 'eligibility'),
+      PIPELINE.filter((r) => r.id !== 'eligibility'),
     );
     expect(draft.codes).toEqual(['PROBE_PLANNED']);
   });

@@ -1,5 +1,5 @@
 /**
- * Building up to the range from the person's own result (engine v2, 03 §17,
+ * Building up to the range from the person's own result (engine, 03 §17,
  * 13 §20, D39). Where the resistance cannot get any easier — the body, a hold,
  * the lightest dumbbell or band — a person who does 5 reps of a range of 8-12
  * used to be given 8 again and again. Here the target is what they did plus one

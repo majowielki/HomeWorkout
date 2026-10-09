@@ -5,13 +5,13 @@ import { buildVariantGraph } from '../catalog/variants';
 import { fingerprint } from '../fingerprint';
 import { isPerformed } from '../observations/qualify';
 import { auditPlan } from '../plan/audit';
-import { phaseOfV2 } from '../plan/blockV2';
+import { phaseOf } from '../plan/block';
 import { compileSession } from '../plan/compile';
 import { isLighterDay } from '../plan/constraints';
-import { fillerSpec, hasLowReadiness, prescriptionSpec } from '../plan/dayV2';
+import { fillerSpec, hasLowReadiness, prescriptionSpec } from '../plan/day';
 import { slotByExercise } from '../plan/eligibility';
 import { logicalSetId, parseExposureId, plannedSetId } from '../plan/ids';
-import type { PlannedExposure, PlannedSet } from '../plan/planV2';
+import type { PlannedExposure, PlannedSet } from '../plan/plan';
 import { modelFor, resistanceOf } from '../plan/resistanceOf';
 import { recommendSets } from '../plan/sets';
 
@@ -160,7 +160,7 @@ export function evaluateSessionChange(
       ) {
         const swapping = change.kind === 'swap_remaining';
         const oldSets = swapping ? pending(target!) : [];
-        const phase = phaseOfV2(snap.block, snap.asOf);
+        const phase = phaseOf(snap.block, snap.asOf);
         const mobility = exercise.movementPattern === 'Mobility';
         const muscles = mobility ? [] : exercise.primaryMuscles;
         const hasPrimary =

@@ -10,12 +10,12 @@ import {
   validateExtraQuestion,
   validatePlanIntent,
   type WeekContext,
-} from '@/ai/tools/planPreviewV2';
-import { advanceBlockV2 } from '@/domain/plan/blockV2';
-import { blockContextV2 } from '@/domain/plan/blockContext';
+} from '@/ai/tools/planPreview';
+import { advanceBlock } from '@/domain/plan/block';
+import { blockContext } from '@/domain/plan/blockContext';
 import { isTrainingDay, TRAIN_DAILY } from '@/domain/plan/constraints';
-import { planDayV2 } from '@/domain/plan/dayV2';
-import { summaryOf } from '@/domain/plan/weekV2';
+import { planDay } from '@/domain/plan/day';
+import { summaryOf } from '@/domain/plan/week';
 import { DEFAULT_MODEL_CONTEXT } from '@/domain/resistance/registry';
 
 /** Same planner and previews as the phone, with no write capability. */
@@ -42,9 +42,9 @@ export function syntheticPlanningTools(
       if (!context.trainedDates.has(context.asOf)) return { error: 'finish_first' };
       if (!isTrainingDay(context.asOf, context.week ?? TRAIN_DAILY, context.constraints ?? []))
         return { error: 'rest_day' };
-      const advance = advanceBlockV2(
+      const advance = advanceBlock(
         context.block,
-        blockContextV2({
+        blockContext({
           ...context,
           models: context.models ?? DEFAULT_MODEL_CONTEXT,
           recentBlocks: [],
@@ -60,7 +60,7 @@ export function syntheticPlanningTools(
             ),
         )
         .map((s) => ({ slotId: s.id }));
-      const output = planDayV2({
+      const output = planDay({
         ...context,
         block: advance.block,
         only,

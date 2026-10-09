@@ -4,7 +4,7 @@ import type { PlanConstraint } from '../plan/constraints';
 import { checkSelection } from '../plan/selectionGuard';
 import type { DaySelection } from '../plan/types';
 import type { MuscleGroup } from '../types';
-import { dayInput } from './dayV2Fixtures';
+import { dayInput } from './dayFixtures';
 
 const base = dayInput();
 const slot = base.slots.find((s) => s.id === 'core-front')!;

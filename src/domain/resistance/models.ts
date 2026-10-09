@@ -1,10 +1,4 @@
-/**
- * The three resistance models the app has today — a pair or a single
- * adjustable dumbbell, the long bands, bodyweight — expressed in the v2
- * contract. They are built on the v1 ladders (`inventory.ts`, `ladder.ts`) and
- * not beside them, so what the planner does with a load and what the model
- * says about it cannot drift apart; the tests walk both over every step.
- */
+/** Dumbbell, long-band and bodyweight models, built from the installed inventory. */
 
 import { BAND_CONFIG, PROGRESSION_CONFIG } from '../config/training';
 import {
@@ -131,7 +125,7 @@ export function createBandModel(params: BandModelParams): ResistanceModel<BandPo
   });
   const levels = bands.flatMap((b) => [0, 1, 2, 3].map((p) => levelOf(b.id, p)));
 
-  /** The v1 load for a value, or null when the band or position is not on this ladder. */
+  /** A persisted load for a value, or null when it is not on this ladder. */
   const loadOf = (value: BandPosition) => {
     const match = /^P([0-3])$/.exec(value.positionId);
     if (!match) return null;

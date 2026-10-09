@@ -1,4 +1,4 @@
-import { legalObservation } from '@/domain/__tests__/planV2Fixtures';
+import { legalObservation } from '@/domain/__tests__/planFixtures';
 import { describeResult, describeSet, type DescribedSet } from '../describeSet';
 
 const set = (overrides: Partial<DescribedSet>): DescribedSet => ({

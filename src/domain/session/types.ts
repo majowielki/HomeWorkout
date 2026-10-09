@@ -1,8 +1,8 @@
 import type { ExerciseRef, MovementLexicon, ResolvedExercise } from '../catalog/resolve';
 import type { EquipmentFamily } from '../catalog/attributes';
 import type { ExposureRecord } from '../observations/exposure';
-import type { DayInputV2 } from '../plan/dayV2';
-import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
+import type { DayInput } from '../plan/day';
+import type { PlannedExposure, PlannedSet, SessionPlan } from '../plan/plan';
 import type { SetsRecommendation } from '../plan/sets';
 import type { DaySelection, ViolationCode } from '../plan/types';
 import type { AssessmentCheck, Verdict } from '../policy/hardAdvice';
@@ -44,7 +44,7 @@ export interface FeelConsultation {
 }
 
 /** Plain domain inputs; no database, UI, channel, or network dependency. */
-export interface SessionChangeSnapshot extends DayInputV2 {
+export interface SessionChangeSnapshot extends DayInput {
   historyRevision: number;
   prefsRevision: number;
   lexicon: MovementLexicon;
@@ -52,7 +52,7 @@ export interface SessionChangeSnapshot extends DayInputV2 {
 }
 
 export interface ActiveSessionState {
-  plan: SessionPlanV2;
+  plan: SessionPlan;
   /** Current normalized actual/dispositions, including pending and skipped sets. */
   records: readonly ExposureRecord[];
 }
@@ -68,7 +68,7 @@ export interface SessionPlanPatch {
   basePlanRevision: number;
   ops: PatchOp[];
   /** Concrete revision to show and re-assess before transactional acceptance (P4b.4). */
-  plan: SessionPlanV2;
+  plan: SessionPlan;
 }
 
 export interface PrescriptionSummary {

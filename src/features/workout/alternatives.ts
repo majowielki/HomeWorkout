@@ -10,7 +10,7 @@ import { applySessionChange } from '@/db/repositories/sessionChanges';
 import { getCurrentBlock, setBlockSelection } from '@/db/repositories/trainingBlocks';
 import type { EquipmentFamily } from '@/domain/catalog/attributes';
 import type { CommandResult } from '@/domain/commands/result';
-import type { PlannedExposure } from '@/domain/plan/planV2';
+import type { PlannedExposure } from '@/domain/plan/plan';
 import { adviceToAcknowledge } from '@/domain/policy/hardAdvice';
 import { rankAlternatives } from '@/domain/session/assess';
 import type { RankedAlternative } from '@/domain/session/types';

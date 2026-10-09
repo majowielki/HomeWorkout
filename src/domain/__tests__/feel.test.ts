@@ -2,11 +2,11 @@ import { assessSessionChange, rankAlternatives } from '../session/assess';
 import { assessFeel } from '../session/effort';
 import { evaluateSessionChange } from '../session/evaluate';
 import type { FeelChange, ActiveSessionState, SessionChangeSnapshot } from '../session/types';
-import { sessionPlanV2Schema } from '../plan/planV2';
+import { sessionPlanSchema } from '../plan/plan';
 import { stampPlan } from '../plan/compile';
 import { recipe, world, perform } from './sessionChangeFixtures';
-import { CATALOG } from './dayV2Fixtures';
-import { HASH_A } from './planV2Fixtures';
+import { CATALOG } from './dayFixtures';
+import { HASH_A } from './planFixtures';
 
 function feel(
   snap: SessionChangeSnapshot,
@@ -46,7 +46,7 @@ describe('P4b.5 T71/T72/T105: feel is an observation and each offered change is 
     expect(revised.exposures.at(-1)!.sets[0]!.resistance.value).toMatchObject({ massGrams: 6000 });
     for (const o of a.feel!.options) {
       expect(o.assessment).toEqual(evaluateSessionChange(snap, session, o.change!));
-      expect(sessionPlanV2Schema.safeParse(o.assessment.patch!.plan).success).toBe(true);
+      expect(sessionPlanSchema.safeParse(o.assessment.patch!.plan).success).toBe(true);
     }
     expect(JSON.stringify({ snap, session })).toBe(before);
     expect(feel(snap, session)).toEqual(a);

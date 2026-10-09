@@ -1,5 +1,5 @@
 /**
- * One compiler from recipes to a session plan (engine v2, 04 §6-§7, 01 §3).
+ * One compiler from recipes to a session plan (engine, 04 §6-§7, 01 §3).
  *
  * It takes the recipe of every exposure — each set with its role, resistance,
  * target and rest — and produces the plan the person will run: planned sets
@@ -23,10 +23,10 @@ import {
   type PlanVersions,
   type PlannedExposure,
   type PlannedSet,
-  type SessionPlanV2,
+  type SessionPlan,
   type SetRole,
   type TimeBreakdown,
-} from './planV2';
+} from './plan';
 
 /** How a set that has two sides is done. */
 export type SideMode =
@@ -92,8 +92,8 @@ export const DEFAULT_TIMING: Timing = {
 export interface CompileInput {
   sessionId: string;
   planRevision: number;
-  kind: SessionPlanV2['kind'];
-  source: SessionPlanV2['source'];
+  kind: SessionPlan['kind'];
+  source: SessionPlan['source'];
   trainingDate: string;
   versions: PlanVersions;
   inputFingerprint: string;
@@ -108,7 +108,7 @@ export interface CompileInput {
 }
 
 /** A plan before it has been audited: everything but the stamp that says it was. */
-export type PlanDraftV2 = Omit<SessionPlanV2, 'audit'>;
+export type PlanDraft = Omit<SessionPlan, 'audit'>;
 
 /** One unit of the order: a planned set with where it belongs. */
 interface Unit {
@@ -214,7 +214,7 @@ const workSeconds = (u: Unit, t: Timing): number => {
   return Math.round(base * (u.exposure.sideMode === 'both' ? 2 : 1));
 };
 
-export function compileSession(input: CompileInput): PlanDraftV2 {
+export function compileSession(input: CompileInput): PlanDraft {
   const timing = input.timing ?? DEFAULT_TIMING;
   const exposures: PlannedExposure[] = [];
   const units: Unit[] = [];
@@ -243,7 +243,7 @@ export function compilePlannedSets(
   input: Omit<CompileInput, 'exposures'>,
   exposures: readonly PlannedExposure[],
   order: readonly string[],
-): PlanDraftV2 {
+): PlanDraft {
   const units = new Map<string, Unit>();
   exposures.forEach((e, exposureIndex) => {
     for (const s of e.sets) {
@@ -295,7 +295,7 @@ function compileSequence(
   exposures: PlannedExposure[],
   sequence: readonly Unit[],
   timing: Timing,
-): PlanDraftV2 {
+): PlanDraft {
   const steps: ExecutionStep[] = [];
   const time = {
     hardWork: 0,
@@ -415,8 +415,8 @@ function compileSequence(
  * confirmed, and the hash of the plan as audited. The hash is of everything but the stamp (01 §4).
  */
 export function stampPlan(
-  draft: PlanDraftV2,
-  stamp: { mode: SessionPlanV2['audit']['mode']; snapshotFingerprint: string; overrides: string[] },
-): SessionPlanV2 {
+  draft: PlanDraft,
+  stamp: { mode: SessionPlan['audit']['mode']; snapshotFingerprint: string; overrides: string[] },
+): SessionPlan {
   return { ...draft, audit: { ...stamp, planHash: fingerprint(draft) } };
 }

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { CATALOG } from '@/domain/__tests__/dayV2Fixtures';
+import { CATALOG } from '@/domain/__tests__/dayFixtures';
 import { recipe, world } from '@/domain/__tests__/sessionChangeFixtures';
 import { rankAlternatives } from '@/domain/session/assess';
 import { pl } from '@/strings/pl';

@@ -2,13 +2,13 @@ import { View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
 import type { Exercise } from '@/domain/types';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import type { SessionPlan } from '@/domain/plan/plan';
 import { labelsOf } from '@/domain/session/progress';
 import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
 type Props = {
-  plan: SessionPlanV2;
+  plan: SessionPlan;
   exerciseMap: Record<string, Exercise>;
   /** How many exercise pills to show before collapsing the rest into "+N". */
   max?: number;

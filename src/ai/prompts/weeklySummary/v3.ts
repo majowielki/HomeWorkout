@@ -17,7 +17,7 @@
 import { COACH_CONFIG } from '../../../domain/config/training';
 import type { CoachContext } from '../../contract/coachContext';
 import { serializeForPrompt } from '../serialize';
-import { SHORTFALL_GUIDE } from '../shortfallGuideV2';
+import { SHORTFALL_GUIDE } from '../shortfallGuide';
 
 export const WEEKLY_SUMMARY_PROMPT_VERSION = 'weekly-summary/v3';
 

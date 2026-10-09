@@ -61,7 +61,7 @@ function formatterFor(timeZone: string): Intl.DateTimeFormat {
 }
 
 /**
- * The same rule in an explicit IANA zone (engine v2, 13 §1): a session stores
+ * The same rule in an explicit IANA zone (engine, 13 §1): a session stores
  * the zone it started in, and a test can state the zone instead of depending
  * on the machine it runs on. Throws RangeError for a boundary outside 0-23
  * or an unknown zone.

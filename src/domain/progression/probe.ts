@@ -1,5 +1,5 @@
 /**
- * The probe set (engine v2, 03 §15, 13 §16, D28, D33): when the next step
+ * The probe set (engine, 03 §15, 13 §16, D28, D33): when the next step
  * up is a big one, or its size is not known, the person first does one set of
  * it, fresh, and the others at the step they know. A whole session below the
  * range to find out that the step is too big is what this avoids; no model of

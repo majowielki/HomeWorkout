@@ -1,6 +1,6 @@
 import type { ExecuteEnvironment } from '@/ai/tools/execute';
 import { loadCoachSource } from '@/db/repositories/coachSource';
-import { loadSimulationBase } from '@/db/repositories/weekPlanV2';
+import { loadSimulationBase } from '@/db/repositories/weekPlan';
 import { createPhonePlanTools } from '@/app-services/queries/planTools';
 import { createSimulationHook } from '@/ai/tools/simulationEnvironment';
 

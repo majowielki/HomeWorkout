@@ -4,14 +4,14 @@ import slotsJson from '@data/slots.json';
 import { slotCatalogueSchema } from '@data/slots.schema';
 import { buildObservation } from '@/domain/observations/entry';
 import type { ExposureRecord } from '@/domain/observations/exposure';
-import { specFromLoad } from '@/domain/resistance/legacy';
+import { specFromLoad } from '@/domain/resistance/persistedLoad';
 import { loadOfSet } from '@/domain/progression/load';
 import { defaultPreferences } from '@/domain/preferences/preferences';
 import { fingerprint } from '@/domain/fingerprint';
 import { planVersions } from '@/domain/plan/versions';
-import { syncWeekV2 } from '@/domain/plan/weekV2';
+import { syncWeek } from '@/domain/plan/week';
 import type { Exercise } from '@/domain/types';
-import { describePlan, type WeekContext } from '../tools/planPreviewV2';
+import { describePlan, type WeekContext } from '../tools/planPreview';
 import type { CoachSource } from '../context/source';
 import type { ToolError, ToolOutput } from '../contract/chatTools';
 
@@ -96,7 +96,7 @@ export function syntheticWeekContext(source: CoachSource): WeekContext {
     stored: [],
     trainedDates: new Set(dates.values()),
   };
-  context.stored = syncWeekV2(context).rows;
+  context.stored = syncWeek(context).rows;
   return context;
 }
 export function syntheticPlan(

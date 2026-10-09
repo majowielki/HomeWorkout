@@ -3,6 +3,33 @@
 Trzy części: **(1)** stan repozytorium i decyzje robocze, **(2)** odstępstwa od specyfikacji, **(3)** do sprawdzenia przez człowieka
 (telefon, fizjoterapeuta, decyzje produktowe). Pozycje zamknięte nie są usuwane, tylko oznaczane ✔ z datą.
 
+## Aktualne decyzje P6 — 2026-10-09
+
+- **Brak resetu danych.** Kod archiwizacji/resetu jest usunięty. Historyczne workouts i set_logs
+  zostają, a planowanie ignoruje planSchema = 1. Dawne aktywne sesje przechodzą do historii jako
+  abandoned. Wiersze bez observation są tylko do odczytu i nadal stanowią legacy_unknown.
+- **Baza:** przebudowa workouts usuwa template_id z FK; nazwa szablonu trafia do historycznego
+  plan.title. Dane podrzędne przeżywają kaskadę przy DROP dzięki kopiom tymczasowym w tej samej
+  transakcji. Test obejmuje FK ON i rollback w środku odtwarzania. legacy_sessions zostaje dla
+  archiwalnych backupów; usunięcie nieużywanego kodu resetu nie uzasadnia kasowania tych danych.
+- **Nazwy:** kod używa SessionPlan, planDay, syncWeek, sessions, planning, history i proposals.
+  Wersje migracji i JSON oraz nazwy pól czytanych z dawnych backupów pozostają rozpoznawalne.
+- **Shared code:** modele oporu używają kalibracji i drabinek sprzętu. estimatedPeakKg jest
+  nadal wywoływane. Dane A/B służą deterministycznej syntetycznej historii ewaluacji; nie są
+  instalowane do SQLite ani nie służą startowi sesji. Nie usuwamy używanych obliczeń sprzętowych.
+- **UI:** brak osobnego przycisku „Przywróć ćwiczenie z planu” — powrót przez ponowną zamianę.
+  Ranking zwraca najwyżej trzy zamienniki. Dodaj ćwiczenie, pełny ekran alternatyw, preferencje,
+  pytania o awans i konsument matchSessionIntent są kolejną pracą po odbiorze aktywacji.
+- **Prompty i baseline:** dawne chat/v1–v6 i weekly-summary/v2 oraz testy usunięte; historia w Git.
+  Porównanie baseline P0 nie jest już bramką. Spadek liczby testów wynika z usunięcia tych
+  implementacji; progi pokrycia zostają 100% i bieżący silnik ma własne testy.
+- **Wydanie:** Worker kontraktu 7 i APK muszą zostać wydane razem. Automatyczna kontrola narzędzi
+  odrzuciła uruchomienie aplikacji przez ADB („blocked by policy”); nie ma jeszcze dowodu testu UI.
+  Budowa APK jest osobnym sprawdzeniem i nie zamyka testu na telefonie.
+
+Poniższe wpisy to zapis decyzji z wcześniejszych etapów. Zdania o wyłączonym resecie albo UI
+na dawnym silniku są historyczne; bieżący stan opisują powyższe decyzje i PRZEKAZANIE-P6.
+
 ## 1. Stan repozytorium i decyzje robocze
 
 | Data | Uwaga |

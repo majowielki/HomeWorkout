@@ -5,13 +5,13 @@ const feelApplication = require('../../app-services/commands/reportSessionFeel.t
 const { reportSessionFeel } = require('../repositories/sessionFeel.ts');
 const { applySessionChange } = require('../repositories/sessionChanges.ts');
 const { loadSessionChangeSource } = application;
-const sessions = require('../repositories/sessionsV2.ts');
-const history = require('../repositories/historyV2.ts');
+const sessions = require('../repositories/sessions.ts');
+const history = require('../repositories/history.ts');
 const { assessSessionChange } = require('../../domain/session/assess.ts');
 const { adviceToAcknowledge } = require('../../domain/policy/hardAdvice.ts');
 const { world, recipe } = require('../../domain/__tests__/sessionChangeFixtures.ts');
 const { qualifyExposure } = require('../../domain/observations/qualify.ts');
-const { legalObservation } = require('../../domain/__tests__/planV2Fixtures.ts');
+const { legalObservation } = require('../../domain/__tests__/planFixtures.ts');
 const { auditPlan } = require('../../domain/plan/audit.ts');
 const { modelFor } = require('../../domain/plan/resistanceOf.ts');
 const NOW = new Date('2026-10-05T09:00:00Z');
@@ -21,7 +21,7 @@ async function started(specs = []) {
   await seeded();
   const { session } = world(specs);
   assert.equal(
-    sessions.startSessionV2(
+    sessions.startSession(
       { commandId: 'start', plan: session.plan, timeZone: 'Europe/Warsaw' },
       NOW,
     ).kind,
@@ -68,7 +68,7 @@ function snapshot() {
 function logFirst(source, ordinal = 0) {
   const set = source.session.plan.exposures[0].sets[ordinal];
   const base = legalObservation();
-  const r = sessions.logSetV2(
+  const r = sessions.logSet(
     {
       commandId: 'log' + ordinal,
       sessionId: 's1',
@@ -154,7 +154,7 @@ const CASES = [
       assert.equal(source.session.records[0].context.feel, 'too_hard');
       assert.equal(source.snap.historyRevision, cmd.expected.historyRevision + 1);
       assert.equal(result.result.assessment.basedOn.historyRevision, source.snap.historyRevision);
-      assert.deepEqual(source.session.plan, JSON.parse(before.workouts[0].plan_v2));
+      assert.deepEqual(source.session.plan, JSON.parse(before.workouts[0].session_plan));
       assert.deepEqual(all('SELECT * FROM session_plan_revisions'), before.session_plan_revisions);
       assert.equal(all('SELECT * FROM set_logs').length, 0);
       assert.equal(all('SELECT * FROM set_dispositions').length, 0);
@@ -273,7 +273,7 @@ const CASES = [
       await started([recipe('crunch')]);
       const cmd = feelCommand();
       const result = reportSessionFeel(cmd, NOW);
-      sessions.closeSessionV2({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW);
+      sessions.closeSession({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW);
       const before = snapshot();
       assert.deepEqual(reportSessionFeel(cmd, NOW), { ...result, kind: 'already_committed' });
       assert.equal(
@@ -283,7 +283,7 @@ const CASES = [
       assert.equal(reportSessionFeel({ ...cmd, sessionId: 'other' }, NOW).code, 'INVALID_COMMAND');
       assert.equal(reportSessionFeel({ ...cmd, commandId: 'start' }, NOW).code, 'INVALID_COMMAND');
       assert.equal(
-        sessions.recordFeelV2({ ...cmd, expected: undefined }, NOW).code,
+        sessions.recordFeel({ ...cmd, expected: undefined }, NOW).code,
         'INVALID_COMMAND',
       );
       assert.deepEqual(snapshot(), before);
@@ -306,9 +306,9 @@ const CASES = [
         assert.equal(reportSessionFeel({ ...cmd, ...patch }, NOW).code, code);
         assert.deepEqual(snapshot(), before);
       }
-      const plan = JSON.parse(all('SELECT plan_v2 FROM workouts')[0].plan_v2);
+      const plan = JSON.parse(all('SELECT session_plan FROM workouts')[0].session_plan);
       plan.planRevision++;
-      current.native.prepare('UPDATE workouts SET plan_v2 = ?').run(JSON.stringify(plan));
+      current.native.prepare('UPDATE workouts SET session_plan = ?').run(JSON.stringify(plan));
       const before = snapshot();
       assert.equal(reportSessionFeel(cmd, NOW).code, 'INVALID_PLAN');
       assert.deepEqual(snapshot(), before);
@@ -328,26 +328,26 @@ const CASES = [
     },
   ]),
   [
-    'P4b.5 legacy recordFeelV2 raises history and validates data and ledger identity',
+    'P4b.5 legacy recordFeel raises history and validates data and ledger identity',
     async () => {
       await started([recipe('crunch')]);
       const { expected, ...cmd } = feelCommand();
       const first = reportSessionFeel({ ...cmd, expected }, NOW);
       assert.equal(first.kind, 'committed');
       const before = snapshot();
-      assert.equal(sessions.recordFeelV2(cmd, NOW).code, 'INVALID_COMMAND');
+      assert.equal(sessions.recordFeel(cmd, NOW).code, 'INVALID_COMMAND');
       assert.equal(
-        sessions.recordFeelV2({ ...cmd, commandId: 'invalid', feel: 'invalid' }, NOW).code,
+        sessions.recordFeel({ ...cmd, commandId: 'invalid', feel: 'invalid' }, NOW).code,
         'INVALID_COMMAND',
       );
       assert.deepEqual(snapshot(), before);
       const historyBefore = loadSessionChangeSource('s1').snap.historyRevision;
       const legacy = { ...cmd, commandId: 'legacy' };
-      assert.equal(sessions.recordFeelV2(legacy, NOW).kind, 'committed');
+      assert.equal(sessions.recordFeel(legacy, NOW).kind, 'committed');
       assert.equal(loadSessionChangeSource('s1').snap.historyRevision, historyBefore + 1);
-      assert.equal(sessions.recordFeelV2(legacy, NOW).kind, 'already_committed');
+      assert.equal(sessions.recordFeel(legacy, NOW).kind, 'already_committed');
       assert.equal(
-        sessions.recordFeelV2({ ...legacy, sessionId: 'other' }, NOW).code,
+        sessions.recordFeel({ ...legacy, sessionId: 'other' }, NOW).code,
         'INVALID_COMMAND',
       );
     },
@@ -408,8 +408,7 @@ const CASES = [
       const second = preview(add('standing-calf-raise'), 'second').cmd;
       assert.equal(applySessionChange(second, NOW).kind, 'committed');
       assert.equal(
-        sessions.closeSessionV2({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW)
-          .kind,
+        sessions.closeSession({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW).kind,
         'committed',
       );
       const before = snapshot();
@@ -649,7 +648,7 @@ const CASES = [
     async () => {
       const source = await started([recipe('crunch', 3)]);
       const exposure = source.session.plan.exposures[0];
-      sessions.skipSetsV2(
+      sessions.skipSets(
         {
           commandId: 'skip',
           sessionId: 's1',
@@ -723,7 +722,7 @@ const CASES = [
         'UNKNOWN_SESSION',
       );
       assert.equal(loadSessionChangeSource('missing'), null);
-      sessions.closeSessionV2({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW);
+      sessions.closeSession({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW);
       assert.equal(applySessionChange(cmd, NOW).code, 'SESSION_NOT_ACTIVE');
     },
   ],
@@ -741,10 +740,10 @@ const CASES = [
     async () => {
       await started();
       const { cmd } = preview();
-      const row = all('SELECT plan_v2 FROM workouts')[0];
-      const plan = JSON.parse(row.plan_v2);
+      const row = all('SELECT session_plan FROM workouts')[0];
+      const plan = JSON.parse(row.session_plan);
       plan.exposures.push(recipe('crunch'));
-      current.native.prepare('UPDATE workouts SET plan_v2 = ?').run(JSON.stringify(plan));
+      current.native.prepare('UPDATE workouts SET session_plan = ?').run(JSON.stringify(plan));
       const before = snapshot();
       const result = applySessionChange(cmd, NOW);
       assert.equal(result.code, 'INVALID_PLAN');

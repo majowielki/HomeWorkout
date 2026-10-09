@@ -1,6 +1,6 @@
 /**
  * The set form and the result it makes: what the logger starts from, and what
- * the person's taps turn into (engine v2, 06 §1).
+ * the person's taps turn into (engine, 06 §1).
  *
  * The form is flat — reps, seconds, a dumbbell mass, a band and its position,
  * the effort — because that is what a phone can show. A planned set is richer:
@@ -17,8 +17,8 @@ import {
   type SetEntry,
 } from '../observations/entry';
 import type { SetObservation } from '../observations/types';
-import type { PlannedSet } from '../plan/planV2';
-import { loadFromSpec, specFromLoad } from '../resistance/legacy';
+import type { PlannedSet } from '../plan/plan';
+import { loadFromSpec, specFromLoad } from '../resistance/persistedLoad';
 import type { ResistanceSpec } from '../resistance/types';
 import type { AnchorPosition, Exercise, ShortfallReason } from '../types';
 

@@ -7,7 +7,7 @@ import { IconBadge } from '@/components/ui/icon-badge';
 import { Dumbbell, Sparkles } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import type { Exercise } from '@/domain/types';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import type { SessionPlan } from '@/domain/plan/plan';
 
 import { ExercisePreview } from './ExercisePreview';
 
@@ -17,7 +17,7 @@ type Props = {
   meta?: string;
   /** Status pill top-left, e.g. "Sugerowane" or "w trakcie". */
   badge?: string;
-  plan?: SessionPlanV2;
+  plan?: SessionPlan;
   exerciseMap?: Record<string, Exercise>;
   /** Buttons — use the default (accent) variant for the main one. */
   children?: React.ReactNode;

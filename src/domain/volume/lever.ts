@@ -1,5 +1,5 @@
 /**
- * The volume lever (engine v2, 13 §19, 12 §5.5, D32). The engine does not raise
+ * The volume lever (engine, 13 §19, 12 §5.5, D32). The engine does not raise
  * or lower the weekly volume by itself; it notices — a muscle that has been
  * trained for a month and whose key lifts stand still while it recovers well
  * could take more; one that is sore too often should take less — and proposes

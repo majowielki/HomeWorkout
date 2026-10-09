@@ -1,10 +1,10 @@
 import catalogue from '@data/exercises.json';
 
 import { BANDS } from '@/domain/inventory';
-import { regionsOf } from '@/domain/plan/dayV2';
-import type { PlannedExposure, SessionPlanV2 } from '@/domain/plan/planV2';
+import { regionsOf } from '@/domain/plan/day';
+import type { PlannedExposure, SessionPlan } from '@/domain/plan/plan';
 import type { SlotRegion } from '@/domain/plan/types';
-import { loadFromSpec } from '@/domain/resistance/legacy';
+import { loadFromSpec } from '@/domain/resistance/persistedLoad';
 import type { ResistanceSpec } from '@/domain/resistance/types';
 import { pl } from '@/strings/pl';
 
@@ -17,7 +17,7 @@ const MINI_BAND_IDS = new Set(
 );
 
 /** "Nogi + pchanie" from the day's regions, most sets first; a day without hard work is a light day. */
-export function dayTitle(regions: readonly SlotRegion[], kind?: SessionPlanV2['kind']): string {
+export function dayTitle(regions: readonly SlotRegion[], kind?: SessionPlan['kind']): string {
   const names = regions.slice(0, 2).map((r) => pl.plan.region[r]);
   if (names.length === 0) return pl.plan.lightDayTitle;
   const text = names.join(' + ');
@@ -25,7 +25,7 @@ export function dayTitle(regions: readonly SlotRegion[], kind?: SessionPlanV2['k
   return kind === 'extra' ? `${pl.extra.title} · ${title}` : title;
 }
 
-export function planTitle(plan: Pick<SessionPlanV2, 'exposures' | 'kind'>): string {
+export function planTitle(plan: Pick<SessionPlan, 'exposures' | 'kind'>): string {
   const known = plan.exposures.filter((e) => e.slotId !== null && SLOT_BY_ID.has(e.slotId));
   return dayTitle(regionsOf(known, SLOT_BY_ID), plan.kind);
 }

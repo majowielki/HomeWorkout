@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { getSet } from '@/db/repositories/setLogs';
-import { undoSetV2, updateSetV2 } from '@/db/repositories/sessionsV2';
+import { undoSet, updateSet } from '@/db/repositories/sessions';
 import { isDone } from '@/domain/commands/result';
 import type { SetObservation } from '@/domain/observations/types';
 import { correctionOf, resultValues, type SetFieldValues } from '@/domain/session/setEntry';
@@ -83,7 +83,7 @@ function EditSetForm({
     try {
       const patch = correctionOf(exercise, result, values, new Date().toISOString());
       if (Object.keys(patch).length > 0) {
-        const done = updateSetV2({
+        const done = updateSet({
           commandId: randomUUID(),
           sessionId,
           observationId: rowId,
@@ -112,7 +112,7 @@ function EditSetForm({
           if (busy) return;
           setBusy(true);
           try {
-            const done = undoSetV2({
+            const done = undoSet({
               commandId: randomUUID(),
               sessionId,
               observationId: rowId,

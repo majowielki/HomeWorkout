@@ -16,6 +16,8 @@ import m0011 from './0011_engine_v2_week.sql';
 import m0012 from './0012_engine_v2_answers.sql';
 import m0013 from './0013_engine_v2_week_summary.sql';
 
+import m0014 from './0014_activate_engine.sql';
+
   export default {
     journal,
     migrations: {
@@ -32,7 +34,8 @@ m0009,
 m0010,
 m0011,
 m0012,
-m0013
+m0013,
+m0014
     }
   }
   

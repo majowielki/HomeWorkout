@@ -3,9 +3,9 @@ import { AUTOREGULATION_CONFIG, type PlannerConfig, TRAINING_CONFIG } from '../c
 import { daysBetween } from '../time/trainingDate';
 import type { MuscleGroup } from '../types';
 import { maxDirectSets } from '../volume/weekly';
-import { phaseOfV2 } from './blockV2';
+import { phaseOf } from './block';
 import { avoidedOn, isAvoided, isLighterDay } from './constraints';
-import type { DayInputV2 } from './dayV2';
+import type { DayInput } from './day';
 import { isEligible } from './eligibility';
 import type { DaySelection, SelectionViolation } from './types';
 
@@ -13,7 +13,7 @@ import type { DaySelection, SelectionViolation } from './types';
 export function checkSelection(
   selection: DaySelection,
   input: Pick<
-    DayInputV2,
+    DayInput,
     'asOf' | 'catalog' | 'slots' | 'eligibility' | 'block' | 'daily' | 'constraints'
   >,
   cfg: PlannerConfig,
@@ -27,7 +27,7 @@ export function checkSelection(
   const sore = (muscles: MuscleGroup[]) =>
     muscles.some((m) => (today?.soreness?.[m] ?? 0) >= AUTOREGULATION_CONFIG.highSorenessLevel);
   const out: SelectionViolation[] = [];
-  if (selection.blockIndex !== block.index || selection.phase !== phaseOfV2(block, asOf))
+  if (selection.blockIndex !== block.index || selection.phase !== phaseOf(block, asOf))
     out.push({ slotId: null, code: 'BLOCK_CHANGED' });
   if (isLighterDay(constraints, asOf) !== selection.dayReasons.includes('LIGHTER_DAY_REQUESTED'))
     out.push({ slotId: null, code: 'REQUEST_CHANGED' });

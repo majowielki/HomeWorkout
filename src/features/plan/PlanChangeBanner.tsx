@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/card';
 import { RefreshCw, X } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import type { PlanBannerV2 } from '@/db/repositories/weekPlanV2';
+import type { PlanBanner } from '@/db/repositories/weekPlan';
 import type { SlotRegion } from '@/domain/plan/types';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
@@ -11,7 +11,7 @@ import { pl } from '@/strings/pl';
 import { dayTitle } from './format';
 
 type Props = {
-  banner: PlanBannerV2;
+  banner: PlanBanner;
   onClose: (id: string) => void;
   expanded?: boolean;
 };

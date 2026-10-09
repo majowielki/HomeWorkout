@@ -6,7 +6,7 @@ import type { ChatFacts } from '@/ai/contract/chat';
 import type { ToolName } from '@/ai/contract/chatTools';
 
 import { chatReducer, initialChatState, isBusy } from './state';
-import type { ProposalStatus, ProposalView } from '@/app-services/coach/proposalsV2';
+import type { ProposalStatus, ProposalView } from '@/app-services/coach/proposals';
 
 /** The tools whose result may carry a card for the person to apply. */
 const PROPOSAL_TOOLS: ReadonlySet<ToolName> = new Set([

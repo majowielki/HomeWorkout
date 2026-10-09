@@ -4,7 +4,7 @@
  * results and dispositions; nothing here is stored as it is.
  */
 
-import type { PlannedSet } from '../plan/planV2';
+import type { PlannedSet } from '../plan/plan';
 import type { IsoDate } from './date';
 import type { SetDisposition, SetObservation } from './types';
 

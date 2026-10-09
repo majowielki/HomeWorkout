@@ -3,11 +3,11 @@ import { movementLexiconSchema } from '@data/movement-terms.schema';
 import { compileSession, stampPlan, type ExposureSpec } from '../plan/compile';
 import { resistanceOf, modelFor } from '../plan/resistanceOf';
 import { unitOf } from '../progression/prescribe';
-import { recordsOf, FOLLOWS_THE_PLAN_V2 } from '../plan/simulateV2';
+import { recordsOf, FOLLOWS_THE_PLAN } from '../plan/simulate';
 import type { ExposureRecord } from '../observations/exposure';
 import type { ActiveSessionState, SessionChangeSnapshot } from '../session/types';
-import { dayInput, CATALOG, SLOTS } from './dayV2Fixtures';
-import { HASH_A } from './planV2Fixtures';
+import { dayInput, CATALOG, SLOTS } from './dayFixtures';
+import { HASH_A } from './planFixtures';
 
 export function recipe(id: string, n = 2, patch: Partial<ExposureSpec> = {}): ExposureSpec {
   const exercise = CATALOG[id]!;
@@ -79,7 +79,7 @@ export function world(specs: ExposureSpec[] = []): {
     }),
     { mode: 'new_plan', snapshotFingerprint: HASH_A, overrides: [] },
   );
-  const records = recordsOf(plan, FOLLOWS_THE_PLAN_V2).map((r) => ({
+  const records = recordsOf(plan, FOLLOWS_THE_PLAN).map((r) => ({
     ...r,
     sets: r.sets.map((s) => ({ ...s, disposition: 'pending' as const, observation: null })),
   }));
@@ -87,7 +87,7 @@ export function world(specs: ExposureSpec[] = []): {
 }
 
 export function perform(session: ActiveSessionState, count = Infinity): ExposureRecord[] {
-  const full = recordsOf(session.plan, FOLLOWS_THE_PLAN_V2);
+  const full = recordsOf(session.plan, FOLLOWS_THE_PLAN);
   let seen = 0;
   return full.map((r) => ({
     ...r,

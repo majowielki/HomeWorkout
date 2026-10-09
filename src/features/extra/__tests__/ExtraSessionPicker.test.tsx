@@ -1,13 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { dayInput } from '@/domain/__tests__/dayV2Fixtures';
-import { planDayV2 } from '@/domain/plan/dayV2';
-import type { DayPreview } from '@/db/repositories/planningV2';
+import { dayInput } from '@/domain/__tests__/dayFixtures';
+import { planDay } from '@/domain/plan/day';
+import type { DayPreview } from '@/db/repositories/planning';
 import { extraOptions, type loadExtraSession } from '../actions';
 import { ExtraSessionPicker } from '../ExtraSessionPicker';
 import { pl } from '@/strings/pl';
 
-jest.mock('@/db/repositories/planningV2', () => ({}));
-jest.mock('@/db/repositories/weekPlanV2', () => ({}));
+jest.mock('@/db/repositories/planning', () => ({}));
+jest.mock('@/db/repositories/weekPlan', () => ({}));
 jest.mock('@/db/repositories/workouts', () => ({}));
 function fixture() {
   const input = dayInput({
@@ -20,7 +20,7 @@ function fixture() {
     done: true,
     rest: false,
   } satisfies Awaited<ReturnType<typeof loadExtraSession>>;
-  const output = planDayV2({
+  const output = planDay({
     ...input,
     only: [{ slotId: 'push-horizontal' }],
     session: { ...input.session, kind: 'extra' },

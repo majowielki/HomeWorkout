@@ -1,5 +1,5 @@
 /**
- * Which rules block and which only advise (engine v2, D18, 12 §2, 11 §3).
+ * Which rules block and which only advise (engine, D18, 12 §2, 11 §3).
  *
  * The engine recommends and does not refuse what can be done. A rule is
  * either `hard` — safety, pain, equipment, the person's own "do not suggest":

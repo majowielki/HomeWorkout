@@ -1,6 +1,6 @@
 /**
  * Which progression policies exist, and what an exercise needs before the
- * engine may plan it by itself (engine v2, 05 §8, 07 P1.7).
+ * engine may plan it by itself (engine, 05 §8, 07 P1.7).
  *
  * An exercise is planned automatically only if everything on the path
  * agrees it can handle it: the catalogue's measure, the resistance model, the

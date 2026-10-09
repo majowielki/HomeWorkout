@@ -1,5 +1,5 @@
 /**
- * One effective configuration for one day (engine v2, 13 §2).
+ * One effective configuration for one day (engine, 13 §2).
  *
  * Every way of building a day — the engine's own choice, an extra session,
  * a day composed with the coach, a manual template, a change during a session

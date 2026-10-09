@@ -1,19 +1,19 @@
 import { randomUUID } from 'expo-crypto';
-import { previewDay, type DayPreview } from '@/db/repositories/planningV2';
+import { previewDay, type DayPreview } from '@/db/repositories/planning';
 import {
   getUnseenChanges,
   loadWeekContext,
   syncWeek,
-  type PlanBannerV2,
+  type PlanBanner,
   type WeekSyncRequest,
-} from '@/db/repositories/weekPlanV2';
+} from '@/db/repositories/weekPlan';
 import { MUSCLE_GROUPS } from '@/domain/coach/vocabulary';
 import { PLANNER_CONFIG } from '@/domain/config/training';
 import { buildHistoryIndex } from '@/domain/history';
-import { weekWork } from '@/domain/plan/dayV2';
+import { weekWork } from '@/domain/plan/day';
 import { composedOn } from '@/domain/plan/constraints';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
-import { summaryOf, type DaySummaryV2, type StoredDayV2 } from '@/domain/plan/weekV2';
+import type { SessionPlan } from '@/domain/plan/plan';
+import { summaryOf, type DaySummary, type StoredDay } from '@/domain/plan/week';
 import type { BlockEvent } from '@/domain/plan/reasons';
 import type { BikePrescription } from '@/domain/progression/bike';
 import { addDays } from '@/domain/time/trainingDate';
@@ -27,17 +27,17 @@ export interface MuscleRecovery {
 export interface PlanToday {
   asOf: string;
   preview: DayPreview;
-  plan: SessionPlanV2 | null;
-  summary: DaySummaryV2;
+  plan: SessionPlan | null;
+  summary: DaySummary;
   events: BlockEvent[];
   volume: Record<MuscleGroup, { certain: number; uncertain: number }>;
   bike: BikePrescription;
   done: boolean;
   rest: boolean;
   recovery: MuscleRecovery[];
-  tomorrow: SessionPlanV2 | null;
-  week: StoredDayV2[];
-  banner: PlanBannerV2 | null;
+  tomorrow: SessionPlan | null;
+  week: StoredDay[];
+  banner: PlanBanner | null;
 }
 
 /** Syncs the choices of the week, then previews today's recipe from real results. */

@@ -1,5 +1,5 @@
 /**
- * Which exercise a slot gets for the next block (engine v2, 03 §9, 12 §4.2).
+ * Which exercise a slot gets for the next block (engine, 03 §9, 12 §4.2).
  *
  * Today the next block takes the next exercise of the slot, whatever happened.
  * Here a variant that is still giving progress stays (`ROTATION_CONTINUITY`), and
@@ -19,7 +19,7 @@ import {
 } from '../preferences/preferences';
 import type { BlockEvidence } from '../progression/stall';
 import type { Exercise } from '../types';
-import { nextCandidate } from './block';
+import { nextCandidate } from './blockSelection';
 import { allowedCandidates, type EligibilityContext, slotByExercise } from './eligibility';
 import type { Slot } from './types';
 

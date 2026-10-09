@@ -1,8 +1,8 @@
 import { defaultPreferences } from '../../../domain/preferences/preferences';
 import type { SimulationBase } from '../../../domain/session/simulateProposal';
-import { CATALOG, ELIGIBILITY, SELECTIONS, SLOTS } from '../../../domain/__tests__/dayV2Fixtures';
+import { CATALOG, ELIGIBILITY, SELECTIONS, SLOTS } from '../../../domain/__tests__/dayFixtures';
 import { VERSIONS } from '../../../domain/__tests__/compileFixtures';
-import { HASH_A } from '../../../domain/__tests__/planV2Fixtures';
+import { HASH_A } from '../../../domain/__tests__/planFixtures';
 import { perform, recipe, world } from '../../../domain/__tests__/sessionChangeFixtures';
 import type { ToolInput } from '../../contract/chatTools';
 import { simulateInputSchema, simulateOutputSchema } from '../../contract/simulationTools';

@@ -1,6 +1,6 @@
-import { dayInput } from '@/domain/__tests__/dayV2Fixtures';
-import type { WeekContext } from '@/ai/tools/planPreviewV2';
-import { syncWeekV2 } from '@/domain/plan/weekV2';
+import { dayInput } from '@/domain/__tests__/dayFixtures';
+import type { WeekContext } from '@/ai/tools/planPreview';
+import { syncWeek } from '@/domain/plan/week';
 
 export function proposalSnapshot(done = false): WeekContext {
   const input = dayInput();
@@ -12,7 +12,7 @@ export function proposalSnapshot(done = false): WeekContext {
     stored: [],
     trainedDates: new Set(done ? [input.asOf] : []),
   };
-  context.stored = syncWeekV2(context).rows;
+  context.stored = syncWeek(context).rows;
   return context;
 }
 export const restIntent = {

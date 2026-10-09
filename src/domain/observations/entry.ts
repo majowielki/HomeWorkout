@@ -1,5 +1,5 @@
 /**
- * How a result is made out of what the person did at the logger (engine v2, 06 §1, 13 §12, P5.4).
+ * How a result is made out of what the person did at the logger (engine, 06 §1, 13 §12, P5.4).
  *
  * Touch and voice both end here, so a set said aloud and a set tapped become
  * the same kind of record. Every field says where it came from: a value the

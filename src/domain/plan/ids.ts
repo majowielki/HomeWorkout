@@ -1,5 +1,5 @@
 /**
- * Identifiers of a session plan (engine v2, 02 §1).
+ * Identifiers of a session plan (engine, 02 §1).
  *
  * An id never comes from where something happens to be on the screen: moving
  * an exercise up the list must not attach its results to another exercise.

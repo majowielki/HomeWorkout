@@ -121,7 +121,7 @@ export const TOOL_ERRORS = [
 ] as const;
 
 type PlanReasonCode = (typeof PROGRESSION_REASONS)[number] | (typeof DECISION_CODES)[number];
-/** Why a prescription is what it is: the codes of the first engine and of the second (contract 7). */
+/** Why a prescription is what it is: the codes of historical sessions and of the second (contract 7). */
 export const PLAN_REASON_CODES = [
   ...new Set<string>([...PROGRESSION_REASONS, ...DECISION_CODES]),
 ] as unknown as readonly [PlanReasonCode, ...PlanReasonCode[]];

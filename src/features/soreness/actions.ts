@@ -1,9 +1,9 @@
 import { recordMildSoreness } from '@/db/repositories/dailyLogs';
 import { getDayBoundaryHour } from '@/db/repositories/profile';
-import { addConstraint, revokeConstraints } from '@/db/repositories/weekPlan';
+import { addConstraint, revokeConstraints } from '@/db/repositories/constraints';
 import { assessReport, type SorenessReport } from '@/domain/plan/sorenessReport';
 import { trainingDate } from '@/domain/time/trainingDate';
-import { syncWeek } from '@/db/repositories/weekPlanV2';
+import { syncWeek } from '@/db/repositories/weekPlan';
 
 export class ReportDateChangedError extends Error {}
 

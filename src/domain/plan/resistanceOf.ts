@@ -1,5 +1,5 @@
 /**
- * The resistance of a catalogue exercise in the second engine's terms (engine
+ * The resistance of a catalogue exercise in the engine's terms (engine
  * v2, 05 §5-§8). The catalogue still says only what the exercise is done
  * with — dumbbells in a pair or alone, a long band, the body — and the slot
  * says where it starts; this turns that into the model that knows the steps,
@@ -12,7 +12,7 @@ import { BAND_CONFIG } from '../config/training';
 import { ladderFor } from '../progression/ladder';
 import { dumbbellModeOf, loadKindOf } from '../progression/load';
 import { resistanceComparisonKey } from '../resistance/compare';
-import { specFromLoad } from '../resistance/legacy';
+import { specFromLoad } from '../resistance/persistedLoad';
 import {
   DEFAULT_MODEL_CONTEXT,
   type ModelContext,

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import type { SessionPlan } from '@/domain/plan/plan';
 import { pl } from '@/strings/pl';
 import { MonthGrid } from '../MonthGrid';
 
@@ -72,7 +72,7 @@ describe('MonthGrid', () => {
             dayReasons: [],
             skipped: [],
           },
-          forecast: {} as SessionPlanV2,
+          forecast: {} as SessionPlan,
         },
       ],
     };

@@ -1,5 +1,5 @@
 import { BANDS } from '@/domain/inventory';
-import { legacyColumns } from '@/domain/observations/project';
+import { setLogColumns } from '@/domain/observations/project';
 import type { SetObservation } from '@/domain/observations/types';
 import type { AnchorPosition, ShortfallReason } from '@/domain/types';
 import { pl } from '@/strings/pl';
@@ -47,7 +47,7 @@ export function describeSet(set: DescribedSet): string {
 /** The same line for a result. */
 export function describeResult(result: SetObservation): string {
   return describeSet({
-    ...legacyColumns(result),
+    ...setLogColumns(result),
     estimatedLoadKg: null,
     shortfall: result.shortfall,
   });

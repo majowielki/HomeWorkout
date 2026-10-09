@@ -108,18 +108,3 @@ export const REQUEST_DAY_REASONS = [
 ] as const;
 
 export type DayReason = (typeof DAY_REASONS)[number] | (typeof REQUEST_DAY_REASONS)[number];
-
-/** What validatePlan changed, SPEC §8. */
-export const VALIDATION_CODES = [
-  'UNKNOWN_EXERCISE',
-  'MEDICAL_EXCLUSION',
-  'USER_EXCLUDED',
-  'EXERCISE_UNAVAILABLE',
-  'LOAD_NOT_AVAILABLE',
-  'RANGE_CLAMPED',
-  'LOAD_JUMP_CLAMPED',
-  'VOLUME_TRIMMED',
-  'TIME_TRIMMED',
-] as const;
-
-export type ValidationCode = (typeof VALIDATION_CODES)[number];

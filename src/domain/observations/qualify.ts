@@ -1,5 +1,5 @@
 /**
- * What an exposure is evidence of (engine v2, 03 §1-§3, 13 §4).
+ * What an exposure is evidence of (engine, 03 §1-§3, 13 §4).
  *
  * Three questions are kept apart so that missing information is never read as
  * a failure or as a success. `qualifyExposure` answers what is *known* about
@@ -13,7 +13,7 @@
  * it, not found out.
  */
 
-import type { PlannedSet } from '../plan/planV2';
+import type { PlannedSet } from '../plan/plan';
 import type { DecisionCode } from '../progression/codes';
 import type { ProgressionPolicy } from '../progression/policy';
 import { compareSpecs } from '../resistance/compare';
@@ -28,7 +28,7 @@ export interface EvidenceAssessment {
   coverage: 'complete' | 'partial' | 'none';
   /**
    * Whether the results are at the resistance that was planned. `reconstructed_exact` is for data that
-   * is rebuilt from an older format; the second engine starts from nothing and never produces it.
+   * is rebuilt from an older format; the engine starts from nothing and never produces it.
    */
   comparability: 'exact' | 'reconstructed_exact' | 'changed' | 'unknown';
   quality: 'sufficient' | 'missing_rir' | 'unconfirmed' | 'invalid';

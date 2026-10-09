@@ -1,17 +1,17 @@
 import { recordMildSoreness } from '@/db/repositories/dailyLogs';
 import { getDayBoundaryHour } from '@/db/repositories/profile';
-import { addConstraint, revokeConstraints } from '@/db/repositories/weekPlan';
+import { addConstraint, revokeConstraints } from '@/db/repositories/constraints';
 import { emptyReport, type SorenessReport } from '@/domain/plan/sorenessReport';
-import { syncWeek } from '@/db/repositories/weekPlanV2';
+import { syncWeek } from '@/db/repositories/weekPlan';
 import { ReportDateChangedError, saveSorenessReport, withdrawSorenessReport } from '../actions';
 
 jest.mock('@/db/repositories/dailyLogs', () => ({ recordMildSoreness: jest.fn() }));
 jest.mock('@/db/repositories/profile', () => ({ getDayBoundaryHour: jest.fn() }));
-jest.mock('@/db/repositories/weekPlan', () => ({
+jest.mock('@/db/repositories/constraints', () => ({
   addConstraint: jest.fn(),
   revokeConstraints: jest.fn(),
 }));
-jest.mock('@/db/repositories/weekPlanV2', () => ({ syncWeek: jest.fn() }));
+jest.mock('@/db/repositories/weekPlan', () => ({ syncWeek: jest.fn() }));
 const NOW = new Date(2026, 9, 7, 12);
 const ready = (patch: Partial<SorenessReport> = {}): SorenessReport => ({
   ...emptyReport(),

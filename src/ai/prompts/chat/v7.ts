@@ -27,7 +27,7 @@ import { TOOL_LIMITS } from '../../contract/chatTools';
 import type { BuiltPrompt } from '../weeklySummary/v1';
 import { MEDICAL_REFERRAL } from '../weeklySummary/v1';
 import { serializeForPrompt } from '../serialize';
-import { SHORTFALL_GUIDE } from '../shortfallGuideV2';
+import { SHORTFALL_GUIDE } from '../shortfallGuide';
 import { DECISION_GUIDE, SESSION_GUIDE, SESSION_RULES, SIMULATION_RULES } from './sessionRules';
 
 export const CHAT_PROMPT_VERSION = 'chat/v7';

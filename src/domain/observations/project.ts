@@ -1,20 +1,11 @@
-/**
- * A v2 result read as the columns of the first engine (02 §5).
- *
- * Everything that reads sets today — the history screens, the charts, the
- * coach's facts — reads `reps`, `weight_kg`, `band_id` and the rest. A v2 set
- * keeps its truth in the observation (with where each value came from) and
- * *also* fills those columns, so none of those readers has to change. The way
- * across can refuse: a resistance the first engine cannot write down is not
- * written as a dumbbell or as 0 kg. The columns stay empty and the reader
- * sees a set without a load, which is what it is for that reader.
- */
+/** Projects observed results into the columns read by history, charts and coach facts.
+ * Unsupported resistance remains null; it is never replaced with an invented load. */
 
-import { loadFromSpec } from '../resistance/legacy';
+import { loadFromSpec } from '../resistance/persistedLoad';
 import type { AnchorPosition, DumbbellMode } from '../types';
 import type { SetObservation } from './types';
 
-export interface LegacyColumns {
+export interface SetLogColumns {
   reps: number | null;
   timeSec: number | null;
   rir: number | null;
@@ -25,13 +16,13 @@ export interface LegacyColumns {
   side: 'left' | 'right' | null;
 }
 
-export function legacyColumns(observation: SetObservation): LegacyColumns {
+export function setLogColumns(observation: SetObservation): SetLogColumns {
   const quantity = observation.amount.value;
   const spec = observation.resistance.value;
   const load = spec === null ? null : loadFromSpec(spec);
   return {
     reps: quantity?.kind === 'reps' ? quantity.reps : null,
-    // The first engine counts whole seconds.
+    // Persisted time is expressed in whole seconds.
     timeSec: quantity?.kind === 'duration' ? Math.round(quantity.seconds) : null,
     rir: observation.rir.value,
     weightKg: load?.kind === 'dumbbell' ? load.kg : null,

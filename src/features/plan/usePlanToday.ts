@@ -3,8 +3,8 @@ import { randomUUID } from 'expo-crypto';
 import { useCallback, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { markChangesSeen, type WeekSyncRequest } from '@/db/repositories/weekPlanV2';
-import { acceptDay } from '@/db/repositories/planningV2';
+import { markChangesSeen, type WeekSyncRequest } from '@/db/repositories/weekPlan';
+import { acceptDay } from '@/db/repositories/planning';
 import { pl } from '@/strings/pl';
 
 import { readToday, type PlanToday } from './today';

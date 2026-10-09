@@ -1,5 +1,5 @@
 /**
- * What the person prefers (engine v2, D22, D25, 12 §3-§4).
+ * What the person prefers (engine, D22, D25, 12 §3-§4).
  *
  * A preference decides *between near-equal options*: a dumbbell goblet squat
  * or the same squat on a band; which of two similar variants a block uses;

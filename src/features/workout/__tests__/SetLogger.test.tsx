@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { createRef } from 'react';
 import { exercise } from '@/domain/__tests__/fixtures';
-import { legalObservation } from '@/domain/__tests__/planV2Fixtures';
+import { legalObservation } from '@/domain/__tests__/planFixtures';
 import { body, kg } from '@/domain/__tests__/progressionFixtures';
-import { specFromLoad } from '@/domain/resistance/legacy';
+import { specFromLoad } from '@/domain/resistance/persistedLoad';
 import { suggestedValues } from '@/domain/session/setEntry';
 import { pl } from '@/strings/pl';
 import { SetLogger, type SetLoggerHandle } from '../SetLogger';

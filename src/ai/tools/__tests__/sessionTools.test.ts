@@ -4,7 +4,7 @@ import type {
   ChangeAssessment,
   SessionChangeSnapshot,
 } from '../../../domain/session/types';
-import { CATALOG } from '../../../domain/__tests__/dayV2Fixtures';
+import { CATALOG } from '../../../domain/__tests__/dayFixtures';
 import { perform, recipe, world } from '../../../domain/__tests__/sessionChangeFixtures';
 import type { ToolCall } from '../../contract/chat';
 import { CHAT_TOOLS, toolResultSchemaFor } from '../../contract/chatTools';

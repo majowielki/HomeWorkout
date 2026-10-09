@@ -1,4 +1,4 @@
-# Silnik v2 — dokumentacja techniczna
+# Silnik — dokumentacja techniczna
 
 Opisuje to, **co jest w kodzie**, nie to, co zaplanowano. Plan i uzasadnienia: pakiet
 [architektura-silnika-2026-10-08](../../../architektura-silnika-2026-10-08/README.md) (spec. v1.3). Postęp: [POSTEP.md](POSTEP.md).
@@ -16,91 +16,59 @@ Sekcje „Zaimplementowane” rosną razem z etapami; „Stan przed przebudową�
 6. **Parametry są polityką**, nie ukrytą stałą: żyją w `src/domain/config/training.ts` i będą wersjonowane (`policyVersion`).
 7. **Kody decyzji mówią prawdę.** Kod spadku oporu pojawia się tylko, gdy opór się naprawdę zmienił (D39 e).
 
-## 2. Stan przed przebudową (`main` @ `33d0f1e`)
+## Stan bieżący — 2026-10-09, P6
 
-| Obszar | Pliki (`src/domain/…`) | Rola |
-|---|---|---|
-| Katalog i typy | `types.ts`, `plan/types.ts`, `plan/slotCatalog.ts`, `inventory.ts` | `Exercise`, `PlannedLoad` (`dumbbell`/`band`/`bodyweight`), `Slot`, sprzęt (hantle, gumy) |
-| Progresja | `progression/{history,doubleProgression,ladder,prescribe,layoff,calibration,load,bike}.ts` | podwójna progresja nad drabinką oporu; powrót po przerwie; kalibracja gum |
-| Dobór dnia | `plan/{dayPlanner,eligibility,estimate,validatePlan,reasons,dayState}.ts` | `selectDay` → `buildDay` → `validatePlan`; greedy po wyniku (deficyt objętości, zaległość slotu) |
-| Tydzień i blok | `plan/{week,weekSync,block,constraints,today}.ts` | prognoza 7 dni, prośby (`PlanConstraint`), blok 35 dni, deload 28+7 |
-| Dodatkowe sesje | `plan/{extra,compose}.ts` | `selectCustom`, `planCustom`, `composeDay`, `dayOptions` |
-| Wykonanie | `session/{steps,sides,warmup}.ts` | kroki sesji, strony, rozgrzewka |
-| Autoregulacja | `autoregulation/fatigue.ts` | sygnały zmęczenia |
-| Objętość | `volume/weekly.ts` | serie bezpośrednie i tygodniowe maksima |
-| Konfiguracja | `config/training.ts` | wszystkie liczby (`PLANNER_CONFIG`, `PROGRESSION_CONFIG`, `BLOCK_CONFIG`, …) |
-| Czas | `time/trainingDate.ts` | dzień treningowy (granica 04:00), `addDays`, `daysBetween` |
+Aplikacja korzysta z jednego silnika. Plan dnia i tygodnia, sesja dodatkowa, logger,
+historia, kalendarz, zakwasy, narzędzia AI oraz ewaluacje używają skompilowanego planu.
+Stare planowanie i reset danych są usunięte. Numery kontraktów danych pozostają:
+plan ma `schemaVersion: 2`, Worker `contractVersion: 7`, backup `schemaVersion: 8`.
 
-Przepływ dziś: `loadPlannerSource` (DB) → `buildPlanningSnapshot` → `syncWeek` / `planWeek` → `selectDay`/`buildDay` → plan zapisany
-jako JSON w `workouts.plan` → `set_logs` → `plannerSource` odtwarza `HistorySession` → `prescribe`. Utrata informacji między DB a domeną
-(brak pełnej recepty, roli, `shortfall`) to główny temat P2/P3.
+Weryfikacja kodu: `npm run verify` — 166 zestawów / 3771 testów / 5 snapshotów,
+100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 143 testy.
+Usunięcie testów dawnych implementacji i promptu podsumowania v2 zmniejsza liczbę testów;
+progi pokrycia nie zostały zmienione.
 
-### 2.1 Punkty wejścia planowania (P0.2)
+Migracja `0014_activate_engine` zachowuje historię, serie, korekty, pominięcia,
+oceny ekspozycji, rewizje planu, odczucia i jazdy. Zamyka historyczne sesje w toku,
+zachowuje nazwy dawnych szablonów w `workouts.plan.title`, usuwa `template_id`,
+`workout_templates`, dawny tydzień i `app_state`. Bieżący tydzień używa
+`planned_days` / `plan_generations`, plan sesji — `session_plan`.
+Przebudowa tabeli nadrzędnej przechowuje wszystkie dane podrzędne w tabelach tymczasowych,
+ponieważ migrator pracuje w transakcji z włączonymi kluczami obcymi. Test SQLite obejmuje
+zachowanie tych danych oraz rollback po błędzie przy odtwarzaniu.
 
-Stan z 2026-10-09 (`33d0f1e` + P0.3/P0.4/P0.7). Lista sprawdzona wyszukiwaniem użyć, nie samych eksportów `plan/`. To jest mapa dla P4.2 („jedno wejście do planowania dla wszystkich intencji”) i P4.7 (tryby audytu).
+Pozostaje odbiór interfejsu na emulatorze, wspólne wydanie Workera i APK oraz test na
+telefonie. P6 nie jest oznaczony jako zamknięty przed tym odbiorem.
 
-**Planowanie — jak powstaje plan**
+## 2. Przepływy aplikacji
 
-| Wejście | Plik | Co robi | Gdzie używane w aplikacji |
-|---|---|---|---|
-| `syncWeek` → `planWeek` | `domain/plan/weekSync.ts`, `week.ts` | tydzień: dzień po dniu `selectDay` / `checkSelection` (dni zachowane) / `composeDay` (dzień złożony z trenerem) → `buildDay` | `features/plan/computeToday.ts` (ekran Dziś, zapis tygodnia), `features/plan/coachPreview.ts` (podgląd propozycji trenera, opcje dnia), `features/coach/chat/proposals.ts` (narzędzie `week`) |
-| `planCustom` / `selectCustom` / `extraSessionOptions` / `slotsForFocus` | `domain/plan/extra.ts` | sesja dodatkowa: tylko wskazane sloty, bez uzupełniaczy | `features/extra/actions.ts`, `ExtraSessionPicker.tsx`, `ExtraSessionScreen.tsx`, `coach/chat/proposals.ts` (`proposeExtra`) |
-| `composeDay` / `dayOptions` | `domain/plan/compose.ts` | dzień złożony z trenerem (ADR 0006) | tylko przez `planWeek` |
-| `planDay` | `domain/plan/dayPlanner.ts` | `selectDay` + `buildDay` jednego dnia | `planToday` (używany tylko przez `ai/testing/plan.ts`), `simulate` — **aplikacja nie woła go bezpośrednio** |
-| `validatePlan` | `domain/plan/validatePlan.ts` | jedyny „audyt”: przycina i koryguje plan (sprzęt, zakresy, skoki, objętość, czas) i **zwraca skorygowany plan**, nie listę naruszeń | wyłącznie w `buildDay`; nie jest wołany przy starcie sesji |
-| `resolveDayPolicy` | `domain/policy/dayPolicy.ts` | efektywny config dnia (P0.4) | `planWeek`, domyślnie `extra.ts` i `compose.ts` |
+- Dziś: `weekPlan.syncWeek` → `previewDay` → `acceptDay` w transakcji.
+  Akceptacja sprawdza ponownie wejścia, receptę oraz wybór tygodnia; konflikt odświeża podgląd.
+- Sesja dodatkowa używa tego samego bilansu dnia i audytu; start wymaga ukończonego dnia.
+- Sesja: `readSessionState` odczytuje plan, dyspozycje i wyniki; polecenia w
+  `repositories/sessions.ts` zapisują obserwacje oraz rewizje i mają idempotentny ledger.
+- Zmiana sesji: resolver / ranking → `assessSessionChange` → świeża ocena oraz
+  `applySessionChange` w transakcji. Wykonane serie nie są przepisywane.
+- Czat: `app-services/coach/proposals.ts`, `ai/tools/planPreview.ts` i narzędzia sesji.
+  Propozycja to karta do zatwierdzenia; tekst modelu nie jest receptą ani wynikiem.
+- Historia: dawne wiersze bez observation są tylko do odczytu. Planer pomija plany
+  `planSchema = 1`; w normalizacji zapisów bez dowodu pozostaje `legacy_unknown`.
+- Startup: migracje → seed katalogu/sprzętu → zamknięcie przeterminowanych sesji przez
+  `closeSession`. Zapisana praca pozostaje, główny dzień jest oznaczony jako pominięty.
 
-**Start sesji i zapis**
+## 3. Mapa modułów
 
-| Wejście | Plik | Re-walidacja przy starcie? |
-|---|---|---|
-| `startPlannedWorkout(plan, trainingDate)` | `db/repositories/workouts.ts`, wołany z `features/plan/usePlanToday.ts` | **nie**: zapisuje plan ze stanu ekranu, jaki dostał; zamraża go w `workouts.plan` |
-| `startExtraWorkout(plan, selection)` | `db/repositories/workouts.ts`, z `features/extra/actions.ts` | **tak, po stronie wywołującego**: `startExtraSession` czyta świeży snapshot, planuje ponownie, porównuje JSON z podglądem i datę (`ExtraSessionChangedError`) |
-| propozycja trenera (tydzień) | `saveCoachWeek` w `db/repositories/weekPlan.ts`, z `proposals.ts` | porównanie klucza snapshotu (`planningSnapshotKey`) przed zapisem |
-| szablon ręczny | — | nie ma ścieżki startu: `templateId` jest zawsze `null` w obu funkcjach startu; szablony (`workout_templates`) służą dziś tylko historii sprzed M7 |
-| import kopii | `lib/backup.ts` → `db/backup/parse.ts` → `db/repositories/backup.ts` | tylko walidacja formatu kopii; plany z kopii nie przechodzą przez silnik |
+| Obszar | Bieżące moduły |
+| --- | --- |
+| Plan, audyt i kroki | `domain/plan/{plan,day,week,block,compile,audit,repair,selectionGuard}.ts` |
+| Dowód i progresja | `domain/observations/*`, `history/*`, `progression/{next,rules,policy,assessed,axes,failedRungs,probe,buildUp}.ts` |
+| Sprzęt i opór | `resistance/*`, `equipment/*`, `inventory.ts`, obliczenia drabinek i kalibracji |
+| Sesja | `session/{progress,setEntry,evaluate,effects,revision,assessmentText}.ts` |
+| Odczyt i zapis | `db/repositories/{planning,weekPlan,sessions,history,planningInputs,constraints,sessionChanges}.ts` |
+| Sterowanie czatem | `app-services/coach/proposals.ts`, `ai/tools/{planPreview,sessionTools,simulationTools}.ts` |
 
-**Wnioski dla etapów**
-
-1. P4.2: do ujednolicenia są dwa światy — tydzień (`planWeek`, który sam wybiera config) i sesja dodatkowa (`extra.ts`, wyliczana od nowa przy starcie). Wspólny punkt to `resolveDayPolicy` (P0.4) i `PlannerInput`.
-2. P4.7: plan dnia automatycznego nie jest sprawdzany ponownie przy starcie. Plan v2 wymaga trybu `start_session` (02, 01 §5).
-3. Historia do progresji powstaje w `db/repositories/plannerSource.ts` z serii sesji `completed`; tam ginie pełna recepta (P2/P3).
-
-## 3. Mapa modułów v2
-
-Docelowa mapa plików to 13 §0. Status:
-
-| Moduł | Spec. | Etap | Stan |
-|---|---|---|---|
-| `time/trainingDate.ts` — `trainingDateOf` | 13 §1 | P0.3 | ☑ |
-| `policy/dayPolicy.ts` — `resolveDayPolicy` | 13 §2 | P0.4 | ◐ (warstwy: baza, tydzień, intencja) |
-| `policy/hardAdvice.ts` (klasy reguł, werdykt), `policy/registry.ts` (polityki, zdolności) | 12 §2, 13 §5 | P1 | ☑ |
-| `observations/{types,exposure}.ts` | 13 §3 | P1 | ☑ |
-| `observations/{normalize,outcome,project}.ts`, `commands/result.ts`, `history/index.ts` | 13 §3, §13, 10 §1 | P2 | ☑ |
-| `observations/{qualify,effort}.ts` | 13 §4 | P3 | ☑ |
-| `db/repositories/{sessionsV2,historyV2,ledger,engineMigration}.ts` | 13 §14, 02 §5–§8a | P2 | ☑ |
-| `resistance/{types,ladderModel,models,registry,legacy,compare}.ts` | 05 §5–§8 | P1 | ☑ |
-| `equipment/types.ts` | 05 §4 | P1 | ☑ |
-| `plan/{planV2,ids}.ts`, `fingerprint/*` | 02 §1–2, 01 §4 | P1 | ☑ |
-| `progression/{next,rules,draft,assessed,failedRungs,axes,probe,buildUp,firstExposure,levels,policy,codes}.ts` | 13 §5–8, 16, 20 | P3 | ☑ (plik `calibration.ts` zostaje przy gumach) |
-| `catalog/{attributes,variants,validate}.ts`, `medical/screeners.ts` | 13 §9–10, 05 §13–14 | P1 | ☑ |
-| `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☑ P4b.1; §4.16 |
-| `preferences/preferences.ts` (model, `preferenceScore`, `nearEquivalent`) | 12 §3–4 | P1 | ☑ |
-| `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
-| `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
-| `history/index.ts` | 13 §13 | P2/P3 | ☐ |
-| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
-| `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
-| `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
-| `ai/tools/planPreviewV2.ts`, `app-services/coach/proposalsV2.ts`, `app-services/queries/planTools.ts`, migracja 0013 | 06 §4, 04 §5 | P5 | ☑ P5.6c; §4.28 |
-| `session/simulateProposal.ts`, `ai/contract/simulationTools.ts`, `ai/tools/simulationEnvironment.ts`, `weekPlanV2.loadSimulationBase` | 11 §13 | P5 | ☑ P5.6b; §4.27 |
-| `ai/contract/sessionTools.ts`, `ai/tools/{sessionSummary,sessionEnvironment}.ts`, `ai/prompts/chat/{v7,sessionRules}.ts`, `session/overview.ts`, `app-services/queries/sessionTools.ts` | 11 §8, 06 §4 | P5 | ☑ P5.6a; §4.26 |
-| `observations/entry.ts`, `voice/sessionIntent.ts`, `db/repositories/answers.ts`, migracja 0012 | 06 §1, §3, 13 §12 | P5 | ☑ P5.4; §4.25 |
-| `plan/weekV2.ts` (`planWeekV2`, `syncWeekV2`), `db/repositories/weekPlanV2.ts`, migracja 0011 | 04 §5, 06 §7 | P5 | ☑ P5.1–2; §4.24 |
-| `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
-| `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
-| `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
-| `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
+Nazwy API nie mają przyrostka . Numery wersji planu, promptu, backupu i migracji są
+zachowane, ponieważ identyfikują faktycznie zapisane lub wysłane kontrakty.
 
 ## 4. Zaimplementowane
 
@@ -137,24 +105,17 @@ Przed zmianą ścieżki `selectCustom`/`composeDay`/`dayOptions` czytały global
 
 Kolejne warstwy z 13 §2 (profil objętości `higher`, preferencja liczby serii, `phase`, `constraints` jako argumenty) dochodzą razem z funkcjami, które je czytają (P1, P3); do tego czasu faza i prośby dnia są czytane przez planer z bloku i logów.
 
-### 4.3 Uczciwy kod na minimum oporu (P0.7, D39 e)
+### 4.3 Uczciwy kod na minimum oporu
 
-`doubleProgression` zwraca `PERFORMANCE_REGRESSION` (tekst „szczebel lżej”) tylko wtedy, gdy `ladder.down` istnieje, czyli opór naprawdę się zmienia. Na masie ciała, najlżejszym szczeblu hantli i najlżejszej gumie (pozycja 0 żółtej) obie sesje pod zakresem traktowane są jak każda ekspozycja poniżej góry zakresu: ten sam opór, kod `REP_PROGRESSION`, cel nie niżej niż dół zakresu. Strategia się nie zmienia; to jest wyłącznie przejściowa naprawa nieprawdziwego komunikatu. Docelowe zachowanie (budowanie do zakresu od wyniku, kody `AT_MINIMUM`, `BUILDUP_BELOW_RANGE`, karta wariantu w dół) wchodzi w P3 (13 §20).
+Pipeline progresji nie ogłasza obniżenia oporu, jeżeli model oporu nie ma niższego szczebla.
+Decyzję zapisuje trace; polski tekst pochodzi z `decisionText` / `traceText`.
 
-### 4.4 Baza pomiarowa (P0.1, P0.5)
+### 4.4 Baza pomiarowa
 
-- **Golden baseline** `src/domain/__tests__/engineBaseline.test.ts` + snapshot (ok. 190 KB, czytelny tekst): 5 scenariuszy symulacji na katalogu z `data/` — 12 tygodni z kolanem wg wyboru użytkownika, 8 tygodni z kolanem konserwatywnym, 10 tygodni z niedzielami wolnymi i osobą, która co piątą serię robi o powtórzenie mniej i co siódmą „do odmowy”, miesiąc przerwy (RE_EXPOSURE, rekalibracja) oraz test determinizmu. Każda decyzja planu (ćwiczenie, serie, cel, opór, RIR, kody, pominięte sloty, korekty walidatora) jest linią tekstu. Zmiana planu = czytelny diff.
-- **Porównanie z kodem sprzed przebudowy** (`33d0f1e`): po P0.3, P0.4 i P0.7 snapshot różni się **jedną linią** — `band-pull-apart … yellow P0`: `PERFORMANCE_REGRESSION` → `REP_PROGRESSION` (naprawa z P0.7: najlżejsza guma nie ma szczebla w dół). Zero innych zmian planów, więc P0.3 i P0.4 nie zmieniają zachowania aplikacji.
-- **Manifest** `npm run engine:baseline` (`scripts/engine-baseline.ts`): commit, gałąź, lista zmienionych plików (stan roboczy!), skróty SHA-256 konfiguracji, katalogu i snapshotu. Zapisany stan wyjściowy: `Documents/silnik-v2/baseline/manifest-2026-10-09.json`.
-- **Czas planowania** `npx tsx scripts/engine-bench.ts` (node 22, PC; telefon → UWAGI T-2), p50 / p95 w ms, 20 przebiegów:
-
-| Historia | `planDay`, cała historia | `planWeek` 7 dni, cała | `planDay`, ostatnie 120 dni | `planWeek`, ostatnie 120 dni |
-|---|---|---|---|---|
-| 4 tygodnie (28 sesji, 340 serii) | 1,2 / 1,7 | 9,2 / 11,1 | 0,9 / 1,1 | 8,7 / 9,8 |
-| rok (365 sesji, 4319 serii) | 5,9 / 6,4 | 44,5 / 46,5 | 2,3 / 2,6 | 18,3 / 19,2 |
-| 3 lata (1095 sesji, 12928 serii) | 16,7 / 17,8 | 127,1 / 129,1 | 2,2 / 2,6 | 17,9 / 18,9 |
-
-  Koszt rośnie liniowo z liczbą sesji, a okno 120 dni, które aplikacja czyta dziś, trzyma go na ok. 2 ms (dzień) i 18 ms (tydzień). Wniosek dla P2: odczyt „ostatnia porównywalna ekspozycja per klucz” spoza okna (02 §7) trzeba robić osobnym zapytaniem, a nie poszerzaniem okna, bo cała historia za trzy lata to 130 ms na tydzień w node.
+Golden baseline P0 i jego skrypty zostały usunięte razem z implementacją, którą mierzyły.
+Ich historyczne wyniki pozostają w Git. Bieżące zachowanie sprawdzają testy domeny,
+symulacje i testy transakcyjne na SQLite; plan sprzętu, limity i tuning nie zmieniły się
+przy sprzątaniu P6.
 
 ### 4.5 Odcisk wejścia (P1.2)
 
@@ -176,10 +137,10 @@ Wspólny zestaw testów kontraktu (`__tests__/resistanceContract.ts`) działa na
 
 ### 4.7 Plan i wynik v2 (P1.1–P1.3)
 
-`src/domain/plan/planV2.ts`, `ids.ts`, `src/domain/observations/`
+`src/domain/plan/sessionPlan.ts`, `ids.ts`, `src/domain/observations/`
 
 - Identyfikatory: `s1/r1/e1` (ekspozycja), `s1/r1/e1/2` (seria logiczna), `s1/r1/e1/2L` (jedna strona). Rewizja w identyfikatorze to rewizja, w której element **powstał**; późniejsza rewizja może dodać serię do ekspozycji (identyfikator serii nowszy niż ekspozycji, nigdy starszy).
-- `sessionPlanV2Schema` sprawdza spójność wewnętrzną: unikalne identyfikatory, serie należą do sesji i ekspozycji, żadna z przyszłej rewizji, strona w id = strona serii, role (tylko seria `work` bywa `requiredForProgression`: rozgrzewka, `backoff`, praktyka, mobilność i próba nie zastępują serii roboczej), **każda zaplanowana seria jest wykonywana dokładnie raz** w krokach, czas: części sumują się do `exerciseTotal`, a `overall` = ćwiczenia + rower (niezmiennik 12). Czy plan jest *dozwolony* (sprzęt, limity, profil), rozstrzyga audyt (P4), nie schemat.
+- `sessionPlanSchema` sprawdza spójność wewnętrzną: unikalne identyfikatory, serie należą do sesji i ekspozycji, żadna z przyszłej rewizji, strona w id = strona serii, role (tylko seria `work` bywa `requiredForProgression`: rozgrzewka, `backoff`, praktyka, mobilność i próba nie zastępują serii roboczej), **każda zaplanowana seria jest wykonywana dokładnie raz** w krokach, czas: części sumują się do `exerciseTotal`, a `overall` = ćwiczenia + rower (niezmiennik 12). Czy plan jest *dozwolony* (sprzęt, limity, profil), rozstrzyga audyt (P4), nie schemat.
 - `observed(...)`: wartość z pochodzeniem. Reguły sprzeczności: pomiar tylko z czujnika; niezmieniona podpowiedź (`presentedDefault`) jest *potwierdzeniem*, nie zgłoszeniem; `edited` = zgłoszone przez osobę i nie jest podpowiedzią; `legacy_unknown` tylko z danych starych lub zaimportowanych. Seria `performed` ma coś w sobie — próba z zerem to `interrupted`. `rir.value = null` to „nie podano”, osobny fakt od zera.
 - `ExposureRecord` i `ExposureOutcome` to na razie tylko typy (normalizator: P3).
 
@@ -204,31 +165,24 @@ Wspólny zestaw testów kontraktu (`__tests__/resistanceContract.ts`) działa na
 - `policy/registry.ts`: `PROGRESSION_POLICIES` (`reps_then_resistance` v2) i `canPlanAutomatically` — przecięcie zdolności modelu, polityki, runnera i loggera; zwraca *które* brakuje (`UNKNOWN_MODEL`, `LOGGER_MODEL` …). `CURRENT_RUNNER` i `CURRENT_LOGGER` opisują stan aplikacji i **zmienia się je razem z loggerem**, nigdy przed nim.
 - `equipment/types.ts`: `EquipmentInstance`, `EquipmentRequirement` (zdolność z ilością i ustawieniami, konkretna instancja, jedno z kilku) i `requirementsMet` — rzecz liczy się tylko do jednego wymagania, tylko dostępna i tylko w miejscu sesji, z nawrotami przy alternatywach.
 
-### 4.11 Warstwa danych v2 (P2)
+### 4.11 Warstwa danych
 
-**Schemat** (migracja `0010_engine_v2_storage.sql`, kopia zapasowa `BACKUP_SCHEMA_VERSION = 7`):
+`workouts.sessionPlan` to skompilowany plan; `workouts.plan` zawiera historyczny JSON
+czytany tylko dla regions/kind/title. `planSchema` rozróżnia oba kontrakty. Nie ma
+przełącznika silników i nie ma funkcji tworzenia dawnych sesji ani dawnych tygodni.
 
-- `workouts` + `plan_schema` (1 = plan pierwszego silnika w `plan`, 2 = `planV2`), `plan_v2`, `plan_revision`, `revision` (licznik sesji; od niego zależy każde polecenie), `time_zone`.
-- `set_logs` + `command_id` (unikalny), `planned_set_id`, `exposure_id`, `logical_set_id`, `role`, `comparison_key`, `progression_scope`, `source`, `performed_on`, `revision`, `deleted_at` (nagrobek), `observation` (pełny `SetObservation` z pochodzeniem pól). Indeks częściowy: **jeden bieżący wynik na zaplanowaną serię** (`workout_id, planned_set_id WHERE deleted_at IS NULL`). Kolumny `reps`, `weight_kg` itd. są wypełniane z wyniku (`legacyColumns`), więc dotychczasowe ekrany czytają sesję v2 bez zmian (T52); sprzęt nieobecny w v1 zostawia je puste, nie zapisuje „0 kg”.
-- Nowe tabele: `set_log_revisions` (co korekta zastąpiła), `set_dispositions` (pominięcia), `exposure_outcomes` (rzut, do odbudowania), `command_ledger`, `planning_revisions` (liczniki wejść: history, profile, catalog, inventory, requests, block, preferences), `session_plan_revisions`, `feel_reports`, `preferences`, `legacy_sessions`, `app_state` (generacja silnika danych tej instalacji).
+Backup 8 obejmuje obserwacje, rewizje, dyspozycje, odczucia i preferencje. Parser przyjmuje
+wersje 1–7, przekształca stare pole `planV2` do `sessionPlan` i przenosi tytuł z szablonu.
+Import historycznej sesji in_progress zamyka ją jako abandoned. Planowany tydzień jest
+pochodny i po imporcie powstaje ponownie. Import i migracja nie resetują historii.
 
-**Polecenia** (`sessionsV2.ts`; każde = jedna transakcja; odpowiedź `CommandResult`): `startSessionV2`, `logSetV2`, `skipSetsV2`, `updateSetV2`, `undoSetV2`, `recordFeelV2`, `closeSessionV2`. Zasady wspólne:
+Tabela `legacy_sessions` pozostaje wyłącznie dla danych archiwalnych kopii zapasowych,
+które mogły zostać wcześniej zaimportowane. Jest zachowana w round trip backupu i nie
+karmi planowania ani progresji. To świadomy wyjątek chroniący dane, a nie API resetu.
 
-1. **Ledger.** Ten sam `commandId` zwraca zapisaną odpowiedź (`already_committed`) i niczego nie zmienia. Wyjątek: polecenie, którego wynik cofnięto, daje `COMMAND_SUPERSEDED` (nie wskrzesza go).
-2. **Rewizja.** Polecenia zapisu serii niosą `expectedSessionRevision`; inna wartość = `SESSION_CHANGED`, bez zapisu. Korekta używa rewizji wyniku (`STALE_INPUT`).
-3. **Walidacja przed zapisem**, z bazy w tej samej transakcji: plan sesji, przynależność serii, schemat wyniku (sprzeczne pochodzenie, wynik pusty jako „wykonany” → `INVALID_COMMAND`).
-4. **Awaria sklepu** (wyjątek w środku transakcji) wycofuje wszystko i daje `storage_error`, `retryable`; ponowienie tego samego polecenia zapisuje raz (sprawdzone wyzwalaczem wstrzykującym błąd w `set_logs`, `exposure_outcomes` i `command_ledger`).
-5. Licznik zużycia gumy rośnie raz na nowy wynik, nigdy przy ponowieniu.
-6. Zamknięcie sesji nie dopisuje niczego dla serii niewykonanych: zostają bez wyniku, a `exposure_outcomes` liczy je jako pominięte.
-7. Jeden aktywny trening naraz (`ACTIVE_SESSION_EXISTS`). Korekty działają także po zakończeniu sesji.
-
-**Odczyt** (`historyV2.ts`): `loadWindow(od)` – sesje v2 od daty, znormalizowane do `ExposureRecord`; `loadLastComparableBefore(przed)` – dla każdego klucza najnowsza ekspozycja primary sprzed daty (zapytanie `GROUP BY comparison_key`, bez limitu dni, T34); `loadHistoryForPlanning` – jedno i drugie.
-
-**Czytniki pierwszego silnika** (`plannerSource`, `coachSource`, `setLogs`, `calendar`) pomijają nagrobki (`deleted_at`).
-
-**Przejście na silnik v2** (`engineMigration.ts`, D21): `migrateToEngineV2(sink)` – archiwum (pełna kopia 7 jako `homeworkout-v1-archive-<data>.json`) → odczyt z powrotem i parsowanie → dopiero wtedy w jednej transakcji kasuje sesje, serie, bloki, tydzień, prośby, rowery i księgę poleceń oraz ustawia `app_state.engine_generation = 2`. Zostają: profil (kolano, granica dnia, lista „nie proponuj”), gumy z kalibracją i zużyciem, dziennik poranny, waga, pomiary, szablony, diagnostyka AI, preferencje. Błąd na dowolnym kroku przed ostatnim zostawia dane nietknięte (zapis, odczyt, zgodność pliku, sama transakcja — każdy sprawdzony). `importLegacySessions` wkłada zakończone sesje z archiwum do `legacy_sessions` (do wglądu; idempotentnie). `src/lib/engineMigration.ts` opakowuje to plikiem w katalogu dokumentów aplikacji i stałą **`ENGINE_V2_RESET_ENABLED = false`**.
-
-**Harness SQLite:** `src/db/__tests__/sqlite-harness.cjs` (wspólny), `sqlite-check.cjs` (19 przypadków pierwszego silnika), `sqlite-check-v2.cjs` (27 przypadków v2); `storage.test.ts` zamienia każdy w osobny test Jesta.
+Wartości dla ekranów historii i wykresów są projekcją observation przez setLogColumns;
+brak reprezentacji sprzętu pozostawia null. Obliczenia kalibracji gum, fizyczne drabinki,
+adapter persistedLoad i dane syntetycznych historii pozostają używane przez obecny kod.
 
 ### 4.12 Kwalifikacja dowodu i progresja (P3)
 
@@ -238,7 +192,7 @@ Czysta domena, bez bazy i bez zegara. **Żadna ścieżka aplikacji jeszcze tego 
 
 **Jak reguły czytają historię** (`progression/assessed.ts`): `assess` robi z rekordów `Assessed` = rekord + kwalifikacja + opór odniesienia + identyfikator szczebla modelu + zakres planu. `usable` to ekspozycje, w których coś zrobiono; ekspozycja bez niczego nie przesuwa osoby między szczeblami, ale **przerywa** serię porażek. Tydzień deloadu nie jest czytany (decyduje ekspozycja przed nim) i nie przerywa budowania do zakresu, a przerywa serię „kolejnych” porażek.
 
-**Pipeline** (`progression/next.ts`, `rules.ts`, `draft.ts`). `prescribeNext(input, pipeline = PIPELINE_V2)` → `{ draft, trace }`. Reguły w kolejności priorytetów 03 §4:
+**Pipeline** (`progression/next.ts`, `rules.ts`, `draft.ts`). `prescribeNext(input, pipeline = PIPELINE_)` → `{ draft, trace }`. Reguły w kolejności priorytetów 03 §4:
 
 | # | Reguła | Co robi |
 |---|---|---|
@@ -271,7 +225,7 @@ Czysta domena, bez bazy i bez zegara. **Żadna ścieżka aplikacji jeszcze tego 
 
 **Kody** (`progression/codes.ts`): zamknięty rejestr `DECISION_CODES` (40), `STEP_DOWN_CODES` i `STEP_UP_CODES`. Test sprawdza na wszystkich planach z testów, że kod „lżej” pojawia się tylko, gdy opór faktycznie spadł (T105), że żaden plan nie jest cięższy od ostatniej ekspozycji bez kodu awansu i że kolejność rekordów nie zmienia wyniku (T56). Teksty polskie i schemat payloadu kodów dochodzą z UI/AI w P5 (kontrakt AI wylicza kody przez `z.enum`, więc to zmiana kontraktu i wspólne wdrożenie Workera).
 
-**Parametry** (`config/training.ts`): `PROGRESSION_V2_CONFIG` (próg próby 15%, góra +5/+15 s, pamięć 42 dni, połowa dołu zakresu, kalibracja 2/1, `dropOffAllowance`), `SETS_CONFIG`; `progression/policy.ts` składa z nich `ProgressionPolicy` razem z krokami i progami przerw z pierwszego silnika.
+**Parametry** (`config/training.ts`): `PRESCRIPTION_CONFIG` (próg próby 15%, góra +5/+15 s, pamięć 42 dni, połowa dołu zakresu, kalibracja 2/1, `dropOffAllowance`), `SETS_CONFIG`; `progression/policy.ts` składa z nich `ProgressionPolicy` razem z krokami i progami przerw z pierwszego silnika.
 
 ### 4.13 Rotacja, deload reaktywny, dźwignia objętości (P3)
 
@@ -289,7 +243,7 @@ To warstwa domeny v2; aplikacja nadal używa dotychczasowych ścieżek (§2.1). 
 P5/P6. Nowy plan nie korzysta z `validatePlan` pierwszego silnika.
 
 **Kompilator** (`plan/compile.ts`): `compileSession({exposures, sessionId, planRevision, versions, modelOf, bikeSec, …})`
-zamienia `ExposureSpec[]` na `SessionPlanV2` bez stempla. Każda seria ma stabilne ID w przestrzeni sesji/rewizji/ekspozycji;
+zamienia `ExposureSpec[]` na `SessionPlan` bez stempla. Każda seria ma stabilne ID w przestrzeni sesji/rewizji/ekspozycji;
 `per_set` rozwija serię logiczną na lewą i prawą stronę, `alternating` oraz `both` pozostają jednym wykonaniem. Próba
 szczebla poprzedza work, ma własny opór i czas. Superserie wykonują się rundami; nierówne liczby serii nie są wyrównywane
 nowymi seriami. Kompilator generuje perform/rest/setup/transition/cue i dzieli czas na hardWork, practice, mobility,
@@ -313,7 +267,7 @@ nie wymusza luzowania reguł; krótki legalny dzień jest poprawnym wynikiem.
 
 ### 4.15 Dzień, blok i symulacja v2 (P4)
 
-**Dzień** (`plan/dayV2.ts`): `planDayV2(DayInputV2)` buduje indeks actual, politykę dnia, sygnały i recepty z
+**Dzień** (`plan/day.ts`): `planDay(DayInput)` buduje indeks actual, politykę dnia, sygnały i recepty z
 `prescribeNext` oraz `recommendSets`. Greedy przelicza marginalny deficyt, staleness, bonus compound i preferencję po
 każdym wyborze. Dostawców mięśnia liczy z kandydatów kwalifikowanych w tym wejściu. Remis rozstrzyga kolejność slotów.
 `trace.evidence.selection` zapisuje ważone składowe, sumę i `addedSec`; wagi pozostają bazowe (D25).
@@ -327,21 +281,21 @@ ekspozycji nie są zwracane. Przy braku planu obie listy są puste.
 porównywalności. Nieznana konfiguracja modelu daje null. Rozszerzanie inwentarza produkcyjnego wymaga kontraktów P9;
 kompilator i audyt już otrzymują model przez jawne `modelOf`.
 
-**Blok** (`plan/blockV2.ts`) wywołuje `chooseBlockSelections` i `reactiveDeloadTrigger`: 35 dni, bez planowego deloadu,
+**Blok** (`plan/block.ts`) wywołuje `chooseBlockSelections` i `reactiveDeloadTrigger`: 35 dni, bez planowego deloadu,
 deload trwa 7 dni i nie kończy bloku. Przerwa resetuje zegar; wykluczony wariant jest naprawiany. Sygnały z ekspozycji
-(`autoregulation/signalsV2.ts`) odpowiadają przeciążeniu, regresowi kolana i niskiemu recovery. Przy FATIGUE_HIGH dzień
+(`autoregulation/signals.ts`) odpowiadają przeciążeniu, regresowi kolana i niskiemu recovery. Przy FATIGUE_HIGH dzień
 szuka kwalifikowanego dwunożnego zamiennika w tym samym slocie; bez niego pomija slot.
 
-**Symulator** (`plan/simulateV2.ts`): `simulateV2` prowadzi blok dzień po dniu, jawnie uwzględnia restDays, readiness,
+**Symulator** (`plan/simulate.ts`): `simulate` prowadzi blok dzień po dniu, jawnie uwzględnia restDays, readiness,
 prośby deloadu, preferencje i model syntetycznej osoby. `recordsOf` tworzy actual wyłącznie z końcowego planu, z ilością
 i RIR podanymi przez athlete, potwierdzonym oporem oraz fazą deloadu w kontekście. Nie ma planu → nie ma actual/ride;
 dzień odpoczynku nadal przesuwa blok. Cele dystansowe są poza zakresem symulatora i powodują jawną odmowę.
 Testy na prawdziwym katalogu obejmują 6 tygodni deterministycznej osoby i 8 tygodni osoby okresowo niedobijającej celu,
 kontrolują dzienne/tygodniowe maksima, czas, rotację, deload, unikalność ID i prawdziwość kodów progresji.
 
-**Dowody P4:** `compile.test.ts`, `audit.test.ts`, `repair.test.ts`, `dayV2.test.ts`, `dayV2Worlds.test.ts`,
-`dayV2Edges.test.ts`, `blockV2.test.ts`, `signalsV2.test.ts`, `resistanceOf.test.ts`, `simulateV2.test.ts`,
-`simulateV2Edges.test.ts`. Scenariusze dawniej wyłączone są aktywne. Znane ograniczenia i różnice: UWAGI §2b.
+**Dowody P4:** `compile.test.ts`, `audit.test.ts`, `repair.test.ts`, `day.test.ts`, `dayWorlds.test.ts`,
+`dayEdges.test.ts`, `block.test.ts`, `signals.test.ts`, `resistanceOf.test.ts`, `simulate.test.ts`,
+`simulateEdges.test.ts`. Scenariusze dawniej wyłączone są aktywne. Znane ograniczenia i różnice: UWAGI §2b.
 
 ### 4.16 Rozpoznawanie ćwiczeń (P4b.1)
 
@@ -376,7 +330,7 @@ Resolver pozostaje poza ścieżkami aplikacji do integracji w P4b/P5.
 
 `assessSessionChange(snapshot, activeSession, change, opts?)` jest czystą funkcją w `session/assess.ts`.
 Ocena pojedynczego wariantu znajduje się w `session/evaluate.ts`; publiczna funkcja dołącza ranking (§4.18).
-Wejścia z `session/types.ts` są zwykłymi danymi: `SessionChangeSnapshot` rozszerza `DayInputV2` o rewizje
+Wejścia z `session/types.ts` są zwykłymi danymi: `SessionChangeSnapshot` rozszerza `DayInput` o rewizje
 historii/preferencji, słownik i zapisany wybór jutra; `ActiveSessionState` zawiera plan v2 i aktualne
 znormalizowane rekordy/dyspozycje. Rekordy aktywnej sesji zastępują jej starszą kopię w snapshotcie, więc
 wykonana praca nie jest liczona dwukrotnie. Data musi odpowiadać zamrożonej dacie sesji. Uszkodzony hash lub
@@ -482,7 +436,7 @@ i numer rewizji w workout, dyspozycje usuniętych pending ID, odbudowane outcome
 i ledger. Błąd któregokolwiek zapisu cofa całość. Pending recepty aktualnego planu są rezerwacją objętości
 czytaną przez następną ocenę; po ACK serie nadal liczą się normalnie. Nie są tworzone obserwacje wykonania.
 
-`historyV2.historyPlans` scala recepty ze wszystkich rewizji według ID ekspozycji i serii, wyłącznie
+`history.historyPlans` scala recepty ze wszystkich rewizji według ID ekspozycji i serii, wyłącznie
 do normalizacji historii/outcomes. Runner nadal dostaje bieżący wykonywalny plan. Usunięte serie zachowują
 receptę i dyspozycję `skipped/replaced`; licznik expected obejmuje pierwotnie wymagane serie. Skrócone
 ekspozycje oraz nowe recepty obniżonego oporu mają kontekst `userReduced`, więc kwalifikacja zwraca
@@ -524,7 +478,7 @@ oraz normalizację, zapisuje `FeelReport`, podnosi history/session revision i zw
 historii. Dlatego patch wybranej opcji jest zgodny z następnym `applySessionChange`; raport nie wymaga
 nowej rewizji planu. Kolejny raport unieważnia starsze opcje. Retry zwraca zapisany wynik także po
 zamknięciu; ID innego polecenia/sesji jest odrzucane. Błąd raportu/outcomes/ledger cofa całą transakcję.
-Dotychczasowy `recordFeelV2` współdzieli zapis, waliduje payload i też podnosi history revision.
+Dotychczasowy `recordFeel` współdzieli zapis, waliduje payload i też podnosi history revision.
 
 Akceptacja redukcji przechodzi przez P4b.4 i zachowuje wymagane stare recepty oraz dyspozycje.
 Zamiana na łatwiejszy wariant dodaje `trace.evidence.reducedFrom` także do nowej ekspozycji, więc
@@ -558,20 +512,20 @@ feel), determinizm i niezmienność wejścia.
 ### 4.22 Serwis dnia: od bazy do sesji (P5.5a)
 
 Pierwszy kawałek integracji. Nic w ekranach go jeszcze nie woła; sprawdzony jest na prawdziwym SQLite
-(`sqlite-check-planning-v2.cjs`).
+(`sqlite-check-planning.cjs`).
 
 - `planningInputs.ts` (`readPlanningInputs(tx, asOf)`, `readDayBoundaryHour`): jeden czytnik wejść (profil, preferencje,
   katalog, gumy, historia znormalizowana, odczyty dnia, jazdy, prośby, tydzień, rewizje) w transakcji wywołującego. Używają go
   dzień i konsultacja w sesji (`sessionChangeSource` został do niego przepisany bez zmiany wyniku), więc nie mogą widzieć różnych historii.
-- `plan/blockContext.ts` (`blockContextV2`): co blok czyta z historii (dowód każdego slotu, sygnały deloadu). Wyodrębnione z
-  `simulateV2`, które teraz woła tę samą funkcję — symulacja i aplikacja nie mogą inaczej zdecydować o bloku. `plan/versions.ts`:
+- `plan/blockContext.ts` (`blockContext`): co blok czyta z historii (dowód każdego slotu, sygnały deloadu). Wyodrębnione z
+  `simulate`, które teraz woła tę samą funkcję — symulacja i aplikacja nie mogą inaczej zdecydować o bloku. `plan/versions.ts`:
   wersje wpisywane do planu (silnik 2.0.0, polityki, kompilator, schemat śladu); wersja katalogu = najnowsza `data_version` z bazy.
-- `planDayIn(tx, request, now)`: data dnia z godziny granicznej profilu → wejścia → blok przesunięty do dziś (`advanceBlockV2`,
-  bez zapisu) → `planDayV2`. `DayRequest` niesie id sesji nadawane przez wywołującego (podgląd i akceptacja muszą się zgadzać),
+- `planDayIn(tx, request, now)`: data dnia z godziny granicznej profilu → wejścia → blok przesunięty do dziś (`advanceBlock`,
+  bez zapisu) → `planDay`. `DayRequest` niesie id sesji nadawane przez wywołującego (podgląd i akceptacja muszą się zgadzać),
   intencję, rodzaj, `only`, `acknowledged`, prośbę o deload. Odcisk wejścia obejmuje całe wejście i prośbę.
 - `previewDay`: transakcja tylko do odczytu, wynik `{asOf, input, current, advance, output, planHash}`.
 - `acceptDay({commandId, request, expectedPlanHash, timeZone})`: w jednej transakcji ledger → ponowne planowanie z bazy →
-  porównanie hasha → `startSessionIn` (wyodrębnione z `startSessionV2`) → zapis bloku (`writeBlockAdvance`) i podniesienie rewizji
+  porównanie hasha → `startSessionIn` (wyodrębnione z `startSession`) → zapis bloku (`writeBlockAdvance`) i podniesienie rewizji
   `block`. Inny hasz (zmiana profilu, historii, odczytu, prośby albo dnia) to `conflict: STALE_INPUT` z nowym haszem w `detail`;
   brak planu to `rejected: INVALID_PLAN`; trwająca sesja to `ACTIVE_SESSION_EXISTS`. Błąd zapisu bloku cofa też sesję i ledger.
   Powtórka tego samego `commandId` zwraca zapisany wynik.
@@ -589,9 +543,9 @@ jedna rzecz go do tego skłoniła; liczby (`gapDays`, `failures`) bierze z dowod
 kodu i pozostałych zapisanych w śladzie (`evidence.codes`), każde raz; kod, którego ten silnik nie zna (plan z nowszej wersji),
 jest pomijany, a nie pokazywany jako surowy identyfikator. Używają tego: karta „Dlaczego?” (P5.3b) i prompty AI (P5.6).
 
-### 4.24 Tydzień na silniku v2 (P5.1–P5.2)
+### 4.24 Tydzień na silniku (P5.1–P5.2)
 
-**Wybór dnia, nie obciążenie.** `KeptItem {slotId, exerciseId, sets}`; `DayInputV2.kept` mówi `planDayV2`, co wybrano wcześniej.
+**Wybór dnia, nie obciążenie.** `KeptItem {slotId, exerciseId, sets}`; `DayInput.kept` mówi `planDay`, co wybrano wcześniej.
 Dzień jest planowany tylko z tych slotów i z tą liczbą serii (przez te same reguły: kwalifikacja, regeneracja, limity, czas, audyt).
 Jeśli każdy element się mieści — `kept: 'held'`; jeśli któryś nie (inny ćwiczenie w slocie po rotacji bloku, brak miejsca w objętości,
 prośba o pominięcie partii, DOMS) — dzień jest wybrany od nowa, `kept: 'changed'`, a `keptViolations` niesie powód z `SkipReason`.
@@ -599,18 +553,18 @@ Pominięte jest tu kryterium „warto robić”, więc dzień nie zmienia się t
 zapisany bez ćwiczeń roboczych (tylko lekka praca) jest utrzymany, dopóki nadal takiego nie ma. Wybrane ćwiczenie roboczego dnia to
 `selectionOf(plan)`.
 
-**`planWeekV2`** idzie dzień po dniu jak `simulateV2`: blok (`advanceBlockV2` z `blockContextV2`), dzień odpoczynku (wzór tygodnia albo
-prośba), dzień złożony z trenerem (`compose_day` → `only`), w innym razie `planDayV2` z `kept`. Prognoza kolejnych dni czyta plan poprzednich
+**`planWeek`** idzie dzień po dniu jak `simulate`: blok (`advanceBlock` z `blockContext`), dzień odpoczynku (wzór tygodnia albo
+prośba), dzień złożony z trenerem (`compose_day` → `only`), w innym razie `planDay` z `kept`. Prognoza kolejnych dni czyta plan poprzednich
 jako zrobiony zgodnie z planem (`recordsOf`), ale **te rekordy żyją tylko wewnątrz funkcji**: wynik nie zawiera `ExposureRecord`, wejście nie
 jest zmieniane, a dzień pierwszy widzi wyłącznie prawdziwą historię (T21). Prognozowane sesje mają id `forecast-<data>`. Trwająca sesja dnia
 (`running`): jej niewykonane serie liczą się w prognozach po niej jako zrobione (`completedAsPlanned`), a wykonane zostają, jak były (T19).
 
-**`syncWeekV2`** to odpowiednik `syncWeek` pierwszego silnika: dni minione oznaczone `done`/`missed`, horyzont 7 dni od dziś (dziś odpada, gdy ma
+**`syncWeek`** to odpowiednik `syncWeek` pierwszego silnika: dni minione oznaczone `done`/`missed`, horyzont 7 dni od dziś (dziś odpada, gdy ma
 sesję zakończoną albo trwającą), dzień chybiony albo jawna prośba planuje od nowa, wynik niesie `trigger`, wiersze do zapisu i `changes` (regiony
 przed i po, powody) dla banera.
 
-**Zapis.** Migracja 0011: `planned_days_v2` (data, `selection`, `forecast` = plan v2, status, generacja) i `plan_generations_v2`. Osobne tabele,
-żeby tydzień pierwszego silnika nie zmienił się do P6. `weekPlanV2.syncWeek` w jednej transakcji czyta, planuje i zapisuje: bez zmian wyboru zapisuje
+**Zapis.** Migracja 0011: `planned_days` (data, `selection`, `forecast` = plan v2, status, generacja) i `plan_generations`. Osobne tabele,
+żeby tydzień pierwszego silnika nie zmienił się do P6. `weekPlan.syncWeek` w jednej transakcji czyta, planuje i zapisuje: bez zmian wyboru zapisuje
 tylko statusy i odświeżoną prognozę (obciążenia idą za historią), przy zmianie nową generację (urodzoną jako zobaczoną, jeśli nic się nie zmieniło).
 Blok nie jest tu zapisywany — przesuwa go dopiero start sesji dnia (`acceptDay`). `previewWeek` niczego nie zapisuje.
 
@@ -659,31 +613,31 @@ Wyjątek od zakazu cytowania obciążeń dotyczy wyłącznie recepty z `assessSe
 
 ### 4.27 Symulacja propozycji (P5.6b)
 
-`simulateProposal(base, input, {horizonDays, athlete})` uruchamia ten sam `planWeekV2`, który układa plan, dwa razy: raz jak jest i raz z propozycją. Propozycja to zmiana
+`simulateProposal(base, input, {horizonDays, athlete})` uruchamia ten sam `planWeek`, który układa plan, dwa razy: raz jak jest i raz z propozycją. Propozycja to zmiana
 tygodnia (prośby: dzień wolny, lżejszy, partia pominięta), zmiana polityki (własna liczba serii na rodzaj ćwiczenia, profil objętości) albo zmiana trwającego treningu (ocena silnika +
 plan po łatce: wykonane serie zostają, reszta liczy się jak zrobiona zgodnie z planem). Wynik: `baseline`, `withProposal`, `diff` (serie partii w ostatnim tygodniu horyzontu wobec min/max,
 minuty dni, oczekiwane awanse i serie próbne, czy przyjdzie deload, dni ze zmienionym wyborem) i `warnings` w kodach rejestru (`WEEK_MAX_EXCEEDED`, a przy zmianie treningu także kontrole oceny).
-Prognoza żyje w `planWeekV2` i nigdzie się nie zapisuje (test: tabela `planned_days_v2` pusta po symulacji). `athlete`: `follows_plan` (dokładnie jak w planie) albo `observed_trend`
+Prognoza żyje w `planWeek` i nigdzie się nie zapisuje (test: tabela `planned_days` pusta po symulacji). `athlete`: `follows_plan` (dokładnie jak w planie) albo `observed_trend`
 (powtórzenia przesunięte o średnią różnicę wynik−cel z 28 dni, w granicach ±2).
 
 Narzędzie `simulateProposal` (kontrakt 7) przyjmuje te same względne daty i rodzaje próśb co `proposePlanChange`, bez pola na obciążenie. `TOOL_ANNOTATIONS` (readOnly / proposal / idempotent) odpowiada tabeli
 z 11 §13: narzędzia odczytu i symulacja są tylko do odczytu; cztery narzędzia propozycji nic nie zmieniają bez akceptacji na telefonie. `loadSimulationBase` czyta bazę świeżo (tydzień, historia, blok,
 odpowiedzi, trwający trening v2).
 
-### 4.28 Narzędzia planu na tygodniu v2 (P5.6c)
+### 4.28 Narzędzia planu na tygodniu (P5.6c)
 
-**Podsumowanie dnia.** Do wiersza `planned_days_v2` dochodzi `summary` (migracja 0013, JSON): faza, powody dnia, regiony, pominięte ruchy z powodem, `composed`, szacowane minuty, blok, sygnały
-przeciążenia i rower. Prognoza planu v2 tego nie niesie, a model ma tłumaczyć decyzje silnika tylko z kodów, więc powody zapisują się razem z dniem (`summaryOf` w `weekV2`).
+**Podsumowanie dnia.** Do wiersza `planned_days` dochodzi `summary` (migracja 0013, JSON): faza, powody dnia, regiony, pominięte ruchy z powodem, `composed`, szacowane minuty, blok, sygnały
+przeciążenia i rower. Prognoza planu v2 tego nie niesie, a model ma tłumaczyć decyzje silnika tylko z kodów, więc powody zapisują się razem z dniem (`summaryOf` w `week`).
 
-**`planPreviewV2.ts`** (czyste, w warstwie AI, 100%): `summarizeDay` (ćwiczenia z nazwą katalogu i ruchem ze slotu, serie logiczne, powody tylko znane kontraktowi, nigdy obciążenie),
+**`planPreview.ts`** (czyste, w warstwie AI, 100%): `summarizeDay` (ćwiczenia z nazwą katalogu i ruchem ze slotu, serie logiczne, powody tylko znane kontraktowi, nigdy obciążenie),
 `describeWeek` (7 dni; dziś z trwającego treningu, dni zrobione), `previewPlanChange` / `previewDayPlan` (tydzień zaplanowany z dodaną prośbą obok tygodnia jak jest; różniące się dni
 jako przed/po, konflikty ruchów z powodem, zastąpiona wcześniejsza kompozycja), `describeDayOptions` (dla każdego ruchu roboczego dzień zaplanowany tylko dla niego: dostępny albo powód
 i serie, które dałby silnik; dzień minięty to `day_done`), `describePlan` (`getPlanExplanation`: plan zamrożony przy starcie sesji albo dzisiejszy z tygodnia; powody ćwiczeń z kodów śladu)
 oraz walidacje słów osoby (notatka nie przepisuje, partia po DOMS tylko za silnym zakwasem, nieznane ruchy, ból).
 
-**Kontroler** (`app-services/coach/proposalsV2.ts`): to samo API co pierwszy silnik (`tools`, `beginTurn`, `resolve`, `reject`, `apply`). Narzędzia tylko podglądają i trzymają szkic do końca pytania.
+**Kontroler** (`app-services/coach/proposals.ts`): to samo API co pierwszy silnik (`tools`, `beginTurn`, `resolve`, `reject`, `apply`). Narzędzia tylko podglądają i trzymają szkic do końca pytania.
 `apply` w kolejce: ponowne wczytanie tygodnia, porównanie odcisku (data, odcisk wejścia, zapisane dni, dni trenowane) i — dla zmian — ponowne zrobienie podglądu i porównanie z tym, który widziała
-osoba; różnica to `ProposalChangedError`. Zmiana planu i dzień złożony zapisuje `saveCoachWeekV2` (prośby, zastąpione prośby i tydzień w jednej transakcji; generacją jest id propozycji, więc
+osoba; różnica to `ProposalChangedError`. Zmiana planu i dzień złożony zapisuje `saveCoachWeek` (prośby, zastąpione prośby i tydzień w jednej transakcji; generacją jest id propozycji, więc
 druga akceptacja nic nie zapisuje). Sesja dodatkowa to `acceptDay` z `kind: 'extra'` i hashem pokazanego planu; wymaga zakończonej sesji głównej dnia (`finish_first`) i dnia treningowego (`rest_day`).
 Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zapisywany przy akceptacji tygodnia — przesuwa go start sesji.
 
@@ -701,19 +655,19 @@ Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zap
 Testy komponentów loggera korzystają z `SessionStep` skompilowanego z recepty. Sprawdzają `LoggedEntry`, w tym kanał i potwierdzenia pól, zamiast dawnych wierszy `set_logs`. `alternatives.test.ts` używa rzeczywistego rankera z fixture domeny i mockuje granicę bazy: sprawdza rewizje, akceptację patcha i zapis wyboru na blok wyłącznie po udanej zmianie sesji. Testy karty zamiennika sprawdzają osobny podgląd i jawny przycisk akceptacji. `useSessionVoice` przekazuje odczyt loggera; cofnięcie pominięcia otrzymuje całe polecenie z identyfikatorami serii.
 ### P6 — aktywacja konsumentów planowania i czatu (2026-10-09)
 
-`features/plan/today.ts` odświeża tydzień w SQLite, pobiera kontekst rzeczywistej historii i tworzy `DayPreview`. `usePlanToday` przekazuje do `acceptDay` żądanie i hash dokładnie tego podglądu. `planDayIn` odczytuje utrzymany wybór dzisiejszego dnia z `planned_days_v2` w tej samej transakcji; uwzględnia go w odcisku wejść i przelicza receptę. Zmiana wyboru albo historii po podglądzie zatrzymuje start. Powtórne naciśnięcie startu po udanej akceptacji nie generuje kolejnego polecenia.
+`features/plan/today.ts` odświeża tydzień w SQLite, pobiera kontekst rzeczywistej historii i tworzy `DayPreview`. `usePlanToday` przekazuje do `acceptDay` żądanie i hash dokładnie tego podglądu. `planDayIn` odczytuje utrzymany wybór dzisiejszego dnia z `planned_days` w tej samej transakcji; uwzględnia go w odcisku wejść i przelicza receptę. Zmiana wyboru albo historii po podglądzie zatrzymuje start. Powtórne naciśnięcie startu po udanej akceptacji nie generuje kolejnego polecenia.
 
-Ekrany prezentują ekspozycje i etykiety wyprowadzone z kroków wykonania. `DaySummaryV2` niesie informacje dnia i bloku; `traceText` opisuje receptę, `checkText` opisuje audyt. Kalendarz czyta nowy tydzień, a rzeczywiste sesje i dawne serie pozostają historią. Bilans tygodnia pochodzi z `buildHistoryIndex`/`weekWork`: pewne serie są oddzielone od niepewnych. Zakończenie głównej sesji oznacza dzień w nowym tygodniu; zakończenie dodatkowej nie zmienia tego statusu. Licznik listy historii pomija tombstones.
+Ekrany prezentują ekspozycje i etykiety wyprowadzone z kroków wykonania. `DaySummary` niesie informacje dnia i bloku; `traceText` opisuje receptę, `checkText` opisuje audyt. Kalendarz czyta nowy tydzień, a rzeczywiste sesje i dawne serie pozostają historią. Bilans tygodnia pochodzi z `buildHistoryIndex`/`weekWork`: pewne serie są oddzielone od niepewnych. Zakończenie głównej sesji oznacza dzień w nowym tygodniu; zakończenie dodatkowej nie zmienia tego statusu. Licznik listy historii pomija tombstones.
 
 Dodatkowy trening korzysta z tego samego czytnika wejść i plannera. Opcja jednego ruchu oraz połączony podgląd uwzględniają pracę wykonaną w głównej sesji. Dopiero `acceptDay` zapisuje sesję. Ekran obsługuje konflikt, zmianę daty i błąd podglądu przez ponowny odczyt.
 
-Czat używa `app-services/coach/proposalsV2` dla tygodnia, dnia, sesji dodatkowej i zmiany trwającego treningu. Narzędzia sesji zachowują ocenę tylko w obrębie pytania; nowa rozmowa/pytanie czyści karty i oceny. `assessmentText` dostarcza tekst karty, `applySessionChange` ponownie ocenia patch w transakcji po akceptacji użytkownika. Zmiana rewizji daje kartę nieaktualną, a spóźniony wynik narzędzia jest odrzucany. Symulacja i wyjaśnienie planu mają świeże czytniki SQLite. Źródło jutra konsultacji czyta `planned_days_v2`.
+Czat używa `app-services/coach/proposals` dla tygodnia, dnia, sesji dodatkowej i zmiany trwającego treningu. Narzędzia sesji zachowują ocenę tylko w obrębie pytania; nowa rozmowa/pytanie czyści karty i oceny. `assessmentText` dostarcza tekst karty, `applySessionChange` ponownie ocenia patch w transakcji po akceptacji użytkownika. Zmiana rewizji daje kartę nieaktualną, a spóźniony wynik narzędzia jest odrzucany. Symulacja i wyjaśnienie planu mają świeże czytniki SQLite. Źródło jutra konsultacji czyta `planned_days`.
 
 Pozostałe adaptery testowe, ewaluacje, strażnik wyboru jutra i dawne repozytoria wymagają jeszcze sprzątania; aktywacja konsumentów nie jest zamknięciem całego P6.
 ### P6 — odłączenie pozostałych konsumentów starego plannera (2026-10-09)
 
-Ewaluacje pytają `planPreviewV2` oraz `planDayV2`/`syncWeekV2`, tak jak telefon. `syntheticWeekContext` zamienia syntetyczne dzienniki w rzeczywiste ekspozycje o zakresie supplemental: dziennik nie zawiera zamrożonej recepty, więc nie tworzymy z niego dowodu progresji. Rozgrzewki, wiersze bez ilości, nieznane i przyszłe sesje są pomijane. Wysiłek i ilość zachowują pochodzenie zgłoszonego wyniku; prognozy nadal istnieją tylko w plannerze. Kontekst ewaluacji jest budowany dopiero, gdy narzędzie planu go potrzebuje, i współdzielony przez narzędzia jednego przypadku.
+Ewaluacje pytają `planPreview` oraz `planDay`/`syncWeek`, tak jak telefon. `syntheticWeekContext` zamienia syntetyczne dzienniki w rzeczywiste ekspozycje o zakresie supplemental: dziennik nie zawiera zamrożonej recepty, więc nie tworzymy z niego dowodu progresji. Rozgrzewki, wiersze bez ilości, nieznane i przyszłe sesje są pomijane. Wysiłek i ilość zachowują pochodzenie zgłoszonego wyniku; prognozy nadal istnieją tylko w plannerze. Kontekst ewaluacji jest budowany dopiero, gdy narzędzie planu go potrzebuje, i współdzielony przez narzędzia jednego przypadku.
 
-Środowisko AI ma wyłącznie `explainPlan`; usunięte dawne `PlanLookup` i `plan`. Oczekiwania testów transportu obejmują brak narzędzia, a szczegóły obecnego wyjaśnienia nadal są sprawdzane w `planPreviewV2.test.ts`. Usunięte prompty czatu v1–v6 wraz z testami oraz martwe `features/plan/coachPreview` i `planningSnapshot`.
+Środowisko AI ma wyłącznie `explainPlan`; usunięte dawne `PlanLookup` i `plan`. Oczekiwania testów transportu obejmują brak narzędzia, a szczegóły obecnego wyjaśnienia nadal są sprawdzane w `planPreview.test.ts`. Usunięte prompty czatu v1–v6 wraz z testami oraz martwe `features/plan/coachPreview` i `planningSnapshot`.
 
 `selectionGuard.checkSelection` sprawdza wybór jutra na wspólnych danych plannera: kwalifikacji ćwiczenia, żądaniach, fazie nowego bloku, regeneracji, zakwasach i budżetach. Dostaje jawne fakty rzeczywistej historii plus projekcję niewykonanej części sesji; nie tworzy obserwacji ani nie zapisuje prognoz jako wykonanej pracy. Limit dnia jest zgodny z obecnym silnikiem (3 bezpośrednie serie). `session/effects` nie zależy już od starego `dayPlanner`.

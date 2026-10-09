@@ -1,5 +1,5 @@
 /**
- * How many sets an exposure gets (engine v2, 12 §5, D22).
+ * How many sets an exposure gets (engine, 12 §5, D22).
  *
  * The engine recommends a number; it does not decide it. `allowed` is what fits
  * everything the engine counts — the muscles' room for the day and the week, the

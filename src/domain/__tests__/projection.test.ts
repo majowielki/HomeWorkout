@@ -3,19 +3,19 @@
  * engine's readers know, and the answer of a command.
  */
 import { isDone } from '../commands/result';
-import { legacyColumns } from '../observations/project';
-import { bandValue, specFromLoad } from '../resistance/legacy';
-import { legalObservation } from './planV2Fixtures';
+import { setLogColumns } from '../observations/project';
+import { bandValue, specFromLoad } from '../resistance/persistedLoad';
+import { legalObservation } from './planFixtures';
 
 const withResistance = (spec: ReturnType<typeof specFromLoad> | null, patch = {}) => {
   const base = legalObservation(patch);
   return { ...base, resistance: { ...base.resistance, value: spec } };
 };
 
-describe('legacyColumns', () => {
-  it('writes repetitions, effort, the side and a dumbbell as the first engine would', () => {
+describe('setLogColumns', () => {
+  it('writes repetitions, effort, the side and a dumbbell into the stored set columns', () => {
     const paired = specFromLoad({ kind: 'dumbbell', mode: 'paired', kg: 8 });
-    expect(legacyColumns(withResistance(paired))).toEqual({
+    expect(setLogColumns(withResistance(paired))).toEqual({
       reps: 12,
       timeSec: null,
       rir: 2,
@@ -29,7 +29,7 @@ describe('legacyColumns', () => {
 
   it('writes a band and its position', () => {
     const band = specFromLoad({ kind: 'band', bandId: 'red', position: 2 });
-    expect(legacyColumns(withResistance(band, { side: null }))).toMatchObject({
+    expect(setLogColumns(withResistance(band, { side: null }))).toMatchObject({
       weightKg: null,
       bandId: 'red',
       anchorPosition: 2,
@@ -45,7 +45,7 @@ describe('legacyColumns', () => {
         value: { kind: 'duration', seconds: 30.4 },
       },
     });
-    expect(legacyColumns(held)).toMatchObject({
+    expect(setLogColumns(held)).toMatchObject({
       reps: null,
       timeSec: 30,
       weightKg: null,
@@ -54,7 +54,7 @@ describe('legacyColumns', () => {
     });
   });
 
-  it('does not write what the first engine cannot express — no invented dumbbell, no 0 kg (T51)', () => {
+  it('does not write unsupported stored loads — no invented dumbbell, no 0 kg (T51)', () => {
     const barbell = {
       schemaVersion: 1 as const,
       modelId: 'barbell.kg',
@@ -67,13 +67,13 @@ describe('legacyColumns', () => {
         implementCount: 1,
       },
     };
-    expect(legacyColumns(withResistance(barbell))).toMatchObject({
+    expect(setLogColumns(withResistance(barbell))).toMatchObject({
       reps: 12,
       weightKg: null,
       dumbbellMode: null,
       bandId: null,
     });
-    expect(legacyColumns(withResistance(null))).toMatchObject({ weightKg: null });
+    expect(setLogColumns(withResistance(null))).toMatchObject({ weightKg: null });
   });
 
   it('leaves the columns of an unknown amount and effort empty, and the side of a pair of sides alone', () => {
@@ -83,7 +83,7 @@ describe('legacyColumns', () => {
       amount: { ...none.amount, value: null },
       rir: { ...none.rir, value: null },
     };
-    expect(legacyColumns(unknown)).toMatchObject({
+    expect(setLogColumns(unknown)).toMatchObject({
       reps: null,
       timeSec: null,
       rir: null,

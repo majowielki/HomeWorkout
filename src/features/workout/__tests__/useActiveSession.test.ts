@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react-native';
 
-import type { SessionState } from '@/db/repositories/sessionsV2';
+import type { SessionState } from '@/db/repositories/sessions';
 import { compileInput, exposure, set, stamp } from '@/domain/__tests__/compileFixtures';
 import { exercise } from '@/domain/__tests__/fixtures';
-import { legalObservation } from '@/domain/__tests__/planV2Fixtures';
+import { legalObservation } from '@/domain/__tests__/planFixtures';
 import { kg } from '@/domain/__tests__/progressionFixtures';
 import type { CommandResult } from '@/domain/commands/result';
 import type { SetEntry } from '@/domain/observations/entry';
@@ -22,7 +22,7 @@ jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'uuid' }));
 jest.mock('@/stores/restTimerStore', () => ({ useRestTimerStore: { getState: jest.fn() } }));
 jest.mock('@/db/repositories/profile', () => ({}));
-jest.mock('@/db/repositories/sessionsV2', () => ({}));
+jest.mock('@/db/repositories/sessions', () => ({}));
 
 const exerciseMap = {
   'ex-a': exercise({ id: 'ex-a', name: 'Przysiad' }),

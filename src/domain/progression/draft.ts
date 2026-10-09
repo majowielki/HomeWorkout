@@ -1,5 +1,5 @@
 /**
- * The shapes of the progression pipeline (engine v2, 13 §5). A prescription is
+ * The shapes of the progression pipeline (engine, 13 §5). A prescription is
  * built by rules that run in a fixed order over one draft; each may only narrow
  * what an earlier one allowed or settle what is still open, and each says what
  * it changed. What it ends in is the same draft the plan compiler reads.

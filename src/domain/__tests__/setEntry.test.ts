@@ -1,7 +1,7 @@
 import { buildObservation } from '../observations/entry';
 import type { SetObservation } from '../observations/types';
-import type { PlannedSet } from '../plan/planV2';
-import { specFromLoad } from '../resistance/legacy';
+import type { PlannedSet } from '../plan/plan';
+import { specFromLoad } from '../resistance/persistedLoad';
 import {
   correctionOf,
   entryOf,
@@ -15,7 +15,7 @@ import {
   usesDumbbell,
 } from '../session/setEntry';
 import { exercise } from './fixtures';
-import { legalObservation } from './planV2Fixtures';
+import { legalObservation } from './planFixtures';
 import { body, kg } from './progressionFixtures';
 
 const dumbbells = exercise({ equipment: ['dumbbell'], dumbbellMode: 'paired' });

@@ -9,7 +9,7 @@ import { Chip } from '@/components/ui/chip';
 import { Undo2 } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
-import { closeSessionV2, readSessionState, undoSetV2 } from '@/db/repositories/sessionsV2';
+import { closeSession, readSessionState, undoSet } from '@/db/repositories/sessions';
 import { isDone } from '@/domain/commands/result';
 import { latestResult } from '@/domain/session/progress';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
@@ -37,7 +37,7 @@ export default function SessionSummaryScreen() {
     if (saving) return;
     setSaving(true);
     try {
-      const result = closeSessionV2({
+      const result = closeSession({
         commandId: randomUUID(),
         sessionId: id,
         how: 'completed',
@@ -59,7 +59,7 @@ export default function SessionSummaryScreen() {
     if (saving) return;
     const last = back === 'resume' || !session ? null : latestResult(session.results.values());
     if (last !== null) {
-      const result = undoSetV2({ commandId: randomUUID(), sessionId: id, observationId: last.id });
+      const result = undoSet({ commandId: randomUUID(), sessionId: id, observationId: last.id });
       if (isDone(result)) {
         rememberUndone(id, {
           plannedSetId: last.observation.plannedSetId!,

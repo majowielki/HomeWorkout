@@ -4,7 +4,7 @@ import path from 'node:path';
 
 /*
  * The repositories against real SQLite (sqlite-check.cjs and
- * sqlite-check-v2.cjs, in Node children: Jest's RN environment has no native
+ * sqlite-check-session.cjs, in Node children: Jest's RN environment has no native
  * SQLite). Each script runs once; each of its cases, on its own fresh
  * database, becomes a test here, so a failure names the behaviour that broke.
  */
@@ -15,18 +15,15 @@ interface CaseResult {
 }
 
 const SCRIPTS = [
-  ['storage on real SQLite', 'sqlite-check.cjs', 10],
-  ['engine v2 storage on real SQLite', 'sqlite-check-v2.cjs', 15],
+  ['engine activation on real SQLite', 'sqlite-check-activation.cjs', 4],
+  ['storage on real SQLite', 'sqlite-check.cjs', 8],
+  ['engine storage on real SQLite', 'sqlite-check-session.cjs', 15],
   ['P4b.4 session changes on real SQLite', 'sqlite-check-session-changes.cjs', 20],
-  ['P5.5 the day of engine v2 on real SQLite', 'sqlite-check-planning-v2.cjs', 10],
-  ['P5.1 the week of engine v2 on real SQLite', 'sqlite-check-week-v2.cjs', 8],
-  ['P5.4 the answers to the prescription on real SQLite', 'sqlite-check-answers-v2.cjs', 5],
-  [
-    'P5.6 the model consults the running workout on real SQLite',
-    'sqlite-check-ai-session-v2.cjs',
-    6,
-  ],
-  ['P5.6c the proposals of the chat on the week of engine v2', 'sqlite-check-proposals-v2.cjs', 5],
+  ['P5.5 the day of engine on real SQLite', 'sqlite-check-planning.cjs', 10],
+  ['P5.1 the week of engine on real SQLite', 'sqlite-check-week.cjs', 7],
+  ['P5.4 the answers to the prescription on real SQLite', 'sqlite-check-answers.cjs', 5],
+  ['P5.6 the model consults the running workout on real SQLite', 'sqlite-check-ai-session.cjs', 6],
+  ['P5.6c the proposals of the chat on the week of engine', 'sqlite-check-proposals.cjs', 5],
 ] as const;
 
 for (const [title, script, atLeast] of SCRIPTS) {

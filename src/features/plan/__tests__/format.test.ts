@@ -1,8 +1,8 @@
 import { compileSession } from '@/domain/plan/compile';
 import { compileInput, exposure as spec, set } from '@/domain/__tests__/compileFixtures';
 import { body, kg, single } from '@/domain/__tests__/progressionFixtures';
-import { specFromLoad } from '@/domain/resistance/legacy';
-import type { PlannedExposure } from '@/domain/plan/planV2';
+import { specFromLoad } from '@/domain/resistance/persistedLoad';
+import type { PlannedExposure } from '@/domain/plan/plan';
 
 import { loadText, planTitle, prescriptionText, workSetsOf } from '../format';
 

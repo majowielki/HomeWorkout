@@ -8,7 +8,7 @@ import {
   type SessionMeta,
 } from '../observations/normalize';
 import { exposureOutcome, outcomeStatus } from '../observations/outcome';
-import { legalObservation, legalPlan } from './planV2Fixtures';
+import { legalObservation, legalPlan } from './planFixtures';
 
 const plan = legalPlan();
 const exposure = plan.exposures[0]!;

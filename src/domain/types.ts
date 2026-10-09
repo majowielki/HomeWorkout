@@ -119,7 +119,7 @@ export interface Exercise {
 
   archived?: boolean;
 
-  // Catalogue flexibility (engine v2, 05 §3, §12-§14). All optional: what is absent is derived or defaulted.
+  // Catalogue flexibility (engine, 05 §3, §12-§14). All optional: what is absent is derived or defaulted.
   /** Colloquial and Polish names, so "wyciskanie siedząc" finds its exercise (13 §11). */
   aliases?: string[];
   /** A named group of near-equivalent variants of one slot; the preference breaks ties inside it (12 §4.1). */
@@ -154,7 +154,7 @@ export interface KneeProfile {
   physioApproved: boolean;
   /**
    * Keep the repetitions of knee-loading exercises to a cautious ceiling (20, not 25) and off the last
-   * rep in reserve (engine v2, D34). On unless set to `false`: the person turns it off in Settings, e.g.
+   * rep in reserve (engine, D34). On unless set to `false`: the person turns it off in Settings, e.g.
    * with a physiotherapist's word, or never has the profile at all (a healthy knee: no profile, no cap).
    */
   cautiousReps?: boolean;

@@ -1,15 +1,15 @@
 /**
- * What the columns added for engine v2 hold on a row of the first engine, for
+ * What the columns added for engine hold on a row of historical sessions, for
  * tests that build a row by hand. Not a suite and not counted in coverage.
  */
 import type { setLogs, workouts } from '../schema';
 
-export const V1_WORKOUT_COLUMNS: Pick<
+export const HISTORICAL_WORKOUT_COLUMNS: Pick<
   typeof workouts.$inferSelect,
-  'planSchema' | 'planV2' | 'planRevision' | 'revision' | 'timeZone'
-> = { planSchema: 1, planV2: null, planRevision: 1, revision: 0, timeZone: null };
+  'planSchema' | 'sessionPlan' | 'planRevision' | 'revision' | 'timeZone'
+> = { planSchema: 1, sessionPlan: null, planRevision: 1, revision: 0, timeZone: null };
 
-export const V1_SET_COLUMNS: Pick<
+export const HISTORICAL_SET_COLUMNS: Pick<
   typeof setLogs.$inferSelect,
   | 'commandId'
   | 'plannedSetId'

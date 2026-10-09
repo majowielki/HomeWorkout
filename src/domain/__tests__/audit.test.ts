@@ -4,7 +4,7 @@
  */
 import { auditPlan, type AuditIssue, type AuditResult } from '../plan/audit';
 import { stampPlan } from '../plan/compile';
-import type { SessionPlanV2 } from '../plan/planV2';
+import type { SessionPlan } from '../plan/plan';
 import { CONSERVATIVE } from './fixtures';
 import { CATALOG, catalogOf, context, day, exposure, kg, planOf, set } from './auditFixtures';
 import { body, single } from './compileFixtures';
@@ -24,7 +24,7 @@ describe('a plan that is fine', () => {
   });
 
   it('is not changed by the audit (it is pure)', () => {
-    const frozen = JSON.parse(JSON.stringify(plan)) as SessionPlanV2;
+    const frozen = JSON.parse(JSON.stringify(plan)) as SessionPlan;
     const deepFreeze = (o: unknown): void => {
       if (typeof o === 'object' && o !== null) {
         Object.values(o).forEach(deepFreeze);

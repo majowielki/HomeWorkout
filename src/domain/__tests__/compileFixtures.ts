@@ -1,10 +1,10 @@
 /**
- * Recipes to compile (engine v2, P4): a bilateral exercise on paired dumbbells,
+ * Recipes to compile (engine, P4): a bilateral exercise on paired dumbbells,
  * a one-sided one, a hold, a superset. Not a suite and not counted in coverage.
  */
 import { type CompileInput, type ExposureSpec, type SetSpec, stampPlan } from '../plan/compile';
 import type { ResistanceModel, ResistanceSpec } from '../resistance/types';
-import { HASH_A } from './planV2Fixtures';
+import { HASH_A } from './planFixtures';
 import { BODY, PAIRED, SINGLE, body, kg, single } from './progressionFixtures';
 
 export const MODELS: Record<string, ResistanceModel> = {

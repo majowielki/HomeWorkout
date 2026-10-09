@@ -9,7 +9,7 @@ import {
   type SetEntry,
 } from '../observations/entry';
 import { setObservationSchema } from '../observations/types';
-import { FOUR_KG, legalObservation } from './planV2Fixtures';
+import { FOUR_KG, legalObservation } from './planFixtures';
 
 const AT = '2026-10-09T08:00:00.000Z';
 const reps = (n: number) => ({ kind: 'reps' as const, reps: n });

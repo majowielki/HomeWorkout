@@ -11,11 +11,10 @@ import {
 
 import { type ComposedItem, CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
 import type { SetObservation } from '@/domain/observations/types';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
-import type { DaySelection, SessionPlan } from '@/domain/plan/types';
-import type { StoredDayChange } from '@/domain/plan/weekSync';
-import type { KeptItem } from '@/domain/plan/dayV2';
-import type { DaySummaryV2, StoredDayChangeV2 } from '@/domain/plan/weekV2';
+import type { SessionPlan } from '@/domain/plan/plan';
+import type { HistoricalPlan } from '@/domain/plan/types';
+import type { KeptItem } from '@/domain/plan/day';
+import type { DaySummary, StoredDayChange } from '@/domain/plan/week';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import {
   type AnchorPosition,
@@ -26,7 +25,6 @@ import {
   type MuscleGroup,
   SHORTFALL_REASONS,
   type Side,
-  type TemplateBlock,
 } from '@/domain/types';
 import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
 
@@ -77,15 +75,6 @@ export const bands = sqliteTable('bands', {
   calibratedAt: text('calibrated_at'),
 });
 
-export const workoutTemplates = sqliteTable('workout_templates', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  blocks: text('blocks', { mode: 'json' }).$type<TemplateBlock[]>().notNull(),
-  sortOrder: integer('sort_order').notNull(),
-  warmupMinutes: integer('warmup_minutes'),
-  isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
-});
-
 export const workouts = sqliteTable(
   'workouts',
   {
@@ -96,18 +85,14 @@ export const workouts = sqliteTable(
     status: text('status', {
       enum: ['in_progress', 'completed', 'abandoned'],
     }).notNull(),
-    templateId: text('template_id').references(() => workoutTemplates.id),
     sessionRpe: integer('session_rpe'),
     notes: text('notes'),
-    /**
-     * What the rules engine proposed, frozen when the session started
-     * (SPEC §10.5). Null for a template session.
-     */
-    plan: text('plan', { mode: 'json' }).$type<SessionPlan | null>(),
-    /** Which contract the plan is written in: 1 is `plan` (the first engine), 2 is `planV2`. */
+    /** Historical plan JSON, retained for its title metadata. */
+    plan: text('plan', { mode: 'json' }).$type<HistoricalPlan | null>(),
+    /** 1: historical plan JSON; 2: compiled plan in sessionPlan. */
     planSchema: integer('plan_schema').$type<1 | 2>().notNull().default(1),
-    /** The plan of a session of engine v2, as it is now; the earlier revisions are in `session_plan_revisions`. */
-    planV2: text('plan_v2', { mode: 'json' }).$type<SessionPlanV2 | null>(),
+    /** The plan of a session of engine, as it is now; the earlier revisions are in `session_plan_revisions`. */
+    sessionPlan: text('session_plan', { mode: 'json' }).$type<SessionPlan | null>(),
     /** The revision of the plan the session is on now; a change during the session adds one (02 §6). */
     planRevision: integer('plan_revision').notNull().default(1),
     /** Raised by every write to the session (a result, a skip, a change of plan): what a command is checked against. */
@@ -170,7 +155,7 @@ export const setLogs = sqliteTable(
     revision: integer('revision').notNull().default(1),
     /** A set taken back stays as a tombstone, so replaying its command cannot bring it back (T18). */
     deletedAt: text('deleted_at'),
-    /** Where every value of the set came from (the person, a default they confirmed, a sensor). Null before engine v2. */
+    /** Where every value of the set came from (the person, a default they confirmed, a sensor). Null before engine. */
     observation: text('observation', { mode: 'json' }).$type<SetObservation | null>(),
   },
   (t) => [
@@ -270,7 +255,7 @@ export const sessionPlanRevisions = sqliteTable(
       .notNull()
       .references(() => workouts.id, { onDelete: 'cascade' }),
     planRevision: integer('plan_revision').notNull(),
-    plan: text('plan', { mode: 'json' }).$type<SessionPlanV2>().notNull(),
+    plan: text('plan', { mode: 'json' }).$type<SessionPlan>().notNull(),
     reason: text('reason', {
       enum: ['start', 'user_change', 'calibration_step', 'resume'],
     }).notNull(),
@@ -307,36 +292,6 @@ export const preferences = sqliteTable('preferences', {
   revision: integer('revision').notNull().default(0),
   updatedAt: text('updated_at').notNull(),
 });
-
-/** Facts about this installation, not about the person: which generation of the engine the data belongs to (D21). */
-export const appState = sqliteTable('app_state', {
-  key: text('key').primaryKey(),
-  value: text('value').notNull(),
-  updatedAt: text('updated_at').notNull(),
-});
-
-/**
- * Sessions of the first engine, kept to be looked at and nothing else (D21):
- * they are not read by the progression or by the volume. Filled from the
- * archive written before the data was reset.
- */
-export const legacySessions = sqliteTable(
-  'legacy_sessions',
-  {
-    id: text('id').primaryKey(),
-    trainingDate: text('training_date').notNull(),
-    startedAt: text('started_at').notNull(),
-    finishedAt: text('finished_at'),
-    status: text('status').notNull(),
-    sessionRpe: integer('session_rpe'),
-    notes: text('notes'),
-    plan: text('plan', { mode: 'json' }).$type<unknown>(),
-    /** The sets of the session as they were stored, one object per set. */
-    sets: text('sets', { mode: 'json' }).$type<unknown[]>().notNull(),
-    archivedAt: text('archived_at').notNull(),
-  },
-  (t) => [index('legacy_sessions_date_idx').on(t.trainingDate)],
-);
 
 /**
  * Blocks (mesocycles), one row each: which exercise every slot uses for
@@ -449,48 +404,6 @@ export const aiExchanges = sqliteTable(
   (t) => [index('ai_exchanges_created_idx').on(t.createdAt)],
 );
 
-/**
- * The week ahead as the engine chose it (SPEC §11): one main row per day,
- * plus separately linked extra sessions. Each row holds the
- * choice (slots, exercises, sets — never loads) and the forecast shown in
- * the calendar. Derived from the logs, so it is not in the backup: after a
- * restore the week is simply planned again.
- */
-export const plannedDays = sqliteTable(
-  'planned_days',
-  {
-    date: text('date').notNull(),
-    /** 1 = main day, 2+ = an extra session, never overwritten by week sync. */
-    seq: integer('seq').notNull().default(1),
-    workoutId: text('workout_id').references(() => workouts.id, { onDelete: 'cascade' }),
-    /** Null on a rest day. */
-    selection: text('selection', { mode: 'json' }).$type<DaySelection | null>(),
-    forecast: text('forecast', { mode: 'json' }).$type<SessionPlan | null>(),
-    /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
-    status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
-    generationId: text('generation_id').notNull(),
-    updatedAt: text('updated_at').notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.date, t.seq] })],
-);
-
-/** Every time the week was planned again, and what changed — the banner on "Dziś". */
-export const planGenerations = sqliteTable(
-  'plan_generations',
-  {
-    id: text('id').primaryKey(),
-    createdAt: text('created_at').notNull(),
-    trigger: text('trigger', {
-      enum: ['horizon', 'missed_day', 'unsafe', 'manual', 'constraint', 'coach'],
-    }).notNull(),
-    fromDate: text('from_date').notNull(),
-    changes: text('changes', { mode: 'json' }).$type<StoredDayChange[]>().notNull(),
-    /** When the person closed the banner; null while it shows. */
-    seenAt: text('seen_at'),
-  },
-  (t) => [index('plan_generations_created_idx').on(t.createdAt)],
-);
-
 /** What the person (or the coach, with consent) asked the planner to respect, SPEC §11.2. */
 export const planConstraints = sqliteTable('plan_constraints', {
   id: text('id').primaryKey(),
@@ -508,27 +421,23 @@ export const planConstraints = sqliteTable('plan_constraints', {
   items: text('items', { mode: 'json' }).$type<ComposedItem[] | null>(),
 });
 
-/**
- * The week of engine v2: the choice of each day ahead (never a load) and the forecast it was
- * made with. Separate from `planned_days` so the first engine's week is untouched until the
- * switch (P6).
- */
-export const plannedDaysV2 = sqliteTable('planned_days_v2', {
+/** The current week: exercise choices and their compiled forecasts. */
+export const plannedDays = sqliteTable('planned_days', {
   date: text('date').primaryKey(),
   /** The working exercises of the day; null on a rest day. */
   selection: text('selection', { mode: 'json' }).$type<KeptItem[] | null>(),
-  forecast: text('forecast', { mode: 'json' }).$type<SessionPlanV2 | null>(),
+  forecast: text('forecast', { mode: 'json' }).$type<SessionPlan | null>(),
   /** What the day was planned for: its reasons, regions and the movements left out. */
-  summary: text('summary', { mode: 'json' }).$type<DaySummaryV2 | null>(),
+  summary: text('summary', { mode: 'json' }).$type<DaySummary | null>(),
   /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
   status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
   generationId: text('generation_id').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
 
-/** Every time the week of engine v2 was planned again, and what changed. */
-export const planGenerationsV2 = sqliteTable(
-  'plan_generations_v2',
+/** Every time the week of engine was planned again, and what changed. */
+export const planGenerations = sqliteTable(
+  'plan_generations',
   {
     id: text('id').primaryKey(),
     createdAt: text('created_at').notNull(),
@@ -536,11 +445,11 @@ export const planGenerationsV2 = sqliteTable(
       enum: ['horizon', 'missed_day', 'unsafe', 'manual', 'constraint', 'coach'],
     }).notNull(),
     fromDate: text('from_date').notNull(),
-    changes: text('changes', { mode: 'json' }).$type<StoredDayChangeV2[]>().notNull(),
+    changes: text('changes', { mode: 'json' }).$type<StoredDayChange[]>().notNull(),
     /** When the person closed the banner; null while it shows. */
     seenAt: text('seen_at'),
   },
-  (t) => [index('plan_generations_v2_created_idx').on(t.createdAt)],
+  (t) => [index('plan_generations_created_idx').on(t.createdAt)],
 );
 
 /**
@@ -561,4 +470,23 @@ export const prescriptionAnswers = sqliteTable(
     answeredAt: text('answered_at').notNull(),
   },
   (t) => [primaryKey({ columns: [t.comparisonKey, t.kind] })],
+);
+
+/** Read-only sessions restored from an archival backup. */
+export const legacySessions = sqliteTable(
+  'legacy_sessions',
+  {
+    id: text('id').primaryKey(),
+    trainingDate: text('training_date').notNull(),
+    startedAt: text('started_at').notNull(),
+    finishedAt: text('finished_at'),
+    status: text('status').notNull(),
+    sessionRpe: integer('session_rpe'),
+    notes: text('notes'),
+    plan: text('plan', { mode: 'json' }).$type<unknown>(),
+    /** The sets of the session as they were stored, one object per set. */
+    sets: text('sets', { mode: 'json' }).$type<unknown[]>().notNull(),
+    archivedAt: text('archived_at').notNull(),
+  },
+  (t) => [index('legacy_sessions_date_idx').on(t.trainingDate)],
 );

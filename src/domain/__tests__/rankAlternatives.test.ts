@@ -2,8 +2,8 @@ import { assessSessionChange, rankAlternatives } from '../session/assess';
 import type { AssessmentContext, AlternativesTarget } from '../session/types';
 import type { Exercise } from '../types';
 import { biomechSimilarity, substituteScore } from '../exercises/substitute';
-import { sessionPlanV2Schema } from '../plan/planV2';
-import { CATALOG, SLOTS } from './dayV2Fixtures';
+import { sessionPlanSchema } from '../plan/plan';
+import { CATALOG, SLOTS } from './dayFixtures';
 import { world, recipe, perform } from './sessionChangeFixtures';
 import { exposureOf, body } from './progressionFixtures';
 import { exerciseSchema } from '@data/exercises.schema';
@@ -57,7 +57,7 @@ describe('P4b.3 T67: complete, stable lexicographic ranking', () => {
       expect(r.verdict).toBe(leaf.verdict);
       expect(r.prescription).toEqual(leaf.prescription);
       expect(r.patchId).toBe(leaf.patch!.patchId);
-      expect(sessionPlanV2Schema.safeParse(leaf.patch!.plan).success).toBe(true);
+      expect(sessionPlanSchema.safeParse(leaf.patch!.plan).success).toBe(true);
       expect(leaf).not.toHaveProperty('alternatives');
     }
     expect(JSON.stringify({ snap, session })).toBe(before);

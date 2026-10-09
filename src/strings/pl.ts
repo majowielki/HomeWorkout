@@ -11,14 +11,12 @@ import type {
   BlockEvent,
   DayReason,
   FatigueSignal,
-  ProgressionReason,
   SkipReason,
-  ValidationCode,
 } from '@/domain/plan/reasons';
 import type { SlotRegion } from '@/domain/plan/types';
-import type { SyncTrigger } from '@/domain/plan/weekSync';
+import type { SyncTrigger } from '@/domain/plan/week';
 import type { LoadEstimate } from '@/domain/progression/calibration';
-import type { Unit } from '@/domain/progression/history';
+import type { Unit } from '@/domain/progression/prescribe';
 import type {
   BandSuitability,
   Equipment,
@@ -499,6 +497,51 @@ export const pl = {
     weekHint: 'Po ukończeniu sesji plan kolejnych dni sprawdzi się automatycznie.',
   },
   plan: {
+    skip: {
+      NO_CANDIDATE: 'brak dozwolonego ćwiczenia',
+      DOMS_HIGH: 'mocne zakwasy w tej partii',
+      RECOVERING: 'ta partia pracowała tego dnia lub dzień wcześniej — regeneruje się',
+      VOLUME_AT_MAX: 'partia ma już tygodniowe maksimum serii',
+      VOLUME_ON_TARGET: 'partia ma już swoje serie w tym tygodniu',
+      ALREADY_TODAY: 'ta partia pracuje już tego dnia w innym ćwiczeniu',
+      FATIGUE_BILATERAL_ONLY: 'przy sygnałach zmęczenia tylko ćwiczenia obunóż',
+      NOT_PICKED: 'nie zmieściło się w czasie tego dnia',
+      AVOIDED_BY_REQUEST: 'na Twoją prośbę ta partia tego dnia odpoczywa',
+    } satisfies Record<SkipReason, string>,
+    day: {
+      FIRST_DAY: 'Pierwszy trening — wszystko lekko, z zapasem.',
+      DELOAD_WEEK: 'Tydzień deloadu.',
+      LAYOFF_SHORT: 'Wracasz po krótkiej przerwie — bez progresji.',
+      LAYOFF_MEDIUM: 'Wracasz po dłuższej przerwie — o krok lżej.',
+      LAYOFF_LONG: 'Wracasz po długiej przerwie — dwie spokojne sesje na start.',
+      LAYOFF_RECALIBRATION: 'Druga spokojna sesja po długiej przerwie.',
+      LOW_READINESS: 'Sen albo energia słabsze — dziś lżej.',
+      LIGHT_DAY: 'Większość partii odpoczywa albo ma już swoje serie — lekki dzień.',
+      LIGHTER_DAY_REQUESTED: 'Na Twoją prośbę lżej: jedna seria każdego ćwiczenia.',
+    } satisfies Record<DayReason, string>,
+    bike: {
+      FIRST_EXPOSURE: 'Pierwsza jazda — opór dobierz tak, żeby dało się rozmawiać.',
+      BIKE_TIME_UP: 'Ostatnio lekko — o 2 minuty dłużej.',
+      BIKE_RESISTANCE_UP: 'Dwa razy lekko na pełnym czasie — opór o 1 w górę.',
+      BIKE_EASE_OFF: 'Ostatnio ciężko — o 2 minuty krócej.',
+      BIKE_HOLD: 'Bez zmian.',
+      LAYOFF_MEDIUM: 'Po przerwie — od najkrótszej jazdy.',
+      LAYOFF_LONG: 'Po długiej przerwie — od najkrótszej jazdy.',
+    } satisfies Record<BikeReason, string>,
+    signal: {
+      FATIGUE_HIGH: 'RIR 0 w ćwiczeniach złożonych dwie sesje z rzędu.',
+      PERFORMANCE_DROP: 'Ćwiczenie słabsze dwie sesje z rzędu przy tym samym ciężarze.',
+      RECOVERY_LOW: 'Mało snu albo długo utrzymujące się zakwasy.',
+    } satisfies Record<FatigueSignal, string>,
+    blockEvent: {
+      BLOCK_STARTED: 'Zaczyna się blok 1.',
+      BLOCK_CLOCK_RESET: 'Po przerwie licznik bloku liczy od dziś.',
+      DELOAD_SCHEDULED: 'Cztery tygodnie pracy za Tobą — zaczyna się tydzień deloadu.',
+      DELOAD_REACTIVE: 'Kilka sygnałów zmęczenia naraz — deload wcześniej.',
+      BLOCK_ROTATED: 'Nowy blok: w każdym ruchu nowy wariant ćwiczenia.',
+      SELECTION_REPLACED:
+        'Jedno z ćwiczeń bloku przestało być dostępne — zastąpione innym w tym samym ruchu.',
+    } satisfies Record<BlockEvent, string>,
     eyebrow: (date: string) => `Plan na dziś · ${date}`,
     tomorrowEyebrow: (date: string) => `Plan na jutro · ${date}`,
     tomorrowScreenTitle: 'Plan na jutro',
@@ -586,87 +629,6 @@ export const pl = {
     adjustedPlan: 'Silnik skrócił lub uporządkował plan, aby zmieścić go w dostępnych limitach.',
     deloadNote:
       'W tym tygodniu obniżamy objętość treningową. Kwestie żywieniowe w trakcie terapii omów z lekarzem prowadzącym.',
-    progression: {
-      FIRST_EXPOSURE:
-        'Pierwszy raz: zostaw ~4 powtórzenia w zapasie. Za lekko albo za ciężko — popraw obciążenie przy zapisie, plan się dostosuje.',
-      INTRO_EXPOSURE: 'Druga sesja tego ćwiczenia — nadal z zapasem RIR 4.',
-      RE_EXPOSURE: 'Dawno nierobione: krok lżej niż ostatnio, z zapasem.',
-      REP_TARGET_MET: 'Wszystkie serie na górze zakresu — o szczebel cięższe.',
-      BAND_MICRO_PROGRESSION: 'Cel osiągnięty — ta sama guma, o pozycję dalej.',
-      BAND_MACRO_PROGRESSION: 'Cel na P3 osiągnięty — mocniejsza guma, bliżej kotwicy.',
-      LOAD_CEILING_REACHED:
-        'Najcięższa możliwa konfiguracja: trzymaj górę zakresu i wolniej opuszczaj.',
-      BODYWEIGHT_CEILING:
-        'Górna granica dla masy ciała — trudniejszy wariant przyjdzie z nowym blokiem.',
-      PERFORMANCE_REGRESSION: 'Dwie sesje pod zakresem — szczebel lżej, żeby odbudować.',
-      REP_PROGRESSION: 'Ten sam ciężar, o powtórzenie więcej.',
-      RIR_BELOW_TARGET: 'Góra zakresu była na granicy — powtórz, zanim pójdziemy wyżej.',
-      WARMUP_MISSING:
-        'Ostatnio pierwsza seria z gumą bez rozgrzewki — nie liczy się do porównań. Zrób rozgrzewkową.',
-      LAYOFF_SHORT: 'Po krótkiej przerwie: powtórka ostatniej sesji, bez progresji.',
-      LAYOFF_MEDIUM: 'Po dłuższej przerwie: o krok lżej, od dołu zakresu.',
-      LAYOFF_RECALIBRATION: 'Powrót po długiej przerwie: spokojnie, RIR 4.',
-      DELOAD: 'Tydzień lżejszy: ten sam ciężar, mniej serii, daleko od odmowy.',
-      BILATERAL_SWAP: 'Sygnały zmęczenia: wariant obunóż zamiast jednonóż.',
-      LOW_READINESS: 'Gorsza noc albo mało energii: o powtórzenie więcej w zapasie.',
-      LIGHT_FILL: 'Lekko, technicznie — to nie seria robocza.',
-    } satisfies Record<ProgressionReason, string>,
-    skip: {
-      NO_CANDIDATE: 'brak dozwolonego ćwiczenia',
-      DOMS_HIGH: 'mocne zakwasy w tej partii',
-      RECOVERING: 'ta partia pracowała tego dnia lub dzień wcześniej — regeneruje się',
-      VOLUME_AT_MAX: 'partia ma już tygodniowe maksimum serii',
-      VOLUME_ON_TARGET: 'partia ma już swoje serie w tym tygodniu',
-      ALREADY_TODAY: 'ta partia pracuje już tego dnia w innym ćwiczeniu',
-      FATIGUE_BILATERAL_ONLY: 'przy sygnałach zmęczenia tylko ćwiczenia obunóż',
-      NOT_PICKED: 'nie zmieściło się w czasie tego dnia',
-      AVOIDED_BY_REQUEST: 'na Twoją prośbę ta partia tego dnia odpoczywa',
-    } satisfies Record<SkipReason, string>,
-    day: {
-      FIRST_DAY: 'Pierwszy trening — wszystko lekko, z zapasem.',
-      DELOAD_WEEK: 'Tydzień deloadu.',
-      LAYOFF_SHORT: 'Wracasz po krótkiej przerwie — bez progresji.',
-      LAYOFF_MEDIUM: 'Wracasz po dłuższej przerwie — o krok lżej.',
-      LAYOFF_LONG: 'Wracasz po długiej przerwie — dwie spokojne sesje na start.',
-      LAYOFF_RECALIBRATION: 'Druga spokojna sesja po długiej przerwie.',
-      LOW_READINESS: 'Sen albo energia słabsze — dziś lżej.',
-      LIGHT_DAY: 'Większość partii odpoczywa albo ma już swoje serie — lekki dzień.',
-      LIGHTER_DAY_REQUESTED: 'Na Twoją prośbę lżej: jedna seria każdego ćwiczenia.',
-    } satisfies Record<DayReason, string>,
-    bike: {
-      FIRST_EXPOSURE: 'Pierwsza jazda — opór dobierz tak, żeby dało się rozmawiać.',
-      BIKE_TIME_UP: 'Ostatnio lekko — o 2 minuty dłużej.',
-      BIKE_RESISTANCE_UP: 'Dwa razy lekko na pełnym czasie — opór o 1 w górę.',
-      BIKE_EASE_OFF: 'Ostatnio ciężko — o 2 minuty krócej.',
-      BIKE_HOLD: 'Bez zmian.',
-      LAYOFF_MEDIUM: 'Po przerwie — od najkrótszej jazdy.',
-      LAYOFF_LONG: 'Po długiej przerwie — od najkrótszej jazdy.',
-    } satisfies Record<BikeReason, string>,
-    signal: {
-      FATIGUE_HIGH: 'RIR 0 w ćwiczeniach złożonych dwie sesje z rzędu.',
-      PERFORMANCE_DROP: 'Ćwiczenie słabsze dwie sesje z rzędu przy tym samym ciężarze.',
-      RECOVERY_LOW: 'Mało snu albo długo utrzymujące się zakwasy.',
-    } satisfies Record<FatigueSignal, string>,
-    blockEvent: {
-      BLOCK_STARTED: 'Zaczyna się blok 1.',
-      BLOCK_CLOCK_RESET: 'Po przerwie licznik bloku liczy od dziś.',
-      DELOAD_SCHEDULED: 'Cztery tygodnie pracy za Tobą — zaczyna się tydzień deloadu.',
-      DELOAD_REACTIVE: 'Kilka sygnałów zmęczenia naraz — deload wcześniej.',
-      BLOCK_ROTATED: 'Nowy blok: w każdym ruchu nowy wariant ćwiczenia.',
-      SELECTION_REPLACED:
-        'Jedno z ćwiczeń bloku przestało być dostępne — zastąpione innym w tym samym ruchu.',
-    } satisfies Record<BlockEvent, string>,
-    validation: {
-      UNKNOWN_EXERCISE: 'nieznane ćwiczenie — usunięte',
-      MEDICAL_EXCLUSION: 'niedozwolone dla kolana — usunięte',
-      USER_EXCLUDED: 'na Twojej liście „nie proponuj” — usunięte',
-      EXERCISE_UNAVAILABLE: 'niedostępne — usunięte',
-      LOAD_NOT_AVAILABLE: 'obciążenie poprawione na dostępne',
-      RANGE_CLAMPED: 'liczby poprawione do bezpiecznego zakresu',
-      LOAD_JUMP_CLAMPED: 'skok obciążenia ograniczony do jednego szczebla',
-      VOLUME_TRIMMED: 'mniej serii — tygodniowe maksimum partii',
-      TIME_TRIMMED: 'usunięte — nie mieści się w czasie',
-    } satisfies Record<ValidationCode, string>,
   },
   body: {
     title: 'Ciało',
@@ -782,7 +744,7 @@ export const pl = {
     emptyTitle: 'Czysta karta',
     entries: (n: number) =>
       `${n} ${n === 1 ? 'wpis' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'wpisy' : 'wpisów'}`,
-    noTemplate: 'bez szablonu',
+    fallbackTitle: 'Trening z historii',
     ride: 'Rower',
     rideMeta: (minutes: number, resistance: number | null, rpe: number | null) =>
       [

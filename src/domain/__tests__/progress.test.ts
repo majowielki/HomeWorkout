@@ -14,7 +14,7 @@ import {
   type StoredResult,
 } from '../session/progress';
 import { compileInput, exposure, set } from './compileFixtures';
-import { legalObservation } from './planV2Fixtures';
+import { legalObservation } from './planFixtures';
 
 const plan = (...specs: Parameters<typeof compileInput>[0][number][]) =>
   compileSession(compileInput(specs));

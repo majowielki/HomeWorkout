@@ -1,5 +1,5 @@
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import type { SessionPlan } from '@/domain/plan/plan';
 
 /**
  * One date of the calendar as the day sheet shows it — what happened, what
@@ -10,7 +10,7 @@ export function calendarDay(
   data: CalendarData,
   date: string | null,
   asOf: string,
-  todayPlan: SessionPlanV2 | null,
+  todayPlan: SessionPlan | null,
 ) {
   const day = data.days.find((d) => d.date === date);
   const sessions = data.sessions.filter((s) => s.workout.trainingDate === date);

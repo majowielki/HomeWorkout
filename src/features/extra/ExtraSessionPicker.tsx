@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import type { DayPreview } from '@/db/repositories/planningV2';
+import type { DayPreview } from '@/db/repositories/planning';
 import type { loadExtraSession } from './actions';
 import { labelsOf } from '@/domain/session/progress';
 

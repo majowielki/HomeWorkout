@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { getDayBoundaryHour } from '@/db/repositories/profile';
-import { getActiveConstraints } from '@/db/repositories/weekPlan';
+import { getActiveConstraints } from '@/db/repositories/constraints';
 import type { PlanConstraint } from '@/domain/plan/constraints';
 import type { SorenessReport } from '@/domain/plan/sorenessReport';
 import { trainingDate } from '@/domain/time/trainingDate';

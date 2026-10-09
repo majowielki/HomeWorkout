@@ -74,7 +74,7 @@ describe('the tools of contract 7 without a phone side, and with one', () => {
     expect(simulate).toHaveBeenCalledTimes(1);
   });
 
-  it('explains a plan through the week of engine v2 when it is wired, and through the first engine otherwise', async () => {
+  it('explains a plan through the injected week query', async () => {
     const env = envFor(scenario());
     const explainPlan = jest.fn().mockResolvedValue({ error: 'no_plan' });
     expect(

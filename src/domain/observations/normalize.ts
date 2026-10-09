@@ -1,6 +1,6 @@
 /**
  * From plans, results, skips and the person's remarks to the exposures the
- * progression reads (engine v2, 13 §3).
+ * progression reads (engine, 13 §3).
  *
  * The plan is what decides what a result is *for*. Every planned set gets
  * exactly what belongs to it — a current result, a skip, or nothing — and
@@ -12,7 +12,7 @@
  */
 
 import { compareCodePoints } from '../fingerprint';
-import type { SessionPlanV2 } from '../plan/planV2';
+import type { SessionPlan } from '../plan/plan';
 import type { ExposureRecord, ExposureSetRecord } from './exposure';
 import type { SetDisposition, SetObservation } from './types';
 
@@ -52,7 +52,7 @@ export interface NormalizationProblem {
 
 export interface NormalizationInput {
   sessions: readonly SessionMeta[];
-  plans: readonly SessionPlanV2[];
+  plans: readonly SessionPlan[];
   observations: readonly ObservationRow[];
   dispositions: readonly SetDisposition[];
   feel: readonly FeelReport[];
@@ -71,10 +71,7 @@ export function normalizeObservations(input: NormalizationInput): {
 } {
   const problems: NormalizationProblem[] = [];
   const meta = new Map(input.sessions.map((s) => [s.sessionId, s]));
-  const planned = new Map<
-    string,
-    { plan: SessionPlanV2; exposureIndex: number; setIndex: number }
-  >();
+  const planned = new Map<string, { plan: SessionPlan; exposureIndex: number; setIndex: number }>();
   for (const plan of input.plans) {
     plan.exposures.forEach((exposure, exposureIndex) =>
       exposure.sets.forEach((set, setIndex) =>

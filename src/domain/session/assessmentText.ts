@@ -1,5 +1,5 @@
 /**
- * Polish sentences for a session-change assessment (engine v2, 11 §8, P4b.6).
+ * Polish sentences for a session-change assessment (engine, 11 §8, P4b.6).
  *
  * The same card of facts is shown with or without the network: the AI tells
  * it in its own words, this file tells it from the codes and the numbers, and

@@ -7,6 +7,30 @@
 
 ---
 
+## Stan bieżący — 2026-10-09, P6
+
+Aplikacja korzysta z jednego silnika. Plan dnia i tygodnia, sesja dodatkowa, logger,
+historia, kalendarz, zakwasy, narzędzia AI oraz ewaluacje używają skompilowanego planu.
+Stare planowanie i reset danych są usunięte. Numery kontraktów danych pozostają:
+plan ma `schemaVersion: 2`, Worker `contractVersion: 7`, backup `schemaVersion: 8`.
+
+Weryfikacja kodu: `npm run verify` — 166 zestawów / 3771 testów / 5 snapshotów,
+100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 143 testy.
+Usunięcie testów dawnych implementacji i promptu podsumowania v2 zmniejsza liczbę testów;
+progi pokrycia nie zostały zmienione.
+
+Migracja `0014_activate_engine` zachowuje historię, serie, korekty, pominięcia,
+oceny ekspozycji, rewizje planu, odczucia i jazdy. Zamyka historyczne sesje w toku,
+zachowuje nazwy dawnych szablonów w `workouts.plan.title`, usuwa `template_id`,
+`workout_templates`, dawny tydzień i `app_state`. Bieżący tydzień używa
+`planned_days` / `plan_generations`, plan sesji — `session_plan`.
+Przebudowa tabeli nadrzędnej przechowuje wszystkie dane podrzędne w tabelach tymczasowych,
+ponieważ migrator pracuje w transakcji z włączonymi kluczami obcymi. Test SQLite obejmuje
+zachowanie tych danych oraz rollback po błędzie przy odtwarzaniu.
+
+Pozostaje odbiór interfejsu na emulatorze, wspólne wydanie Workera i APK oraz test na
+telefonie. P6 nie jest oznaczony jako zamknięty przed tym odbiorem.
+
 ## 0. Stan realizacji i odstępstwa od dokumentu
 
 Aktualizowane po każdym kamieniu. Jeśli kod i dokument się różnią, ta sekcja mówi dlaczego.
@@ -483,133 +507,13 @@ export const db = drizzle(sqlite, { schema });
 
 ## 6. Model danych — schemat Drizzle
 
-Konwencje: klucze `text` UUID; czasy zdarzeń jako ISO UTC (`*_at`); daty logiczne jako `YYYY-MM-DD`
-(`date`, `training_date`); obiekty złożone jako kolumny JSON z typem (`{ mode: 'json' }`), bo przy
-jednym użytkowniku i 60 ćwiczeniach filtrowanie w SQL nie jest potrzebne — domena filtruje w pamięci.
+Aktualnym schematem jest `src/db/schema.ts`; migracje 0010–0013 dodały kontrakt obserwacji,
+rewizje, ledger, preferencje i tydzień. Migracja 0014 usuwa dawny tydzień, szablony i ich FK,
+zachowując wszystkie zapisy użytkownika. Bieżące workouts mają skompilowany sessionPlan,
+historyczny plan oraz planSchema, planRevision, revision i timeZone.
 
-```ts
-// src/db/schema.ts
-import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
-import type { Exercise, BandCalibration, KneeProfile, SessionPlan, TemplateBlock, MuscleGroup } from '@/domain/types';
-
-export const userProfile = sqliteTable('user_profile', {
-  id: integer('id').primaryKey(),                        // zawsze 1
-  heightCm: real('height_cm'),
-  birthYear: integer('birth_year'),
-  sex: text('sex', { enum: ['male', 'female'] }),
-  dayBoundaryHour: integer('day_boundary_hour').notNull().default(4),
-  saddleHeightCm: real('saddle_height_cm'),
-  kneeProfile: text('knee_profile', { mode: 'json' }).$type<KneeProfile | null>(),
-  updatedAt: text('updated_at').notNull(),
-});
-
-export const exercises = sqliteTable('exercises', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  data: text('data', { mode: 'json' }).$type<Exercise>().notNull(),   // pełna taksonomia
-  dataVersion: integer('data_version').notNull(),                       // wersja exercises.json
-});
-
-export const bands = sqliteTable('bands', {
-  id: text('id').primaryKey(),                           // 'yellow' | 'red' | ...
-  label: text('label').notNull(),
-  nominalMinKg: real('nominal_min_kg').notNull(),
-  nominalMaxKg: real('nominal_max_kg').notNull(),
-  restLengthCm: real('rest_length_cm'),
-  calibration: text('calibration', { mode: 'json' }).$type<BandCalibration | null>(),
-  cycleCount: integer('cycle_count').notNull().default(0),
-  calibratedAt: text('calibrated_at'),
-});
-
-export const workoutTemplates = sqliteTable('workout_templates', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),                          // 'FBW A'
-  blocks: text('blocks', { mode: 'json' }).$type<TemplateBlock[]>().notNull(),
-  sortOrder: integer('sort_order').notNull(),
-  isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
-});
-
-export const workouts = sqliteTable('workouts', {
-  id: text('id').primaryKey(),
-  trainingDate: text('training_date').notNull(),         // wg granicy doby
-  startedAt: text('started_at').notNull(),
-  finishedAt: text('finished_at'),
-  status: text('status', { enum: ['in_progress', 'completed', 'abandoned'] }).notNull(),
-  templateId: text('template_id').references(() => workoutTemplates.id),
-  plan: text('plan', { mode: 'json' }).$type<SessionPlan | null>(),  // co było zaplanowane (etap 2)
-  sessionRpe: integer('session_rpe'),
-  notes: text('notes'),
-}, (t) => [index('workouts_date_idx').on(t.trainingDate), index('workouts_status_idx').on(t.status)]);
-
-export const setLogs = sqliteTable('set_logs', {
-  id: text('id').primaryKey(),
-  workoutId: text('workout_id').notNull().references(() => workouts.id, { onDelete: 'cascade' }),
-  exerciseId: text('exercise_id').notNull().references(() => exercises.id),
-  exerciseOrder: integer('exercise_order').notNull(),   // pozycja w sesji
-  setIndex: integer('set_index').notNull(),
-  isWarmup: integer('is_warmup', { mode: 'boolean' }).notNull().default(false),
-  reps: integer('reps'),
-  timeSec: integer('time_sec'),                          // izometria
-  rir: integer('rir'),
-  weightKg: real('weight_kg'),
-  dumbbellMode: text('dumbbell_mode', { enum: ['paired', 'single'] }),
-  bandId: text('band_id').references(() => bands.id),
-  anchorPosition: integer('anchor_position'),            // 0..3
-  estimatedLoadKg: real('estimated_load_kg'),            // null gdy brak kalibracji
-  loggedAt: text('logged_at').notNull(),
-}, (t) => [index('set_logs_workout_idx').on(t.workoutId), index('set_logs_exercise_idx').on(t.exerciseId)]);
-
-export const cardioLogs = sqliteTable('cardio_logs', {
-  id: text('id').primaryKey(),
-  workoutId: text('workout_id').references(() => workouts.id, { onDelete: 'cascade' }), // null = osobna jazda
-  trainingDate: text('training_date').notNull(),
-  purpose: text('purpose', { enum: ['warmup', 'cardio'] }).notNull(),
-  minutes: integer('minutes').notNull(),
-  resistanceLevel: integer('resistance_level'),
-  avgCadence: integer('avg_cadence'),
-  avgHr: integer('avg_hr'),
-  rpe: integer('rpe'),
-  loggedAt: text('logged_at').notNull(),
-}, (t) => [index('cardio_date_idx').on(t.trainingDate)]);
-
-export const bodyMetrics = sqliteTable('body_metrics', {
-  id: text('id').primaryKey(),
-  date: text('date').notNull(),                          // kalendarzowa — waga rano
-  weightKg: real('weight_kg').notNull(),
-  bodyFatPct: real('body_fat_pct'),
-  source: text('source', { enum: ['manual', 'scale', 'navy'] }).notNull(),
-  loggedAt: text('logged_at').notNull(),
-}, (t) => [index('body_date_idx').on(t.date)]);
-
-export const measurements = sqliteTable('measurements', {
-  id: text('id').primaryKey(),
-  date: text('date').notNull(),
-  waistCm: real('waist_cm'), hipsCm: real('hips_cm'), chestCm: real('chest_cm'),
-  armCm: real('arm_cm'), thighCm: real('thigh_cm'), neckCm: real('neck_cm'),
-  loggedAt: text('logged_at').notNull(),
-});
-
-export const dailyLogs = sqliteTable('daily_logs', {
-  date: text('date').primaryKey(),
-  sleepHours: real('sleep_hours'),
-  energy: integer('energy'),                             // 1..5
-  stress: integer('stress'),                             // 1..5
-  soreness: text('soreness', { mode: 'json' }).$type<Partial<Record<MuscleGroup, number>>>(),
-  steps: integer('steps'),
-  note: text('note'),
-  updatedAt: text('updated_at').notNull(),
-});
-
-// etap 3
-export const aiExchanges = sqliteTable('ai_exchanges', {
-  id: text('id').primaryKey(),
-  kind: text('kind', { enum: ['weekly_summary', 'question', 'plan_proposal'] }).notNull(),
-  request: text('request', { mode: 'json' }).notNull(),
-  response: text('response', { mode: 'json' }),
-  accepted: integer('accepted', { mode: 'boolean' }),
-  createdAt: text('created_at').notNull(),
-});
-```
+Dokładny przepływ i kontrakty: [dokumentacja silnika](silnik-v2/DOKUMENTACJA-TECHNICZNA.md).
+Wcześniejsze przykłady w historii Git opisują model sprzed aktywacji.
 
 ### 6.1 Typy domenowe (`src/domain/types.ts`) — kluczowe
 
@@ -682,39 +586,21 @@ export interface SessionPlan {
 `scripts/validate-data.ts` (w CI) sprawdza: schemat, unikalność `id`, że każdy `substituteId` istnieje,
 że `media` ma plik w `assets/exercise-media/`, że każde ćwiczenie z `loadsKnee: true` ma `kneeCue`.
 
-### 6.4 Szablony startowe (tryb konserwatywny kolana — wyłącznie obunóż)
+### 6.4 Plan zamiast startowych szablonów
 
-```
-FBW A                                       FBW B
-A1 Goblet squat (single)     2×10–20        A1 Przysiad z gumą (pod stopami)   2×12–20
-A2 Wiosłowanie gumą z kotwicy 2×10–15       A2 Wiosłowanie hantlem jednorącz   2×8–15
-B1 RDL hantle (paired)        2×10–20       B1 Pull-through z gumą             2×12–20
-B2 Wyciskanie hantli z podłogi 2×8–15       B2 Pompki (guma na plecach = progres) 2×8–15
-C1 Glute bridge / hip thrust  2×12–20       C1 Wznosy bokiem (paired)          2×10–15
-C2 Deska                      2×30–60 s     C2 Martwy robak                    2×8–12/str.
-+ rozgrzewka: rower 5 min, seria rozgrzewkowa gumy przed A2/B1
-```
-
-Objętość tygodniowa przy A+B: nogi 4–6, plecy 4, klatka 4, barki 2, core 4 — zgadza się z MEV.
-
----
+Nowa instalacja seedingiem wczytuje katalog ćwiczeń, sprzęt i profil. Ćwiczenia sesji dobiera
+planer slotów i kompilator; aplikacja nie instaluje i nie tworzy workout_templates.
+Tytuły dawnych sesji z szablonów są zachowane w historycznym plan.title.
 
 ## 7. Mechanizmy krytyczne
 
 ### 7.1 Trwałość aktywnej sesji
 
-```
-start sesji     → INSERT workouts (status='in_progress')          ← natychmiast, przed pierwszym ekranem
-zapis serii     → INSERT set_logs                                 ← natychmiast, haptic dopiero po commit
-zakończ         → UPDATE status='completed', finished_at, session_rpe
-porzuć          → UPDATE status='abandoned' (logi zostają — to nadal dane)
-start aplikacji → SELECT ... WHERE status='in_progress'
-                  → jeśli jest: karta „Masz niedokończoną sesję z [data]: [wznów] [porzuć]"
-                  → jeśli started_at > 12 h temu: automatycznie 'abandoned'
-```
-
-Zustand trzyma tylko: id aktywnej sesji, indeks bieżącego ćwiczenia/serii, ostatnio wpisane wartości
-(do prefill). Wszystko odtwarzalne z bazy.
+Sesja powstaje przez previewDay/acceptDay. Plan, kroki i identyfikatory serii są zamrożone
+w sessionPlan; zmiany tworzą kolejne rewizje. Logger wysyła idempotentne polecenia ze
+sprawdzeniem revision. readSessionState odtwarza wykonane, pominięte i pending kroki.
+Startup zamyka przeterminowaną sesję przez closeSession — wyników nie dopisuje i nie usuwa.
+Historyczna sesja planSchema = 1 nie jest wznawiana; migracja/import zachowuje ją jako abandoned.
 
 ### 7.2 Timer przerwy
 
@@ -755,20 +641,10 @@ czyste, testowane na sztucznych seriach.
 
 ### 7.5 Eksport / import
 
-Plik `homeworkout-backup-YYYY-MM-DD.json`:
-
-```json
-{ "schemaVersion": 3, "exportedAt": "...", "app": "homeworkout",
-  "tables": { "user_profile": [...], "bands": [...], "workout_templates": [...], "workouts": [...],
-              "set_logs": [...], "cardio_logs": [...], "body_metrics": [...], "measurements": [...],
-              "daily_logs": [...], "ai_exchanges": [...] } }
-```
-
-Ćwiczeń nie eksportujemy (odtwarzane z seeda). Import: walidacja Zod → jeśli `schemaVersion` starszy,
-funkcja migrująca JSON → transakcja: wyczyść tabele → wstaw. **Przed importem automatyczny eksport
-bieżącego stanu** do folderu aplikacji — na wypadek pomyłki.
-
-Test end-to-end kamienia M5: eksport → odinstaluj → zainstaluj → import → identyczne dane.
+Backup ma wersję 8. Parser przyjmuje wersje 1–7; wszystkie bieżące obserwacje, korekty,
+dyspozycje i rewizje przechodzą round trip. Dane pochodne tygodnia i księga poleceń
+zastąpionej historii są odbudowywane. Import jest atomowy, sprawdza odwołania do ćwiczeń
+przed zapisem. Stare sesje/serie nie stają się dowodem progresji i nie są kasowane.
 
 ### 7.6 Brief dla AI (etap 3, krok 0)
 
