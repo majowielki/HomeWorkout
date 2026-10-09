@@ -6,7 +6,7 @@
  */
 
 import { PROGRESSION_CONFIG, TRAINING_CONFIG } from '../config/training';
-import type { Exercise, JointId, MuscleGroup } from '../types';
+import type { Exercise, JointId, MedicalProfile, MuscleGroup } from '../types';
 
 /** The main implement the resistance comes from; what an equipment preference is about (12 §3). */
 export type EquipmentFamily = 'dumbbell' | 'band' | 'mini-band' | 'bike' | 'bodyweight';
@@ -33,12 +33,18 @@ export function loadsJoint(
   return exercise.jointLoading?.[joint] ?? 'unknown';
 }
 
-/** The repetitions a set is not pushed beyond (D34): a harder variant comes before more repetitions. */
+/**
+ * The repetitions a set is not pushed beyond (D34): a harder variant comes before more repetitions. The
+ * lower ceiling for exercises that load the knee belongs to a person who has a knee profile and has not
+ * switched the cautious range off; for anyone else it is the general one.
+ */
 export function repCapOf(
   exercise: Pick<Exercise, 'loadsKnee' | 'jointLoading'>,
+  profile: MedicalProfile,
   cfg: { default: number; kneeLoading: number } = PROGRESSION_CONFIG.repCap,
 ): number {
-  return loadsJoint(exercise, 'knee') === true ? cfg.kneeLoading : cfg.default;
+  const cautious = profile.knee !== null && profile.knee.cautiousReps !== false;
+  return cautious && loadsJoint(exercise, 'knee') === true ? cfg.kneeLoading : cfg.default;
 }
 
 /**

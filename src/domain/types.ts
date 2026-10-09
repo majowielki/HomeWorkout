@@ -148,6 +148,12 @@ export interface KneeProfile {
   varusThrust: boolean;
   /** Until a physiotherapist signs off, the engine stays bilateral-only. */
   physioApproved: boolean;
+  /**
+   * Keep the repetitions of knee-loading exercises to a cautious ceiling (20, not 25) and off the last
+   * rep in reserve (engine v2, D34). On unless set to `false`: the person turns it off in Settings, e.g.
+   * with a physiotherapist's word, or never has the profile at all (a healthy knee: no profile, no cap).
+   */
+  cautiousReps?: boolean;
 }
 
 export interface MedicalProfile {

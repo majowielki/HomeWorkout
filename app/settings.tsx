@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Stepper } from '@/components/ui/stepper';
 import { Text } from '@/components/ui/text';
 import {
+  DOCUMENTED_KNEE_PROFILE,
   getExcludedExerciseIds,
   getProfile,
   getReminderSettings,
@@ -218,23 +219,45 @@ export default function SettingsScreen() {
         </CardContent>
       </Card>
 
-      {knee ? (
-        <Card>
-          <CardTitle>{pl.settings.kneeSection}</CardTitle>
-          <CardContent>
-            <View className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1">{pl.settings.conservativeKnee}</Text>
-              <Switch
-                value={!knee.physioApproved}
-                onValueChange={(v) => setKnee({ ...knee, physioApproved: !v })}
-              />
-            </View>
-            <Text variant="muted" className="text-xs">
-              {pl.settings.conservativeKneeHint}
-            </Text>
-          </CardContent>
-        </Card>
-      ) : null}
+      <Card>
+        <CardTitle>{pl.settings.kneeSection}</CardTitle>
+        <CardContent>
+          <View className="flex-row items-center justify-between gap-3">
+            <Text className="flex-1">{pl.settings.kneeProfileOn}</Text>
+            <Switch
+              value={knee !== null}
+              onValueChange={(on) => setKnee(on ? DOCUMENTED_KNEE_PROFILE : null)}
+            />
+          </View>
+          <Text variant="muted" className="text-xs">
+            {pl.settings.kneeProfileHint}
+          </Text>
+          {knee ? (
+            <>
+              <View className="flex-row items-center justify-between gap-3">
+                <Text className="flex-1">{pl.settings.conservativeKnee}</Text>
+                <Switch
+                  value={!knee.physioApproved}
+                  onValueChange={(v) => setKnee({ ...knee, physioApproved: !v })}
+                />
+              </View>
+              <Text variant="muted" className="text-xs">
+                {pl.settings.conservativeKneeHint}
+              </Text>
+              <View className="flex-row items-center justify-between gap-3">
+                <Text className="flex-1">{pl.settings.cautiousReps}</Text>
+                <Switch
+                  value={knee.cautiousReps !== false}
+                  onValueChange={(v) => setKnee({ ...knee, cautiousReps: v })}
+                />
+              </View>
+              <Text variant="muted" className="text-xs">
+                {pl.settings.cautiousRepsHint}
+              </Text>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardTitle>{pl.settings.trainingDays.title}</CardTitle>

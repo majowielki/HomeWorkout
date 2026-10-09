@@ -741,6 +741,12 @@ export const pl = {
     saddleHeightCm: 'Wysokość siodełka (cm)',
     saddleHint: 'Ustaw raz i nie zmieniaj — ma znaczenie dla kolana.',
     kneeSection: 'Profil kolana',
+    kneeProfileOn: 'Uwzględniaj ograniczenia kolana',
+    kneeProfileHint:
+      'Wyłączony: plan nie wyklucza ćwiczeń ze względu na kolano i nie ogranicza zakresów powtórzeń (dla zdrowego kolana). Włączony: obowiązują poniższe ustawienia.',
+    cautiousReps: 'Ostrożny zakres powtórzeń',
+    cautiousRepsHint:
+      'Włączony: w ćwiczeniach obciążających kolano plan nie dobija powyżej 20 powtórzeń i nie celuje w powtórzenie do upadku powyżej 15 (inne ćwiczenia: do 25). To zasada ostrożności do potwierdzenia z fizjoterapeutą; wyłącz, jeśli nie ma być stosowana.',
     conservativeKnee: 'Tryb konserwatywny: tylko ćwiczenia obunóż',
     conservativeKneeHint:
       'Włączony: bez pracy jednonóż z podparciem (split squat, wykrok w tył, wejście na stopień, wyprost biodra z gumą). Wyłączony: te ćwiczenia wracają do planu. Twarde wykluczenia (ruchy boczne i skrętne pod obciążeniem, skoki, prostowanie nóg w siadzie) obowiązują zawsze.',
