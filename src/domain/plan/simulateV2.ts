@@ -7,30 +7,23 @@
  * how the rules are compared with one another before anyone trains (P7, P8).
  */
 
-import { fatigueSignalsV2 } from '../autoregulation/signalsV2';
 import type { IsoDate } from '../observations/date';
 import type { ExposureRecord } from '../observations/exposure';
-import { isPerformed } from '../observations/qualify';
 import type { SetObservation } from '../observations/types';
 import { type TrainingPreferences, defaultPreferences } from '../preferences/preferences';
-import { assess } from '../progression/assessed';
-import { blockEvidence } from '../progression/stall';
 import type { Ride } from '../progression/bike';
-import { DEFAULT_PROGRESSION_POLICY } from '../progression/policy';
 import { DEFAULT_MODEL_CONTEXT, type ModelContext } from '../resistance/registry';
-import type { ResistanceSpec } from '../resistance/types';
 import { addDays } from '../time/trainingDate';
 import type { Exercise } from '../types';
-import { buildHistoryIndex } from '../history';
 import { fingerprint } from '../fingerprint';
+import { blockContextV2 } from './blockContext';
 import { advanceBlockV2 } from './blockV2';
 import { type DayOutputV2, planDayV2 } from './dayV2';
 import type { EligibilityContext } from './eligibility';
-import { slotByExercise } from './eligibility';
 import type { PlannedExposure, PlannedSet, SessionPlanV2 } from './planV2';
 import type { BlockEvent } from './reasons';
-import { modelFor, resistanceOf } from './resistanceOf';
 import type { BlockState, DailyReadiness, Slot } from './types';
+import { planVersions } from './versions';
 
 /** How the synthetic person performs a planned set. */
 export interface AthleteV2 {
@@ -166,8 +159,6 @@ export function simulateV2(opts: SimulationV2Options): SimulatedDayV2[] {
   const athlete = opts.athlete ?? FOLLOWS_THE_PLAN_V2;
   const preferences = opts.preferences ?? defaultPreferences();
   const models = opts.models ?? DEFAULT_MODEL_CONTEXT;
-  const slotOf = slotByExercise(opts.slots);
-  const modelOf = (spec: ResistanceSpec) => modelFor(spec, models);
   const records: ExposureRecord[] = [];
   const rides: Ride[] = [];
   const blocks: BlockState[] = [];
@@ -179,59 +170,22 @@ export function simulateV2(opts: SimulationV2Options): SimulatedDayV2[] {
     const date = addDays(opts.start, i);
     const today = opts.daily?.(date) ?? null;
     if (today !== null) daily.push(today);
-    const idx = buildHistoryIndex(records, opts.catalog);
-    const historyOf = (slot: Slot, id: string | undefined) => {
-      const exercise = id === undefined ? undefined : opts.catalog[id];
-      const res = exercise === undefined ? null : resistanceOf(exercise, slot, models);
-      return res === null ? null : { res, history: idx.byKey.get(res.comparisonKey) ?? [] };
-    };
-    const performedDates = records
-      .filter((r) => r.sets.some(isPerformed))
-      .map((r) => r.trainingDate);
-    // The simulation appends records in training-date order.
-    const lastSessionDate = performedDates.at(-1) ?? null;
-
-    const advance = advanceBlockV2(block, {
-      asOf: date,
-      lastSessionDate,
-      slots: opts.slots,
-      catalog: opts.catalog,
-      eligibility: opts.eligibility,
-      preferences,
-      evidence: (slot, id) => {
-        const found = historyOf(slot, id);
-        return found === null
-          ? null
-          : blockEvidence(
-              assess(found.history, DEFAULT_PROGRESSION_POLICY, found.res.model),
-              block!.startedOn,
-              found.res.model,
-              {
-                introExposures: DEFAULT_PROGRESSION_POLICY.introExposures,
-                window: 3,
-              },
-            );
-      },
-      recentBlocks: [...blocks].reverse().map((b) => b.selections),
-      deload: {
-        signals: fatigueSignalsV2({ asOf: date, records, slotOf, daily, modelOf }),
-        keyExercises: opts.slots
-          .filter((s) => s.kind === 'compound')
-          .flatMap((s) => {
-            const found = historyOf(s, block?.selections[s.id]);
-            return found === null
-              ? []
-              : [
-                  {
-                    history: assess(found.history, DEFAULT_PROGRESSION_POLICY, found.res.model),
-                    model: found.res.model,
-                  },
-                ];
-          }),
+    const advance = advanceBlockV2(
+      block,
+      blockContextV2({
+        asOf: date,
+        block,
+        records,
         daily,
-        requested: opts.deloadRequests?.has(date) ?? false,
-      },
-    });
+        slots: opts.slots,
+        catalog: opts.catalog,
+        eligibility: opts.eligibility,
+        preferences,
+        models,
+        recentBlocks: [...blocks].reverse().map((b) => b.selections),
+        deloadRequested: opts.deloadRequests?.has(date) ?? false,
+      }),
+    );
     if (advance.closed !== null) blocks.push(advance.closed);
     block = advance.block;
 
@@ -255,14 +209,7 @@ export function simulateV2(opts: SimulationV2Options): SimulatedDayV2[] {
         sessionId: `s${date.replaceAll('-', '')}`,
         planRevision: 1,
         kind: 'main',
-        versions: {
-          engine: '2.0.0',
-          policies: 'policy-2.0',
-          catalog: 'catalog-1',
-          inventory: 'inventory-1',
-          compiler: 'compiler-1',
-          traceSchema: 1,
-        },
+        versions: planVersions('catalog-1'),
         snapshotFingerprint: fingerprintOf,
         inputFingerprint: fingerprintOf,
       },

@@ -92,6 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
 | `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
@@ -548,6 +549,31 @@ Dla `feel`: `Przyjęto: za ciężko/za lekko.`, `Polecam: …`, `Inne możliwoś
 na prośbę nie liczy się jako porażka siłowa (zgodne z USER_REDUCED). Dowód: `assessmentText.test.ts` — snapshot
 zdania każdego kodu, scenariusze na realnym silniku (dodanie, ponad limit dnia, nieznane ćwiczenie, niejednoznaczne,
 feel), determinizm i niezmienność wejścia.
+
+### 4.22 Serwis dnia: od bazy do sesji (P5.5a)
+
+Pierwszy kawałek integracji. Nic w ekranach go jeszcze nie woła; sprawdzony jest na prawdziwym SQLite
+(`sqlite-check-planning-v2.cjs`).
+
+- `planningInputs.ts` (`readPlanningInputs(tx, asOf)`, `readDayBoundaryHour`): jeden czytnik wejść (profil, preferencje,
+  katalog, gumy, historia znormalizowana, odczyty dnia, jazdy, prośby, tydzień, rewizje) w transakcji wywołującego. Używają go
+  dzień i konsultacja w sesji (`sessionChangeSource` został do niego przepisany bez zmiany wyniku), więc nie mogą widzieć różnych historii.
+- `plan/blockContext.ts` (`blockContextV2`): co blok czyta z historii (dowód każdego slotu, sygnały deloadu). Wyodrębnione z
+  `simulateV2`, które teraz woła tę samą funkcję — symulacja i aplikacja nie mogą inaczej zdecydować o bloku. `plan/versions.ts`:
+  wersje wpisywane do planu (silnik 2.0.0, polityki, kompilator, schemat śladu); wersja katalogu = najnowsza `data_version` z bazy.
+- `planDayIn(tx, request, now)`: data dnia z godziny granicznej profilu → wejścia → blok przesunięty do dziś (`advanceBlockV2`,
+  bez zapisu) → `planDayV2`. `DayRequest` niesie id sesji nadawane przez wywołującego (podgląd i akceptacja muszą się zgadzać),
+  intencję, rodzaj, `only`, `acknowledged`, prośbę o deload. Odcisk wejścia obejmuje całe wejście i prośbę.
+- `previewDay`: transakcja tylko do odczytu, wynik `{asOf, input, current, advance, output, planHash}`.
+- `acceptDay({commandId, request, expectedPlanHash, timeZone})`: w jednej transakcji ledger → ponowne planowanie z bazy →
+  porównanie hasha → `startSessionIn` (wyodrębnione z `startSessionV2`) → zapis bloku (`writeBlockAdvance`) i podniesienie rewizji
+  `block`. Inny hasz (zmiana profilu, historii, odczytu, prośby albo dnia) to `conflict: STALE_INPUT` z nowym haszem w `detail`;
+  brak planu to `rejected: INVALID_PLAN`; trwająca sesja to `ACTIVE_SESSION_EXISTS`. Błąd zapisu bloku cofa też sesję i ledger.
+  Powtórka tego samego `commandId` zwraca zapisany wynik.
+- Dowód: plan z pustej bazy, brak zapisu w podglądzie, ten sam plan o różnych porach, start sesji, odczyt przez konsultację,
+  powtórka, konflikt po zmianie odczytu i po zmianie dnia, odrzucony obcy hasz, trwająca sesja, cofnięcie przy błędzie bloku,
+  dzień bez planu i **sześć dni pod rząd** (planowanie → wykonanie zgodne z planem → zamknięcie → następny dzień czyta poprzednie:
+  pojawia się `REP_PROGRESSION`).
 
 ## 5. Konwencje testów
 

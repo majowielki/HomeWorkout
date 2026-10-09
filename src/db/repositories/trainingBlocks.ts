@@ -5,7 +5,7 @@ import { desc, eq, isNull } from 'drizzle-orm';
 import type { BlockAdvance } from '@/domain/plan/block';
 import type { BlockState } from '@/domain/plan/types';
 
-import { db, type Tx } from '../client';
+import { db, type Executor, type Tx } from '../client';
 import { trainingBlocks } from '../schema';
 
 /** The open block as the engine sees it, with the row id to write it back. */
@@ -33,6 +33,16 @@ function toColumns(state: BlockState) {
     deloadFrom: state.deloadFrom,
     deloadReason: state.deloadReason,
     selections: state.selections,
+  };
+}
+
+/** The open block read inside a transaction, and the selections of the blocks that ended, newest first. */
+export function readBlocks(tx: Executor): { current: StoredBlock | null; ended: BlockState[] } {
+  const rows = tx.select().from(trainingBlocks).orderBy(desc(trainingBlocks.blockIndex)).all();
+  const open = rows.find((r) => r.closedOn === null);
+  return {
+    current: open ? { id: open.id, state: toState(open) } : null,
+    ended: rows.filter((r) => r.closedOn !== null).map(toState),
   };
 }
 

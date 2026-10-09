@@ -1,0 +1,337 @@
+/* P5.5: the day of engine v2 on real SQLite: preview reads and writes nothing,
+ * acceptance plans again in its own transaction, compares with what was shown and starts
+ * the session and moves the block together or not at all. */
+const { assert, current, all, exec, seeded, failInsert } = require('./sqlite-harness.cjs');
+const { previewDay, acceptDay } = require('../repositories/planningV2.ts');
+const { loadSessionChangeSource } = require('../repositories/sessionChangeSource.ts');
+const { assessSessionChange } = require('../../domain/session/assess.ts');
+const sessions = require('../repositories/sessionsV2.ts');
+const { legalObservation } = require('../../domain/__tests__/planV2Fixtures.ts');
+
+// Local time on purpose: the training day is the local date minus the day boundary.
+const NOW = new Date(2026, 9, 5, 9, 0, 0);
+const LATER = new Date(2026, 9, 5, 9, 4, 0);
+const TOMORROW = new Date(2026, 9, 6, 9, 0, 0);
+const request = (sessionId = 'day-1', patch = {}) => ({ sessionId, ...patch });
+
+const TABLES = [
+  'workouts',
+  'set_logs',
+  'set_dispositions',
+  'session_plan_revisions',
+  'command_ledger',
+  'planning_revisions',
+  'exposure_outcomes',
+  'training_blocks',
+  'daily_logs',
+];
+function snapshot() {
+  return Object.fromEntries(TABLES.map((t) => [t, all(`SELECT * FROM ${t}`)]));
+}
+function ready(day) {
+  assert.ok(['ready', 'adjusted'].includes(day.output.result.kind), day.output.result.kind);
+  return day.output.result.plan;
+}
+function accept(commandId, day, patch = {}, now = LATER) {
+  return acceptDay(
+    {
+      commandId,
+      request: request('day-1'),
+      expectedPlanHash: day.planHash,
+      timeZone: 'Europe/Warsaw',
+      ...patch,
+    },
+    now,
+  );
+}
+
+/** Does every set of the running session exactly as planned, and closes it. */
+function doTheSession(plan, when) {
+  for (const exposure of plan.exposures) {
+    for (const set of exposure.sets) {
+      const base = legalObservation();
+      const revision = all('SELECT revision FROM workouts WHERE id = ?', plan.sessionId)[0]
+        .revision;
+      const target = set.target;
+      const value =
+        target.kind === 'duration'
+          ? { kind: 'duration', seconds: target.targetSec }
+          : { kind: 'reps', reps: target.target };
+      const r = sessions.logSetV2(
+        {
+          commandId: `log-${set.id}`,
+          sessionId: plan.sessionId,
+          plannedSetId: set.id,
+          expectedSessionRevision: revision,
+          observation: {
+            status: 'performed',
+            amount: { ...base.amount, value },
+            resistance: { ...base.resistance, value: set.resistance },
+            rir: { ...base.rir, value: set.targetRir?.min ?? 2 },
+            shortfall: null,
+            performedAt: when.toISOString(),
+          },
+        },
+        when,
+      );
+      assert.equal(r.kind, 'committed', JSON.stringify(r));
+    }
+  }
+  const closed = sessions.closeSessionV2(
+    { commandId: `close-${plan.sessionId}`, sessionId: plan.sessionId, how: 'completed' },
+    when,
+  );
+  assert.equal(closed.kind, 'committed', JSON.stringify(closed));
+}
+
+const CASES = [
+  [
+    'the preview plans a day from an empty database and writes nothing',
+    async () => {
+      await seeded();
+      const before = snapshot();
+      const day = previewDay(request(), NOW);
+      const plan = ready(day);
+      assert.equal(day.asOf, '2026-10-05');
+      assert.equal(plan.trainingDate, '2026-10-05');
+      assert.equal(plan.sessionId, 'day-1');
+      assert.ok(plan.exposures.length > 0);
+      assert.equal(day.planHash, plan.audit.planHash);
+      assert.equal(day.current, null);
+      assert.equal(day.advance.block.index, 1);
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  [
+    'the same database and request give the same plan at any time of the day',
+    async () => {
+      await seeded();
+      const a = previewDay(request(), NOW);
+      const b = previewDay(request(), LATER);
+      assert.equal(a.planHash, b.planHash);
+      assert.deepEqual(a.output.result, b.output.result);
+    },
+  ],
+  [
+    'another session id is another plan, the same inputs aside',
+    async () => {
+      await seeded();
+      assert.notEqual(
+        previewDay(request('a'), NOW).planHash,
+        previewDay(request('b'), NOW).planHash,
+      );
+    },
+  ],
+  [
+    'acceptance starts the session with the plan that was shown, opens the block and counts both',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      const plan = ready(day);
+      const r = accept('accept-1', day);
+      assert.equal(r.kind, 'committed');
+      assert.deepEqual(r.result, { sessionId: 'day-1' });
+      const [row] = all('SELECT * FROM workouts');
+      assert.equal(row.id, 'day-1');
+      assert.equal(row.status, 'in_progress');
+      assert.equal(row.plan_schema, 2);
+      assert.deepEqual(JSON.parse(row.plan_v2), JSON.parse(JSON.stringify(plan)));
+      const blocks = all('SELECT * FROM training_blocks');
+      assert.equal(blocks.length, 1);
+      assert.equal(blocks[0].closed_on, null);
+      assert.deepEqual(JSON.parse(blocks[0].selections), day.advance.block.selections);
+      const revisions = Object.fromEntries(
+        all('SELECT domain, revision FROM planning_revisions').map((x) => [x.domain, x.revision]),
+      );
+      assert.equal(revisions.block, 1);
+      assert.ok(revisions.history >= 1);
+      assert.equal(all('SELECT * FROM command_ledger').length, 1);
+    },
+  ],
+  [
+    'the started session is one the consultation can read and the audit accepts',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      assert.equal(accept('accept-1', day).kind, 'committed');
+      const source = loadSessionChangeSource('day-1');
+      assert.equal(source.session.plan.sessionId, 'day-1');
+      assert.equal(source.problems.length, 0);
+      const exposure = source.session.plan.exposures[0];
+      const assessed = assessSessionChange(source.snap, source.session, {
+        kind: 'skip_remaining',
+        exposureId: exposure.id,
+      });
+      assert.equal(
+        assessed.checks.filter((c) => c.class === 'hard' && c.status === 'fail').length,
+        0,
+      );
+      assert.notEqual(assessed.patch, null);
+    },
+  ],
+  [
+    'sending the accepted command again returns the stored answer and writes nothing',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      assert.equal(accept('accept-1', day).kind, 'committed');
+      const before = snapshot();
+      const again = accept('accept-1', day, {}, TOMORROW);
+      assert.equal(again.kind, 'already_committed');
+      assert.deepEqual(again.result, { sessionId: 'day-1' });
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  [
+    'an input that changed after the preview is a conflict and nothing is written',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      exec(
+        "INSERT INTO daily_logs (date, sleep_hours, energy, updated_at) VALUES ('2026-10-05', 4, 1, '2026-10-05T08:00:00Z')",
+      );
+      const before = snapshot();
+      const r = accept('accept-1', day);
+      assert.equal(r.kind, 'conflict');
+      assert.equal(r.code, 'STALE_INPUT');
+      assert.notEqual(r.detail, day.planHash);
+      assert.equal(r.detail, previewDay(request(), NOW).planHash);
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  [
+    'the day turning over between the preview and the acceptance is a conflict',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      const r = accept('accept-1', day, {}, TOMORROW);
+      assert.equal(r.kind, 'conflict');
+      assert.equal(r.code, 'STALE_INPUT');
+      assert.equal(all('SELECT * FROM workouts').length, 0);
+      assert.equal(all('SELECT * FROM training_blocks').length, 0);
+    },
+  ],
+  [
+    'a hash that is not the day the person saw is refused',
+    async () => {
+      await seeded();
+      const r = accept('accept-1', { planHash: '0'.repeat(64) });
+      assert.equal(r.kind, 'conflict');
+      assert.equal(r.code, 'STALE_INPUT');
+      assert.equal(all('SELECT * FROM workouts').length, 0);
+    },
+  ],
+  [
+    'a running session blocks the acceptance and leaves the block as it was',
+    async () => {
+      await seeded();
+      const first = previewDay(request('day-1'), NOW);
+      assert.equal(accept('accept-1', first).kind, 'committed');
+      const second = previewDay(request('day-2', { kind: 'extra' }), LATER);
+      const before = snapshot();
+      const r = acceptDay(
+        {
+          commandId: 'accept-2',
+          request: request('day-2', { kind: 'extra' }),
+          expectedPlanHash: second.planHash,
+          timeZone: null,
+        },
+        LATER,
+      );
+      assert.equal(r.kind, 'conflict');
+      assert.equal(r.code, 'ACTIVE_SESSION_EXISTS');
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  [
+    'a failure while writing the block takes the session and the ledger back with it',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      const undo = failInsert('no_block', 'training_blocks');
+      const before = snapshot();
+      const r = accept('accept-1', day);
+      undo();
+      assert.equal(r.kind, 'storage_error');
+      assert.equal(r.retryable, true);
+      assert.deepEqual(snapshot(), before);
+      assert.equal(accept('accept-1', day).kind, 'committed');
+    },
+  ],
+  [
+    'a day with no plan is refused and writes nothing',
+    async () => {
+      await seeded();
+      exec("UPDATE user_profile SET rest_weekdays = '[0,1,2,3,4,5,6]'");
+      const day = previewDay(request(), NOW);
+      assert.equal(day.planHash, null);
+      const before = snapshot();
+      const r = accept('accept-1', day);
+      assert.equal(r.kind, 'rejected');
+      assert.equal(r.code, 'INVALID_PLAN');
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  [
+    'six days in a row: each day is planned from the database, done as planned and closed, and the next one reads it',
+    async () => {
+      await seeded();
+      const codes = [];
+      for (let i = 0; i < 6; i += 1) {
+        const at = new Date(2026, 9, 5 + i, 9, 0, 0);
+        const day = previewDay(request(`d${i}`), at);
+        const plan = ready(day);
+        for (const e of plan.exposures) codes.push(e.trace.code);
+        assert.equal(
+          accept(`accept-${i}`, day, { request: request(`d${i}`) }, new Date(+at + 60000)).kind,
+          'committed',
+        );
+        doTheSession(plan, new Date(+at + 120000));
+      }
+      assert.equal(all("SELECT * FROM workouts WHERE status = 'completed'").length, 6);
+      assert.equal(all('SELECT * FROM training_blocks').length, 1);
+      assert.ok(codes.includes('FIRST_COMPARABLE_EXPOSURE'), codes.join());
+      assert.ok(
+        codes.some((c) => c !== 'FIRST_COMPARABLE_EXPOSURE'),
+        'later days read the earlier ones',
+      );
+    },
+  ],
+  [
+    'the block carries on from the open one and a new day moves nothing it need not',
+    async () => {
+      await seeded();
+      const day = previewDay(request(), NOW);
+      assert.equal(accept('accept-1', day).kind, 'committed');
+      exec("UPDATE workouts SET status = 'abandoned'");
+      const next = previewDay(request('day-2'), TOMORROW);
+      assert.equal(next.current.state.index, 1);
+      assert.equal(next.advance.block.index, 1);
+      assert.deepEqual(next.advance.block.selections, day.advance.block.selections);
+      assert.equal(
+        accept('accept-2', next, { request: request('day-2') }, TOMORROW).kind,
+        'committed',
+      );
+      assert.equal(all('SELECT * FROM training_blocks').length, 1);
+      const revisions = Object.fromEntries(
+        all('SELECT domain, revision FROM planning_revisions').map((x) => [x.domain, x.revision]),
+      );
+      assert.equal(revisions.block, 1);
+    },
+  ],
+];
+
+async function main() {
+  console.log(`CASES ${CASES.length}`);
+  for (const [name, run] of CASES) {
+    try {
+      await run();
+      console.log(`RESULT ${JSON.stringify({ name, ok: true })}`);
+    } catch (error) {
+      console.log(
+        `RESULT ${JSON.stringify({ name, ok: false, error: error.stack ?? String(error) })}`,
+      );
+    }
+  }
+}
+main().finally(() => current.native?.close());

@@ -176,6 +176,17 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Do sprawdzenia na telefonie w P5: czy zdania czytane głosem (pierwsze dwa) są zrozumiałe; formy bezosobowe
   („Dziś zgłoszono ból”) wybrane celowo, żeby nie zgadywać rodzaju gramatycznego.
 
+### 2i. P5.5a — serwis dnia (2026-10-09)
+
+- Spec. 01 §4 mówi o `PlanningSnapshot` jako osobnym obiekcie z rewizjami. W kodzie jego rolę pełni odcisk całego wejścia
+  (`fingerprint` w `planDayIn`) i hasz planu: wystarczy do porównania podglądu z akceptacją, a rewizje domen i tak są częścią wejścia.
+  Osobny typ `PlanningSnapshot` nie jest potrzebny, dopóki nie pojawi się konsument, który go wymaga (replay diagnostyczny).
+- Historia jest czytana w całości (jak w konsultacji), bez okna 120 dni i bez `loadLastComparableBefore`. Przy dużej bazie to
+  kandydat do pomiaru (UWAGI T-2) — wtedy ten sam czytnik przechodzi na okno + starsze „ostatnie wyniki”.
+- Prośba o deload nie ma jeszcze źródła w bazie (v1 nie miał takiej prośby); `DayRequest.deloadRequested` czeka na ekran/AI (P5.3/P5.6).
+- `ENGINE_VERSIONS` (2.0.0 / policy-2.0 / compiler-1 / trace 1) to wartości z symulacji; zmiana któregokolwiek składnika
+  planu wymaga podniesienia odpowiedniej wersji w `plan/versions.ts` razem z opisem tutaj.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

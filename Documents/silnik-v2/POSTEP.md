@@ -31,7 +31,7 @@ opisany inny dowód) i commit.
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
-| P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
+| P5 | Tydzień, UI, AI, transakcyjna akceptacja | ◐ rozpoczęty 2026-10-09; zadania niżej | `refactor/engine-p5-integration` | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
 | P8 | Eksperymenty warunkowe | ☐ | | P6 |
@@ -214,7 +214,23 @@ Pełne `npm run verify`: **175 zestawów, 3885 testów, 8 snapshotów**, domena/
 
 Następny krok: **P5 — tydzień, UI, głos, AI, transakcyjna akceptacja** (plan zadań w 07).
 
-## P5–P9
+## P5 — tydzień, UI, głos, AI, transakcyjna akceptacja (w toku)
+
+Zadania i dowody ze specyfikacji: [07 §8](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md), konsumenci: [06 §7](../../../architektura-silnika-2026-10-08/06-UI-AI-INTEGRACJA.md).
+Zasada etapu: wszystko za przełącznikiem — aplikacja nadal używa silnika pierwszego (reset danych wyłączony do P6), a v2 jest
+dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu każdy kawałek da się scalić bez zmiany zachowania telefonu.
+
+| Zadanie | Zakres | Dowód | Status |
+|---|---|---|---|
+| P5.5a | Serwis dnia: wspólny czytnik wejść z bazy (`planningInputs`), kontekst bloku wspólny z symulacją (`blockContext`), wersje silnika (`versions`), `previewDay` (nic nie zapisuje), `acceptDay` (ponowne planowanie w transakcji, porównanie hasha planu, start sesji + blok + rewizje razem albo wcale) | T17, T60: `sqlite-check-planning-v2.cjs` (14 przypadków, w tym 6 dni pod rząd z bazą); pełne `verify` | ☑ |
+| P5.5b | Sesja dodatkowa i dzień złożony (`only`, `acknowledged`) przez ten sam serwis; zmiana planu po rewalidacji jako diff | T19, T20 | ☐ |
+| P5.1–P5.2 | Tydzień: ForecastOverlay (prognoza jako `ProjectedExposure`, nigdy actual), invalidation, rezerwacje bieżącej sesji i extra tego samego dnia | T19–T21, T35 | ☐ |
+| P5.3 | Podgląd dnia: diff, ślad decyzji po polsku (`DECISION_CODES` → `pl.ts`), krótszy legalny dzień, liczba serii „polecane; możesz 1–4” | UI pokazuje przyczynę, nie pusty ekran | ☐ |
+| P5.4 | Logger i głos przez polecenia v2 (P2.4/P2.9, `logSetV2`, `CONFIRM_STEP_UP`, odczyt odczucia) | T38–T40, T85 | ☐ |
+| P5.6 | Kontrakt AI/Worker: `getActiveSession`, `assessSessionChange`, `proposeSessionChange`, `simulateProposal`, adnotacje narzędzi; zgodność klient N/N−1 | test starego i nowego klienta; **wymaga wspólnego wdrożenia Workera** | ☐ |
+| P5.7 | Ekrany historii i kopia zapasowa czytają v2; ustawienia → Preferencje; „Zamienniki”, „Dodaj ćwiczenie” w sesji | T52–T55 + przepływ na telefonie | ☐ |
+
+## P6–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą
 rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany.
@@ -223,6 +239,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P5.5a gotowe** (P5 w toku, gałąź `refactor/engine-p5-integration`): serwis dnia v2 na prawdziwym SQLite — `previewDay`/`acceptDay` ze strażnikiem aktualności, wspólny czytnik wejść i kontekst bloku. `verify`: 3900 testów, domena 100%, baseline bez zmian | |
 | 2026-10-09 | **P4b.6 gotowe, P4b odebrane**: `assessmentText` (PL, 29 kodów + werdykty, zalecenie, recepta, alternatywy, feel); poprawka samonakładania się zmian na ćwiczeniu w toku. `verify`: 3885 testów, 175 zestawów, 100% domena/AI, baseline bez zmian. Następne: P5 | |
 | 2026-10-09 | **P4b.5 gotowe**: ocenione opcje `feel`, rekomendacje, transakcyjny FeelReport; T71/T72/T105, USER_REDUCED i supplemental, retry/stale/ACK/rollback SQLite. `verify`: 3855 testów, 174 zestawy, 100% domena/AI, baseline bez zmian. Następne: `assessmentText` | |
 | 2026-10-09 | **P4b.4 gotowe**: transakcyjne `applySessionChange`, świeży odczyt/ponowna ocena, rewizje/ACK/ledger, zachowane recepty i rezerwacja; T68/T69 + granice (32 przypadki SQLite). `verify`: 3819 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `feel` | |
