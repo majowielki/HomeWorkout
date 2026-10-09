@@ -340,7 +340,9 @@ export function assessmentText(
   const shown = sortChecks(assessment.checks).filter(
     (c) => c.status !== 'pass' || c.class === 'info',
   );
-  for (const c of shown) out.push(checkText(c, name));
+  // The audit may report the same finding for several sets or steps.
+  // Keep distinct facts and their priority, but say each identical sentence once.
+  out.push(...new Set(shown.map((c) => checkText(c, name))));
 
   const rec = recommendationText(assessment);
   if (rec !== null) out.push(rec);

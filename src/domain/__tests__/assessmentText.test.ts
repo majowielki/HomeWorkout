@@ -194,6 +194,29 @@ describe('P4b.6 T72: the card for the same assessment, with no network', () => {
     expect(at('Core dziś')).toBeLessThan(at('pierwsze podejście'));
   });
 
+  it('shows repeated set findings once while retaining different setup times', () => {
+    const { snap, session } = world();
+    const a = assessSessionChange(snap, session, add('crunch'));
+    const lines = text({
+      ...a,
+      checks: [
+        finding('CALIBRATION_FIRST', 'pass'),
+        finding('CALIBRATION_FIRST', 'pass'),
+        finding('RESOURCE_CONFLICT', 'warn', { setupSec: 30 }),
+        finding('RESOURCE_CONFLICT', 'warn', { setupSec: 30 }),
+        finding('RESOURCE_CONFLICT', 'warn', { setupSec: 45 }),
+      ],
+    });
+    expect(lines[0]).toBe(text(a)[0]);
+    expect(lines.filter((line) => line.startsWith('To pierwsze podejście'))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes('około 30 s'))).toHaveLength(1);
+    expect(lines.filter((line) => line.includes('około 45 s'))).toHaveLength(1);
+    expect(lines.findIndex((line) => line.includes('około 30 s'))).toBeLessThan(
+      lines.findIndex((line) => line.startsWith('To pierwsze podejście')),
+    );
+    expect(lines.some((line) => line.startsWith('Recepta:'))).toBe(true);
+  });
+
   it('says the recommendation in the room the engine found, and when there is none', () => {
     const { snap, session } = world();
     const a = assessSessionChange(snap, session, add('crunch'));

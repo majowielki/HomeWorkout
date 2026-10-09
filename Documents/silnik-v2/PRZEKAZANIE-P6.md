@@ -1,5 +1,31 @@
 # Przekazanie P6 — stan 2026-10-09
 
+## Aktualizacja po kontynuacji Codex
+
+**Bieżący raport: [ODBIOR-P6](ODBIOR-P6.md).** Poniższe wcześniejsze przekazanie
+opisuje checkpoint `3a45f55`; ten akapit zastępuje jego listę pozostałych prac.
+
+- Odbiór emulatora wykonany na buildzie release, bez resetu danych:
+  migracja, start, zapis, zimne wznowienie, zamiennik, historia, kalendarz,
+  dodatkowa sesja oraz czat z oceną i zatwierdzeniem karty.
+- Poprawiono powielanie uzasadnień, fałszywą blokadę opisu pozostałych serii,
+  nieaktualne teksty o szablonach i komunikat błędu modelu.
+- Schematy funkcji dla Google używają eksportu Zod z `enum` dla literałów;
+  walidacja oryginalnym ścisłym schematem pozostaje. Live test skrócenia sesji
+  przechodzi dopiero po akceptacji: 3 → 2 serie, rewizja 1 → 2.
+- Verify: **166 / 3774 / 5, domena i AI 100%**. Worker: **5 / 146**, typecheck.
+- Worker wdrożony: `3adff73c-214e-4b1e-a7d2-6c0ebb4b890d`, kontrakt 7, prompt `chat/v7`.
+- Aktualny APK telefonu: `D:/Projekty/HomeWorkout/HomeWorkout-P6-arm64-2026-10-09.apk`.
+  Został przebudowany po poprawkach; aktualne hashe i rozmiar są w ODBIOR-P6.
+  APK emulatora zawiera identyczny pakiet JS. Dawne release APK pozostają zachowane.
+- Stary SPEC ma teraz obowiązującą sekcję kontraktu P6; dawny opis jest jawnie historyczny.
+- **Pozostaje tylko odbiór telefonu do zamknięcia P6. Użytkownik wykonuje go sam**
+  według checklisty w ODBIOR-P6. Do potwierdzenia nie scalać do `main`; nic nie pushować.
+- Nie uruchamiano Metro ani lokalnego Workera. Emulator pozostaje dostępny;
+  SDK trzeba podać przez `ANDROID_HOME` i `ANDROID_SDK_ROOT` zgodnie ze ścieżką niżej.
+
+## Archiwalne przekazanie z checkpointu 3a45f55
+
 ## Cel i decyzje
 
 Cała aplikacja używa bieżącego silnika. Brak przełącznika i resetu historii.

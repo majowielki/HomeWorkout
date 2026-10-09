@@ -220,6 +220,12 @@ The deployed entry point (`src/index.ts`) does not import it.
 
 ## Tests
 
+Function argument schemas are exported from Zod as draft 4 so literal values reach
+Google as single-value `enum` entries. Runtime validation still uses the original
+strict Zod schemas. Invalid calls produce an `invalid_tool` diagnostic containing
+only known tool names, known change kinds, known field names and an extra-field count;
+argument values and model-supplied names are never logged.
+
 ```bash
 npm test            # Vitest 4.1 inside workerd, real KV, mock model
 npm run typecheck   # generates the binding types, then tsc

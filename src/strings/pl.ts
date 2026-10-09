@@ -1039,7 +1039,7 @@ export const pl = {
         rateLimited: 'Za dużo zapytań w ostatniej minucie. Spróbuj za chwilę.',
         upstream: 'Dostawca modelu nie odpowiada.',
         invalidOutput:
-          'Nie udało się ułożyć podsumowania: model dwa razy odpowiedział nie tak, jak trzeba. Szczegóły są w diagnostyce.',
+          'Model zwrócił odpowiedź w niepoprawnym formacie. Spróbuj ponownie. Szczegóły są w diagnostyce.',
         budget: 'Limit na dziś wyczerpany. Wróć jutro.',
         unauthorized: 'Serwer odrzucił klucz aplikacji. Sprawdź konfigurację.',
         contractMismatch: 'Aplikacja i serwer są w różnych wersjach. Zaktualizuj aplikację.',
@@ -1090,7 +1090,6 @@ export const pl = {
     backup: 'Eksport / Import',
     settings: 'Ustawienia',
     glossary: 'Słownik pojęć',
-    comingSoon: 'Szablony dojdą w następnych kamieniach.',
     libraryEyebrow: 'Biblioteka',
     appEyebrow: 'Aplikacja',
     exercisesHint: 'Baza ruchów, zdjęcia, wykluczenia',
@@ -1364,7 +1363,7 @@ export const pl = {
       {
         term: 'FBW A / FBW B',
         definition:
-          'Full Body Workout — trening całego ciała w jednej sesji. A i B to dwa stałe szablony sprzed silnika, dostępne jako „Trening ręczny”. Na co dzień plan układa silnik: ruch po ruchu, z innym wariantem ćwiczenia w każdym bloku.',
+          'Full Body Workout — trening całego ciała w jednej sesji. A i B to nazwy dawnych szablonów, które możesz zobaczyć w historii. Bieżące treningi układa silnik: ruch po ruchu, z wariantami ćwiczeń wybieranymi na dany blok.',
       },
       {
         term: 'Blok i deload',

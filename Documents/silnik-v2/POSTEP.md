@@ -15,8 +15,8 @@ historia, kalendarz, zakwasy, narzędzia AI oraz ewaluacje używają skompilowan
 Stare planowanie i reset danych są usunięte. Numery kontraktów danych pozostają:
 plan ma `schemaVersion: 2`, Worker `contractVersion: 7`, backup `schemaVersion: 8`.
 
-Weryfikacja kodu: `npm run verify` — 166 zestawów / 3771 testów / 5 snapshotów,
-100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 143 testy.
+Weryfikacja kodu: `npm run verify` — 166 zestawów / 3774 testy / 5 snapshotów,
+100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 146 testów.
 Usunięcie testów dawnych implementacji i promptu podsumowania v2 zmniejsza liczbę testów;
 progi pokrycia nie zostały zmienione.
 
@@ -29,13 +29,15 @@ Przebudowa tabeli nadrzędnej przechowuje wszystkie dane podrzędne w tabelach t
 ponieważ migrator pracuje w transakcji z włączonymi kluczami obcymi. Test SQLite obejmuje
 zachowanie tych danych oraz rollback po błędzie przy odtwarzaniu.
 
-Pozostaje odbiór interfejsu na emulatorze, wspólne wydanie Workera i APK oraz test na
-telefonie. P6 nie jest oznaczony jako zamknięty przed tym odbiorem.
+Odbiór emulatora oraz wspólne przygotowanie APK i wdrożenie Workera wykonane.
+Pozostaje test telefonu, który użytkownik zadeklarował wykonać sam.
+P6 nie jest oznaczony jako zamknięty przed potwierdzeniem tego odbioru.
 
-APK arm64 zbudowany pomyślnie (`assembleRelease`, 1m 39s), kopia do wydania:
-`D:/Projekty/HomeWorkout/HomeWorkout-P6-arm64-2026-10-09.apk`. Nie wdrożono Workera
-ani nie zainstalowano APK na telefonie. Użytkownik poprosił o przekazanie Claude i commit;
-P6 pozostaje otwarty przed testem UI i wspólnym wydaniem.
+APK arm64 przebudowany po poprawkach, kopia do wydania:
+`D:/Projekty/HomeWorkout/HomeWorkout-P6-arm64-2026-10-09.apk`.
+Worker kontraktu 7: `3adff73c-214e-4b1e-a7d2-6c0ebb4b890d`.
+Przebieg testów, hashe i checklista telefonu: [ODBIOR-P6](ODBIOR-P6.md).
+Gałąź pozostaje niescalona; nic nie pushowano.
 
 ## Zasady pracy
 
@@ -63,7 +65,7 @@ Wpisy P0–P5 poniżej są historią realizacji. Dawne nazwy plików i wyniki ba
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☑ 2026-10-09: serwisy, domena i kontrakt gotowe i sprawdzone na SQLite; **ekrany czekają** (decyzja: UI bez zmian do końca implementacji), wdrożenie Workera przy testach | `refactor/engine-p5-integration` | P3, P4, P4b |
-| P6 | Aktywacja silnika bazowego | ◐ kod i migracja odebrane; emulator oraz wspólne wydanie czekają | `refactor/engine-p6-activation` | P0–P5 |
+| P6 | Aktywacja silnika bazowego | ◐ kod, migracja, emulator i wydanie odebrane; czeka test telefonu użytkownika | `refactor/engine-p6-activation` | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
 | P8 | Eksperymenty warunkowe | ☐ | | P6 |
 | P9 | Pierwszy nowy sprzęt produkcyjny | ☐ | | P6 |
@@ -272,7 +274,7 @@ dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu k
 
 ## P6 (w toku, gałąź `refactor/engine-p6-activation`)
 
-Aktywacja nowego silnika w aplikacji i usunięcie starego bez pozostałości. **Stan, lista zadań i pułapki: [PRZEKAZANIE-P6.md](PRZEKAZANIE-P6.md).** Zrobione: biegnąca sesja, historia, podsumowanie, testy loggera oraz konsumenci „Dziś”, planu dnia, kalendarza, zakwasów, sesji dodatkowej i czatu. Typecheck przechodzi. Pozostają usunięcie dawnego silnika (w tym ewaluacje i strażnik jutra), migracja bazy, zmiana nazw, dokumentacja końcowa, emulator i wspólne wdrożenie.
+Aktywacja nowego silnika w aplikacji i usunięcie starego bez pozostałości. **Stan, lista zadań i pułapki: [PRZEKAZANIE-P6.md](PRZEKAZANIE-P6.md).** Kod, migracja, nazwy, dokumentacja, emulator i wspólne wydanie są odebrane. Pozostaje samodzielny test telefonu użytkownika; dowody i checklista: [ODBIOR-P6](ODBIOR-P6.md).
 
 ## P7–P9
 
@@ -310,3 +312,12 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 **P6 — odbiór aktywacji konsumentów 2026-10-09.** „Dziś”, plan dnia, kalendarz, zakwasy, sesja dodatkowa i czat są podłączone do bieżącego silnika. Nowe przypadki SQLite obejmują zachowanie tygodniowego wyboru przy starcie, konflikt po jego zmianie, ukończony dzień/regenerację, kartę sesji i wygaśnięcie/spóźnione narzędzie. `npm run verify`: **187 zestawów, 4129 testów, 9 snapshotów, domena/AI 100%**. Worker: **5 zestawów / 143 testy**. Gałąź nadal niescalona: pozostają sprzątanie dawnego silnika/ewaluacji, migracja i nazwy, emulator oraz wspólne wdrożenie.
 **P6 — odbiór odłączenia starego plannera 2026-10-09.** Ewaluacje korzystają z bieżącego tygodnia i dnia; syntetyczne wyniki bez zamrożonej recepty nie stają się dowodem progresji. Narzędzia AI mają wyłącznie `explainPlan` (dawny fallback, `PlanLookup` i pole `plan` usunięte). Konsultacja jutra używa `selectionGuard` i limitu obecnego silnika. `planningSnapshot` / `coachPreview` oraz prompty `chat/v1`–`chat/v6` i ich testy usunięte. Spadek liczby testów wynika z usunięcia testów nieużywanych promptów i starego wyjaśnienia planu; obecne API ma własne testy i nadal 100% pokrycia. `npm run verify`: **183 zestawy / 4018 testów / 9 snapshotów, domena i AI 100%**. Worker: **143 / 143**. Pozostałe prace P6 są w PRZEKAZANIE; etap nadal niescalony i niewdrożony.
 **P6 — sprzątanie, migracja i nazwy (2026-10-09).** Usunięte stare planowanie, progresja, reset, dawne starty sesji/tygodnia i ich testy, golden baseline i skrypty pomiarowe. Zachowane odczyty historii oraz aktualne obliczenia sprzętowe. Migracja 0014 i backup 8 mają testy zachowania danych, FK, rollbacku i importu. API oraz pliki silnika nie mają sufiksu V2; numery kontraktów zostają. Pełny verify: **166 / 3771 / 5, domena i AI 100%**; Worker **5 / 143**. Emulator/wspólne wydanie są nadal otwarte.
+
+**P6 — odbiór emulatora i wydanie (2026-10-09).** Release przeszedł migrację istniejącej bazy,
+start, zapis, zimne wznowienie, zamiennik, zakończenie, historię i kalendarz. Czat produkcyjny
+odczytuje sesję i tworzy kartę redukcji; dopiero „Zastosuj” zmienia 3 serie na 2.
+Naprawione powielanie uzasadnień, fałszywa blokada „do zrobienia”, teksty szablonów
+i eksport literałów schematu funkcji Google (`enum`, walidacja Zod bez zmian).
+Verify **166 / 3774 / 5, domena i AI 100%**; Worker **5 / 146**. APK arm64 gotowy,
+Worker wdrożony. Pozostaje samodzielny odbiór telefonu; etap nadal niescalony.
+Szczegóły i checklista: [ODBIOR-P6](ODBIOR-P6.md).

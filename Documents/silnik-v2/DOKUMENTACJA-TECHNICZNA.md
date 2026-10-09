@@ -23,8 +23,8 @@ historia, kalendarz, zakwasy, narzędzia AI oraz ewaluacje używają skompilowan
 Stare planowanie i reset danych są usunięte. Numery kontraktów danych pozostają:
 plan ma `schemaVersion: 2`, Worker `contractVersion: 7`, backup `schemaVersion: 8`.
 
-Weryfikacja kodu: `npm run verify` — 166 zestawów / 3771 testów / 5 snapshotów,
-100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 143 testy.
+Weryfikacja kodu: `npm run verify` — 166 zestawów / 3774 testy / 5 snapshotów,
+100% statements/branches/functions/lines w domenie i AI. Worker: 5 zestawów / 146 testów.
 Usunięcie testów dawnych implementacji i promptu podsumowania v2 zmniejsza liczbę testów;
 progi pokrycia nie zostały zmienione.
 
@@ -37,8 +37,9 @@ Przebudowa tabeli nadrzędnej przechowuje wszystkie dane podrzędne w tabelach t
 ponieważ migrator pracuje w transakcji z włączonymi kluczami obcymi. Test SQLite obejmuje
 zachowanie tych danych oraz rollback po błędzie przy odtwarzaniu.
 
-Pozostaje odbiór interfejsu na emulatorze, wspólne wydanie Workera i APK oraz test na
-telefonie. P6 nie jest oznaczony jako zamknięty przed tym odbiorem.
+Odbiór emulatora i wspólne wydanie Workera / APK są wykonane; dowody oraz
+checklista są w [ODBIOR-P6](ODBIOR-P6.md). Pozostaje test telefonu użytkownika.
+P6 nie jest oznaczony jako zamknięty przed potwierdzeniem tego odbioru.
 
 ## 2. Przepływy aplikacji
 
@@ -67,7 +68,7 @@ telefonie. P6 nie jest oznaczony jako zamknięty przed tym odbiorem.
 | Odczyt i zapis | `db/repositories/{planning,weekPlan,sessions,history,planningInputs,constraints,sessionChanges}.ts` |
 | Sterowanie czatem | `app-services/coach/proposals.ts`, `ai/tools/{planPreview,sessionTools,simulationTools}.ts` |
 
-Nazwy API nie mają przyrostka . Numery wersji planu, promptu, backupu i migracji są
+Nazwy API nie mają przyrostka `V2`. Numery wersji planu, promptu, backupu i migracji są
 zachowane, ponieważ identyfikują faktycznie zapisane lub wysłane kontrakty.
 
 ## 4. Zaimplementowane

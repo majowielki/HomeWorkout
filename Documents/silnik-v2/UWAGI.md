@@ -23,9 +23,20 @@ Trzy części: **(1)** stan repozytorium i decyzje robocze, **(2)** odstępstwa 
 - **Prompty i baseline:** dawne chat/v1–v6 i weekly-summary/v2 oraz testy usunięte; historia w Git.
   Porównanie baseline P0 nie jest już bramką. Spadek liczby testów wynika z usunięcia tych
   implementacji; progi pokrycia zostają 100% i bieżący silnik ma własne testy.
-- **Wydanie:** Worker kontraktu 7 i APK muszą zostać wydane razem. Automatyczna kontrola narzędzi
-  odrzuciła uruchomienie aplikacji przez ADB („blocked by policy”); nie ma jeszcze dowodu testu UI.
-  Budowa APK jest osobnym sprawdzeniem i nie zamyka testu na telefonie.
+- **Odbiór i wydanie:** po wyraźnej zgodzie użytkownika test ADB/UI został wykonany na
+  emulatorze, a Worker kontraktu 7 wdrożony razem z przygotowaniem APK. Dowody są w
+  [ODBIOR-P6](ODBIOR-P6.md). Test telefonu użytkownik wykonuje sam; do jego potwierdzenia
+  P6 pozostaje otwarty i niescalony.
+- **Poprawki z odbioru:** identyczne zdania oceny są prezentowane raz; opis
+  „pozostają do zrobienia” nie jest poleceniem zmiany obciążenia. Polecenia „zrób”,
+  „polecam” i zwiększanie obciążenia nadal przechodzą przez strażnika odpowiedzi.
+  Usunięto nieaktualną obietnicę szablonów i opis startu FBW A/B.
+- **Schemat narzędzi Workera:** model powtarzał niepoprawny rodzaj zmiany sesji.
+  Eksport Zod do draft 4 przekazuje literały jako `enum`, zamiast `const`;
+  SDK Google normalizuje `const` dla odpowiedzi, ale nie dla funkcji. Po zmianie
+  ten sam test przeszedł: odczyt → ocena → karta → akceptacja 3 → 2 serie.
+  Oryginalny ścisły schemat nadal waliduje wywołania. Diagnostyka zapisuje wyłącznie
+  znane nazwy pól, znane rodzaje i liczbę dodatkowych pól, nigdy ich wartości.
 
 Poniższe wpisy to zapis decyzji z wcześniejszych etapów. Zdania o wyłączonym resecie albo UI
 na dawnym silniku są historyczne; bieżący stan opisują powyższe decyzje i PRZEKAZANIE-P6.
