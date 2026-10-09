@@ -4,6 +4,7 @@
  * per planning, from the records alone (no stored state, 13 §6).
  */
 
+import { effortOf } from '../observations/effort';
 import type { ExposureRecord } from '../observations/exposure';
 import {
   amountOf,
@@ -56,27 +57,37 @@ export function logicalSetCount(rec: ExposureRecord): number {
   return new Set(requiredSets(rec).map((s) => s.planned.logicalSetId)).size;
 }
 
-/** The result of every required set that was done, in the order of the plan. */
+/** The result of every required set, in the order of the plan; for a complete, readable exposure. */
 export function amountOfRequired(rec: ExposureRecord): number[] {
-  return requiredSets(rec).flatMap((s) => {
-    const amount = isPerformed(s) ? amountOf(s.observation) : null;
-    return amount === null ? [] : [amount];
-  });
+  // For an exposure that is complete and readable: every required set was done and has an amount.
+  return requiredSets(rec).map((s) => amountOf(s.observation!)!);
 }
 
 /**
- * One number per logical set, in order: the worse of its sides, since a set is only as good as its weaker
+ * What each logical set came to, in the order of the plan: the worse of its sides in reps or seconds,
+ * and the least in reserve of them (null if any side did not say). A set is only as good as its weaker
  * side. A set with no result is left out, so the list may be shorter than the plan.
  */
-export function logicalAmounts(rec: ExposureRecord): number[] {
-  const byLogical = new Map<string, number>();
-  for (const s of requiredSets(rec)) {
-    const amount = isPerformed(s) ? amountOf(s.observation) : null;
+export function logicalResults(rec: ExposureRecord): { amount: number; effort: number | null }[] {
+  const byLogical = new Map<string, { amount: number; effort: number | null }>();
+  for (const s of requiredSets(rec).filter(isPerformed)) {
+    const amount = amountOf(s.observation);
     if (amount === null) continue;
-    byLogical.set(
-      s.planned.logicalSetId,
-      Math.min(byLogical.get(s.planned.logicalSetId) ?? amount, amount),
-    );
+    const effort = effortOf(s.observation);
+    const known = byLogical.get(s.planned.logicalSetId);
+    byLogical.set(s.planned.logicalSetId, {
+      amount: Math.min(known?.amount ?? amount, amount),
+      effort:
+        known === undefined
+          ? effort
+          : known.effort === null || effort === null
+            ? null
+            : Math.min(known.effort, effort),
+    });
   }
   return [...byLogical.values()];
 }
+
+/** The amount of each logical set (see `logicalResults`). */
+export const logicalAmounts = (rec: ExposureRecord): number[] =>
+  logicalResults(rec).map((r) => r.amount);

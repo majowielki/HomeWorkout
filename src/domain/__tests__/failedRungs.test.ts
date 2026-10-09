@@ -14,7 +14,6 @@ const options = (patch: Partial<FailedRungOptions> = {}): FailedRungOptions => (
   expiryDays: 42,
   range: { lo: 8, hi: 12 },
   extendedTop: 17,
-  recommendedSets: 2,
   ...patch,
 });
 

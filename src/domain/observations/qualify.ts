@@ -43,8 +43,6 @@ export interface EvidenceAssessment {
   observedSetIds: string[];
 }
 
-const SIDE_ORDER: Record<string, number> = { left: 0, right: 1 };
-
 /** The sets a decision must see done, in the order of the plan. */
 export function requiredSets(rec: ExposureRecord): ExposureSetRecord[] {
   return rec.sets
@@ -52,7 +50,7 @@ export function requiredSets(rec: ExposureRecord): ExposureSetRecord[] {
     .sort(
       (a, b) =>
         a.planned.ordinal - b.planned.ordinal ||
-        (SIDE_ORDER[a.planned.side] ?? 2) - (SIDE_ORDER[b.planned.side] ?? 2),
+        Number(a.planned.side === 'right') - Number(b.planned.side === 'right'),
     );
 }
 
@@ -192,7 +190,8 @@ export function qualifyExposure(
         : 'within_range';
     effortMet = required.every((s) => {
       const asked = s.planned.targetRir;
-      return asked === null || (effortOf(s.observation!) ?? -1) >= asked.min;
+      // Quality is sufficient here, so every required set was done and said how hard it was.
+      return asked === null || effortOf(s.observation!)! >= asked.min;
     });
   }
 
@@ -258,9 +257,10 @@ export function referenceResistance(
         (asked === null || (effortOf(set.observation) ?? -1) >= asked.min)
       );
     });
-  const ranked = [...groups].sort((a, b) => {
-    const c = compareSpecs(a.spec, b.spec, model);
-    return c === 'harder' ? -1 : c === 'easier' ? 1 : 0;
-  });
-  return (ranked.find(met) ?? ranked[ranked.length - 1]!).spec;
+  const heavier = (a: (typeof groups)[number], b: (typeof groups)[number]) =>
+    compareSpecs(a.spec, b.spec, model) === 'harder' ? a : b;
+  const lighter = (a: (typeof groups)[number], b: (typeof groups)[number]) =>
+    compareSpecs(a.spec, b.spec, model) === 'easier' ? a : b;
+  const good = groups.filter(met);
+  return (good.length > 0 ? good.reduce(heavier) : groups.reduce(lighter)).spec;
 }

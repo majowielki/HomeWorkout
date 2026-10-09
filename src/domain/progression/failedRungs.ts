@@ -35,12 +35,10 @@ export interface FailedRungOptions {
   range: { lo: number; hi: number };
   /** The top a set has to reach, on the lower step, to show more: the extended top, or `range.hi` if it cannot be extended. */
   extendedTop: number;
-  /** The sets the policy recommends: one more than that is what “an extra set” means when the range cannot be extended. */
-  recommendedSets: number;
 }
 
 /** Whether an exposure shows the person was ready for more at the lower step. */
-function showsMore(a: Assessed, opts: FailedRungOptions): boolean {
+function showsMore(a: Assessed, opts: FailedRungOptions, setsThen: number): boolean {
   const ev = a.ev;
   if (ev.coverage !== 'complete' || ev.performance === 'not_evaluable' || ev.effortMet !== true)
     return false;
@@ -48,7 +46,7 @@ function showsMore(a: Assessed, opts: FailedRungOptions): boolean {
     const amounts = amountOfRequired(a.rec);
     return amounts.length > 0 && amounts.every((x) => x >= opts.extendedTop);
   }
-  return ev.performance === 'top_met' && logicalSetCount(a.rec) > opts.recommendedSets;
+  return ev.performance === 'top_met' && logicalSetCount(a.rec) > setsThen;
 }
 
 export function failedRungMemory(
@@ -59,7 +57,7 @@ export function failedRungMemory(
   const found = new Map<string, FailedRung>();
   // A step is a step only if the model knows it; an exposure with nothing done, or at an unknown
   // setup, does not move the person between steps.
-  const used = history.filter((a) => hasData(a) && a.levelId !== null && a.at !== null);
+  const used = history.filter((a) => hasData(a) && a.levelId !== null);
   const harder = (a: Assessed, b: Assessed) => model.compare(a.at!.value, b.at!.value) === 'harder';
 
   for (let j = 1; j < used.length;) {
@@ -70,8 +68,8 @@ export function failedRungMemory(
       continue;
     }
     // The run of exposures at the new step.
-    let end = j;
-    while (end + 1 < used.length && used[end + 1]!.levelId === first.levelId) end += 1;
+    const stop = used.findIndex((a, i) => i > j && a.levelId !== first.levelId);
+    const end = (stop === -1 ? used.length : stop) - 1;
     const back = used[end + 1];
     const lastAtStep = used[end]!;
     const failures = used.slice(j, end + 1).filter((a) => isFailure(a.ev));
@@ -92,7 +90,7 @@ export function failedRungMemory(
       if (a.levelId === back.levelId) clearing.push(a);
     }
     const topExposures = clearing.filter((a) => a.ev.performance === 'top_met').length;
-    const axisDone = clearing.some((a) => showsMore(a, opts));
+    const axisDone = clearing.some((a) => showsMore(a, opts, logicalSetCount(lastAtStep.rec)));
     // It fades when a stretch of expiryDays passes without an exposure at either of the two steps.
     const days = [lastAtStep, ...used.slice(end + 1)]
       .filter((a) => a.levelId === first.levelId || a.levelId === back.levelId)
@@ -101,7 +99,7 @@ export function failedRungMemory(
     if (stretches.every((s) => s < opts.expiryDays)) {
       found.set(first.levelId!, {
         level: first.levelId!,
-        failedOn: (failures[0] ?? lastAtStep).rec.trainingDate,
+        failedOn: failures[0]!.rec.trainingDate,
         returnedTo: back.levelId!,
         cleared: axisDone,
         clearProgress: { topExposures, axisDone },

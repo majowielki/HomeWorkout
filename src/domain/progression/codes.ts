@@ -27,6 +27,7 @@ export const DECISION_CODES = [
   'LOAD_CEILING',
   'AT_MINIMUM',
   'RIR_TOO_LOW',
+  'REP_PROGRESSION',
   // Coming back, and the phases.
   'LAYOFF_REPEAT',
   'LAYOFF_STEP_DOWN',
@@ -40,6 +41,7 @@ export const DECISION_CODES = [
   'PROBE_PASSED',
   'PROBE_FAILED',
   'PROBE_COOLDOWN',
+  'NO_ROOM_FOR_PROBE',
   // The top of what a rep count may be, and the variants (13 §9, D34).
   'REP_CAP_REACHED',
   'VARIANT_UP_SUGGESTED',

@@ -5,7 +5,6 @@
  * of a level into the spec of the one it follows.
  */
 
-import { compareSpecs } from '../resistance/compare';
 import type {
   ResistanceLevel,
   ResistanceModel,
@@ -47,9 +46,4 @@ export function nextEasierSpec(
 ): ResistanceSpec | null {
   const next = model.nextEasier(spec.value);
   return next === null ? null : withLevel(spec, next);
-}
-
-/** Whether two specs are the same step of the same setup. */
-export function sameStep(model: ResistanceModel, a: ResistanceSpec, b: ResistanceSpec): boolean {
-  return compareSpecs(a, b, model) === 'equal';
 }

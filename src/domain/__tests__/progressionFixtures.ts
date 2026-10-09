@@ -28,8 +28,10 @@ export interface SetResult {
   amount: number | null;
   /** Reps in reserve; `null`: not given. Default 2. */
   rir?: number | null;
-  /** Default: `visible`, the highlighted suggestion confirmed. */
+  /** How the effort reached the person: default `edited`, typed by them. `visible` is the suggestion confirmed. */
   confirmation?: 'visible' | 'none' | 'edited' | 'read_back';
+  /** The amount is the suggestion, saved as it was shown. Default: the person entered it. */
+  suggested?: boolean;
   /** The resistance it was actually done at (default: the planned one). */
   spec?: ResistanceSpec;
   shortfall?: ShortfallReason | null;
@@ -85,7 +87,7 @@ export function observationOf(
   result: SetResult,
 ): SetObservation {
   const seconds = planned.target.kind === 'duration';
-  const mode = result.confirmation ?? 'visible';
+  const mode = result.confirmation ?? 'edited';
   const rirField = mode === 'edited' ? edited : { ...shown, confirmation: mode };
   return {
     id: `obs-${planned.id.replaceAll('/', '-')}`,
@@ -98,7 +100,7 @@ export function observationOf(
     side: planned.side === 'bilateral' ? null : planned.side,
     status: result.status ?? 'performed',
     amount: {
-      ...shown,
+      ...(result.suggested === true ? shown : edited),
       value: seconds
         ? { kind: 'duration', seconds: result.amount ?? 0 }
         : { kind: 'reps', reps: result.amount ?? 0 },
