@@ -76,7 +76,9 @@ Docelowa mapa plików to 13 §0. Status:
 | `policy/dayPolicy.ts` — `resolveDayPolicy` | 13 §2 | P0.4 | ◐ (warstwy: baza, tydzień, intencja) |
 | `policy/hardAdvice.ts` (klasy reguł, werdykt), `policy/registry.ts` (polityki, zdolności) | 12 §2, 13 §5 | P1 | ☑ |
 | `observations/{types,exposure}.ts` | 13 §3 | P1 | ☑ |
-| `observations/{normalize,qualify}.ts` | 13 §3–4 | P3 | ☐ |
+| `observations/{normalize,outcome,project}.ts`, `commands/result.ts`, `history/index.ts` | 13 §3, §13, 10 §1 | P2 | ☑ |
+| `observations/qualify.ts` | 13 §4 | P3 | ☐ |
+| `db/repositories/{sessionsV2,historyV2,ledger,engineMigration}.ts` | 13 §14, 02 §5–§8a | P2 | ☑ |
 | `resistance/{types,ladderModel,models,registry,legacy,compare}.ts` | 05 §5–§8 | P1 | ☑ |
 | `equipment/types.ts` | 05 §4 | P1 | ☑ |
 | `plan/{planV2,ids}.ts`, `fingerprint/*` | 02 §1–2, 01 §4 | P1 | ☑ |
@@ -191,6 +193,32 @@ Wspólny zestaw testów kontraktu (`__tests__/resistanceContract.ts`) działa na
 - `preferences/preferences.ts`: `TrainingPreferences` (zod), `defaultPreferences`, `preferenceScore` (ćwiczenie ±2 przed sprzętem ±1), `nearEquivalent` (grupa jawna albo ten sam slot, ta sama jednostka i mięśnie główne, `substituteScore` ≥ 70 w obie strony; `PREFERENCE_CONFIG`).
 - `policy/registry.ts`: `PROGRESSION_POLICIES` (`reps_then_resistance` v2) i `canPlanAutomatically` — przecięcie zdolności modelu, polityki, runnera i loggera; zwraca *które* brakuje (`UNKNOWN_MODEL`, `LOGGER_MODEL` …). `CURRENT_RUNNER` i `CURRENT_LOGGER` opisują stan aplikacji i **zmienia się je razem z loggerem**, nigdy przed nim.
 - `equipment/types.ts`: `EquipmentInstance`, `EquipmentRequirement` (zdolność z ilością i ustawieniami, konkretna instancja, jedno z kilku) i `requirementsMet` — rzecz liczy się tylko do jednego wymagania, tylko dostępna i tylko w miejscu sesji, z nawrotami przy alternatywach.
+
+### 4.11 Warstwa danych v2 (P2)
+
+**Schemat** (migracja `0010_engine_v2_storage.sql`, kopia zapasowa `BACKUP_SCHEMA_VERSION = 7`):
+
+- `workouts` + `plan_schema` (1 = plan pierwszego silnika w `plan`, 2 = `planV2`), `plan_v2`, `plan_revision`, `revision` (licznik sesji; od niego zależy każde polecenie), `time_zone`.
+- `set_logs` + `command_id` (unikalny), `planned_set_id`, `exposure_id`, `logical_set_id`, `role`, `comparison_key`, `progression_scope`, `source`, `performed_on`, `revision`, `deleted_at` (nagrobek), `observation` (pełny `SetObservation` z pochodzeniem pól). Indeks częściowy: **jeden bieżący wynik na zaplanowaną serię** (`workout_id, planned_set_id WHERE deleted_at IS NULL`). Kolumny `reps`, `weight_kg` itd. są wypełniane z wyniku (`legacyColumns`), więc dotychczasowe ekrany czytają sesję v2 bez zmian (T52); sprzęt nieobecny w v1 zostawia je puste, nie zapisuje „0 kg”.
+- Nowe tabele: `set_log_revisions` (co korekta zastąpiła), `set_dispositions` (pominięcia), `exposure_outcomes` (rzut, do odbudowania), `command_ledger`, `planning_revisions` (liczniki wejść: history, profile, catalog, inventory, requests, block, preferences), `session_plan_revisions`, `feel_reports`, `preferences`, `legacy_sessions`, `app_state` (generacja silnika danych tej instalacji).
+
+**Polecenia** (`sessionsV2.ts`; każde = jedna transakcja; odpowiedź `CommandResult`): `startSessionV2`, `logSetV2`, `skipSetsV2`, `updateSetV2`, `undoSetV2`, `recordFeelV2`, `closeSessionV2`. Zasady wspólne:
+
+1. **Ledger.** Ten sam `commandId` zwraca zapisaną odpowiedź (`already_committed`) i niczego nie zmienia. Wyjątek: polecenie, którego wynik cofnięto, daje `COMMAND_SUPERSEDED` (nie wskrzesza go).
+2. **Rewizja.** Polecenia zapisu serii niosą `expectedSessionRevision`; inna wartość = `SESSION_CHANGED`, bez zapisu. Korekta używa rewizji wyniku (`STALE_INPUT`).
+3. **Walidacja przed zapisem**, z bazy w tej samej transakcji: plan sesji, przynależność serii, schemat wyniku (sprzeczne pochodzenie, wynik pusty jako „wykonany” → `INVALID_COMMAND`).
+4. **Awaria sklepu** (wyjątek w środku transakcji) wycofuje wszystko i daje `storage_error`, `retryable`; ponowienie tego samego polecenia zapisuje raz (sprawdzone wyzwalaczem wstrzykującym błąd w `set_logs`, `exposure_outcomes` i `command_ledger`).
+5. Licznik zużycia gumy rośnie raz na nowy wynik, nigdy przy ponowieniu.
+6. Zamknięcie sesji nie dopisuje niczego dla serii niewykonanych: zostają bez wyniku, a `exposure_outcomes` liczy je jako pominięte.
+7. Jeden aktywny trening naraz (`ACTIVE_SESSION_EXISTS`). Korekty działają także po zakończeniu sesji.
+
+**Odczyt** (`historyV2.ts`): `loadWindow(od)` – sesje v2 od daty, znormalizowane do `ExposureRecord`; `loadLastComparableBefore(przed)` – dla każdego klucza najnowsza ekspozycja primary sprzed daty (zapytanie `GROUP BY comparison_key`, bez limitu dni, T34); `loadHistoryForPlanning` – jedno i drugie.
+
+**Czytniki pierwszego silnika** (`plannerSource`, `coachSource`, `setLogs`, `calendar`) pomijają nagrobki (`deleted_at`).
+
+**Przejście na silnik v2** (`engineMigration.ts`, D21): `migrateToEngineV2(sink)` – archiwum (pełna kopia 7 jako `homeworkout-v1-archive-<data>.json`) → odczyt z powrotem i parsowanie → dopiero wtedy w jednej transakcji kasuje sesje, serie, bloki, tydzień, prośby, rowery i księgę poleceń oraz ustawia `app_state.engine_generation = 2`. Zostają: profil (kolano, granica dnia, lista „nie proponuj”), gumy z kalibracją i zużyciem, dziennik poranny, waga, pomiary, szablony, diagnostyka AI, preferencje. Błąd na dowolnym kroku przed ostatnim zostawia dane nietknięte (zapis, odczyt, zgodność pliku, sama transakcja — każdy sprawdzony). `importLegacySessions` wkłada zakończone sesje z archiwum do `legacy_sessions` (do wglądu; idempotentnie). `src/lib/engineMigration.ts` opakowuje to plikiem w katalogu dokumentów aplikacji i stałą **`ENGINE_V2_RESET_ENABLED = false`**.
+
+**Harness SQLite:** `src/db/__tests__/sqlite-harness.cjs` (wspólny), `sqlite-check.cjs` (19 przypadków pierwszego silnika), `sqlite-check-v2.cjs` (27 przypadków v2); `storage.test.ts` zamienia każdy w osobny test Jesta.
 
 ## 5. Konwencje testów
 

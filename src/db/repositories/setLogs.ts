@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 
 import { stepKey } from '@/domain/session/steps';
 import type { AnchorPosition, DumbbellMode, ShortfallReason, Side } from '@/domain/types';
@@ -57,7 +57,11 @@ export async function logSet(input: LogSetInput): Promise<string> {
 }
 
 export async function getSetsForWorkout(workoutId: string) {
-  return db.select().from(setLogs).where(eq(setLogs.workoutId, workoutId));
+  // A result taken back stays as a tombstone (engine v2); it is no longer a set.
+  return db
+    .select()
+    .from(setLogs)
+    .where(and(eq(setLogs.workoutId, workoutId), isNull(setLogs.deletedAt)));
 }
 
 /**
@@ -69,7 +73,9 @@ export async function getLoggedStepKeys(workoutId: string): Promise<Set<string>>
   const rows = await db
     .select({ exerciseOrder: setLogs.exerciseOrder, setIndex: setLogs.setIndex })
     .from(setLogs)
-    .where(and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false)));
+    .where(
+      and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false), isNull(setLogs.deletedAt)),
+    );
   return new Set(rows.map((r) => stepKey(r.exerciseOrder, r.setIndex)));
 }
 
@@ -78,7 +84,13 @@ export async function getLastSetForExercise(exerciseId: string) {
   const [row] = await db
     .select()
     .from(setLogs)
-    .where(and(eq(setLogs.exerciseId, exerciseId), eq(setLogs.isWarmup, false)))
+    .where(
+      and(
+        eq(setLogs.exerciseId, exerciseId),
+        eq(setLogs.isWarmup, false),
+        isNull(setLogs.deletedAt),
+      ),
+    )
     .orderBy(desc(setLogs.loggedAt))
     .limit(1);
   return row ?? null;
@@ -131,7 +143,9 @@ export async function takeBackLastSet(workoutId: string): Promise<SetLogRow | nu
   const [row] = await db
     .select()
     .from(setLogs)
-    .where(and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false)))
+    .where(
+      and(eq(setLogs.workoutId, workoutId), eq(setLogs.isWarmup, false), isNull(setLogs.deletedAt)),
+    )
     .orderBy(desc(setLogs.loggedAt))
     .limit(1);
   if (!row) return null;

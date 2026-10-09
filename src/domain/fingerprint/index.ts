@@ -1,7 +1,7 @@
 import { canonicalize } from './canonicalize';
 import { sha256Hex } from './sha256';
 
-export { canonicalize, CanonicalizationError } from './canonicalize';
+export { canonicalize, CanonicalizationError, compareCodePoints } from './canonicalize';
 export { sha256Hex } from './sha256';
 
 /** The SHA-256 of the canonical text of `value`: the identity of one exact input. */

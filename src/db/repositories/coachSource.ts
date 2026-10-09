@@ -1,4 +1,4 @@
-import { and, asc, eq, gte } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull } from 'drizzle-orm';
 
 import type { CoachSource } from '@/ai/context/source';
 import { COACH_CONFIG } from '@/domain/config/training';
@@ -42,7 +42,13 @@ export async function loadCoachSource(
         .select({ set: setLogs })
         .from(setLogs)
         .innerJoin(workouts, eq(setLogs.workoutId, workouts.id))
-        .where(and(eq(workouts.status, 'completed'), gte(workouts.trainingDate, windowStart))),
+        .where(
+          and(
+            eq(workouts.status, 'completed'),
+            gte(workouts.trainingDate, windowStart),
+            isNull(setLogs.deletedAt),
+          ),
+        ),
       getWeightSeries(windowStart),
       getWaistSeries(windowStart),
       db.select().from(dailyLogs).where(gte(dailyLogs.date, windowStart)),

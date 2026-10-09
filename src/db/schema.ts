@@ -1,6 +1,17 @@
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+import {
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 import { type ComposedItem, CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
+import type { SetObservation } from '@/domain/observations/types';
+import type { SessionPlanV2 } from '@/domain/plan/planV2';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
@@ -91,6 +102,16 @@ export const workouts = sqliteTable(
      * (SPEC §10.5). Null for a template session.
      */
     plan: text('plan', { mode: 'json' }).$type<SessionPlan | null>(),
+    /** Which contract the plan is written in: 1 is `plan` (the first engine), 2 is `planV2`. */
+    planSchema: integer('plan_schema').$type<1 | 2>().notNull().default(1),
+    /** The plan of a session of engine v2, as it is now; the earlier revisions are in `session_plan_revisions`. */
+    planV2: text('plan_v2', { mode: 'json' }).$type<SessionPlanV2 | null>(),
+    /** The revision of the plan the session is on now; a change during the session adds one (02 §6). */
+    planRevision: integer('plan_revision').notNull().default(1),
+    /** Raised by every write to the session (a result, a skip, a change of plan): what a command is checked against. */
+    revision: integer('revision').notNull().default(0),
+    /** The zone the training day was worked out in when the session started (13 §1). */
+    timeZone: text('time_zone'),
   },
   (t) => [index('workouts_date_idx').on(t.trainingDate), index('workouts_status_idx').on(t.status)],
 );
@@ -128,11 +149,191 @@ export const setLogs = sqliteTable(
     /** Why the set fell short of its target, when the person said; null otherwise. */
     shortfall: text('shortfall', { enum: SHORTFALL_REASONS }),
     loggedAt: text('logged_at').notNull(),
+
+    // ---- Engine v2 (02 §5). Null or the default for every set logged before it.
+    /** The command that wrote it: a retry of the same command finds the set instead of writing another. */
+    commandId: text('command_id'),
+    plannedSetId: text('planned_set_id'),
+    exposureId: text('exposure_id'),
+    logicalSetId: text('logical_set_id'),
+    role: text('role'),
+    /** What results may be compared with this one; with `performedOn` it finds the last result of a key. */
+    comparisonKey: text('comparison_key'),
+    progressionScope: text('progression_scope', { enum: ['primary', 'supplemental', 'none'] }),
+    /** Whether the set was in the plan, was added against advice the person confirmed, or beyond the plan. */
+    source: text('source', { enum: ['plan', 'user_override', 'extra'] }),
+    /** The training day of the session, kept here so the last result of a key is one indexed lookup. */
+    performedOn: text('performed_on'),
+    /** Starts at 1; every correction adds one. The row holds the current result, `set_log_revisions` the earlier ones. */
+    revision: integer('revision').notNull().default(1),
+    /** A set taken back stays as a tombstone, so replaying its command cannot bring it back (T18). */
+    deletedAt: text('deleted_at'),
+    /** Where every value of the set came from (the person, a default they confirmed, a sensor). Null before engine v2. */
+    observation: text('observation', { mode: 'json' }).$type<SetObservation | null>(),
   },
   (t) => [
     index('set_logs_workout_idx').on(t.workoutId),
     index('set_logs_exercise_idx').on(t.exerciseId),
+    // Nulls do not collide in SQLite, so sets without a command or a plan id are untouched.
+    uniqueIndex('set_logs_command_uq').on(t.commandId),
+    // One current result per planned set; a set taken back makes room for the next (T15, T18).
+    uniqueIndex('set_logs_planned_uq')
+      .on(t.workoutId, t.plannedSetId)
+      .where(sql`${t.deletedAt} IS NULL`),
+    index('set_logs_key_idx').on(t.comparisonKey, t.performedOn),
   ],
+);
+
+/** What was in a set before a correction, so a correction never loses what it replaces. */
+export const setLogRevisions = sqliteTable(
+  'set_log_revisions',
+  {
+    setLogId: text('set_log_id')
+      .notNull()
+      .references(() => setLogs.id, { onDelete: 'cascade' }),
+    revision: integer('revision').notNull(),
+    payload: text('payload', { mode: 'json' }).$type<SetObservation | null>(),
+    replacedAt: text('replaced_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.setLogId, t.revision] })],
+);
+
+/** A set the person skipped, or whose attempt was cut short, apart from any result (02 §4). */
+export const setDispositions = sqliteTable(
+  'set_dispositions',
+  {
+    workoutId: text('workout_id')
+      .notNull()
+      .references(() => workouts.id, { onDelete: 'cascade' }),
+    plannedSetId: text('planned_set_id').notNull(),
+    status: text('status', { enum: ['skipped', 'interrupted'] }).notNull(),
+    reason: text('reason'),
+    commandId: text('command_id').notNull(),
+    at: text('at').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.workoutId, t.plannedSetId] }),
+    // One command may skip several sets, so the command is not unique here; the ledger is what stops a repeat.
+    index('set_dispositions_command_idx').on(t.commandId),
+  ],
+);
+
+/** What came of every exposure of a session. A projection: it can be rebuilt from the plan and the results. */
+export const exposureOutcomes = sqliteTable(
+  'exposure_outcomes',
+  {
+    workoutId: text('workout_id')
+      .notNull()
+      .references(() => workouts.id, { onDelete: 'cascade' }),
+    exposureId: text('exposure_id').notNull(),
+    status: text('status', { enum: ['complete', 'partial', 'skipped', 'not_started'] }).notNull(),
+    planRevision: integer('plan_revision').notNull(),
+    historyRevision: integer('history_revision').notNull(),
+    expected: integer('expected').notNull(),
+    performed: integer('performed').notNull(),
+    interrupted: integer('interrupted').notNull(),
+    skipped: integer('skipped').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workoutId, t.exposureId] })],
+);
+
+/**
+ * Every command that changed something, with its result. A command sent twice
+ * — a double tap, a retry after a lost answer — is answered from here and
+ * changes nothing the second time (02 §6, T15).
+ */
+export const commandLedger = sqliteTable(
+  'command_ledger',
+  {
+    commandId: text('command_id').primaryKey(),
+    kind: text('kind').notNull(),
+    workoutId: text('workout_id'),
+    result: text('result', { mode: 'json' }).$type<unknown>().notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [index('command_ledger_created_idx').on(t.createdAt)],
+);
+
+/** One counter per kind of input a plan depends on; a write to the input raises it in the same transaction (01 §4). */
+export const planningRevisions = sqliteTable('planning_revisions', {
+  domain: text('domain').primaryKey(),
+  revision: integer('revision').notNull().default(0),
+});
+
+/** The part of a session's plan that is still to come, as it was at each change (11 §6). */
+export const sessionPlanRevisions = sqliteTable(
+  'session_plan_revisions',
+  {
+    workoutId: text('workout_id')
+      .notNull()
+      .references(() => workouts.id, { onDelete: 'cascade' }),
+    planRevision: integer('plan_revision').notNull(),
+    plan: text('plan', { mode: 'json' }).$type<SessionPlanV2>().notNull(),
+    reason: text('reason', {
+      enum: ['start', 'user_change', 'calibration_step', 'resume'],
+    }).notNull(),
+    channel: text('channel', { enum: ['touch', 'voice', 'ai_proposal', 'engine'] }).notNull(),
+    /** The advice the person saw and confirmed to make this change (D19). */
+    overrides: text('overrides', { mode: 'json' }).$type<string[]>().notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.workoutId, t.planRevision] })],
+);
+
+/** "Too hard" and "too easy", said during a session; context for the next prescription (11 §7). */
+export const feelReports = sqliteTable(
+  'feel_reports',
+  {
+    id: text('id').primaryKey(),
+    workoutId: text('workout_id')
+      .notNull()
+      .references(() => workouts.id, { onDelete: 'cascade' }),
+    /** Null: the whole session. */
+    exposureId: text('exposure_id'),
+    feel: text('feel', { enum: ['too_hard', 'too_easy'] }).notNull(),
+    channel: text('channel', { enum: ['touch', 'voice', 'ai_proposal'] }).notNull(),
+    commandId: text('command_id').notNull(),
+    at: text('at').notNull(),
+  },
+  (t) => [uniqueIndex('feel_reports_command_uq').on(t.commandId)],
+);
+
+/** What the person prefers (12 §3): one row of validated JSON and its revision. */
+export const preferences = sqliteTable('preferences', {
+  id: integer('id').primaryKey(), // always 1
+  data: text('data', { mode: 'json' }).$type<unknown>().notNull(),
+  revision: integer('revision').notNull().default(0),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/** Facts about this installation, not about the person: which generation of the engine the data belongs to (D21). */
+export const appState = sqliteTable('app_state', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/**
+ * Sessions of the first engine, kept to be looked at and nothing else (D21):
+ * they are not read by the progression or by the volume. Filled from the
+ * archive written before the data was reset.
+ */
+export const legacySessions = sqliteTable(
+  'legacy_sessions',
+  {
+    id: text('id').primaryKey(),
+    trainingDate: text('training_date').notNull(),
+    startedAt: text('started_at').notNull(),
+    finishedAt: text('finished_at'),
+    status: text('status').notNull(),
+    sessionRpe: integer('session_rpe'),
+    notes: text('notes'),
+    plan: text('plan', { mode: 'json' }).$type<unknown>(),
+    /** The sets of the session as they were stored, one object per set. */
+    sets: text('sets', { mode: 'json' }).$type<unknown[]>().notNull(),
+    archivedAt: text('archived_at').notNull(),
+  },
+  (t) => [index('legacy_sessions_date_idx').on(t.trainingDate)],
 );
 
 /**

@@ -1,4 +1,4 @@
-import { and, count, eq, gte, inArray, lte } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 
 import { db } from '../client';
 import { cardioLogs, dailyLogs, setLogs, workoutTemplates, workouts } from '../schema';
@@ -32,7 +32,13 @@ export async function getCalendarRange(from: string, until: string) {
       : await db
           .select({ id: setLogs.workoutId, n: count() })
           .from(setLogs)
-          .where(and(inArray(setLogs.workoutId, ids), eq(setLogs.isWarmup, false)))
+          .where(
+            and(
+              inArray(setLogs.workoutId, ids),
+              eq(setLogs.isWarmup, false),
+              isNull(setLogs.deletedAt),
+            ),
+          )
           .groupBy(setLogs.workoutId);
   const byId = new Map(counts.map((c) => [c.id, c.n]));
   return {

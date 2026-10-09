@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { muscleGroupSchema } from '@data/exercises.schema';
 import { templateBlockSchema } from '@data/templates.schema';
 import { CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
+import { setObservationSchema } from '@/domain/observations/types';
+import { sessionPlanV2Schema } from '@/domain/plan/planV2';
 import type { SessionPlan } from '@/domain/plan/types';
 import { SHORTFALL_REASONS } from '@/domain/types';
 
@@ -11,8 +13,14 @@ import type {
   bodyMetrics,
   cardioLogs,
   dailyLogs,
+  feelReports,
+  legacySessions,
   measurements,
   planConstraints,
+  preferences,
+  sessionPlanRevisions,
+  setDispositions,
+  setLogRevisions,
   setLogs,
   trainingBlocks,
   userProfile,
@@ -33,7 +41,7 @@ import type {
  * Bump BACKUP_SCHEMA_VERSION whenever a row shape changes and add a step
  * to MIGRATIONS in parse.ts that lifts the previous shape to the new one.
  */
-export const BACKUP_SCHEMA_VERSION = 6;
+export const BACKUP_SCHEMA_VERSION = 7;
 export const BACKUP_APP = 'homeworkout';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -127,6 +135,12 @@ export const workoutRowSchema = z.object({
   sessionRpe: nullableInt,
   notes: nullableString,
   plan: sessionPlanRecord.nullable(),
+  // Engine v2 (backup v7). Every session before it is a session of the first engine.
+  planSchema: z.union([z.literal(1), z.literal(2)]),
+  planV2: sessionPlanV2Schema.nullable(),
+  planRevision: z.number().int().positive(),
+  revision: z.number().int().nonnegative(),
+  timeZone: nullableString,
 }) satisfies z.ZodType<typeof workouts.$inferSelect>;
 
 export const trainingBlockRowSchema = z.object({
@@ -158,7 +172,76 @@ export const setLogRowSchema = z.object({
   side: z.enum(['left', 'right']).nullable(),
   shortfall: z.enum(SHORTFALL_REASONS).nullable(),
   loggedAt: instant,
+  // Engine v2 (backup v7).
+  commandId: nullableString,
+  plannedSetId: nullableString,
+  exposureId: nullableString,
+  logicalSetId: nullableString,
+  role: nullableString,
+  comparisonKey: nullableString,
+  progressionScope: z.enum(['primary', 'supplemental', 'none']).nullable(),
+  source: z.enum(['plan', 'user_override', 'extra']).nullable(),
+  performedOn: isoDate.nullable(),
+  revision: z.number().int().positive(),
+  deletedAt: nullableString,
+  observation: setObservationSchema.nullable(),
 }) satisfies z.ZodType<typeof setLogs.$inferSelect>;
+
+export const setLogRevisionRowSchema = z.object({
+  setLogId: z.string(),
+  revision: z.number().int().positive(),
+  payload: setObservationSchema.nullable(),
+  replacedAt: instant,
+}) satisfies z.ZodType<typeof setLogRevisions.$inferSelect>;
+
+export const setDispositionRowSchema = z.object({
+  workoutId: z.string(),
+  plannedSetId: z.string(),
+  status: z.enum(['skipped', 'interrupted']),
+  reason: nullableString,
+  commandId: z.string(),
+  at: instant,
+}) satisfies z.ZodType<typeof setDispositions.$inferSelect>;
+
+export const sessionPlanRevisionRowSchema = z.object({
+  workoutId: z.string(),
+  planRevision: z.number().int().positive(),
+  plan: sessionPlanV2Schema,
+  reason: z.enum(['start', 'user_change', 'calibration_step', 'resume']),
+  channel: z.enum(['touch', 'voice', 'ai_proposal', 'engine']),
+  overrides: z.array(z.string()),
+  createdAt: instant,
+}) satisfies z.ZodType<typeof sessionPlanRevisions.$inferSelect>;
+
+export const feelReportRowSchema = z.object({
+  id: z.string(),
+  workoutId: z.string(),
+  exposureId: nullableString,
+  feel: z.enum(['too_hard', 'too_easy']),
+  channel: z.enum(['touch', 'voice', 'ai_proposal']),
+  commandId: z.string(),
+  at: instant,
+}) satisfies z.ZodType<typeof feelReports.$inferSelect>;
+
+export const preferencesRowSchema = z.object({
+  id: z.number().int(),
+  data: z.unknown(),
+  revision: z.number().int().nonnegative(),
+  updatedAt: instant,
+}) satisfies z.ZodType<typeof preferences.$inferSelect>;
+
+export const legacySessionRowSchema = z.object({
+  id: z.string(),
+  trainingDate: isoDate,
+  startedAt: instant,
+  finishedAt: nullableString,
+  status: z.string(),
+  sessionRpe: nullableInt,
+  notes: nullableString,
+  plan: z.unknown(),
+  sets: z.array(z.unknown()),
+  archivedAt: instant,
+}) satisfies z.ZodType<typeof legacySessions.$inferSelect>;
 
 export const cardioLogRowSchema = z.object({
   id: z.string(),
@@ -233,6 +316,12 @@ export const backupTablesSchema = z.object({
   daily_logs: z.array(dailyLogRowSchema),
   training_blocks: z.array(trainingBlockRowSchema),
   plan_constraints: z.array(planConstraintRowSchema),
+  set_log_revisions: z.array(setLogRevisionRowSchema),
+  set_dispositions: z.array(setDispositionRowSchema),
+  session_plan_revisions: z.array(sessionPlanRevisionRowSchema),
+  feel_reports: z.array(feelReportRowSchema),
+  preferences: z.array(preferencesRowSchema),
+  legacy_sessions: z.array(legacySessionRowSchema),
 });
 
 export const backupFileSchema = z.object({

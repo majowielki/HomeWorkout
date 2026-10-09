@@ -7,12 +7,20 @@ import {
   bands,
   bodyMetrics,
   cardioLogs,
+  commandLedger,
   dailyLogs,
   exercises,
+  exposureOutcomes,
+  feelReports,
+  legacySessions,
   measurements,
   planConstraints,
   plannedDays,
   planGenerations,
+  preferences,
+  sessionPlanRevisions,
+  setDispositions,
+  setLogRevisions,
   setLogs,
   trainingBlocks,
   userProfile,
@@ -53,6 +61,12 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     dailyRows,
     blockRows,
     constraintRows,
+    revisionRows,
+    dispositionRows,
+    planRevisionRows,
+    feelRows,
+    preferenceRows,
+    legacyRows,
   ] = await Promise.all([
     db.select().from(userProfile),
     db.select().from(bands),
@@ -65,6 +79,12 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
     db.select().from(dailyLogs),
     db.select().from(trainingBlocks),
     db.select().from(planConstraints),
+    db.select().from(setLogRevisions),
+    db.select().from(setDispositions),
+    db.select().from(sessionPlanRevisions),
+    db.select().from(feelReports),
+    db.select().from(preferences),
+    db.select().from(legacySessions),
   ]);
 
   return {
@@ -83,6 +103,12 @@ export async function dumpAll(now: Date = new Date()): Promise<BackupFile> {
       daily_logs: dailyRows,
       training_blocks: blockRows,
       plan_constraints: constraintRows,
+      set_log_revisions: revisionRows,
+      set_dispositions: dispositionRows,
+      session_plan_revisions: planRevisionRows,
+      feel_reports: feelRows,
+      preferences: preferenceRows,
+      legacy_sessions: legacyRows,
     },
   };
 }
@@ -120,7 +146,12 @@ export async function restoreAll(data: BackupFile): Promise<void> {
 
   db.transaction((tx) => {
     // Children before parents, so the foreign keys never complain.
+    tx.delete(setLogRevisions).run();
     tx.delete(setLogs).run();
+    tx.delete(setDispositions).run();
+    tx.delete(exposureOutcomes).run();
+    tx.delete(sessionPlanRevisions).run();
+    tx.delete(feelReports).run();
     tx.delete(cardioLogs).run();
     tx.delete(workouts).run();
     tx.delete(workoutTemplates).run();
@@ -134,12 +165,22 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     tx.delete(plannedDays).run();
     tx.delete(planGenerations).run();
     tx.delete(userProfile).run();
+    tx.delete(preferences).run();
+    tx.delete(legacySessions).run();
+    // A command of the history that was replaced means nothing to the one that replaces it.
+    tx.delete(commandLedger).run();
 
     insertChunked(tx, userProfile, data.tables.user_profile);
     insertChunked(tx, bands, data.tables.bands);
     insertChunked(tx, workoutTemplates, data.tables.workout_templates);
     insertChunked(tx, workouts, data.tables.workouts);
     insertChunked(tx, setLogs, data.tables.set_logs);
+    insertChunked(tx, setLogRevisions, data.tables.set_log_revisions);
+    insertChunked(tx, setDispositions, data.tables.set_dispositions);
+    insertChunked(tx, sessionPlanRevisions, data.tables.session_plan_revisions);
+    insertChunked(tx, feelReports, data.tables.feel_reports);
+    insertChunked(tx, preferences, data.tables.preferences);
+    insertChunked(tx, legacySessions, data.tables.legacy_sessions);
     insertChunked(tx, cardioLogs, data.tables.cardio_logs);
     insertChunked(tx, bodyMetrics, data.tables.body_metrics);
     insertChunked(tx, measurements, data.tables.measurements);
