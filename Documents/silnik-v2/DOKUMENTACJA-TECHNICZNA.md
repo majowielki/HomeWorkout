@@ -89,8 +89,9 @@ Docelowa mapa plików to 13 §0. Status:
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
 | `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
-| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 (tekst: kolejne zadanie) |
+| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
+| `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
 | `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
@@ -524,7 +525,29 @@ Zamiana na łatwiejszy wariant dodaje `trace.evidence.reducedFrom` także do now
 obie strony zmiany mają `USER_REDUCED`. Kwalifikacja nie daje awansu ani porażki/licznika regresu.
 Samo odczucie bez przyjętej redukcji pozostaje wyłącznie sygnałem dla istniejących reguł P3.
 Dowody: `feel.test.ts` (T71/T72/T105) i dodatkowe przypadki `sqlite-check-session-changes.cjs`.
-Teksty PL pozostają P4b.6, podłączenie UI/głosu/AI — P5.
+Podłączenie UI/głosu/AI — P5. Teksty: §4.21.
+
+### 4.21 Polskie teksty oceny (P4b.6)
+
+`assessmentText(assessment, {exerciseName?, maxAlternatives?}): string[]` składa kartę oceny offline, bez LLM
+i bez żadnych danych spoza oceny. Kolejność (głos czyta pierwsze dwa zdania): werdykt (`Można.`, `Można, z poprawkami.`,
+`Odradzam.`, `Tego nie zrobię.`, `Nie wiem, o które ćwiczenie chodzi.`) → kontrole posortowane przez `sortChecks`
+(twarde, rady, ostrzeżenia, informacje; zwykłe `pass` pomijane) → zalecenie serii (`Zalecam 2 serie jako następne
+(mieści się do 3).`, albo brak miejsca z powodami limit dnia/tygodnia/czas) → recepta (`Recepta: 2 serie, 6 kg,
+8–15 powtórzeń.`) → do dwóch alternatyw z oceną (`odradzane` przy `not_recommended`). Przy `needs_clarification`
+tylko werdykt i lista kandydatów. Przy `blocked` bez recepty.
+
+`CHECK_TEXT` to `Record<RuleCode, …>`: kompilator wymusza zdanie dla każdego kodu rejestru twardych/rad/informacji.
+Zdanie nie wymyśla liczb — brak liczby w `data` daje zdanie ogólne (testowane dla każdego kodu z danymi i bez, we
+wszystkich statusach). `checkText(check, name?)` jest eksportowane dla karty i dla AI jako zdanie awaryjne.
+Odmiana: `plural` (1 seria, 2–4 serie, 5+ serii, 12–14 serii), dopełniacz „do 13 serii”, biernik „zalecam 1 serię”.
+Imiona ćwiczeń przez `exerciseName(id)`; bez niego pokazywane jest id. Nazwy mięśni z własnej tabeli w domenie
+(domena nie importuje `@/strings`), spójnej z `pl.labels.muscle`.
+
+Dla `feel`: `Przyjęto: za ciężko/za lekko.`, `Polecam: …`, `Inne możliwości: …`, a przy redukcji uwaga, że skrócenie
+na prośbę nie liczy się jako porażka siłowa (zgodne z USER_REDUCED). Dowód: `assessmentText.test.ts` — snapshot
+zdania każdego kodu, scenariusze na realnym silniku (dodanie, ponad limit dnia, nieznane ćwiczenie, niejednoznaczne,
+feel), determinizm i niezmienność wejścia.
 
 ## 5. Konwencje testów
 

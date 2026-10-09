@@ -159,7 +159,22 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Ranking opcji redukcji wariantu filtruje graf do `easier` przed truncation; preferowany twardszy
   zamiennik nie może wyprzeć łatwiejszego. Zamiana na łatwiejszy wariant zapisuje `reducedFrom`
   na nowej recepturze; historia oznacza USER_REDUCED także po stronie zastępującej.
-- Polski tekst opcji/kontroli pozostaje P4b.6. UI/runner/AI nie są jeszcze podłączone (P5).
+- Polski tekst opcji/kontroli: P4b.6 (§2h). UI/runner/AI nie są jeszcze podłączone (P5).
+
+### 2h. P4b.6 — teksty oceny i poprawka samonakładania (2026-10-09)
+
+- Spec. 11 §8 podaje sygnaturę `assessmentText(assessment): string[]`. Zdania zawierają nazwy ćwiczeń, których ocena
+  nie niesie (tylko id), więc dodałem opcjonalny drugi argument `{exerciseName, maxAlternatives}`; bez niego
+  pokazywane jest id. Wywołujący (UI, P5) przekazuje nazwy z katalogu.
+- Domena nie importuje `@/strings`, więc teksty i nazwy mięśni są w `session/assessmentText.ts`. P5 decyduje, czy
+  przenieść je do `pl.ts` (wtedy tekst jest wstrzykiwany); do tego czasu istnieje jeden zestaw, z testami.
+- Usterka znaleziona przy tekstach: `OVERLAP_TODAY` (advice, `samePattern`) porównywało zmianę na ćwiczeniu w toku
+  z jego własnymi wykonanymi seriami, więc `reduce_remaining`/`add_sets` były `not_recommended`, a polecana opcja
+  feel „lżejszy opór” wychodziła jako odradzana. Teraz zmiana na istniejącej ekspozycji (poza `swap_remaining`)
+  pomija własne ćwiczenie; dodanie tego samego ćwiczenia jako nowej ekspozycji nadal się nakłada. Test:
+  `assessSessionChange.test.ts` („carries on an exercise in progress”). Golden baseline bez zmian.
+- Do sprawdzenia na telefonie w P5: czy zdania czytane głosem (pierwsze dwa) są zrozumiałe; formy bezosobowe
+  („Dziś zgłoszono ból”) wybrane celowo, żeby nie zgadywać rodzaju gramatycznego.
 
 ## 3. Do sprawdzenia
 

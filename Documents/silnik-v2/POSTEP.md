@@ -30,7 +30,7 @@ opisany inny dowód) i commit.
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
-| P4b | Konsultacja zmian w sesji (domena) | ◐ resolver, ocena, ranking, zapis i feel gotowe; teksty przed nami | `refactor/engine-p4b-session-consultation` | P3, P4 |
+| P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
@@ -131,7 +131,7 @@ Obserwacja D22 nadal czeka na benchmark P8: przy 3 seriach compound maksima poś
 w 4–5 dniu; później możliwa jest głównie praktyka/mobilność albo krótszy legalny dzień. Nie zmieniono limitów.
 Kontynuacja: **P4b — konsultacja zmian w sesji** (stan i następny krok poniżej).
 
-## P4b — konsultacja zmian w sesji (w toku, niescalona)
+## P4b — konsultacja zmian w sesji (domena odebrana, niescalona)
 
 | Zadanie | Zakres | Dowód | Status |
 |---|---|---|---|
@@ -140,7 +140,7 @@ Kontynuacja: **P4b — konsultacja zmian w sesji** (stan i następny krok poniż
 | P4b.3 | `rankAlternatives`: werdykt → biomechanika → preferencja; każda alternatywa oceniona, własny patch, pełna pula i filtr sprzętu | T67, T75: `rankAlternatives.test.ts` (25 testów); pełne `verify`, domena/AI 100% | ☑ |
 | P4b.4 | `applySessionChange`: ponowna ocena i zapis w transakcji, idempotencja, rewizje, ACK_REQUIRED/STALE_INPUT, dyspozycje starych recept i rezerwacja pending | T68, T69: 32 przypadki na realnym SQLite, pełne `verify` | ☑ |
 | P4b.5 | `feel` → ocenione opcje i rekomendacje; transakcyjny FeelReport, USER_REDUCED przy redukcji/łatwiejszym wariancie | T71, T72, T105; `feel.test.ts`, realny SQLite | ☑ |
-| P4b.6 | Deterministyczne polskie teksty `assessmentText` | T72, snapshoty kodów | ☐ |
+| P4b.6 | Deterministyczne polskie teksty `assessmentText` | T72: `assessmentText.test.ts` (snapshot zdania każdego z 29 kodów, scenariusze na realnym silniku); pełne `verify` | ☑ |
 
 Resolver jest czystą domeną; nie podłączono go jeszcze do UI, głosu ani AI. Rozpoznanie ćwiczenia nie zastępuje
 kwalifikacji i audytu sesji. Kierunek „zza głowy” pozostaje odrębny od „nad głowę”; pozycja/sprzęt/strona podane
@@ -201,7 +201,18 @@ Pełne `npm run verify`: **174 zestawy, 3855 testów, 4 snapshoty**, domena/AI 1
 i częściowe ekspozycje, strony, flagę progresji, redukcję/wariant, aktualność opcji i rollback.
 Znane 18 ostrzeżeń katalogu bez zmian.
 
-Następny krok: **P4b.6 — `assessmentText`**, deterministyczne polskie teksty z kodów i liczb.
+**Odbiór P4b.6 2026-10-09:** `assessmentText(assessment, {exerciseName?, maxAlternatives?}): string[]` w
+`session/assessmentText.ts`: werdykt, potem kontrole (twarde, rady, ostrzeżenia, informacje), zalecenie liczby serii,
+recepta, alternatywy; dla `feel` — przyjęty sygnał, polecana opcja, pozostałe i uwaga, że skrócenie nie jest porażką.
+Zdanie ma każdy z 29 kodów rejestru (rekord wyczerpujący — nowy kod nie skompiluje się bez tekstu). Liczby pochodzą
+wyłącznie z `checks.data` i oceny. Głos czyta dwa pierwsze zdania. Szczegóły: DOKUMENTACJA §4.21, UWAGI §2h.
+
+Przy okazji poprawiona usterka P4b.2/P4b.5: zmiana na ćwiczeniu w toku (lżejszy opór, −1 seria, +1 seria) nie jest już
+oceniana `OVERLAP_TODAY` względem własnych wykonanych serii — wcześniej polecana opcja „lżej” wychodziła jako odradzana.
+
+Pełne `npm run verify`: **175 zestawów, 3885 testów, 8 snapshotów**, domena/AI 100%, baseline bez zmian.
+
+Następny krok: **P5 — tydzień, UI, głos, AI, transakcyjna akceptacja** (plan zadań w 07).
 
 ## P5–P9
 
@@ -212,6 +223,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P4b.6 gotowe, P4b odebrane**: `assessmentText` (PL, 29 kodów + werdykty, zalecenie, recepta, alternatywy, feel); poprawka samonakładania się zmian na ćwiczeniu w toku. `verify`: 3885 testów, 175 zestawów, 100% domena/AI, baseline bez zmian. Następne: P5 | |
 | 2026-10-09 | **P4b.5 gotowe**: ocenione opcje `feel`, rekomendacje, transakcyjny FeelReport; T71/T72/T105, USER_REDUCED i supplemental, retry/stale/ACK/rollback SQLite. `verify`: 3855 testów, 174 zestawy, 100% domena/AI, baseline bez zmian. Następne: `assessmentText` | |
 | 2026-10-09 | **P4b.4 gotowe**: transakcyjne `applySessionChange`, świeży odczyt/ponowna ocena, rewizje/ACK/ledger, zachowane recepty i rezerwacja; T68/T69 + granice (32 przypadki SQLite). `verify`: 3819 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `feel` | |
 | 2026-10-09 | **P4b.3 gotowe**: ranking pełnej puli przez wspólną ocenę bez rekurencji, werdykt → biomechanika → preferencja, własne patche i filtrowanie hard-faili; T67/T75 + granice (25 testów). `verify`: 3786 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `applySessionChange` | |

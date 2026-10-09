@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`P4b.6 T72: feel options in words too easy: one more set when it is fine, otherwise a note for the next prescription 1`] = `
+[
+  "Przyjęto: za lekko.",
+  "Polecam: zostawić plan i następnym razem dać trudniej.",
+  "Inne możliwości: jedna seria więcej (odradzane).",
+]
+`;
+
+exports[`P4b.6 T72: the card for the same assessment, with no network a request over the day limit is advised against with the numbers of the check 1`] = `
+[
+  "Odradzam.",
+  "Core dziś: 4 serie przy limicie 3.",
+  "Ten sam ruch zrobiono już dziś: Brzuszek (crunch).",
+  "To pierwsze podejście do tego ćwiczenia, więc obciążenie jest na próbę.",
+  "To ćwiczenie było dziś już zrobione, więc nowe serie są dodatkowe i nie wejdą do progresji.",
+  "Core w tygodniu: z 2 do 4 serii (minimum 3).",
+  "Zalecam 1 serię jako następne.",
+  "Recepta: 2 serie, 8–12 powtórzeń.",
+  "Zamiast tego: Odwrócona deska (2 serie, odradzane); Deska (2 serie, odradzane).",
+]
+`;
+
+exports[`P4b.6 T72: the card for the same assessment, with no network an addable exercise: the verdict first, then the findings, the advice and the prescription 1`] = `
+[
+  "Można.",
+  "To pierwsze podejście do tego ćwiczenia, więc obciążenie jest na próbę.",
+  "Core w tygodniu: z 0 do 2 serii (minimum 3).",
+  "Zalecam 2 serie jako następne (mieści się do 3).",
+  "Recepta: 2 serie, 8–12 powtórzeń.",
+  "Zamiast tego: Odwrócona deska (2 serie); Deska (2 serie).",
+]
+`;
+
+exports[`P4b.6: every rule of the registry has a Polish sentence T72 snapshot: the sentence of each code with its usual data 1`] = `
+{
+  "AVOIDED_BY_REQUEST fail": "Ta partia jest dziś wyłączona na twoją prośbę.",
+  "CALIBRATION_FIRST pass": "To pierwsze podejście do tego ćwiczenia, więc obciążenie jest na próbę.",
+  "DAY_MAX_EXCEEDED fail": "Barki dziś: 5 serii przy limicie 3.",
+  "DELOAD_WORK_OVER_POLICY fail": "W tygodniu odciążenia zalecam 2 serie, a nie 3.",
+  "DOMS_HIGH fail": "Zakwasy w tych partiach są dziś wysokie.",
+  "DRAFT_ONLY fail": "To ćwiczenie jest dopiero szkicem, bez pełnej klasyfikacji.",
+  "EQUIPMENT_UNAVAILABLE fail": "Brakuje sprzętu do tego ćwiczenia.",
+  "HURTS_TOMORROW pass": "Zmiana popsuje zapisany plan na jutro (dotyczy 2 ćwiczeń).",
+  "LOAD_JUMP_OVER_POLICY fail": "Obciążenie rosłoby o więcej niż jeden szczebel naraz.",
+  "MEDICAL_EXCLUSION fail": "To ćwiczenie jest wykluczone przez ograniczenia zdrowotne w profilu.",
+  "MISSING_CLASSIFICATION fail": "Brakuje klasyfikacji tego ćwiczenia dla stawu z ograniczeniem, więc nie da się go ocenić.",
+  "NOT_IN_CATALOG fail": "Nie znam ćwiczenia „wyciskanie zza głowy”, więc nie ocenię jego bezpieczeństwa.",
+  "OVERLAP_TODAY fail": "Ten sam ruch zrobiono już dziś: Brzuszek (crunch).",
+  "OVERLAP_TODAY warn": "Pracuje na tych samych mięśniach co Brzuszek (crunch): core, pośladki.",
+  "PAIN_TODAY fail": "Dziś zgłoszono ból w tej partii, więc to ćwiczenie odpada.",
+  "PLANNER_LIMIT fail": "To wykracza poza zakres, w którym silnik sam układa plan.",
+  "PLAN_INTEGRITY fail": "Plan sesji zmienił się od ostatniego sprawdzenia.",
+  "PLAN_INVALID fail": "Nie ma już takiego ćwiczenia w planie sesji.",
+  "RECIPE_INCOMPLETE fail": "Dla tego ćwiczenia nie da się ułożyć kompletnych serii.",
+  "RECOVERING fail": "Główne partie tego ćwiczenia pracowały niedawno i jeszcze się regenerują.",
+  "RESISTANCE_UNREACHABLE fail": "Nie ma lżejszego obciążenia niż obecne.",
+  "RESOURCE_CONFLICT fail": "Ten sam sprzęt jest ustawiony inaczej, niż potrzeba, i nie da się go użyć naraz.",
+  "RESOURCE_CONFLICT warn": "Trzeba będzie przezbroić sprzęt (około 45 s).",
+  "REST_DAY fail": "Ten dzień jest oznaczony jako dzień odpoczynku.",
+  "SUPPLEMENTAL_ONLY pass": "To ćwiczenie było dziś już zrobione, więc nowe serie są dodatkowe i nie wejdą do progresji.",
+  "TECHNICAL_LIMIT fail": "Ćwiczenie może mieć od 1 do 10 serii.",
+  "TIME_OVER_BUDGET fail": "Sesja wydłuży się do około 45 min przy limicie 40 min.",
+  "TRACE_INCONSISTENT fail": "Uzasadnienie recepty nie zgadza się z planem.",
+  "UNSUPPORTED_CAPABILITY fail": "Aplikacja nie obsługuje jeszcze ćwiczeń liczonych w dystansie.",
+  "USER_EXCLUDED fail": "To ćwiczenie jest na liście wykluczonych.",
+  "WEEK_MAX_EXCEEDED fail": "Pośladki w tygodniu: do 13 serii przy limicie 12.",
+  "WEEK_MIN_HELPED pass": "Plecy w tygodniu: z 4 do 6 serii (minimum 8).",
+}
+`;
