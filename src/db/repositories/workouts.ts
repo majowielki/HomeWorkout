@@ -1,6 +1,6 @@
 import { randomUUID } from 'expo-crypto';
 
-import { and, count, desc, eq, isNotNull, lt, ne } from 'drizzle-orm';
+import { and, count, desc, eq, isNotNull, isNull, lt, ne } from 'drizzle-orm';
 
 import { SESSION_CONFIG } from '@/domain/config/training';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
@@ -180,7 +180,7 @@ export async function listWorkouts(): Promise<WorkoutListItem[]> {
     db
       .select({ workoutId: setLogs.workoutId, n: count() })
       .from(setLogs)
-      .where(eq(setLogs.isWarmup, false))
+      .where(and(eq(setLogs.isWarmup, false), isNull(setLogs.deletedAt)))
       .groupBy(setLogs.workoutId),
   ]);
   const byWorkout = new Map(counts.map((c) => [c.workoutId, c.n]));

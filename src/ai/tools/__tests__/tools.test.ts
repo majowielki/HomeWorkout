@@ -412,6 +412,14 @@ describe('getBodyTrend', () => {
 });
 
 describe('getPlanExplanation', () => {
+  it('has no plan when the environment supplies no explanation', async () => {
+    expect(
+      await TOOL_IMPLEMENTATIONS.getPlanExplanation(
+        { daysAgo: 0 },
+        { load: async () => scenario() },
+      ),
+    ).toEqual({ error: 'no_plan' });
+  });
   const plan = (patch: Partial<PlanLookup['plan']> = {}): PlanLookup => ({
     source: 'session',
     slotNames: { squat: 'Przysiad', pull: 'Przyciąganie poziome' },

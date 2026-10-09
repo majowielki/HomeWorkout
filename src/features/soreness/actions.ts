@@ -3,7 +3,7 @@ import { getDayBoundaryHour } from '@/db/repositories/profile';
 import { addConstraint, revokeConstraints } from '@/db/repositories/weekPlan';
 import { assessReport, type SorenessReport } from '@/domain/plan/sorenessReport';
 import { trainingDate } from '@/domain/time/trainingDate';
-import { computeToday } from '@/features/plan/computeToday';
+import { syncWeek } from '@/db/repositories/weekPlanV2';
 
 export class ReportDateChangedError extends Error {}
 
@@ -24,7 +24,7 @@ export async function saveSorenessReport(
   // Separate this result so retrying the plan cannot duplicate the report.
   let planUpdated = true;
   try {
-    await computeToday({ persist: true, request: { trigger: 'constraint', from: asOf } });
+    syncWeek({ request: { trigger: 'constraint', from: asOf } });
   } catch {
     planUpdated = false;
   }
@@ -35,7 +35,7 @@ export async function withdrawSorenessReport(id: string, asOf: string) {
   await revokeConstraints([id]);
   let planUpdated = true;
   try {
-    await computeToday({ persist: true, request: { trigger: 'constraint', from: asOf } });
+    syncWeek({ request: { trigger: 'constraint', from: asOf } });
   } catch {
     planUpdated = false;
   }

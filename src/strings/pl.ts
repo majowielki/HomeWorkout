@@ -582,6 +582,8 @@ export const pl = {
       bodyweight: 'masa ciała',
     },
     volumeValue: (sets: number, max: number) => `${sets} / ${max}`,
+    uncertainSets: 'bez potwierdzonego odczucia',
+    adjustedPlan: 'Silnik skrócił lub uporządkował plan, aby zmieścić go w dostępnych limitach.',
     deloadNote:
       'W tym tygodniu obniżamy objętość treningową. Kwestie żywieniowe w trakcie terapii omów z lekarzem prowadzącym.',
     progression: {
@@ -1008,6 +1010,7 @@ export const pl = {
         simulateProposal: 'Sprawdzam skutki zmiany w kolejnych dniach…',
       } satisfies Record<ToolName, string>,
       proposal: {
+        sessionChange: 'Propozycja zmiany treningu',
         plan: 'Propozycja zmiany planu',
         compose: 'Ułożony dzień',
         composeHint: 'Ruchy wybrane razem z trenerem; obciążenia i serie liczy silnik.',

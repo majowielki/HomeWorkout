@@ -46,6 +46,73 @@ function accept(commandId, day, patch = {}, now = LATER) {
 
 const CASES = [
   [
+    'starting today keeps the weekly choice and refuses a changed selection after preview',
+    async () => {
+      await seeded();
+      const { syncWeek } = require('../repositories/weekPlanV2.ts');
+      syncWeek({}, NOW);
+      const day = previewDay(request(), NOW);
+      const saved = JSON.parse(
+        all("SELECT selection FROM planned_days_v2 WHERE date = '2026-10-05'")[0].selection,
+      );
+      assert.deepEqual(day.output.selection, saved);
+      const changed = saved.map((item) => ({ ...item, sets: 1 }));
+      current.native
+        .prepare("UPDATE planned_days_v2 SET selection = ? WHERE date = '2026-10-05'")
+        .run(JSON.stringify(changed));
+      assert.equal(accept('changed-choice', day).kind, 'conflict');
+      assert.equal(all('SELECT * FROM workouts').length, 0);
+      assert.equal(all('SELECT * FROM training_blocks').length, 0);
+      const fresh = previewDay(request(), NOW);
+      assert.deepEqual(fresh.output.selection, changed);
+      assert.equal(accept('fresh-choice', fresh).kind, 'committed');
+    },
+  ],
+  [
+    'today syncs the week and a completed workout becomes recovery and a future preview',
+    async () => {
+      await seeded();
+      const { readToday } = require('../../features/plan/today.ts');
+      const today = readToday(undefined, NOW);
+      assert.equal(today.done, false);
+      assert.ok(today.plan.exposures.length > 0);
+      assert.ok(today.week.length > 0);
+      assert.equal(today.plan.audit.planHash, today.preview.planHash);
+      const accepted = acceptDay(
+        {
+          commandId: 'today-start',
+          request: today.preview.request,
+          expectedPlanHash: today.preview.planHash,
+          timeZone: 'Europe/Warsaw',
+        },
+        NOW,
+      );
+      assert.equal(accepted.kind, 'committed');
+      doTheSession(today.plan, NOW);
+      assert.equal(
+        all("SELECT status FROM planned_days_v2 WHERE date = '2026-10-05'")[0].status,
+        'done',
+      );
+      const done = readToday(undefined, LATER);
+      assert.equal(done.done, true);
+      assert.equal(done.plan, null);
+      assert.ok(done.recovery.length > 0);
+      assert.ok(Object.values(done.volume).some((v) => v.certain > 0));
+      const { listWorkouts } = require('../repositories/workouts.ts');
+      const count = (await listWorkouts())[0].workingSets;
+      current.native
+        .prepare(
+          'UPDATE set_logs SET deleted_at = ? WHERE id = (SELECT id FROM set_logs WHERE is_warmup = 0 LIMIT 1)',
+        )
+        .run(LATER.toISOString());
+      assert.equal((await listWorkouts())[0].workingSets, count - 1);
+      assert.equal(
+        done.week.some((d) => d.date > done.asOf && d.forecast !== null),
+        true,
+      );
+    },
+  ],
+  [
     'the preview plans a day from an empty database and writes nothing',
     async () => {
       await seeded();

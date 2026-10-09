@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { CalendarData } from '@/db/repositories/calendar';
-import type { SessionPlan } from '@/domain/plan/types';
+import { compileInput, exposure, stamp } from '@/domain/__tests__/compileFixtures';
+import { compileSession } from '@/domain/plan/compile';
 import { exercise } from '@/domain/__tests__/fixtures';
 import { pl } from '@/strings/pl';
 import { CalendarDaySheet } from '../CalendarDaySheet';
@@ -18,20 +19,11 @@ jest.mock('@gorhom/bottom-sheet', () => ({
 }));
 
 const empty: CalendarData = { sessions: [], rides: [], diary: [], days: [], composed: [] };
-const plan: SessionPlan = {
-  version: 1,
-  date: '2026-10-08',
-  blockIndex: 1,
-  phase: 'work',
-  regions: ['push'],
-  bike: { minutes: 10, resistance: 1, reasons: [] },
-  exercises: [],
-  skipped: [],
-  dayReasons: [],
-  signals: [],
-  estimatedMinutes: 20,
-  adjustments: [],
-};
+const plan = stamp(
+  compileSession(
+    compileInput([exposure('a', { slotId: 'push-horizontal' })], { trainingDate: '2026-10-08' }),
+  ),
+);
 const base = {
   date: '2026-10-08',
   asOf: '2026-10-07',
@@ -69,13 +61,20 @@ describe('CalendarDaySheet', () => {
       days: [
         {
           date: base.date,
-          selection: {} as NonNullable<CalendarData['days'][number]['selection']>,
-          forecast: {
-            ...plan,
-            exercises: [
-              { label: 'A1', exerciseId: 'side', sets: 2 } as SessionPlan['exercises'][number],
-            ],
-          },
+          selection: [] as NonNullable<CalendarData['days'][number]['selection']>,
+          forecast: stamp(
+            compileSession(
+              compileInput(
+                [
+                  exposure('a', {
+                    sideMode: 'per_set',
+                    exercise: { id: 'side', displayName: 'Deska bokiem', definitionRevision: '1' },
+                  }),
+                ],
+                { trainingDate: base.date },
+              ),
+            ),
+          ),
           status: 'planned' as const,
         },
       ],
@@ -104,7 +103,7 @@ describe('CalendarDaySheet', () => {
       days: [
         {
           date: base.date,
-          selection: {} as NonNullable<CalendarData['days'][number]['selection']>,
+          selection: [] as NonNullable<CalendarData['days'][number]['selection']>,
           forecast: plan,
           status: 'planned',
         },
@@ -125,19 +124,19 @@ describe('CalendarDaySheet', () => {
       sessions: [
         {
           workout: { id: 'done', trainingDate: '2026-10-07', status: 'completed', plan: null },
-          templateName: 'FBW A',
+          templateName: null,
           sets: 8,
         },
       ],
     } as unknown as CalendarData;
     await render(<CalendarDaySheet {...base} date="2026-10-07" data={data} todayPlan={plan} />);
-    expect(screen.getByText('FBW A')).toBeTruthy();
+    expect(screen.getByText(pl.history.noTemplate)).toBeTruthy();
     expect(screen.getByText(pl.extra.title)).toBeTruthy();
     expect(screen.getByText(/Trening ukończony.*8 serii/)).toBeTruthy();
     expect(screen.queryByText(pl.calendar.restAction)).toBeNull();
     expect(screen.queryByText(pl.calendar.trainAction)).toBeNull();
     expect(screen.queryByText(pl.plan.start)).toBeNull();
-    await fireEvent.press(screen.getByText('FBW A'));
+    await fireEvent.press(screen.getByText(pl.history.noTemplate));
     expect(base.onClose).toHaveBeenCalledTimes(1);
   });
   it('resumes an existing session and prevents starting or changing a day alongside it', async () => {

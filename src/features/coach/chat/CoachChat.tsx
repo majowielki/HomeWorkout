@@ -20,7 +20,7 @@ import { useCoachBrief } from '../useCoachBrief';
 import { ChatView } from './ChatView';
 import { toolEnvironment } from './environment';
 import { useCoachChat } from './useCoachChat';
-import { createProposalController, ProposalChangedError } from './proposals';
+import { createProposalControllerV2, ProposalChangedError } from '@/app-services/coach/proposalsV2';
 
 /**
  * The chat, wired to the real switch, the real server, the real database
@@ -52,7 +52,7 @@ function Notice({ text }: { text: string }) {
 
 function Session({ context, stream }: { context: CoachContext; stream: TurnDeps['stream'] }) {
   const router = useRouter();
-  const proposals = useMemo(() => createProposalController(), []);
+  const proposals = useMemo(() => createProposalControllerV2(), []);
   const applying = useRef(false);
   const [proposalBusy, setProposalBusy] = useState(false);
   const facts = useMemo(() => factsFromContext(context), [context]);

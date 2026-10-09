@@ -7,6 +7,15 @@
  */
 import { randomUUID } from 'expo-crypto';
 import {
+  createSessionToolHooks,
+  type SessionProposal,
+  type SessionSource,
+} from '@/ai/tools/sessionEnvironment';
+import { loadActiveSessionSource } from '@/db/repositories/sessionChangeSource';
+import { applySessionChange } from '@/db/repositories/sessionChanges';
+import { assessSessionChange } from '@/domain/session/assess';
+import { assessmentText } from '@/domain/session/assessmentText';
+import {
   describeDayOptions,
   describeWeek,
   previewDayPlan,
@@ -33,7 +42,9 @@ import {
 export type ProposalSummary =
   | ToolOutput<'proposePlanChange'>
   | ToolOutput<'proposeExtraSession'>
-  | ToolOutput<'proposeDayPlan'>;
+  | ToolOutput<'proposeDayPlan'>
+  | { kind: 'session_change'; sentences: string[] };
+export type ProposalStatus = 'pending' | 'applying' | 'applied' | 'rejected' | 'stale' | 'failed';
 export interface ProposalView {
   id: string;
   summary: ProposalSummary;
@@ -43,6 +54,7 @@ type Draft = ProposalView & { fingerprint: string } & (
     | { kind: 'plan'; intent: ToolInput<'proposePlanChange'> }
     | { kind: 'extra'; request: DayRequest; planHash: string }
     | { kind: 'compose'; intent: ToolInput<'proposeDayPlan'> }
+    | { kind: 'session'; proposal: SessionProposal; sessionId: string }
   );
 
 export class ProposalChangedError extends Error {}
@@ -53,6 +65,7 @@ export interface ProposalDepsV2 {
   inProgress: () => boolean;
   id: () => string;
   now: () => Date;
+  sessionSource?: () => SessionSource | null;
 }
 const defaultDeps: ProposalDepsV2 = {
   context: () => loadWeekContext(),
@@ -85,6 +98,13 @@ export function createProposalControllerV2(deps: ProposalDepsV2 = defaultDeps) {
   let question = '';
   let expectedDate: string | null = null;
   let revision = 0;
+  const source =
+    deps.sessionSource ??
+    (() => {
+      const live = loadActiveSessionSource();
+      return live !== null && live.problems.length === 0 ? live : null;
+    });
+  let sessionTools = createSessionToolHooks(source);
 
   /** The week for this question, or the tool error that stops it. */
   function fresh(turn: number): WeekContext | { error: 'failed' | 'date_changed' } {
@@ -96,8 +116,46 @@ export function createProposalControllerV2(deps: ProposalDepsV2 = defaultDeps) {
 
   const tools: Pick<
     ToolEnvironment,
-    'week' | 'proposeChange' | 'proposeExtra' | 'dayOptions' | 'proposeDay'
+    | 'week'
+    | 'proposeChange'
+    | 'proposeExtra'
+    | 'dayOptions'
+    | 'proposeDay'
+    | 'activeSession'
+    | 'assessChange'
+    | 'proposeSessionChange'
   > = {
+    activeSession: () => sessionTools.activeSession(),
+    assessChange: (input) => sessionTools.assessChange(input),
+    async proposeSessionChange(input) {
+      const turn = revision;
+      const hooks = sessionTools;
+      const summary = await hooks.proposeChange(input);
+      if (turn !== revision) return { error: 'failed' };
+      if ('error' in summary) return summary;
+      const proposal = hooks.proposals.get(summary.proposalId)!;
+      const live = source();
+      if (!live) return { error: 'no_active_session' };
+      const assessment = assessSessionChange(live.snap, live.session, proposal.change, {
+        maxAlternatives: 0,
+      });
+      if (assessment.assessmentId !== proposal.assessmentId) return { error: 'stale_assessment' };
+      drafts.set(summary.proposalId, {
+        id: summary.proposalId,
+        kind: 'session',
+        proposal,
+        sessionId: live.session.plan.sessionId,
+        fingerprint: '',
+        note: '',
+        summary: {
+          kind: 'session_change',
+          sentences: assessmentText(assessment, {
+            exerciseName: (id) => live.snap.catalog[id]?.name,
+          }),
+        },
+      });
+      return summary;
+    },
     async week() {
       const ctx = deps.context();
       const live = runningPlanOn(ctx.asOf);
@@ -199,6 +257,7 @@ export function createProposalControllerV2(deps: ProposalDepsV2 = defaultDeps) {
     beginTurn(text: string, asOf: string | null = null) {
       revision += 1;
       drafts.clear();
+      sessionTools = createSessionToolHooks(source);
       question = cleanText(text);
       expectedDate = asOf;
     },
@@ -216,6 +275,31 @@ export function createProposalControllerV2(deps: ProposalDepsV2 = defaultDeps) {
       try {
         return await withPlanningLockV2(async () => {
           const ctx = deps.context();
+          if (draft.kind === 'session') {
+            const live = source();
+            if (
+              drafts.get(id) !== draft ||
+              live?.session.plan.sessionId !== draft.sessionId ||
+              live.session.plan.trainingDate !== ctx.asOf
+            )
+              throw new ProposalChangedError();
+            const result = applySessionChange(
+              {
+                commandId: id,
+                sessionId: draft.sessionId,
+                patchId: draft.proposal.patchId,
+                change: draft.proposal.change,
+                expected: draft.proposal.expected,
+                acknowledged: draft.proposal.acknowledge,
+                channel: 'ai_proposal',
+              },
+              deps.now(),
+            );
+            if (result.kind === 'storage_error') throw new Error(result.detail);
+            if (result.kind !== 'committed') throw new ProposalChangedError();
+            drafts.delete(id);
+            return { workoutId: draft.sessionId };
+          }
           if (drafts.get(id) !== draft || deps.inProgress() || keyOf(ctx) !== draft.fingerprint)
             throw new ProposalChangedError();
           if (draft.kind === 'extra') {

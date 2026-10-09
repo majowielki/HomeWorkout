@@ -5,8 +5,8 @@ import { workoutTitle } from '../workoutTitle';
 
 describe('workoutTitle', () => {
   it('names the current plan from its slots', () => {
-    const plan = stamp(compileSession(compileInput([exposure('a', { slotId: 'lower-squat' })])));
-    expect(workoutTitle({ planV2: plan, plan: null })).toBeTruthy();
+    const plan = stamp(compileSession(compileInput([exposure('a', { slotId: 'squat' })])));
+    expect(workoutTitle({ planV2: plan, plan: null })).toBe('Nogi');
   });
   it('reads old plans with optional kind and keeps extra sessions identifiable', () => {
     const plan = { regions: ['lower' as const] };

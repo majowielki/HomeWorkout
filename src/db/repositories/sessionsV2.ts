@@ -18,7 +18,7 @@ import {
   bands,
   exposureOutcomes,
   feelReports,
-  plannedDays,
+  plannedDaysV2,
   sessionPlanRevisions,
   setDispositions,
   setLogRevisions,
@@ -904,10 +904,12 @@ export function closeSessionV2(
       })
       .where(eq(workouts.id, cmd.sessionId))
       .run();
-    tx.update(plannedDays)
-      .set({ status: cmd.how === 'completed' ? 'done' : 'missed', updatedAt: at })
-      .where(eq(plannedDays.workoutId, cmd.sessionId))
-      .run();
+    if (found.plan.kind === 'main') {
+      tx.update(plannedDaysV2)
+        .set({ status: cmd.how === 'completed' ? 'done' : 'missed', updatedAt: at })
+        .where(eq(plannedDaysV2.date, found.workout.trainingDate))
+        .run();
+    }
     touch(tx, cmd.sessionId);
     const outcomes = tx
       .select()

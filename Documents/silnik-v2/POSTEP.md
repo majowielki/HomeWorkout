@@ -32,7 +32,7 @@ opisany inny dowód) i commit.
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☑ 2026-10-09: serwisy, domena i kontrakt gotowe i sprawdzone na SQLite; **ekrany czekają** (decyzja: UI bez zmian do końca implementacji), wdrożenie Workera przy testach | `refactor/engine-p5-integration` | P3, P4, P4b |
-| P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
+| P6 | Aktywacja silnika bazowego | ◐ konsumenci przeniesieni; sprzątanie/migracja/wdrożenie czekają | `refactor/engine-p6-activation` | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
 | P8 | Eksperymenty warunkowe | ☐ | | P6 |
 | P9 | Pierwszy nowy sprzęt produkcyjny | ☐ | | P6 |
@@ -241,7 +241,7 @@ dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu k
 
 ## P6 (w toku, gałąź `refactor/engine-p6-activation`)
 
-Aktywacja nowego silnika w aplikacji i usunięcie starego bez pozostałości. **Stan, lista zadań i pułapki: [PRZEKAZANIE-P6.md](PRZEKAZANIE-P6.md).** Zrobione: biegnąca sesja, historia serii, podsumowanie (commit `f6e673a`); reszta w przekazaniu.
+Aktywacja nowego silnika w aplikacji i usunięcie starego bez pozostałości. **Stan, lista zadań i pułapki: [PRZEKAZANIE-P6.md](PRZEKAZANIE-P6.md).** Zrobione: biegnąca sesja, historia, podsumowanie, testy loggera oraz konsumenci „Dziś”, planu dnia, kalendarza, zakwasów, sesji dodatkowej i czatu. Typecheck przechodzi. Pozostają usunięcie dawnego silnika (w tym ewaluacje i strażnik jutra), migracja bazy, zmiana nazw, dokumentacja końcowa, emulator i wspólne wdrożenie.
 
 ## P7–P9
 
@@ -276,3 +276,4 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 | 2026-10-09 | **P0 zamknięty** (7 zadań, 46 nowych testów, `npm run verify` zielone: 2673 testy, pokrycie domeny 100%). Gałąź `refactor/engine-p0-baseline` scalona do `main`. Porównanie planów z kodem sprzed przebudowy: jedna różnica, wyjaśniona (P0.7) — DOKUMENTACJA §4.4 | |
 
 **P6 — kontynuacja 2026-10-09: testy biegnącej sesji domknięte.** Logger i klipy testują krok planu oraz obserwację (pochodzenie wartości, wysiłek, dotyk/głos, przywrócenie korekty, stoper). Zamienniki testują ranking i akceptację patcha; osobne testy sprawdzają zapis wyboru bloku i odmowę po konflikcie. Głos przekazuje tekst odczytu zapisanej serii i cofa dokładne identyfikatory pominiętych serii. `GroupDoneCard` zachował poprawny kontrakt i jego testy przechodzą. Dodane testy tytułów historii; `dayTitle` przyjmuje brak `kind` w dawnych planach. Dowód: 13 zestawów / 106 testów sesji, historii, progress i setEntry. Pełny `verify` nadal czeka na pozostałych konsumentów P6.
+**P6 — odbiór aktywacji konsumentów 2026-10-09.** „Dziś”, plan dnia, kalendarz, zakwasy, sesja dodatkowa i czat są podłączone do bieżącego silnika. Nowe przypadki SQLite obejmują zachowanie tygodniowego wyboru przy starcie, konflikt po jego zmianie, ukończony dzień/regenerację, kartę sesji i wygaśnięcie/spóźnione narzędzie. `npm run verify`: **187 zestawów, 4129 testów, 9 snapshotów, domena/AI 100%**. Worker: **5 zestawów / 143 testy**. Gałąź nadal niescalona: pozostają sprzątanie dawnego silnika/ewaluacji, migracja i nazwy, emulator oraz wspólne wdrożenie.

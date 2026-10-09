@@ -342,11 +342,25 @@ const CASES = [
         ['inside', 'last'],
       );
       assert.equal(range.sessions[0].sets, 1);
-      assert.equal(range.sessions[0].templateName, oldTemplate.name);
-      assert.equal(range.sessions[1].templateName, null);
+      assert.equal('templateName' in range.sessions[0], false);
       assert.equal(range.rides[0].workoutId, 'inside');
       assert.equal(range.diary[0].energy, 4);
-      assert.equal(range.days[0].date, '2026-10-08');
+      assert.equal(range.days.length, 0, 'obsolete week rows are not calendar forecasts');
+      current.db
+        .insert(schema.plannedDaysV2)
+        .values({
+          date: '2026-10-08',
+          selection: null,
+          forecast: null,
+          status: 'planned',
+          generationId: 'current-week',
+          updatedAt: 'now',
+        })
+        .run();
+      assert.equal(
+        (await calendar.getCalendarRange('2026-10-01', '2026-10-31')).days[0].date,
+        '2026-10-08',
+      );
       assert.equal(
         (await calendar.getCalendarRange('2020-01-01', '2020-01-31')).sessions.length,
         0,
@@ -455,7 +469,11 @@ const CASES = [
       assert.equal(all('SELECT * FROM planned_days WHERE seq = 3').length, 0);
       const range = await calendar.getCalendarRange(plan.date, plan.date);
       assert.equal(range.sessions.length, 2);
-      assert.equal(range.days.length, 1);
+      assert.equal(
+        range.days.length,
+        0,
+        'historical extra-session choices are not current forecasts',
+      );
     },
   ],
   [
@@ -565,15 +583,21 @@ const CASES = [
       await seeded();
       const exerciseId = firstExerciseId();
       completedSession(exerciseId);
-      const id = await setRepo.logSet({
-        workoutId: 'inside',
-        exerciseId,
-        exerciseOrder: 1,
-        setIndex: 1,
-        reps: 6,
-        rir: 1,
-        shortfall: 'doms',
-      });
+      const id = 'legacy-shortfall';
+      current.db
+        .insert(schema.setLogs)
+        .values({
+          id,
+          workoutId: 'inside',
+          exerciseId,
+          exerciseOrder: 1,
+          setIndex: 1,
+          reps: 6,
+          rir: 1,
+          shortfall: 'doms',
+          loggedAt: '2026-10-01T12:00:00Z',
+        })
+        .run();
       assert.equal((await setRepo.getSet(id)).shortfall, 'doms');
       const saved = await backup.dumpAll();
       await backup.restoreAll(saved);

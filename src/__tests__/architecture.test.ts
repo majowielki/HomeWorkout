@@ -76,10 +76,8 @@ const PLAN_WRITERS = [
  * (syncWeek, planCustom) on a fresh snapshot; none receives a plan from outside.
  */
 const PLAN_ORCHESTRATORS = [
-  'src/features/plan/computeToday.ts',
   'src/features/plan/usePlanToday.ts',
   'src/features/extra/actions.ts',
-  'src/features/coach/chat/proposals.ts',
   'src/app-services/coach/proposalsV2.ts',
 ];
 

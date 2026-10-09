@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { IconBadge } from '@/components/ui/icon-badge';
 import { Check } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import type { MuscleRecovery } from '@/domain/plan/dayState';
+import type { MuscleRecovery } from './today';
 import { formatDate } from '@/lib/format';
 import { pl } from '@/strings/pl';
 

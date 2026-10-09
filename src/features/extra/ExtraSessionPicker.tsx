@@ -1,23 +1,29 @@
 import { Pressable, View } from 'react-native';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-import type { PlannerInput } from '@/domain/plan/dayPlanner';
-import { extraSessionOptions, planCustom } from '@/domain/plan/extra';
+import type { DayPreview } from '@/db/repositories/planningV2';
+import type { loadExtraSession } from './actions';
+import { labelsOf } from '@/domain/session/progress';
+
 import { prescriptionText } from '@/features/plan/format';
 import { pl } from '@/strings/pl';
 
 type Props = {
-  input: PlannerInput;
+  data: Awaited<ReturnType<typeof loadExtraSession>>;
+  preview: DayPreview | null;
   selected: string[];
   onChange: (ids: string[]) => void;
   busy: boolean;
 };
 
-export function ExtraSessionPicker({ input, selected, onChange, busy }: Props) {
-  const options = extraSessionOptions(input);
+export function ExtraSessionPicker({ data, preview, selected, onChange, busy }: Props) {
+  const { input, options } = data;
+  const result = preview?.output.result;
+  const plan = result?.kind === 'ready' || result?.kind === 'adjusted' ? result.plan : null;
+  const labels = plan ? labelsOf(plan) : [];
   const available = options.filter((o) => o.item);
   const blocked = options.filter((o) => !o.item);
-  const preview = planCustom(input, selected);
+
   return (
     <View className="gap-4">
       <Text variant="muted">{pl.extra.intro}</Text>
@@ -26,7 +32,7 @@ export function ExtraSessionPicker({ input, selected, onChange, busy }: Props) {
       {available.map((o) => {
         const checked = selected.includes(o.slotId);
         const slot = input.slots.find((s) => s.id === o.slotId)!;
-        const e = input.catalog[o.item!.exerciseId]!;
+        const e = input.catalog[o.item!.exercise.id]!;
         return (
           <Pressable
             key={o.slotId}
@@ -46,7 +52,10 @@ export function ExtraSessionPicker({ input, selected, onChange, busy }: Props) {
             <Text>{e.name}</Text>
             <Text variant="muted">
               {e.primaryMuscles.map((m) => pl.labels.muscle[m]).join(', ')} ·{' '}
-              {pl.calendar.sets(o.item!.sets, e.sides === 'perSet')}
+              {pl.calendar.sets(
+                new Set(o.item!.sets.map((s) => s.logicalSetId)).size,
+                e.sides === 'perSet',
+              )}
             </Text>
           </Pressable>
         );
@@ -54,17 +63,17 @@ export function ExtraSessionPicker({ input, selected, onChange, busy }: Props) {
       {selected.length ? (
         <Card className="gap-3">
           <Text variant="eyebrow">{pl.extra.preview}</Text>
-          <Text>{pl.plan.meta(preview.estimatedMinutes)}</Text>
-          {preview.exercises.map((e) => (
-            <View key={e.exerciseId} className="gap-1">
+          <Text>{pl.plan.meta(plan ? Math.ceil(plan.time.exerciseTotal / 60) : 0)}</Text>
+          {(plan?.exposures ?? []).map((e, i) => (
+            <View key={e.exercise.id} className="gap-1">
               <Text className="font-display-semibold">
-                {e.label} · {input.catalog[e.exerciseId]!.name}
+                {labels[i]} · {input.catalog[e.exercise.id]!.name}
               </Text>
               <Text variant="muted">{prescriptionText(e)}</Text>
             </View>
           ))}
-          {preview.exercises.length < selected.length ? <Text>{pl.extra.reduced}</Text> : null}
-          {preview.skipped.map((s) => (
+          {(plan?.exposures.length ?? 0) < selected.length ? <Text>{pl.extra.reduced}</Text> : null}
+          {(preview?.output.skipped ?? []).map((s) => (
             <Text key={s.slotId} variant="muted">
               {input.slots.find((slot) => slot.id === s.slotId)!.name} · {pl.plan.skip[s.reason]}
             </Text>
@@ -77,7 +86,8 @@ export function ExtraSessionPicker({ input, selected, onChange, busy }: Props) {
       {blocked.length ? <Text variant="eyebrow">{pl.extra.unavailable}</Text> : null}
       {blocked.map((o) => (
         <Text key={o.slotId} variant="muted">
-          {input.slots.find((s) => s.id === o.slotId)!.name} · {pl.plan.skip[o.reason!]}
+          {input.slots.find((s) => s.id === o.slotId)!.name} ·{' '}
+          {o.reason ? pl.plan.skip[o.reason] : (o.explanation ?? pl.extra.empty)}
         </Text>
       ))}
     </View>

@@ -292,3 +292,11 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 ### P6 — testy loggera (2026-10-09)
 
 Usunięte założenie starych testów „zawsze Ciężko” nie opisuje już aplikacji: pierwszy wynik zaczyna od `defaultEffort(previous, targetRir)`, kolejne serie zachowują wysiłek poprzedniej obserwacji. Pochodzenie sugestii i zmian sprawdza nowy kontrakt testów. Karta zamiennika nie ma osobnego „Wróć do ćwiczenia z planu”; powrót odbywa się przez ponowną zamianę z oceną silnika. `GroupDoneCard` nie potrzebował zmiany API.
+### P6 — decyzje i obserwacje aktywacji konsumentów (2026-10-09)
+
+- Start dnia zachowuje tygodniowy wybór ćwiczeń, ale przelicza ilości i opór z bieżącej historii. Zmiana utrzymanego wyboru po podglądzie jest konfliktem tak samo jak zmiana historii. SQLite sprawdza odmowę bez zapisania sesji/bloku.
+- Brak legalnego planu nie jest automatycznie dniem wolnym: ekran pokazuje powód audytu. Naprawiony plan jest opisany. Pewne i niepewne serie są oddzielone w bilansie; odziedziczone dane bez potwierdzonego wysiłku nie stają się pewnym dowodem.
+- Szablony nie służą już do prezentacji planów w „Dziś” i kalendarzu. Dawne sesje bez rozpoznawalnego planu otrzymują nazwę zastępczą, a ich dane pozostają do odczytu/backupowania. Tabele szablonów nadal czekają na migrację porządkową.
+- Karta zmiany sesji jest akceptowana kanałem `ai_proposal` (kanał zapisany w istniejącym kontrakcie), wyłącznie po przycisku użytkownika. Nowe pytanie, inna rewizja lub zmiana sesji uniemożliwia zastosowanie dawnej karty. Spóźnione narzędzie nie może odtworzyć karty po rozpoczęciu nowej rozmowy.
+- Cztery nieaktualne przypadki SQLite wywoływały usunięte API loggera albo oczekiwały tygodnia v1 w kalendarzu. Zastąpione dowodami aktualnych odczytów i zachowania backupu historycznej serii; usunięte metody nie zostały przywrócone.
+- Bez resetu i bez wdrożenia. Pełne sprzątanie starego silnika, migracja nazw/tabel i test urządzenia są następnym fragmentem P6. Worker i APK nadal mają być wdrożone razem dopiero po jego zamknięciu.

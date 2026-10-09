@@ -1,58 +1,76 @@
-import { getDayBoundaryHour } from '@/db/repositories/profile';
-import { findInProgressWorkout, startExtraWorkout } from '@/db/repositories/workouts';
+import { randomUUID } from 'expo-crypto';
+import { acceptDay, previewDay, type DayPreview } from '@/db/repositories/planningV2';
+import { loadWeekContext } from '@/db/repositories/weekPlanV2';
+import { findInProgressWorkout } from '@/db/repositories/workouts';
 import { isTrainingDay, TRAIN_DAILY } from '@/domain/plan/constraints';
-import { type PlannerInput } from '@/domain/plan/dayPlanner';
-import { extraSessionOptions, planCustom, selectCustom } from '@/domain/plan/extra';
-import type { SessionPlan } from '@/domain/plan/types';
-import { trainingDate } from '@/domain/time/trainingDate';
-import { loadPlanningSnapshot, type PlanningSnapshot } from '@/features/plan/planningSnapshot';
+import { planDayV2, type DayInputV2 } from '@/domain/plan/dayV2';
+import { checkText } from '@/domain/session/assessmentText';
 
-/**
- * What an extra session can be built from today, read from the same snapshot
- * the week and the coach's previews use — one way of assembling the engine's
- * input, so a preview and the check at start can only differ when the data did.
- */
-export function extraSessionState(s: PlanningSnapshot) {
-  const input: PlannerInput = { ...s.input, block: s.advance.block };
-  const { asOf } = input;
+/** Each option is assessed with the work already done today in the same engine input. */
+export function extraOptions(input: DayInputV2) {
+  return input.slots
+    .filter((s) => s.kind !== 'filler')
+    .map((slot) => {
+      const output = planDayV2({
+        ...input,
+        only: [{ slotId: slot.id }],
+        session: { ...input.session, kind: 'extra' },
+      });
+      const result = output.result;
+      const item =
+        result.kind === 'ready' || result.kind === 'adjusted'
+          ? (result.plan.exposures.find((e) => e.slotId === slot.id) ?? null)
+          : null;
+      const skip = output.skipped.find((s) => s.slotId === slot.id);
+      return {
+        slotId: slot.id,
+        item,
+        reason: skip?.reason ?? null,
+        explanation:
+          result.kind === 'no_feasible_plan' || result.kind === 'unsupported_input'
+            ? result.reasons.map((r) => checkText(r)).join(' ')
+            : null,
+      };
+    });
+}
+export function previewExtraSession(slotIds: readonly string[], now = new Date()): DayPreview {
+  return previewDay(
+    { sessionId: randomUUID(), kind: 'extra', only: slotIds.map((slotId) => ({ slotId })) },
+    now,
+  );
+}
+export async function loadExtraSession(now = new Date()) {
+  const context = loadWeekContext(now);
+  const preview = previewExtraSession([], now);
+  const inProgress = await findInProgressWorkout();
   return {
-    input,
-    options: extraSessionOptions(input),
-    done: s.input.trainedDates.has(asOf),
-    rest: !isTrainingDay(asOf, s.input.week ?? TRAIN_DAILY, s.input.constraints ?? []),
+    input: preview.input,
+    options: extraOptions(preview.input),
+    inProgress,
+    done: context.trainedDates.has(context.asOf),
+    rest: !isTrainingDay(context.asOf, context.week ?? TRAIN_DAILY, context.constraints ?? []),
   };
 }
-
-export async function loadExtraSession() {
-  const [snapshot, inProgress] = await Promise.all([
-    loadPlanningSnapshot(),
-    findInProgressWorkout(),
-  ]);
-  return { ...extraSessionState(snapshot), inProgress };
-}
-
 export class ExtraSessionChangedError extends Error {}
-
-/** A preview is never trusted at start: re-read every input and compare the resulting plan. */
-export async function startExtraSession(
-  slotIds: readonly string[],
-  preview: SessionPlan,
-  acceptedCoach?: { proposalId: string },
-): Promise<string> {
+export async function startExtraSession(preview: DayPreview): Promise<string> {
   const live = await loadExtraSession();
   if (live.inProgress) return live.inProgress.id;
-  const plan = planCustom(live.input, slotIds);
   if (
     !live.done ||
     live.rest ||
-    plan.exercises.length === 0 ||
-    JSON.stringify(plan) !== JSON.stringify(preview) ||
-    trainingDate(new Date(), await getDayBoundaryHour()) !== plan.date
-  ) {
+    live.input.asOf !== preview.asOf ||
+    preview.planHash === null ||
+    preview.request.kind !== 'extra' ||
+    !preview.request.only?.length
+  )
     throw new ExtraSessionChangedError();
-  }
-  const frozen = acceptedCoach
-    ? { ...plan, source: 'ai_accepted' as const, coachProposalId: acceptedCoach.proposalId }
-    : plan;
-  return startExtraWorkout(frozen, selectCustom(live.input, slotIds));
+  const result = acceptDay({
+    commandId: randomUUID(),
+    request: preview.request,
+    expectedPlanHash: preview.planHash,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
+  if (result.kind === 'storage_error') throw new Error(result.detail);
+  if (result.kind !== 'committed') throw new ExtraSessionChangedError();
+  return result.result.sessionId;
 }

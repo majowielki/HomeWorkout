@@ -26,10 +26,16 @@ silnik i tak znikają w tym etapie.
 
 ## 2. Gdzie jesteśmy
 
-Gałąź: **`refactor/engine-p6-activation`** (od `main` @ `3d5cb49`, P5 scalony). Ostatni commit: `f6e673a`
-(„P6 wip …”). Gałąź **nie jest scalona**; `tsc` ma jeszcze ~53 błędy w nieprzepisanych konsumentach (to jest
-oczekiwane — patrz §4), więc `npm run verify` jeszcze nie przechodzi.
+Gałąź: **`refactor/engine-p6-activation`**, nadal niescalona. Kontynuacja 2026-10-09: testy sesji domknięte w `01c2b67`; konsumenci „Dziś”, planu dnia, kalendarza, zakwasów, sesji dodatkowej i czatu przeniesieni na nowy silnik. `tsc --noEmit` przechodzi. Wdrożenie i pełne sprzątanie P6 pozostają otwarte.
 
+### Kontynuacja — stan aktualny
+
+- `features/plan/today.ts` / `usePlanToday`: `syncWeek` → świeży `previewDay` → transakcyjny `acceptDay`; konflikt odświeża podgląd, bez startu. Start zachowuje wybór ćwiczeń tygodnia (odczyt `kept` w transakcji); zmiana wyboru po podglądzie daje konflikt. Powtórne naciśnięcie startu nie wysyła drugiego polecenia.
+- `PlanHero`, `SessionHero`, `ExercisePreview`, „Dlaczego ten plan?”: ekspozycje i kroki skompilowanego planu; `traceText` oraz podsumowanie dnia. `PlanningFeedback` wyjaśnia audyt/naprawę, a brak legalnego planu nie jest przedstawiany jako dzień wolny. Bilans tygodnia pokazuje osobno pewne serie i serie bez potwierdzonego wysiłku. Regeneracja pochodzi z indeksu rzeczywistych ekspozycji.
+- Kalendarz czyta `planned_days_v2`; dawne sesje mają tytuł z minimalnych danych planu albo nazwę zastępczą. Szablony nie są już ładowane do ekranu „Dziś” ani kalendarza. Zakwasy odświeżają tydzień przez `weekPlanV2.syncWeek`.
+- Sesja dodatkowa: opcje z `planDayV2` na wspólnym bilansie dnia, podgląd przez `previewDay({kind:'extra', only})`, start przez `acceptDay`. Sprawdzane ukończenie dnia, dzień wolny, zmiana daty i konflikt recepty; błąd podglądu daje ponowny odczyt.
+- Czat korzysta wyłącznie z kontrolera `app-services/coach/proposalsV2`. Narzędzia sesji i symulacji podłączone do telefonu. Karta sesji ma polskie zdania `assessmentText`, stosuje oceniony patch w transakcji i wygasa po nowym poleceniu/pytaniu. Spóźniony wynik narzędzia nie tworzy karty dla nowej rozmowy. Odczyt jutra w `sessionChangeSource` korzysta z nowego tygodnia.
+- `closeSessionV2` oznacza główny dzień w nowym tygodniu; zamknięcie sesji dodatkowej nie zmienia tego statusu. Licznik historii pomija wyniki cofnięte. Usunięte: `computeToday`, dawny kontroler czatu i ich nieaktualne testy. `planningSnapshot` / `coachPreview` nadal są używane przez ewaluacje i czekają na ich migrację.
 ### Zrobione w P6 (commity `dc5038d`, `f6e673a`)
 
 Domena (100% pokrycia, testy zielone):
@@ -59,24 +65,13 @@ UI biegnącej sesji (przepisane na nowy silnik):
 - `features/plan/format.ts` przepisane na plan v2 (`dayTitle`, `planTitle`, `loadText`, `prescriptionText`, `workSetsOf`).
 - Test `useActiveSession.test.ts` przepisany (25 zielonych).
 
-Uwaga: pliki w `src/features/workout/__tests__/` poza `useActiveSession.test.ts` (**`SetLogger.test.tsx`,
-`SetLoggerClip.test.tsx`, `SubstituteModal.test.tsx`, `useSessionVoice.test.ts`, `GroupDoneCard.test.tsx`**) jeszcze
-opisują stare API i trzeba je przepisać.
+Testy sesji zostały przepisane i odebrane w `01c2b67`; `GroupDoneCard` zachował poprawny kontrakt. Patrz „Kontynuacja — stan aktualny”.
 
 ## 3. Co zostało (kolejność sugerowana)
 
-1. **Dokończyć testy ekranów sesji**: wyżej wymienione pięć plików; dodać testy `alternatives.ts` (SQLite lub mock),
-   `workoutTitle.ts`. `dayTitle(regions, kind?)` — `kind` ma być opcjonalny (stare plany bez `kind`; teraz błąd typu w `workoutTitle.ts`).
-2. **Dziś / plan dnia**: `usePlanToday` → `syncWeek`/`previewDay`/`acceptDay` (`weekPlanV2.ts`, `planningV2.ts`);
-   `computeToday.ts`, `planningSnapshot.ts`, `coachPreview.ts` do usunięcia; `PlanHero`, `SessionHero`,
-   `ExercisePreview`, `DayDoneCard`, `PlanChangeBanner` (używa `getUnseenChanges`/`markChangesSeen` z `weekPlanV2`),
-   `VolumeMeter`, `RideCard`, `app/(tabs)/index.tsx`, `app/plan/index.tsx` (powody z `decisionText`/`traceText`,
-   `StoredDayV2.summary` zamiast pól v1), `useSessionOverview` (bez szablonów). `startedPlanOn`/`runningPlanOn` już są.
-3. **Kalendarz** (`dayView`, `CalendarDaySheet`, `CalendarScreen`, `db/repositories/calendar.ts`), **zakwasy**
-   (`soreness/actions.ts`, `ReportScreen`), **sesja dodatkowa** (`features/extra/*` → `previewDay({kind:'extra', only})` + `acceptDay`).
-4. **Czat/AI**: `features/coach/chat/environment.ts`, `useCoachChat`, `ProposalCard` (karty z `assessmentText`),
-   kontroler `app-services/coach/proposalsV2.ts` jako jedyny; narzędzia plan/sesja/symulacja już są po stronie v2.
-   `src/db/repositories/sessionChangeSource.ts` czyta `tomorrow` z **v1 `planned_days`** — przepiąć na `planned_days_v2`.
+Punkty 1–4 poprzedniej listy (testy sesji oraz konsumenci UI/czatu) wykonane — szczegóły powyżej.
+
+Przed usuwaniem domeny trzeba jeszcze przepisać **ewaluacje i syntetyczny planner** (`evals/chat/planning.ts`, `src/ai/testing/plan.ts`) na obecny silnik oraz usunąć fallback v1 z `ai/tools/implementations.ts`. `session/effects.ts` nadal używa `dayPlanner.checkSelection` do oceny jutra; źródło danych jest już nowe, ale ten wspólny strażnik wymaga przeniesienia/przepisania przed usunięciem starego plannera. Część skryptów SQLite wciąż testuje dawne repozytoria: zachować dowody odczytu i backupu starych danych, usunąć testy tworzenia sesji/tygodnia v1 wraz z martwym API. Obsługę dawnych sesji `in_progress` przy aktywacji należy sprawdzić przy sprzątaniu i migracji (bez kasowania historii).
 5. **Usunięcie starego silnika** (po przepięciu wszystkich konsumentów; do znalezienia martwego kodu użyć skryptu
    osiągalności od `app/**`, `worker/src/**`, `scripts/validate-data.ts` — graf importów jest w scratchpadzie sesji,
    łatwo napisać od nowa): `domain/plan/{dayPlanner,week,weekSync,block,blockVariant,compose,validatePlan,simulate,today,
@@ -121,7 +116,10 @@ opisują stare API i trzeba je przepisać.
 
 ```bash
 cd /d/Projekty/HomeWorkout/HomeWorkout-main
-git status --short && git log --oneline | head -5      # gałąź refactor/engine-p6-activation, ostatni f6e673a
-npx tsc --noEmit 2>&1 | grep -v "^ " | head -60        # lista konsumentów jeszcze na starym silniku
+git status --short && git log --oneline | head -5      # gałąź refactor/engine-p6-activation, bieżący stan: git log -5
+npx tsc --noEmit 2>&1 | grep -v "^ " | head -60        # typecheck ma przechodzić; martwy kod znaleźć przez graf importów
 npx jest src/domain/__tests__/progress.test.ts src/domain/__tests__/setEntry.test.ts src/features/workout/__tests__/useActiveSession.test.ts
 ```
+
+
+Odbiór kontynuacji: `npm run verify` — 187 zestawów / 4129 testów / 9 snapshotów, pokrycie domeny i AI 100%; Worker 5 zestawów / 143 testy. Test emulatora i wdrożenie pozostają po sprzątaniu P6.

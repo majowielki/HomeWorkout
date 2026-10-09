@@ -53,7 +53,7 @@ export interface ToolEnvironment {
    */
   load(days: number): Promise<CoachSource>;
   /** The plan for the day `daysAgo` days before today, or null when that day has none. */
-  plan(daysAgo: number): Promise<PlanLookup | null>;
+  plan?(daysAgo: number): Promise<PlanLookup | null>;
   week?(): Promise<ToolOutput<'getWeekPlan'> | ToolError>;
   proposeChange?(
     input: ToolInput<'proposePlanChange'>,
@@ -248,7 +248,7 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
 
   async getPlanExplanation({ daysAgo }, env) {
     if (env.explainPlan) return env.explainPlan({ daysAgo });
-    const found = await env.plan(daysAgo);
+    const found = env.plan ? await env.plan(daysAgo) : null;
     if (!found) return { error: 'no_plan' };
     const source = await env.load(1);
     const ref = (id: string) => ({ id, name: nameOf(source, id) });

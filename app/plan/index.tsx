@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
 import { RefreshCw } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
+import { traceText } from '@/domain/progression/decisionText';
+import { labelsOf } from '@/domain/session/progress';
 import { TRAINING_CONFIG } from '@/domain/config/training';
 import { planTitle, prescriptionText } from '@/features/plan/format';
 import { SLOT_BY_ID } from '@/features/plan/slots';
 import { usePlanToday } from '@/features/plan/usePlanToday';
 import { VolumeMeter } from '@/features/plan/VolumeMeter';
+import { PlanningFeedback } from '@/features/plan/PlanningFeedback';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
 import { addDays } from '@/domain/time/trainingDate';
 import { formatDate } from '@/lib/format';
@@ -53,7 +56,7 @@ export default function PlanScreen() {
     : state.done
       ? (state.tomorrow ?? upcoming)
       : (state.plan ?? upcoming);
-  const isToday = plan?.date === state.asOf;
+  const isToday = plan?.trainingDate === state.asOf;
   if (!plan) {
     return (
       <ScrollView
@@ -71,17 +74,29 @@ export default function PlanScreen() {
   }
   const events = isToday ? state.events : [];
   const { volume } = state;
+  const summary = isToday
+    ? state.summary
+    : state.week.find((d) => d.date === plan.trainingDate)?.summary;
+  const labels = labelsOf(plan);
+  const textOf = (dict: Readonly<Record<string, string>>, code: string) => dict[code] ?? '';
+  const bike = isToday
+    ? state.bike
+    : {
+        minutes: summary?.bike?.minutes ?? 0,
+        resistance: null,
+        reasons: summary?.bike?.reasons ?? [],
+      };
   const screenTitle = isToday
     ? pl.plan.screenTitle
-    : plan.date === addDays(state.asOf, 1)
+    : plan.trainingDate === addDays(state.asOf, 1)
       ? pl.plan.tomorrowScreenTitle
       : pl.plan.nextScreenTitle;
   const nameOf = (id: string | null) => (id ? (exerciseMap[id]?.name ?? id) : '—');
   const dayLines = [
     ...events.map((e) => pl.plan.blockEvent[e]),
-    ...plan.dayReasons.map((r) => pl.plan.day[r]),
-    ...plan.signals.map((s) => pl.plan.signal[s]),
-    ...(plan.phase === 'deload' ? [pl.plan.deloadNote] : []),
+    ...(summary?.dayReasons ?? []).map((r) => textOf(pl.plan.day, r)),
+    ...(summary?.signals ?? []).map((s) => textOf(pl.plan.signal, s)),
+    ...(summary?.phase === 'deload' ? [pl.plan.deloadNote] : []),
   ];
 
   return (
@@ -91,9 +106,10 @@ export default function PlanScreen() {
       <View className="gap-1">
         <Text variant="title">{planTitle(plan)}</Text>
         <Text variant="muted">
-          {formatDate(plan.date)} · {pl.plan.meta(plan.estimatedMinutes)}
+          {formatDate(plan.trainingDate)} · {pl.plan.meta(Math.ceil(plan.time.exerciseTotal / 60))}
         </Text>
       </View>
+      {isToday ? <PlanningFeedback result={state.preview.output.result} /> : null}
 
       {dayLines.length > 0 ? (
         <Card className="gap-2">
@@ -108,53 +124,42 @@ export default function PlanScreen() {
 
       <Card className="gap-2">
         <CardTitle>{pl.plan.sections.bike}</CardTitle>
-        <Text>{pl.plan.bikeLine(plan.bike.minutes, plan.bike.resistance)}</Text>
-        {plan.bike.reasons.map((r) => (
+        <Text>{pl.plan.bikeLine(bike.minutes, bike.resistance)}</Text>
+        {bike.reasons.map((r) => (
           <Text key={r} variant="muted">
-            {pl.plan.bike[r]}
+            {textOf(pl.plan.bike, r)}
           </Text>
         ))}
       </Card>
 
       <Card className="gap-4">
         <CardTitle>{pl.plan.sections.exercises}</CardTitle>
-        {plan.exercises.map((e) => (
-          <View key={`${e.label}-${e.exerciseId}`} className="gap-1">
+        {plan.exposures.map((e, i) => (
+          <View key={e.id} className="gap-1">
             <Text className="font-display-semibold">
-              {e.label} · {nameOf(e.exerciseId)}
+              {labels[i]} · {nameOf(e.exercise.id)}
             </Text>
             <Text variant="muted" className="text-sm">
               {prescriptionText(e)}
             </Text>
-            {e.reasons.map((r) => (
-              <Text key={r} className="text-sm leading-5">
-                {pl.plan.progression[r]}
+            {traceText(e.trace).map((line) => (
+              <Text key={line} className="text-sm leading-5">
+                {line}
               </Text>
             ))}
           </View>
         ))}
       </Card>
 
-      {plan.skipped.length > 0 ? (
+      {(summary?.skipped.length ?? 0) > 0 ? (
         <Card className="gap-2">
           <CardTitle>{pl.plan.sections.skipped}</CardTitle>
-          {plan.skipped.map((s) => (
+          {summary?.skipped.map((s) => (
             <Text key={s.slotId} className="text-sm leading-5">
               <Text className="font-display-semibold text-sm">
                 {SLOT_BY_ID.get(s.slotId)?.name ?? s.slotId}
               </Text>
-              {s.exerciseId ? ` (${nameOf(s.exerciseId)})` : ''}: {pl.plan.skip[s.reason]}
-            </Text>
-          ))}
-        </Card>
-      ) : null}
-
-      {plan.adjustments.length > 0 ? (
-        <Card className="gap-2">
-          <CardTitle>{pl.plan.sections.changes}</CardTitle>
-          {plan.adjustments.map((a, i) => (
-            <Text key={`${a.exerciseId}-${a.code}-${i}`} className="text-sm">
-              {nameOf(a.exerciseId)}: {pl.plan.validation[a.code]}
+              {s.exerciseId ? ` (${nameOf(s.exerciseId)})` : ''}: {textOf(pl.plan.skip, s.reason)}
             </Text>
           ))}
         </Card>

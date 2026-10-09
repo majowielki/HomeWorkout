@@ -46,6 +46,92 @@ function trainToday() {
 
 const CASES = [
   [
+    'the chat controller exposes a session card and applies its assessed patch only after acceptance',
+    async () => {
+      await seeded();
+      syncWeek({}, at(9));
+      const shown = previewDay({ sessionId: 'live' }, at(9));
+      const started = acceptDay(
+        {
+          commandId: 'start-live',
+          request: shown.request,
+          expectedPlanHash: shown.planHash,
+          timeZone: null,
+        },
+        at(9),
+      );
+      assert.equal(started.kind, 'committed');
+      const c = controller();
+      c.beginTurn('Pomiń resztę pierwszego ćwiczenia', '2026-10-05');
+      assert.equal((await c.tools.activeSession()).sessionId, 'live');
+      const assessed = await c.tools.assessChange({
+        kind: 'skip_remaining',
+        exposureId: shown.output.result.plan.exposures[0].id,
+      });
+      const proposed = await c.tools.proposeSessionChange({
+        assessmentId: assessed.assessmentId,
+        patchId: assessed.patchId,
+      });
+      assert.equal(proposed.kind, 'session_change');
+      const card = c.resolve(proposed.proposalId);
+      assert.equal(card.summary.kind, 'session_change');
+      assert.ok(card.summary.sentences.length > 0);
+      assert.equal(all('SELECT * FROM set_dispositions').length, 0);
+      assert.equal((await c.apply(proposed.proposalId)).workoutId, 'live');
+      assert.ok(all('SELECT * FROM set_dispositions').length > 0);
+      assert.equal(c.resolve(proposed.proposalId), null);
+    },
+  ],
+  [
+    'a session card becomes stale after another command, and old assessments expire on a new question',
+    async () => {
+      await seeded();
+      const shown = previewDay({ sessionId: 'live' }, at(9));
+      acceptDay(
+        {
+          commandId: 'start-live',
+          request: shown.request,
+          expectedPlanHash: shown.planHash,
+          timeZone: null,
+        },
+        at(9),
+      );
+      const c = controller();
+      c.beginTurn('Pomiń ćwiczenie', '2026-10-05');
+      const exposure = shown.output.result.plan.exposures[0];
+      const assessed = await c.tools.assessChange({
+        kind: 'skip_remaining',
+        exposureId: exposure.id,
+      });
+      const intent = { assessmentId: assessed.assessmentId, patchId: assessed.patchId };
+      const proposed = await c.tools.proposeSessionChange(intent);
+      const { skipSetsV2: skipSets } = require('../repositories/sessionsV2.ts');
+      assert.equal(
+        skipSets(
+          {
+            commandId: 'skip-one',
+            sessionId: 'live',
+            plannedSetIds: [exposure.sets[0].id],
+            expectedSessionRevision: 1,
+          },
+          at(9, 2),
+        ).kind,
+        'committed',
+      );
+      await assert.rejects(c.apply(proposed.proposalId), ProposalChangedError);
+      c.beginTurn('Nowe pytanie', '2026-10-05');
+      assert.equal(c.resolve(proposed.proposalId), null);
+      assert.deepEqual(await c.tools.proposeSessionChange(intent), { error: 'stale_assessment' });
+      const fresh = await c.tools.assessChange({ kind: 'skip_remaining', exposureId: exposure.id });
+      const delayed = c.tools.proposeSessionChange({
+        assessmentId: fresh.assessmentId,
+        patchId: fresh.patchId,
+      });
+      c.beginTurn('Jeszcze inne pytanie', '2026-10-05');
+      assert.deepEqual(await delayed, { error: 'failed' });
+    },
+  ],
+  [
     'a request for a rest day is previewed, applied once, and the week is planned with it',
     async () => {
       await seeded();

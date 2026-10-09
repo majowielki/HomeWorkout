@@ -8,7 +8,7 @@ import { maxDirectSets } from '@/domain/volume/weekly';
 import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
-type Props = { volume: Record<MuscleGroup, number> };
+type Props = { volume: Record<MuscleGroup, { certain: number; uncertain: number }> };
 
 /**
  * Direct working sets per muscle over the last 7 days against the range
@@ -21,7 +21,8 @@ export function VolumeMeter({ volume }: Props) {
     <View className="gap-2.5">
       {MUSCLE_GROUPS.map((m) => {
         const max = maxDirectSets(m);
-        const sets = volume[m];
+        const work = volume[m];
+        const sets = work.certain;
         const share = Math.min(1, sets / max);
         const tone =
           sets < min ? 'bg-muted-foreground/40' : sets >= max ? 'bg-highlight' : 'bg-primary';
@@ -31,6 +32,7 @@ export function VolumeMeter({ volume }: Props) {
               <Text className="text-sm">{pl.labels.muscle[m]}</Text>
               <Text variant="muted" className="text-xs tabular-nums">
                 {pl.plan.volumeValue(sets, max)}
+                {work.uncertain > 0 ? ` + ${work.uncertain} ${pl.plan.uncertainSets}` : ''}
               </Text>
             </View>
             <View className="h-1.5 overflow-hidden rounded-full bg-secondary">

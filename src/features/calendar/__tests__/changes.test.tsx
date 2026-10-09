@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import { PlanChangeBanner } from '@/features/plan/PlanChangeBanner';
-import type { PlanBanner } from '@/db/repositories/weekPlan';
+import type { PlanBannerV2 } from '@/db/repositories/weekPlanV2';
 import { formatDate } from '@/lib/format';
 
 it('shows every changed date in calendar details and can dismiss the generation', async () => {
   const onClose = jest.fn();
-  const banner: PlanBanner = {
+  const banner: PlanBannerV2 = {
     id: 'generation',
     trigger: 'constraint',
     createdAt: '2026-10-07T10:00:00Z',

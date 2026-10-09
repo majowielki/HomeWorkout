@@ -10,6 +10,7 @@
  * rebuild of what the person looked at.
  */
 import { fingerprint } from '@/domain/fingerprint';
+import { eq } from 'drizzle-orm';
 import type { CommandResult } from '@/domain/commands/result';
 import type { BlockAdvance } from '@/domain/plan/block';
 import { blockContextV2 } from '@/domain/plan/blockContext';
@@ -19,6 +20,7 @@ import type { PlanIntent } from '@/domain/policy/dayPolicy';
 import { planVersions } from '@/domain/plan/versions';
 import { trainingDate } from '@/domain/time/trainingDate';
 import { db, type Tx } from '../client';
+import { plannedDaysV2 } from '../schema';
 import { bumpRevision } from './ledger';
 import { readDayBoundaryHour, readPlanningInputs } from './planningInputs';
 import { sessionCommandStore, startSessionIn } from './sessionsV2';
@@ -68,7 +70,17 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
       deloadRequested: req.deloadRequested ?? false,
     }),
   );
-  const inputs = { ...common, block: advance.block, request: req };
+  const kept =
+    (req.kind ?? 'main') === 'main' &&
+    req.only === undefined &&
+    (req.intent === undefined || req.intent === 'auto_day')
+      ? (tx
+          .select({ selection: plannedDaysV2.selection })
+          .from(plannedDaysV2)
+          .where(eq(plannedDaysV2.date, asOf))
+          .get()?.selection ?? undefined)
+      : undefined;
+  const inputs = { ...common, block: advance.block, request: req, kept: kept ?? null };
   const snapshot = fingerprint(inputs);
   const input: DayInputV2 = {
     asOf,
@@ -87,6 +99,7 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
     answers: common.answers,
     ...(req.only === undefined ? {} : { only: req.only }),
     ...(req.acknowledged === undefined ? {} : { acknowledged: req.acknowledged }),
+    ...(kept === undefined ? {} : { kept }),
     session: {
       sessionId: req.sessionId,
       planRevision: 1,

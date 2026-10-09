@@ -4,7 +4,7 @@ import type { ToolName } from '@/ai/contract/chatTools';
 import { pl } from '@/strings/pl';
 
 import { describeTurnFailure } from './turnErrors';
-import type { ProposalStatus, ProposalView } from './proposals';
+import type { ProposalStatus, ProposalView } from '@/app-services/coach/proposalsV2';
 
 export type Entry =
   | { id: string; kind: 'proposal'; proposal: ProposalView; status: ProposalStatus }

@@ -1,12 +1,14 @@
 import { View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
-import type { Exercise, TemplateBlock } from '@/domain/types';
+import type { Exercise } from '@/domain/types';
+import type { SessionPlanV2 } from '@/domain/plan/planV2';
+import { labelsOf } from '@/domain/session/progress';
 import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
 
 type Props = {
-  blocks: readonly TemplateBlock[];
+  plan: SessionPlanV2;
   exerciseMap: Record<string, Exercise>;
   /** How many exercise pills to show before collapsing the rest into "+N". */
   max?: number;
@@ -14,10 +16,11 @@ type Props = {
   onInverse?: boolean;
 };
 
-/** A template's exercises as a wrap of small pills: "A1 Przysiad goblet", ... "+3". */
-export function ExercisePreview({ blocks, exerciseMap, max = 4, onInverse }: Props) {
-  const shown = blocks.slice(0, max);
-  const rest = blocks.length - shown.length;
+/** The plan's exercises as a wrap of small pills: "A1 Przysiad goblet", ... "+3". */
+export function ExercisePreview({ plan, exerciseMap, max = 4, onInverse }: Props) {
+  const shown = plan.exposures.slice(0, max);
+  const labels = labelsOf(plan);
+  const rest = plan.exposures.length - shown.length;
   const pill = cn(
     'flex-row items-center gap-1.5 rounded-full px-3 py-1.5',
     onInverse ? 'bg-inverse-foreground/10' : 'bg-secondary',
@@ -31,10 +34,10 @@ export function ExercisePreview({ blocks, exerciseMap, max = 4, onInverse }: Pro
   return (
     <View className="flex-row flex-wrap gap-1.5">
       {shown.map((block, i) => (
-        <View key={`${block.label}-${i}`} className={pill}>
-          <Text className={tag}>{block.label}</Text>
+        <View key={block.id} className={pill}>
+          <Text className={tag}>{labels[i]}</Text>
           <Text className={label} numberOfLines={1}>
-            {exerciseMap[block.exerciseId]?.name ?? block.exerciseId}
+            {exerciseMap[block.exercise.id]?.name ?? block.exercise.displayName}
           </Text>
         </View>
       ))}

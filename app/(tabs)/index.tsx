@@ -18,7 +18,7 @@ import { getDailyLog } from '@/db/repositories/dailyLogs';
 import { round1, summarizeWeight } from '@/domain/metrics/series';
 import { addDays, toIsoDate } from '@/domain/time/trainingDate';
 import { WeightTrendBadge } from '@/features/body/WeightTrendBadge';
-import { planTitle } from '@/features/plan/format';
+import { workoutTitle } from '@/features/history/workoutTitle';
 import { PlanHero } from '@/features/plan/PlanHero';
 import { RideCard } from '@/features/plan/RideCard';
 import { usePlanToday } from '@/features/plan/usePlanToday';
@@ -120,10 +120,7 @@ export default function TodayScreen() {
     );
   }
 
-  const { inProgress, templates } = session.data;
-  const inProgressTemplate = inProgress
-    ? templates.find((t) => t.id === inProgress.templateId)
-    : undefined;
+  const { inProgress } = session.data;
 
   return (
     <View className="flex-1 bg-background">
@@ -137,9 +134,9 @@ export default function TodayScreen() {
         {inProgress ? (
           <SessionHero
             eyebrow={pl.today.inProgressEyebrow}
-            title={inProgress.plan ? planTitle(inProgress.plan) : (inProgressTemplate?.name ?? '')}
+            title={workoutTitle(inProgress)}
             badge={pl.history.status.in_progress}
-            blocks={inProgress.plan?.exercises ?? inProgressTemplate?.blocks}
+            plan={inProgress.planV2 ?? undefined}
             exerciseMap={exerciseMap}
           >
             <Button

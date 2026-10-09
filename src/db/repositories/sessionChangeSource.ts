@@ -7,7 +7,8 @@ import { addDays } from '@/domain/time/trainingDate';
 import type { SessionPlanV2 } from '@/domain/plan/planV2';
 import type { SessionChangeSnapshot } from '@/domain/session/types';
 import { db, type Executor } from '../client';
-import { plannedDays, trainingBlocks, workouts } from '../schema';
+import { plannedDaysV2, trainingBlocks, workouts } from '../schema';
+import { DAY_REASONS, type DayReason } from '@/domain/plan/reasons';
 import { readPlanningInputs } from './planningInputs';
 
 const lexicon = movementLexiconSchema.parse(lexiconJson);
@@ -16,6 +17,11 @@ export function readSessionChangeSource(tx: Executor, plan: SessionPlanV2) {
   const asOf = plan.trainingDate;
   const { common, history, catalogVersion } = readPlanningInputs(tx, asOf);
   const block = tx.select().from(trainingBlocks).where(isNull(trainingBlocks.closedOn)).get();
+  const tomorrow = tx
+    .select()
+    .from(plannedDaysV2)
+    .where(eq(plannedDaysV2.date, addDays(asOf, 1)))
+    .get();
   const inputs = {
     ...common,
     lexicon,
@@ -40,11 +46,18 @@ export function readSessionChangeSource(tx: Executor, plan: SessionPlanV2) {
             selections: block.selections,
           },
     tomorrow:
-      tx
-        .select()
-        .from(plannedDays)
-        .where(and(eq(plannedDays.date, addDays(asOf, 1)), eq(plannedDays.seq, 1)))
-        .get()?.selection ?? null,
+      tomorrow?.selection == null
+        ? null
+        : {
+            date: tomorrow.date,
+            blockIndex: tomorrow.summary?.blockIndex ?? block?.blockIndex ?? 1,
+            phase: tomorrow.summary?.phase ?? 'work',
+            items: tomorrow.selection.map((item) => ({ ...item, role: 'work' as const })),
+            skipped: [],
+            dayReasons: (tomorrow.summary?.dayReasons ?? []).filter((code): code is DayReason =>
+              (DAY_REASONS as readonly string[]).includes(code),
+            ),
+          },
   };
   const snapshotFingerprint = fingerprint(inputs);
   const snap: SessionChangeSnapshot = {

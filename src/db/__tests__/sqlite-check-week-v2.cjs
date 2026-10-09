@@ -102,7 +102,11 @@ const CASES = [
       trainOn(5);
       const next = week.syncWeek({}, at(6));
       assert.equal(next.result.from, '2026-10-06');
-      assert.deepEqual(next.result.statusUpdates, [{ date: '2026-10-05', status: 'done' }]);
+      assert.deepEqual(
+        next.result.statusUpdates,
+        [],
+        'closing the session has already marked its day done',
+      );
       const rows = days();
       assert.equal(rows[0].status, 'done');
       assert.equal(rows.length, 8);

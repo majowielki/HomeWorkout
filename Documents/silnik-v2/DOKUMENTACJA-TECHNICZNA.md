@@ -699,3 +699,14 @@ Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zap
 ### P6 — odbiór testów biegnącej sesji (2026-10-09)
 
 Testy komponentów loggera korzystają z `SessionStep` skompilowanego z recepty. Sprawdzają `LoggedEntry`, w tym kanał i potwierdzenia pól, zamiast dawnych wierszy `set_logs`. `alternatives.test.ts` używa rzeczywistego rankera z fixture domeny i mockuje granicę bazy: sprawdza rewizje, akceptację patcha i zapis wyboru na blok wyłącznie po udanej zmianie sesji. Testy karty zamiennika sprawdzają osobny podgląd i jawny przycisk akceptacji. `useSessionVoice` przekazuje odczyt loggera; cofnięcie pominięcia otrzymuje całe polecenie z identyfikatorami serii.
+### P6 — aktywacja konsumentów planowania i czatu (2026-10-09)
+
+`features/plan/today.ts` odświeża tydzień w SQLite, pobiera kontekst rzeczywistej historii i tworzy `DayPreview`. `usePlanToday` przekazuje do `acceptDay` żądanie i hash dokładnie tego podglądu. `planDayIn` odczytuje utrzymany wybór dzisiejszego dnia z `planned_days_v2` w tej samej transakcji; uwzględnia go w odcisku wejść i przelicza receptę. Zmiana wyboru albo historii po podglądzie zatrzymuje start. Powtórne naciśnięcie startu po udanej akceptacji nie generuje kolejnego polecenia.
+
+Ekrany prezentują ekspozycje i etykiety wyprowadzone z kroków wykonania. `DaySummaryV2` niesie informacje dnia i bloku; `traceText` opisuje receptę, `checkText` opisuje audyt. Kalendarz czyta nowy tydzień, a rzeczywiste sesje i dawne serie pozostają historią. Bilans tygodnia pochodzi z `buildHistoryIndex`/`weekWork`: pewne serie są oddzielone od niepewnych. Zakończenie głównej sesji oznacza dzień w nowym tygodniu; zakończenie dodatkowej nie zmienia tego statusu. Licznik listy historii pomija tombstones.
+
+Dodatkowy trening korzysta z tego samego czytnika wejść i plannera. Opcja jednego ruchu oraz połączony podgląd uwzględniają pracę wykonaną w głównej sesji. Dopiero `acceptDay` zapisuje sesję. Ekran obsługuje konflikt, zmianę daty i błąd podglądu przez ponowny odczyt.
+
+Czat używa `app-services/coach/proposalsV2` dla tygodnia, dnia, sesji dodatkowej i zmiany trwającego treningu. Narzędzia sesji zachowują ocenę tylko w obrębie pytania; nowa rozmowa/pytanie czyści karty i oceny. `assessmentText` dostarcza tekst karty, `applySessionChange` ponownie ocenia patch w transakcji po akceptacji użytkownika. Zmiana rewizji daje kartę nieaktualną, a spóźniony wynik narzędzia jest odrzucany. Symulacja i wyjaśnienie planu mają świeże czytniki SQLite. Źródło jutra konsultacji czyta `planned_days_v2`.
+
+Pozostałe adaptery testowe, ewaluacje, strażnik wyboru jutra i dawne repozytoria wymagają jeszcze sprzątania; aktywacja konsumentów nie jest zamknięciem całego P6.

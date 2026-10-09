@@ -895,9 +895,11 @@ const CASES = [
         (await setRepo.getSetsForWorkout('s1')).map((r) => r.id),
         ['obs-c2'],
       );
-      assert.equal(await setRepo.countWorkingSets('s1'), 1);
-      assert.equal((await setRepo.getLoggedStepKeys('s1')).size, 1);
-      assert.equal((await setRepo.getLastSetForExercise('one-arm-db-row')).id, 'obs-c2');
+      const state = sessions.readSessionState('s1');
+      assert.equal(state.results.size, 1);
+      assert.equal(state.results.get(SETS[1]).id, 'obs-c2');
+      const { listWorkouts } = require('../repositories/workouts.ts');
+      assert.equal((await listWorkouts()).find((w) => w.id === 's1').workingSets, 1);
       const source = await plannerSource.loadPlannerSource(new Date('2026-10-10T12:00:00'));
       assert.equal(source.sessions[0].sets.length, 1);
       const coach = await coachSource.loadCoachSource(new Date('2026-10-10T12:00:00Z'));
