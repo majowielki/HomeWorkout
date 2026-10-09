@@ -736,6 +736,48 @@ const CASES = [
     },
   ],
   [
+    'taking a band result back or correcting it takes its wear off again (DAT-06)',
+    async () => {
+      const plan = legalPlan();
+      const bandSpec = {
+        schemaVersion: 1,
+        modelId: 'band.long',
+        equipmentInstanceIds: ['band:red'],
+        configurationKey: '',
+        value: {
+          kind: 'band_position',
+          bandId: 'red',
+          positionId: 'P1',
+          geometryRevision: 'anchor-30cm-v1',
+        },
+      };
+      plan.exposures[0].sets = plan.exposures[0].sets.map((s) => ({ ...s, resistance: bandSpec }));
+      await started(plan);
+      const base = legalObservation();
+      const wear = () => rows('bands', "WHERE id = 'red'")[0].cycle_count;
+      const logged = sessions.logSet(
+        logCommand('w1', SETS[0], 1, { resistance: { ...base.resistance, value: bandSpec } }),
+        at(1),
+      );
+      assert.equal(logged.kind, 'committed');
+      assert.equal(wear(), 12);
+      const corrected = sessions.updateSet(
+        {
+          commandId: 'w-fix',
+          sessionId: 's1',
+          observationId: 'obs-w1',
+          expectedObservationRevision: 1,
+          patch: { amount: { ...base.amount, value: { kind: 'reps', reps: 14 } } },
+        },
+        at(2),
+      );
+      assert.equal(corrected.kind, 'committed', JSON.stringify(corrected));
+      assert.equal(wear(), 14);
+      sessions.undoSet({ commandId: 'w-undo', sessionId: 's1', observationId: 'obs-w1' }, at(3));
+      assert.equal(wear(), 0);
+    },
+  ],
+  [
     'a result taken back is no set to any of historical sessions’s readers',
     async () => {
       await started();
@@ -903,6 +945,38 @@ const CASES = [
       // The commands of the replaced history mean nothing to the restored one.
       assert.equal(rows('command_ledger').length, 0);
       assert.equal(rows('workouts')[0].plan_schema, 2);
+    },
+  ],
+  [
+    'a command id of another kind or another session is refused, not answered as a repeat (DAT-03)',
+    async () => {
+      await seeded();
+      sessions.startSession({ commandId: 'start', plan: legalPlan(), timeZone: null }, NOW);
+      const skip = (commandId, sessionId = 's1') =>
+        sessions.skipSets(
+          {
+            commandId,
+            sessionId,
+            plannedSetIds: [SETS[0]],
+            reason: 'user_skipped',
+            expectedSessionRevision: 1,
+          },
+          at(1),
+        );
+      const wrongKind = skip('start');
+      assert.equal(wrongKind.kind, 'rejected', JSON.stringify(wrongKind));
+      assert.equal(wrongKind.code, 'INVALID_COMMAND');
+      assert.equal(all('SELECT * FROM set_dispositions').length, 0);
+      // The same kind for the same session is a repeat; for another session it is a mistake.
+      assert.equal(skip('skip-1').kind, 'committed');
+      assert.equal(skip('skip-1').kind, 'already_committed');
+      assert.equal(skip('skip-1', 'elsewhere').kind, 'rejected');
+      // A start repeated with its own id still answers with the stored session.
+      assert.equal(
+        sessions.startSession({ commandId: 'start', plan: legalPlan(), timeZone: null }, at(2))
+          .kind,
+        'already_committed',
+      );
     },
   ],
 ];

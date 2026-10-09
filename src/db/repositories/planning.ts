@@ -154,7 +154,10 @@ export function acceptDay(
   now: Date = new Date(),
 ): CommandResult<{ sessionId: string }> {
   return sessionCommandStore.transact(cmd.commandId, (tx) => {
-    const again = sessionCommandStore.replay<{ sessionId: string }>(tx, cmd.commandId);
+    const again = sessionCommandStore.replay<{ sessionId: string }>(tx, cmd.commandId, {
+      kind: 'start_session',
+      sessionId: cmd.request.sessionId,
+    });
     if (again) return again;
     const day = planDayIn(tx, cmd.request, now);
     const result = day.output.result;

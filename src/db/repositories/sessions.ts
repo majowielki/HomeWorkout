@@ -63,10 +63,25 @@ function transact<T>(commandId: string, run: (tx: Tx) => CommandResult<T>): Comm
   }
 }
 
-/** The answer a command already gave, when it was given before. */
-function replay<T>(tx: Tx, commandId: string): CommandResult<T> | null {
+/**
+ * The answer a command already gave, when it was given before. A command id that the ledger holds
+ * for another kind of command, or another session, is a mistake and not a repeat: answering it with
+ * the stored result would tell the caller that something was done which was not.
+ */
+function replay<T>(
+  tx: Tx,
+  commandId: string,
+  expect?: { kind: string; sessionId: string },
+): CommandResult<T> | null {
   const known = findCommand(tx, commandId);
   if (known === null) return null;
+  if (expect && (known.kind !== expect.kind || known.workoutId !== expect.sessionId)) {
+    return {
+      kind: 'rejected',
+      code: 'INVALID_COMMAND',
+      detail: 'command id belongs to another operation',
+    };
+  }
   const stored = known.result as Stored<T>;
   return {
     kind: 'already_committed',
@@ -123,6 +138,15 @@ function sessionFor(
     };
   }
   return { ok: true, workout, plan: workout.sessionPlan };
+}
+
+/** The stretches a band was put through: added for a result, taken off again when it is taken back or corrected. */
+function addBandWear(tx: Tx, bandId: string | null, reps: number | null): void {
+  if (bandId === null || !reps) return;
+  tx.update(bands)
+    .set({ cycleCount: sql`max(0, ${bands.cycleCount} + ${reps})` })
+    .where(eq(bands.id, bandId))
+    .run();
 }
 
 const raiseSession = (tx: Tx, sessionId: string): void => {
@@ -326,7 +350,10 @@ export function startSession(
   now: Date = new Date(),
 ): CommandResult<{ sessionId: string }> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<{ sessionId: string }>(tx, cmd.commandId);
+    const again = replay<{ sessionId: string }>(tx, cmd.commandId, {
+      kind: 'start_session',
+      sessionId: cmd.plan.sessionId,
+    });
     if (again) return again;
     return startSessionIn(tx, cmd, now);
   });
@@ -363,7 +390,10 @@ export interface LoggedSet {
  */
 export function logSet(cmd: LogSetCommand, now: Date = new Date()): CommandResult<LoggedSet> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<LoggedSet>(tx, cmd.commandId);
+    const again = replay<LoggedSet>(tx, cmd.commandId, {
+      kind: 'log_set',
+      sessionId: cmd.sessionId,
+    });
     if (again) {
       // The result this command wrote may have been taken back since: it is not there to return.
       const written = tx.select().from(setLogs).where(eq(setLogs.commandId, cmd.commandId)).get();
@@ -512,12 +542,7 @@ export function logSet(cmd: LogSetCommand, now: Date = new Date()): CommandResul
         .run();
     }
     // The wear of a band, once for each new result and never for a retry (02 §6, step 5).
-    if (columns.bandId !== null && columns.reps) {
-      tx.update(bands)
-        .set({ cycleCount: sql`${bands.cycleCount} + ${columns.reps}` })
-        .where(eq(bands.id, columns.bandId))
-        .run();
-    }
+    addBandWear(tx, columns.bandId, columns.reps);
     touch(tx, cmd.sessionId);
     return commit(
       tx,
@@ -544,7 +569,10 @@ export function skipSets(
   now: Date = new Date(),
 ): CommandResult<{ skipped: string[] }> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<{ skipped: string[] }>(tx, cmd.commandId);
+    const again = replay<{ skipped: string[] }>(tx, cmd.commandId, {
+      kind: 'skip_sets',
+      sessionId: cmd.sessionId,
+    });
     if (again) return again;
     const found = sessionFor(tx, cmd.sessionId, true);
     if (!found.ok) return found.result;
@@ -621,7 +649,10 @@ export function reopenSets(
   now: Date = new Date(),
 ): CommandResult<{ reopened: string[] }> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<{ reopened: string[] }>(tx, cmd.commandId);
+    const again = replay<{ reopened: string[] }>(tx, cmd.commandId, {
+      kind: 'reopen_sets',
+      sessionId: cmd.sessionId,
+    });
     if (again) return again;
     const found = sessionFor(tx, cmd.sessionId, true);
     if (!found.ok) return found.result;
@@ -664,7 +695,10 @@ export function updateSet(
   now: Date = new Date(),
 ): CommandResult<{ observationId: string; revision: number }> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<{ observationId: string; revision: number }>(tx, cmd.commandId);
+    const again = replay<{ observationId: string; revision: number }>(tx, cmd.commandId, {
+      kind: 'update_set',
+      sessionId: cmd.sessionId,
+    });
     if (again) return again;
     const found = sessionFor(tx, cmd.sessionId, false);
     if (!found.ok) return found.result;
@@ -722,6 +756,9 @@ export function updateSet(
       })
       .where(eq(setLogs.id, row.id))
       .run();
+    // The band wore by what was done now, not by what was first written.
+    addBandWear(tx, row.bandId, row.reps === null ? null : -row.reps);
+    addBandWear(tx, columns.bandId, columns.reps);
     touch(tx, cmd.sessionId);
     return commit(
       tx,
@@ -744,7 +781,14 @@ export function undoSet(
   now: Date = new Date(),
 ): CommandResult<{ observationId: string; plannedSetId: string | null }> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<{ observationId: string; plannedSetId: string | null }>(tx, cmd.commandId);
+    const again = replay<{ observationId: string; plannedSetId: string | null }>(
+      tx,
+      cmd.commandId,
+      {
+        kind: 'undo_set',
+        sessionId: cmd.sessionId,
+      },
+    );
     if (again) return again;
     const found = sessionFor(tx, cmd.sessionId, false);
     if (!found.ok) return found.result;
@@ -768,6 +812,7 @@ export function undoSet(
       .set({ deletedAt: now.toISOString(), revision: row.revision + 1 })
       .where(eq(setLogs.id, row.id))
       .run();
+    addBandWear(tx, row.bandId, row.reps === null ? null : -row.reps);
     touch(tx, cmd.sessionId);
     return commit(
       tx,
@@ -890,7 +935,10 @@ export function closeSession(
   now: Date = new Date(),
 ): CommandResult<Closed> {
   return transact(cmd.commandId, (tx) => {
-    const again = replay<Closed>(tx, cmd.commandId);
+    const again = replay<Closed>(tx, cmd.commandId, {
+      kind: 'close_session',
+      sessionId: cmd.sessionId,
+    });
     if (again) return again;
     const found = sessionFor(tx, cmd.sessionId, true);
     if (!found.ok) return found.result;
