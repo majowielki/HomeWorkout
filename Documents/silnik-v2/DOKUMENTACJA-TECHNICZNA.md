@@ -92,6 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
 | `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
 | `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
@@ -574,6 +575,15 @@ Pierwszy kawałek integracji. Nic w ekranach go jeszcze nie woła; sprawdzony je
   powtórka, konflikt po zmianie odczytu i po zmianie dnia, odrzucony obcy hasz, trwająca sesja, cofnięcie przy błędzie bloku,
   dzień bez planu i **sześć dni pod rząd** (planowanie → wykonanie zgodne z planem → zamknięcie → następny dzień czyta poprzednie:
   pojawia się `REP_PROGRESSION`).
+
+### 4.23 Zdania śladu decyzji (P5.3a)
+
+`decisionText(code, evidence?)` zwraca jedno polskie zdanie dla kodu z zamkniętego rejestru `DECISION_CODES`; rekord
+`Record<DecisionCode, …>` jest wyczerpujący, więc nowy kod nie skompiluje się bez zdania. Zdanie mówi, co silnik zrobił i jaka
+jedna rzecz go do tego skłoniła; liczby (`gapDays`, `failures`) bierze z dowodu śladu, a bez nich pisze ogólnie. Zdania o kroku
+„lżej/wyżej” mają tylko kody, które ten krok robią (D39 e) — pilnuje tego test. `traceText(trace)` zwraca zdania rozstrzygającego
+kodu i pozostałych zapisanych w śladzie (`evidence.codes`), każde raz; kod, którego ten silnik nie zna (plan z nowszej wersji),
+jest pomijany, a nie pokazywany jako surowy identyfikator. Używają tego: karta „Dlaczego?” (P5.3b) i prompty AI (P5.6).
 
 ## 5. Konwencje testów
 
