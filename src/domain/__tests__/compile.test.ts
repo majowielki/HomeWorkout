@@ -213,6 +213,27 @@ describe('supersets (04 §6)', () => {
     ]);
   });
 
+  it('do the probe set first and on its own, then go round by round (ENG-06)', () => {
+    const probe = set({ role: 'probe', resistance: kg(6), required: false });
+    const plan = compileSession(
+      compileInput([
+        exposure('e1', { group: 'A', sets: [probe, set(), set()] }),
+        exposure('e2', { group: 'A', sets: [set(), set(), set()] }),
+      ]),
+    );
+    expect(performs(plan.execution.steps).map((id) => id.replace('s1/r1/', ''))).toEqual([
+      'e1/1',
+      'e1/2',
+      'e2/1',
+      'e1/3',
+      'e2/2',
+      'e2/3',
+    ]);
+    // The probe is done before its partner has had a turn.
+    const kindsOf = plan.exposures[0]!.sets.map((s) => s.role);
+    expect(kindsOf).toEqual(['probe', 'work', 'work']);
+  });
+
   it('never repeat an exercise while the other has something to do', () => {
     const plan = compileSession(
       compileInput([

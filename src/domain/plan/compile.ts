@@ -173,7 +173,9 @@ function plannedSetsOf(
 /**
  * The order of the sets: group by group, round by round, and inside a round the members of the
  * superset in the order of the plan. The same exercise twice in a row is avoided inside a group where
- * another member still has a set to do; a group of one runs its sets in order (04 §6).
+ * another member still has a set to do; a group of one runs its sets in order (04 §6). A probe set is
+ * done first and fresh, on its own, before the rounds of the superset (13 §16, D28): the members
+ * do not alternate with it, so no changeover is spent on a load that is tried once.
  */
 function ordered(units: readonly Unit[]): Unit[] {
   const groups = new Map<string, Unit[]>();
@@ -182,13 +184,26 @@ function ordered(units: readonly Unit[]): Unit[] {
     groups.set(key, [...(groups.get(key) ?? []), unit]);
   }
   const out: Unit[] = [];
-  for (const members of groups.values()) {
-    const rounds = Math.max(...members.map((u) => u.set.ordinal));
+  for (const all of groups.values()) {
+    const exposureIndices = [...new Set(all.map((u) => u.exposureIndex))];
+    const alone = exposureIndices.length === 1;
+    const probes = alone ? [] : all.filter((u) => u.set.role === 'probe');
+    const members = alone ? all : all.filter((u) => u.set.role !== 'probe');
+    // The round of a set is its place among the sets of its exposure that are not a probe.
+    const roundOf = (u: Unit) =>
+      alone
+        ? u.set.ordinal
+        : new Set(
+            members
+              .filter((m) => m.exposureIndex === u.exposureIndex && m.set.ordinal <= u.set.ordinal)
+              .map((m) => m.set.ordinal),
+          ).size;
+    const rounds = Math.max(0, ...members.map(roundOf));
     const raw: Unit[] = [];
     for (let round = 1; round <= rounds; round += 1) {
-      for (const exposureIndex of [...new Set(members.map((u) => u.exposureIndex))]) {
+      for (const exposureIndex of exposureIndices) {
         raw.push(
-          ...members.filter((u) => u.exposureIndex === exposureIndex && u.set.ordinal === round),
+          ...members.filter((u) => u.exposureIndex === exposureIndex && roundOf(u) === round),
         );
       }
     }
@@ -204,7 +219,7 @@ function ordered(units: readonly Unit[]): Unit[] {
           : rest.findIndex((u) => u.exposureIndex !== previous.exposureIndex);
       done.push(rest.splice(Math.max(0, other), 1)[0]!);
     }
-    out.push(...done);
+    out.push(...probes, ...done);
   }
   return out;
 }
