@@ -124,6 +124,11 @@ Czysta domena: nic w aplikacji tego jeszcze nie woła (pipeline wchodzi do plano
 Regresje: ból z dodatkowej pracy, brak oporu w dawnej ekspozycji, niedostępna recepta/wypełniacz, wydłużony zakres
 ponad czas, slot stale przy wypełnionym celu. Szczegóły zachowania: UWAGI §2b. Pełny odbiór P4 nadal w toku.
 
+**Symulacja v2 — domknięta:** `simulateV2Edges.test.ts` sprawdza brak planu i brak fikcyjnego actual, model niedostępny
+przy rotacji, wykonanie tylko serii po naprawie czasu, pochodzenie pól i zachowanie kontekstu deloadu. Symulator
+odmawia celów dystansowych. `dayV2.ts` i `simulateV2.ts`: 100% statements/branches/functions/lines; 61 testów
+w czterech zestawach dnia i symulacji zielonych. Całe `npm run verify` jest w trakcie; wynik poniżej po odbiorze.
+
 ## P5–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą

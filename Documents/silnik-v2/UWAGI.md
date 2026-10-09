@@ -63,6 +63,9 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   rezerwacje aktywnej sesji, snapshot z DB, UI/AI oraz komunikaty polskie są P4b/P5/P6. Adapter katalogu planera
   obsługuje obecne hantle, gumy i masę ciała; kompilator/audyt przyjmują modele przez `modelOf`.
   Włączenie nowego sprzętu w aplikacji nadal wymaga pełnego odbioru P9.
+- `recordsOf` w symulacji przenosi fazę deloadu do `ExposureRecord.context.deload` (D31, Q-7). Dawniej symulacja
+  mogła używać deloadu jako zwykłego dowodu progresji. Cele dystansowe są jawnie odrzucane przez symulator, którego
+  zakres to powtórzenia i sekundy; nie zamienia ich na fikcyjne powtórzenie (T51).
 - Obserwacja D22 pozostaje do benchmarku P8: compound 3 serie wcześniej wyczerpuje maksima tygodniowe; krótszy
   legalny dzień albo praktyka/mobilność po wyczerpaniu limitów są dopuszczalne. Nie podnoszono limitów dla testów.
 

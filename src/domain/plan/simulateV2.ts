@@ -41,12 +41,11 @@ export interface AthleteV2 {
 }
 
 export const FOLLOWS_THE_PLAN_V2: AthleteV2 = {
-  amount: (set) =>
-    set.target.kind === 'reps'
-      ? set.target.target
-      : set.target.kind === 'duration'
-        ? set.target.targetSec
-        : 1,
+  amount: (set) => {
+    if (set.target.kind === 'distance')
+      throw new Error('The v2 simulator does not support distance targets');
+    return set.target.kind === 'reps' ? set.target.target : set.target.targetSec;
+  },
   rir: (set) => set.targetRir?.min ?? 2,
 };
 
@@ -92,6 +91,8 @@ export function observationOf(
   amount: number,
   rir: number | null,
 ): SetObservation {
+  if (set.target.kind === 'distance')
+    throw new Error('The v2 simulator does not support distance targets');
   const edited = {
     ...shown,
     origin: 'user_reported' as const,
@@ -131,7 +132,11 @@ export function observationOf(
 }
 
 /** The exposures a plan makes once it has been done: every set performed as the athlete does it. */
-export function recordsOf(plan: SessionPlanV2, athlete: AthleteV2): ExposureRecord[] {
+export function recordsOf(
+  plan: SessionPlanV2,
+  athlete: AthleteV2,
+  deload = false,
+): ExposureRecord[] {
   return plan.exposures.map((exposure) => ({
     exposureId: exposure.id,
     sessionId: plan.sessionId,
@@ -153,7 +158,7 @@ export function recordsOf(plan: SessionPlanV2, athlete: AthleteV2): ExposureReco
       ),
     })),
     extra: [],
-    context: { abandoned: false, userReduced: false, feel: null, deload: false },
+    context: { abandoned: false, userReduced: false, feel: null, deload },
   }));
 }
 
@@ -183,8 +188,8 @@ export function simulateV2(opts: SimulationV2Options): SimulatedDayV2[] {
     const performedDates = records
       .filter((r) => r.sets.some(isPerformed))
       .map((r) => r.trainingDate);
-    const lastSessionDate =
-      performedDates.length === 0 ? null : performedDates.reduce((a, b) => (a > b ? a : b));
+    // The simulation appends records in training-date order.
+    const lastSessionDate = performedDates.at(-1) ?? null;
 
     const advance = advanceBlockV2(block, {
       asOf: date,
@@ -266,7 +271,7 @@ export function simulateV2(opts: SimulationV2Options): SimulatedDayV2[] {
       output.result.kind === 'ready' || output.result.kind === 'adjusted'
         ? output.result.plan
         : null;
-    const made = plan === null ? [] : recordsOf(plan, athlete);
+    const made = plan === null ? [] : recordsOf(plan, athlete, output.phase === 'deload');
     if (plan !== null) {
       records.push(...made);
       rides.push({
