@@ -1,4 +1,5 @@
 import type { SetLogRow } from '@/db/repositories/setLogs';
+import { V1_SET_COLUMNS } from '@/db/__tests__/rowDefaults';
 import { describeSet } from '../describeSet';
 
 const row = (overrides: Partial<SetLogRow>): SetLogRow => ({
@@ -19,6 +20,7 @@ const row = (overrides: Partial<SetLogRow>): SetLogRow => ({
   side: null,
   shortfall: null,
   loggedAt: '2026-10-08T10:00:00.000Z',
+  ...V1_SET_COLUMNS,
   ...overrides,
 });
 

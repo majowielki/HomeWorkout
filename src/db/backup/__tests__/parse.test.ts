@@ -15,6 +15,8 @@ import {
   workoutRowSchema,
   workoutTemplateRowSchema,
 } from '../format';
+import { V1_SET_COLUMNS, V1_WORKOUT_COLUMNS } from '../../__tests__/rowDefaults';
+import { legalObservation, legalPlan } from '@/domain/__tests__/planV2Fixtures';
 import { parseBackup } from '../parse';
 import type {
   bands,
@@ -126,6 +128,7 @@ function validBackup(): BackupFile {
           sessionRpe: 7,
           notes: null,
           plan: null,
+          ...V1_WORKOUT_COLUMNS,
         },
       ],
       set_logs: [
@@ -147,6 +150,7 @@ function validBackup(): BackupFile {
           side: null,
           shortfall: null,
           loggedAt: '2026-09-14T17:05:00.000Z',
+          ...V1_SET_COLUMNS,
         },
       ],
       cardio_logs: [],
@@ -200,6 +204,12 @@ function validBackup(): BackupFile {
           items: null,
         },
       ],
+      set_log_revisions: [],
+      set_dispositions: [],
+      session_plan_revisions: [],
+      feel_reports: [],
+      preferences: [],
+      legacy_sessions: [],
     },
   };
 }
@@ -366,6 +376,137 @@ describe('parseBackup', () => {
       },
     };
     expect(parseBackup(JSON.stringify(v5))).toEqual({ ok: true, data: v6 });
+  });
+
+  it('lifts a version 6 file: every session and set is of the first engine, with no skips or plan revisions', () => {
+    const v7 = validBackup();
+    const v6 = {
+      ...v7,
+      schemaVersion: 6,
+      tables: {
+        ...v7.tables,
+        workouts: v7.tables.workouts.map(
+          ({ planSchema: _a, planV2: _b, planRevision: _c, revision: _d, timeZone: _e, ...row }) =>
+            row,
+        ),
+        set_logs: v7.tables.set_logs.map(
+          ({
+            commandId: _a,
+            plannedSetId: _b,
+            exposureId: _c,
+            logicalSetId: _d,
+            role: _e,
+            comparisonKey: _f,
+            progressionScope: _g,
+            source: _h,
+            performedOn: _i,
+            revision: _j,
+            deletedAt: _k,
+            observation: _l,
+            ...row
+          }) => row,
+        ),
+        set_log_revisions: undefined,
+        set_dispositions: undefined,
+        session_plan_revisions: undefined,
+        feel_reports: undefined,
+        preferences: undefined,
+        legacy_sessions: undefined,
+      },
+    };
+    expect(parseBackup(JSON.stringify(v6))).toEqual({ ok: true, data: v7 });
+  });
+
+  it('T53 keeps a session of engine v2 whole: its plan, its results with their provenance, skips, revisions', () => {
+    const doc = validBackup();
+    const plan = legalPlan();
+    doc.tables.workouts[0] = {
+      ...doc.tables.workouts[0]!,
+      planSchema: 2,
+      planV2: plan,
+      planRevision: 1,
+      revision: 3,
+      timeZone: 'Europe/Warsaw',
+    };
+    const observation = legalObservation();
+    doc.tables.set_logs[0] = {
+      ...doc.tables.set_logs[0]!,
+      commandId: observation.commandId,
+      plannedSetId: observation.plannedSetId,
+      exposureId: observation.exposureId,
+      logicalSetId: observation.logicalSetId,
+      role: 'work',
+      comparisonKey: plan.exposures[0]!.comparisonKey,
+      progressionScope: 'primary',
+      source: 'plan',
+      performedOn: '2026-09-14',
+      revision: 2,
+      observation,
+    };
+    doc.tables.set_log_revisions.push({
+      setLogId: 's1',
+      revision: 1,
+      payload: observation,
+      replacedAt: '2026-09-14T17:06:00.000Z',
+    });
+    doc.tables.set_dispositions.push({
+      workoutId: 'w1',
+      plannedSetId: 's1/r1/e1/2R',
+      status: 'skipped',
+      reason: 'user_skipped',
+      commandId: 'skip-1',
+      at: '2026-09-14T17:10:00.000Z',
+    });
+    doc.tables.session_plan_revisions.push({
+      workoutId: 'w1',
+      planRevision: 1,
+      plan,
+      reason: 'start',
+      channel: 'engine',
+      overrides: [],
+      createdAt: '2026-09-14T17:00:00.000Z',
+    });
+    doc.tables.feel_reports.push({
+      id: 'f1',
+      workoutId: 'w1',
+      exposureId: null,
+      feel: 'too_hard',
+      channel: 'voice',
+      commandId: 'feel-1',
+      at: '2026-09-14T17:20:00.000Z',
+    });
+    doc.tables.preferences.push({
+      id: 1,
+      data: { revision: 1 },
+      revision: 1,
+      updatedAt: '2026-09-14T17:00:00.000Z',
+    });
+    doc.tables.legacy_sessions.push({
+      id: 'old-1',
+      trainingDate: '2026-08-01',
+      startedAt: '2026-08-01T17:00:00.000Z',
+      finishedAt: null,
+      status: 'completed',
+      sessionRpe: null,
+      notes: null,
+      plan: null,
+      sets: [{ reps: 8 }],
+      archivedAt: '2026-10-09T10:00:00.000Z',
+    });
+    expect(parseBackup(JSON.stringify(doc))).toEqual({ ok: true, data: doc });
+  });
+
+  it('refuses a v2 plan that is not consistent, and a result whose provenance contradicts itself', () => {
+    const doc = validBackup();
+    doc.tables.workouts[0]!.planV2 = { ...legalPlan(), planRevision: 0 } as never;
+    expect(parseBackup(JSON.stringify(doc))).toMatchObject({ ok: false, reason: 'invalid' });
+    const second = validBackup();
+    const bad = legalObservation();
+    second.tables.set_logs[0]!.observation = {
+      ...bad,
+      rir: { ...bad.rir, origin: 'user_reported' },
+    };
+    expect(parseBackup(JSON.stringify(second))).toMatchObject({ ok: false, reason: 'invalid' });
   });
 
   it('keeps why a set fell short', () => {

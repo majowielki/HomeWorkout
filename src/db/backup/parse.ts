@@ -94,6 +94,48 @@ const MIGRATIONS: Record<number, (json: unknown) => unknown> = {
       },
     };
   },
+  // v7 (engine v2): sessions and sets carry the ids of a plan, their revision and where their values came
+  // from; there are tables for skips, plan revisions, how it felt, preferences and the sessions of the first
+  // engine kept for display. A file before it has none of this: its sessions are sessions of the first engine.
+  6: (json) => {
+    const doc = json as { tables: Record<string, Record<string, unknown>[]> };
+    return {
+      ...doc,
+      schemaVersion: 7,
+      tables: {
+        ...doc.tables,
+        workouts: (doc.tables.workouts ?? []).map((r) => ({
+          ...r,
+          planSchema: 1,
+          planV2: null,
+          planRevision: 1,
+          revision: 0,
+          timeZone: null,
+        })),
+        set_logs: (doc.tables.set_logs ?? []).map((r) => ({
+          ...r,
+          commandId: null,
+          plannedSetId: null,
+          exposureId: null,
+          logicalSetId: null,
+          role: null,
+          comparisonKey: null,
+          progressionScope: null,
+          source: null,
+          performedOn: null,
+          revision: 1,
+          deletedAt: null,
+          observation: null,
+        })),
+        set_log_revisions: [],
+        set_dispositions: [],
+        session_plan_revisions: [],
+        feel_reports: [],
+        preferences: [],
+        legacy_sessions: [],
+      },
+    };
+  },
 };
 
 function migrateToCurrent(json: unknown, fromVersion: number): unknown {
