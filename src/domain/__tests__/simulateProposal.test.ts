@@ -107,7 +107,7 @@ describe('P5.6b T-simulate: what a proposal does, before the person is asked', (
     const chest = (x: typeof r.baseline) => x.musclesWeek.chest;
     expect(chest(r.baseline)).toMatchObject({ min: 3, max: 6 });
     expect(chest(r.withProposal)).toMatchObject({ min: 4, max: 10 });
-    expect(r.withProposal.musclesWeek.glutes.max).toBe(10);
+    expect(r.withProposal.musclesWeek.glutes!.max).toBe(10);
     const total = (x: typeof r.baseline) =>
       Object.values(x.musclesWeek).reduce((sum, m) => sum + m.sets, 0);
     expect(total(r.withProposal)).toBeGreaterThanOrEqual(total(r.baseline));
@@ -119,8 +119,8 @@ describe('P5.6b T-simulate: what a proposal does, before the person is asked', (
       { kind: 'policy_change', preferences: { volumeOverrides: { biceps: 8 } } },
       follows,
     );
-    expect(r.baseline.musclesWeek.biceps.max).toBe(6);
-    expect(r.withProposal.musclesWeek.biceps.max).toBe(8);
+    expect(r.baseline.musclesWeek.biceps!.max).toBe(6);
+    expect(r.withProposal.musclesWeek.biceps!.max).toBe(8);
   });
 
   it('puts a muscle over its weekly maximum on the list of warnings, with the figures', () => {
