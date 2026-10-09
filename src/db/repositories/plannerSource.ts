@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull } from 'drizzle-orm';
 
 import type { DailyReadiness } from '@/domain/plan/types';
 import type { Ride } from '@/domain/progression/bike';
@@ -49,7 +49,13 @@ export async function loadPlannerSource(now: Date = new Date()): Promise<Planner
         .select({ set: setLogs, date: workouts.trainingDate })
         .from(setLogs)
         .innerJoin(workouts, eq(setLogs.workoutId, workouts.id))
-        .where(and(eq(workouts.status, 'completed'), gte(workouts.trainingDate, historyStart)))
+        .where(
+          and(
+            eq(workouts.status, 'completed'),
+            gte(workouts.trainingDate, historyStart),
+            isNull(setLogs.deletedAt),
+          ),
+        )
         .orderBy(
           asc(workouts.trainingDate),
           asc(workouts.startedAt),

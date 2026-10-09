@@ -16,6 +16,9 @@ const sessions = require('../repositories/sessionsV2.ts');
 const history = require('../repositories/historyV2.ts');
 const backup = require('../repositories/backup.ts');
 const plannerSource = require('../repositories/plannerSource.ts');
+const setRepo = require('../repositories/setLogs.ts');
+const coachSource = require('../repositories/coachSource.ts');
+const calendar = require('../repositories/calendar.ts');
 const { parseBackup } = require('../backup/parse.ts');
 const {
   legalObservation,
@@ -677,6 +680,32 @@ const CASES = [
         ],
       );
       assert.equal(source.lastSessionDate, '2026-10-09');
+    },
+  ],
+  [
+    'a result taken back is no set to any of the first engine’s readers',
+    async () => {
+      await started();
+      sessions.logSetV2(logCommand('c1', SETS[0], 1), at(1));
+      sessions.logSetV2(logCommand('c2', SETS[1], 2), at(2));
+      sessions.undoSetV2({ commandId: 'u1', sessionId: 's1', observationId: 'obs-c1' }, at(3));
+      sessions.closeSessionV2({ commandId: 'end', sessionId: 's1', how: 'completed' }, at(10));
+      assert.deepEqual(
+        (await setRepo.getSetsForWorkout('s1')).map((r) => r.id),
+        ['obs-c2'],
+      );
+      assert.equal(await setRepo.countWorkingSets('s1'), 1);
+      assert.equal((await setRepo.getLoggedStepKeys('s1')).size, 1);
+      assert.equal((await setRepo.getLastSetForExercise('one-arm-db-row')).id, 'obs-c2');
+      const source = await plannerSource.loadPlannerSource(new Date('2026-10-10T12:00:00'));
+      assert.equal(source.sessions[0].sets.length, 1);
+      const coach = await coachSource.loadCoachSource(new Date('2026-10-10T12:00:00Z'));
+      assert.deepEqual(
+        coach.sets.map((x) => x.id),
+        ['obs-c2'],
+      );
+      const month = await calendar.getCalendarRange('2026-10-01', '2026-10-31');
+      assert.equal(month.sessions[0].sets, 1);
     },
   ],
   [
