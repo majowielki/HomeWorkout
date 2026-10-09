@@ -162,6 +162,40 @@ export const PROGRESSION_CONFIG = {
   fallbackTimeRange: [20, 60] as [number, number],
 } as const;
 
+/**
+ * What the second engine's progression decides with (03 §5-§7, §12-§17, 13 §4-§8, §16, §20). The
+ * numbers it shares with the first engine (rep step, intro RIR, layoff tiers) stay in
+ * `PROGRESSION_CONFIG` and `LAYOFF_FROM_DAYS`. Tuning parameters, not research results.
+ */
+export const PROGRESSION_V2_CONFIG = {
+  /** The first set must reach the top of the range; the others may fall short of it by this much (D30). */
+  dropOffAllowance: 1,
+  /** Comparable failures in a row, at one resistance and one range, that bring the resistance a step down (03 §6). */
+  failuresToRegress: 2,
+  /** A step up of at least this fraction, or an unknown one, is first tried with one probe set (D28). */
+  probeJumpThreshold: 0.15,
+  /** Exposures at the top of the range that must pass after a failed probe before the next one (D28). */
+  probeCooldownExposures: 2,
+  /** A failed step is forgotten after this many days without an exposure at either of its two resistances (D23). */
+  failedRungExpiryDays: 42,
+  /** How far above the range the top may be extended, in reps and in seconds (D23, D29). */
+  extendBy: { reps: 5, duration: 15 },
+  /** The axes between "hold" and "step up" that may be used while a step is remembered as failed (03 §8). */
+  axes: { addSet: true as boolean, extendRange: true as boolean },
+  /** The best required set at or under this share of the bottom of the range proposes an easier variant (D39). */
+  variantDownRatio: 0.5,
+  /** Exposures built from the same result in a row that propose an easier variant (D39). */
+  variantDownStalledExposures: 2,
+  /** Complete exposures at the top of the range, in a row, before a harder variant is proposed (13 §9). */
+  variantUpTopExposures: 2,
+  /** A set done this easily (reps in reserve) and at the top of the range proposes a step up in the session (D24). */
+  calibration: { maxStepsUp: 2, upEffortAtLeast: 3, maxStepsDown: 1, downEffortAtMost: 1 },
+  /** Exposures made only of untouched suggestions that ask for a confirmation before a step up (D20). */
+  autopilotExposures: 2,
+  /** Pairs of exposures needed before the person's reporting bias is stated, and the effort it is read from (D33). */
+  rirBias: { minPairs: 5, maxEffort: 1 },
+} as const;
+
 /** Overload signals, SPEC §6.1. */
 export const AUTOREGULATION_CONFIG = {
   /** Only sessions this recent can raise FATIGUE_HIGH or PERFORMANCE_DROP. */
