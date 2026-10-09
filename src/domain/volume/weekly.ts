@@ -1,3 +1,4 @@
+import { secondaryWeightOf } from '../catalog/attributes';
 import { MUSCLE_GROUPS, type VolumeStatus } from '../coach/vocabulary';
 import { TRAINING_CONFIG } from '../config/training';
 import { daysBetween } from '../time/trainingDate';
@@ -24,6 +25,8 @@ export interface VolumeExercise {
   movementPattern: MovementPattern;
   primaryMuscles: readonly MuscleGroup[];
   secondaryMuscles: readonly MuscleGroup[];
+  /** How much of a set counts for a secondary muscle, per muscle; a muscle left out counts as the default. */
+  secondaryWeights?: Partial<Record<MuscleGroup, number>>;
 }
 
 /**
@@ -51,6 +54,8 @@ export function weeklyVolume(
   exercises: Readonly<Record<string, VolumeExercise>>,
   endDate: string,
   cfg: VolumeConfig = TRAINING_CONFIG,
+  /** The person's own weights for the secondary muscles of an exercise (D35): they win over the catalogue. */
+  personalWeights: Readonly<Record<string, Partial<Record<MuscleGroup, number>>>> = {},
 ): Record<MuscleGroup, number> {
   const out = Object.fromEntries(MUSCLE_GROUPS.map((m) => [m, 0])) as Record<MuscleGroup, number>;
 
@@ -63,7 +68,14 @@ export function weeklyVolume(
     const weight = set.side ? 0.5 : 1;
     for (const muscle of exercise.primaryMuscles) out[muscle] += weight;
     for (const muscle of exercise.secondaryMuscles) {
-      out[muscle] += weight * cfg.secondaryMuscleWeight;
+      out[muscle] +=
+        weight *
+        secondaryWeightOf(
+          exercise,
+          muscle,
+          personalWeights[set.exerciseId],
+          cfg.secondaryMuscleWeight,
+        );
     }
   }
   return out;

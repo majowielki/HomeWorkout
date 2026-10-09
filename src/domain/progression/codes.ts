@@ -57,6 +57,9 @@ export const DECISION_CODES = [
   // Steps taken during a first exposure (03 §13, D39 c).
   'CALIBRATION_STEP',
   'CALIBRATION_STEP_DOWN',
+  // Which variant a slot keeps for the next block (03 §9).
+  'ROTATION_CONTINUITY',
+  'INSUFFICIENT_ROTATION_EVIDENCE',
   // Nothing can be prescribed.
   'NOT_PRESCRIBED',
   'MODEL_NOT_APPLICABLE',
