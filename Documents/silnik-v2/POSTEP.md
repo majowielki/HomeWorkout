@@ -28,7 +28,7 @@ opisany inny dowód) i commit.
 | P0 | Baza pomiarowa i poprawki bez zmiany strategii | ☑ 2026-10-09 | `refactor/engine-p0-baseline` | — |
 | P1 | Kontrakty v2, model oporu, katalog (aliasy, graf wariantów, screenery), preferencje | ☑ 2026-10-09 | `refactor/engine-p1-contracts` | P0 |
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
-| P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ◐ rdzeń 2026-10-09 (zostaje: rotacja z ciągłością, deload reaktywny, dźwignia objętości) | `refactor/engine-p3-progression` | P1, P2 |
+| P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☐ | | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☐ | | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
@@ -103,7 +103,9 @@ Czysta domena: nic w aplikacji tego jeszcze nie woła (pipeline wchodzi do plano
 | P3.7 | Interfejs estymatora: tylko ślad, domyślnie wyłączony | `pipeline.test.ts` („the shadow estimator”) | ☑ | `f5c3500` |
 | P3.11 | Kalibracja pierwszej ekspozycji w sesji (krok w górę/w dół jako propozycja) | T87, T104; `firstExposure.test.ts` | ☑ (reducer sesji: P4b/P5) | `f1c53d4` |
 | P3.6 | Shadow starej i nowej kwalifikacji | — | — nie dotyczy: start od zera (D21), nie ma adaptera v1 | |
-| P3.13 | Rotacja z ciągłością (`chooseBlockVariant`, rozdział zegarów w rotacji), `reactiveDeloadTrigger`, `volumeRecommendation`, wagi mięśni w raporcie, `failedRungs` w indeksie historii | T35, T73–T75, T93–T96 | ☐ | |
+| P3.13 | Rotacja z ciągłością: `chooseBlockVariant` (wariant działający albo za mało zbadany zostaje, w grupie prawie równoważnej decyduje preferencja, `avoid` nie wyklucza), dowód z bloku (`blockEvidence`) | T35, T73–T75; `blockVariant.test.ts`, `stall.test.ts` | ☑ | |
+| P3.14 | Deload reaktywny `reactiveDeloadTrigger` (dwa sygnały / zastój z zmęczeniem / prośba; od 7. dnia bloku, raz na blok) | T93, T94; `reactiveDeload.test.ts` | ☑ | |
+| P3.15 | Dźwignia objętości `volumeRecommendation` (+20% / −20% jako karty, do profilu 10) i wagi mięśni pomocniczych w raporcie (`weeklyVolume`) | T95, T96; `lever.test.ts`, `secondaryWeights.test.ts` | ☑ | |
 
 ## P4–P9
 
@@ -114,6 +116,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P3 zamknięty** (reszta: rotacja z ciągłością, deload reaktywny, dźwignia objętości i wagi mięśni). Q-6 rozstrzygnięte (wydłużenie zakresu przed dodatkową serią, zgodnie z D29), Q-7 potwierdzone. `npm run verify`: 3446 testów, pokrycie domeny 100% | |
 | 2026-10-09 | **P3 (rdzeń) w domenie** (scalony do `main`): kwalifikacja dowodu, pipeline `prescribeNext` (14 reguł), pamięć nieudanego szczebla, próba szczebla, budowanie do zakresu, `recommendSets`, kalibracja w sesji jako propozycje. 40 kodów decyzji. `npm run verify` zielone: 3387 testów, pokrycie domeny 100%. Zostaje rotacja z ciągłością, deload reaktywny, dźwignia objętości; pytania Q-6, Q-7 | |
 | 2026-10-09 | Przeczytany pakiet architektury (v1.3). Założona gałąź `docs/engine-v2-tracking`; trzy dokumenty w `Documents/silnik-v2/`. Stan wyjściowy: `main` @ `33d0f1e` + niezatwierdzone zmiany użytkownika (głos/trener v6, 40 plików) — patrz UWAGI §1 | |
 | 2026-10-09 | Zatwierdzone niezatwierdzone zmiany użytkownika (`51237d0`, Q-1). Przełącznik „Uwzględniaj ograniczenia kolana” i „Ostrożny zakres powtórzeń” w Ustawieniach (`e3d511d`, Q-3). Krawędzie wariantów zmieniające jednostkę, jawnie (`a340051`, Q-4). **P2 (warstwa danych) zamknięty**: normalizator, indeks historii, schemat i migracja 0010, polecenia sesji v2, kopia zapasowa 7, archiwizacja/reset (wyłączony). `npm run verify`: 3138 testów, pokrycie domeny 100% | |

@@ -211,6 +211,52 @@ export const SETS_CONFIG = {
   technicalMax: 10,
 } as const;
 
+/**
+ * The reactive deload of the second engine (03 §16, D31): there is no planned deload week; one
+ * starts when the signals ask for it. Tuning parameters.
+ */
+export const DELOAD_V2_CONFIG = {
+  /** Not before this many days into a block (the request of the person excepted). */
+  minDaysIntoBlock: 7,
+  /** A key exercise has stalled after this many exposures in a row with no progress. */
+  stallExposures: 2,
+  /** This many key exercises must have stalled at once. */
+  stallExercises: 2,
+  /** Sleep or energy of the last days that makes a stall a sign of fatigue. */
+  fatigueWindowDays: 3,
+  lowSleepHours: 6,
+  lowEnergy: 2,
+} as const;
+
+/**
+ * Which variant a slot gets for the next block (03 §9, 12 §4.2). A variant that is still giving
+ * progress, or has not been done enough to say, stays. To be set after the benchmark and kept with
+ * the policy version; these are placeholders, not research results.
+ */
+export const ROTATION_CONFIG = {
+  /** Fewer qualified exposures in the block than this say nothing about whether the variant works. */
+  minQualifiedExposures: 3,
+  /** Progress is looked for among this many of the latest qualified exposures of the block. */
+  progressWindow: 3,
+} as const;
+
+/** The volume lever (13 §19, D32): a recommendation to raise or lower the weekly maximum of a muscle. */
+export const VOLUME_LEVER_CONFIG = {
+  /** The change of the maximum, up (rounded up) or down (rounded). */
+  change: 0.2,
+  /** A muscle must have been trained without a break this long before more is recommended. */
+  minTrainingDays: 28,
+  /** Exposures with no progress in a row, for each key exercise of the muscle. */
+  stalledExposures: 2,
+  /** No sore day this bad within this many days, for more. */
+  noSorenessDays: 14,
+  /** Sore on this many of the last this many days, for less. */
+  soreDays: 3,
+  soreWindowDays: 7,
+  /** The top of the "higher" profile, 4/6/10: the lever does not go past it. */
+  ceiling: 10,
+} as const;
+
 /** Overload signals, SPEC §6.1. */
 export const AUTOREGULATION_CONFIG = {
   /** Only sessions this recent can raise FATIGUE_HIGH or PERFORMANCE_DROP. */

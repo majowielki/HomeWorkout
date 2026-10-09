@@ -87,10 +87,10 @@ Docelowa mapa plików to 13 §0. Status:
 | `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☐ |
 | `preferences/preferences.ts` (model, `preferenceScore`, `nearEquivalent`) | 12 §3–4 | P1 | ☑ |
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
-| `chooseBlockVariant` (wybór wariantu bloku z preferencją i ciągłością) | 12 §4.2 | P3 | ☐ |
+| `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
 | `session/{assess,effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
-| `plan/reactiveDeload.ts`, `volume/{weights,lever}.ts` | 13 §17–19 | P3 | ☐ |
+| `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/*` | 13 §14, 11 §6 | P2, P4b | ☐ |
 
 ## 4. Zaimplementowane
@@ -263,6 +263,16 @@ Czysta domena, bez bazy i bez zegara. **Żadna ścieżka aplikacji jeszcze tego 
 **Kody** (`progression/codes.ts`): zamknięty rejestr `DECISION_CODES` (40), `STEP_DOWN_CODES` i `STEP_UP_CODES`. Test sprawdza na wszystkich planach z testów, że kod „lżej” pojawia się tylko, gdy opór faktycznie spadł (T105), że żaden plan nie jest cięższy od ostatniej ekspozycji bez kodu awansu i że kolejność rekordów nie zmienia wyniku (T56). Teksty polskie i schemat payloadu kodów dochodzą z UI/AI w P5 (kontrakt AI wylicza kody przez `z.enum`, więc to zmiana kontraktu i wspólne wdrożenie Workera).
 
 **Parametry** (`config/training.ts`): `PROGRESSION_V2_CONFIG` (próg próby 15%, góra +5/+15 s, pamięć 42 dni, połowa dołu zakresu, kalibracja 2/1, `dropOffAllowance`), `SETS_CONFIG`; `progression/policy.ts` składa z nich `ProgressionPolicy` razem z krokami i progami przerw z pierwszego silnika.
+
+### 4.13 Rotacja, deload reaktywny, dźwignia objętości (P3)
+
+**Czy ćwiczenie idzie do przodu** ():  = cięższy opór albo więcej powtórzeń/sekund na tym samym; inne ustawienie to zmiana, nie zastój.  liczy kolejne kompletne ekspozycje bez poprawy (niepełne i tydzień deloadu są pomijane).  = ile kwalifikowanych ekspozycji miał wariant w bloku i czy idzie do przodu (jest uczony albo poprawił się w ostatnich 3).
+
+**Wybór wariantu na blok** (): kolejność: wybór osoby (jeśli dozwolony) → wariant zostaje, gdy ma za mało kwalifikowanych ekspozycji (, brak danych to nie zastój, T35) albo idzie do przodu (); wyjątki: wariant niedozwolony (zmiana sprzętu, wykluczenie) zmienia się od razu, a  to zwykła rotacja. Przy rotacji: następny z listy; w grupie prawie równoważnej () wygrywa wynik preferencji; wariant z  ustępuje nieunikanemu, którego nie użyto w ostatnich 2 blokach (), a gdy wszystko jest , i tak coś zostaje wybrane (T75). Wykrywanie plateau i limit kolejnych bloków: P7. Parametry (3 ekspozycje, okno 3) są zastępcze do czasu benchmarku ().
+
+**Deload reaktywny** (): brak planowego deloadu po 28 dniach. Powody: dwa różne sygnały przeciążenia, zastój co najmniej dwóch ćwiczeń kluczowych (po 2 ekspozycje bez poprawy) razem ze snem < 6 h albo energią ≤ 2 w ostatnich 3 dniach, albo prośba osoby. Nie przed 7. dniem bloku (prośba osoby to pomija) i raz na blok. Sygnały przeciążenia pochodzą z istniejącego  (pierwszy silnik); ich odpowiedniki na rekordach ekspozycji dojdą z podłączeniem do planowania (P5). Fazę deloadu w  zmienia dopiero P6.
+
+**Dźwignia objętości** ():  zwraca karty: +20% (w górę, do 10), gdy mięsień jest trenowany co najmniej 28 dni bez przerwy ≥ 8 dni, wszystkie jego ćwiczenia kluczowe stoją od 2 ekspozycji, nie ma  i DOMS ≥ 4 w 14 dniach; −20% (nie poniżej 3), gdy jest  albo DOMS ≥ 4 w ≥ 3 z ostatnich 7 dni. Nic nie zmienia się bez akceptacji. **Wagi mięśni pomocniczych**:  czyta wagę osoby → katalogu → 0,5 (); planowanie bezpośrednie jak dotąd liczy tylko mięśnie główne.
 
 ## 5. Konwencje testów
 
