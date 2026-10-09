@@ -1678,6 +1678,12 @@
         {
           "to": "db-dead-bug",
           "kind": "harder"
+        },
+        {
+          "to": "hollow-hold",
+          "kind": "harder",
+          "note": "Regres hollow hold, gdy nie utrzymasz dolnej granicy czasu: ten sam wzorzec (brzuch przyciśnięty do podłogi), liczony w powtórzeniach.",
+          "changesMeasure": true
         }
       ]
     },

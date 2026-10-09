@@ -230,8 +230,23 @@ describe('catalogueProblems', () => {
       }),
     ]);
     expect(errors).toEqual([
-      'reps harder -> held: one is counted in reps, the other in sec',
+      'reps harder -> held: one is counted in reps, the other in sec (say changesMeasure if that is meant)',
       'legs easier -> reps: no primary muscle in common',
+    ]);
+  });
+
+  it('allows variants counted differently only when the edge says so', () => {
+    const fine = check([
+      pushing('reps', { progressions: [{ to: 'held', kind: 'harder', changesMeasure: true }] }),
+      pushing('held', { forceProfile: 'Isometric' }),
+    ]);
+    expect(fine.errors).toEqual([]);
+    const pointless = check([
+      pushing('a', { progressions: [{ to: 'b', kind: 'harder', changesMeasure: true }] }),
+      pushing('b'),
+    ]);
+    expect(pointless.errors).toEqual([
+      'a harder -> b: marked as changing the measure, but both are counted in reps',
     ]);
   });
 
@@ -367,7 +382,15 @@ describe('the shipped catalogue', () => {
     expect(graph.easier.get('push-up')).toEqual(['incline-push-up', 'knee-push-ups']);
     expect(graph.harder.get('glute-bridge')).toEqual(['glute-bridge-march', 'db-glute-bridge']);
     expect(graph.harder.get('boat-hold')).toEqual(['hollow-hold']);
-    expect(graph.easier.get('hollow-hold')).toEqual(['boat-hold']);
+    // A hold that cannot be kept for the bottom of the range can go back to a lighter hold, or to repetitions.
+    expect(graph.easier.get('hollow-hold')).toEqual(['dead-bug', 'boat-hold']);
+    expect(nextVariant('hollow-hold', 'easier', graph, byId, open)?.id).toBe('boat-hold');
+    expect(
+      nextVariant('hollow-hold', 'easier', graph, byId, {
+        ...open,
+        excludedIds: new Set(['boat-hold']),
+      })?.id,
+    ).toBe('dead-bug');
   });
 
   it('knows which core exercises still have no easier variant', () => {

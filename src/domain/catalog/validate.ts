@@ -50,8 +50,16 @@ export function catalogueProblems(
         errors.push(`${label}: an exercise cannot be its own variant`);
         continue;
       }
-      if (unitOf(e) !== unitOf(target)) {
-        errors.push(`${label}: one is counted in ${unitOf(e)}, the other in ${unitOf(target)}`);
+      const differs = unitOf(e) !== unitOf(target);
+      if (differs && !edge.changesMeasure) {
+        errors.push(
+          `${label}: one is counted in ${unitOf(e)}, the other in ${unitOf(target)} (say changesMeasure if that is meant)`,
+        );
+      }
+      if (!differs && edge.changesMeasure) {
+        errors.push(
+          `${label}: marked as changing the measure, but both are counted in ${unitOf(e)}`,
+        );
       }
       if (!e.primaryMuscles.some((m) => target.primaryMuscles.includes(m))) {
         errors.push(`${label}: no primary muscle in common`);
