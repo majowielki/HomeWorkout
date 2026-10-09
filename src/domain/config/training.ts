@@ -339,6 +339,15 @@ export const PLANNER_CONFIG = {
 export type PlannerConfig = Tunable<typeof PLANNER_CONFIG>;
 
 /**
+ * Executing a plan (engine v2, 04 §6-§7): what a change of set-up costs. The time of a set and of a
+ * changeover between exercises stay in `PLANNER_CONFIG`, so the two engines count them alike.
+ */
+export const EXECUTION_CONFIG = {
+  /** Seconds to change a piece of equipment from one set-up to another between two sets (plates, a band's anchor). */
+  setupSec: 30,
+} as const;
+
+/**
  * The rolling week (SPEC §11) and the requests it takes (PLAN-TYGODNIA §3.6,
  * appendix D): the numbers the engine, the calendar, the chat contract and
  * the soreness form must agree on.
