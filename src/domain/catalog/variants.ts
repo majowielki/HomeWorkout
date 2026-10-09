@@ -10,6 +10,7 @@
  */
 
 import { type EligibilityContext, isEligible } from '../plan/eligibility';
+import { unitOf } from '../progression/prescribe';
 import type { Exercise } from '../types';
 
 export type VariantDirection = 'harder' | 'easier';
@@ -62,6 +63,14 @@ export function nextVariant(
       (c): c is { exercise: Exercise; order: number } =>
         c.exercise !== undefined && isEligible(c.exercise, eligibility),
     );
-  candidates.sort((a, b) => score(b.exercise) - score(a.exercise) || a.order - b.order);
+  // A variant counted the same way as the one it replaces comes first: seconds stay seconds if they can.
+  const from = catalog[id];
+  const sameMeasure = (e: Exercise) => (from && unitOf(from) === unitOf(e) ? 0 : 1);
+  candidates.sort(
+    (a, b) =>
+      score(b.exercise) - score(a.exercise) ||
+      sameMeasure(a.exercise) - sameMeasure(b.exercise) ||
+      a.order - b.order,
+  );
   return candidates[0]?.exercise ?? null;
 }

@@ -139,6 +139,8 @@ export interface VariantEdge {
   to: string;
   kind: 'harder' | 'easier';
   note?: string;
+  /** The variants are counted differently (seconds against repetitions); the new one starts from its own history. */
+  changesMeasure?: true;
 }
 
 export interface KneeProfile {

@@ -92,6 +92,11 @@ export const exerciseSchema = z
           to: z.string().min(1),
           kind: z.enum(['harder', 'easier']),
           note: z.string().min(1).optional(),
+          /**
+           * The variants are counted differently (a hold in seconds against repetitions). Allowed only when
+           * said so; the new variant starts from its own history, so nothing is converted.
+           */
+          changesMeasure: z.literal(true).optional(),
         }),
       )
       .min(1)
