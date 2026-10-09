@@ -92,6 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `observations/entry.ts`, `voice/sessionIntent.ts`, `db/repositories/answers.ts`, migracja 0012 | 06 §1, §3, 13 §12 | P5 | ☑ P5.4; §4.25 |
 | `plan/weekV2.ts` (`planWeekV2`, `syncWeekV2`), `db/repositories/weekPlanV2.ts`, migracja 0011 | 04 §5, 06 §7 | P5 | ☑ P5.1–2; §4.24 |
 | `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
 | `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
@@ -610,6 +611,28 @@ przed i po, powody) dla banera.
 żeby tydzień pierwszego silnika nie zmienił się do P6. `weekPlanV2.syncWeek` w jednej transakcji czyta, planuje i zapisuje: bez zmian wyboru zapisuje
 tylko statusy i odświeżoną prognozę (obciążenia idą za historią), przy zmianie nową generację (urodzoną jako zobaczoną, jeśli nic się nie zmieniło).
 Blok nie jest tu zapisywany — przesuwa go dopiero start sesji dnia (`acceptDay`). `previewWeek` niczego nie zapisuje.
+
+### 4.25 Logger, głos i odpowiedzi na pytania recepty (P5.4)
+
+**Rekord wyniku** (`observations/entry.ts`). `buildObservation(entry, ctx)` jest jedynym miejscem, gdzie wpis na loggerze staje się wynikiem, więc dotyk
+i głos dają ten sam rekord, różny tylko kanałem i tym, co zostało pokazane. Pole wpisane albo wypowiedziane: `user_reported` / `edited`. Podpowiedź
+przyjęta: `user_confirmed` / `presentedDefault` z potwierdzeniem `visible` (chip na ekranie), `read_back` (odczytana głosem) albo `none` (zapisana,
+ale nikt jej nie pokazał — wysiłek z takiej serii nie jest dowodem, `effortOf` = null). Wysiłek, którego nikt nie podał i nic nie zaproponowało,
+zapisuje się jako `null` (nic nie jest twierdzone). `defaultEffort`: wynik poprzedniej serii → dolny RIR celu → „ciężko” (2). `readBackText`:
+„Zapisuję 12, ciężko”. `transcriptStillApplies(started, now)`: spóźniona transkrypcja dotyczy serii i rewizji planu, dla których zaczęto słuchać (T40).
+
+**Intencje głosu w sesji** (`voice/sessionIntent.ts`, 11 §9). `matchSessionIntent(transcript, {exposureId, offer})` → `add_exercise{query}`,
+`add_sets{n}`, `swap_remaining{query}`, `skip_remaining`, `feel`, `alternatives{family}` („zamień na coś z gumą”) albo odpowiedź na kartę (`yes`/`no`/`mine`;
+tylko gdy karta czeka). Słowa ćwiczenia wychodzą w postaci złożonej do rozpoznania przez `resolveExerciseRef` — ten plik nigdy nie zgaduje nazwy.
+Negacja unieważnia rozkaz. Zdania spoza słownika to `null`. Nie zastępuje dotychczasowego `matchCommand` (stoper, przerwa, parametry); kolejność
+ich wywołania ustali integracja z ekranem.
+
+**Odpowiedzi** (migracja 0012, `prescription_answers`, `answers.ts`). `answerPrescription({commandId, comparisonKey, kind, answer, afterExposureId, on})`:
+idempotentne, jedna odpowiedź na klucz i rodzaj (zmiana zdania nadpisuje), podnosi rewizję historii (podgląd sprzed odpowiedzi jest nieaktualny). Odpowiedź
+`step_up` dotyczy ostatniej ekspozycji klucza (`afterExposureId`); nowsza ekspozycja unieważnia odpowiedź przy odczycie, więc „tak” nie zatwierdza
+każdego kolejnego awansu, a pytanie o nieaktualną ekspozycję to `STALE_INPUT`. `variant_down` zapamiętuje tylko odroczenie („nie”, z datą);
+przyjęcie łatwiejszego wariantu jest zmianą wyboru slotu, nie odpowiedzią. `readPlanningInputs` dokłada `answers` do wejścia dnia i tygodnia, więc
+trafiają też do odcisku wejścia.
 
 ## 5. Konwencje testów
 

@@ -36,6 +36,8 @@ export interface DayRequest {
 }
 
 export interface DayPreview {
+  /** What was asked, to send back with the acceptance. */
+  request: DayRequest;
   asOf: string;
   input: DayInputV2;
   current: StoredBlock | null;
@@ -82,6 +84,7 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
     week: common.week,
     preferences: common.preferences,
     models: common.models,
+    answers: common.answers,
     ...(req.only === undefined ? {} : { only: req.only }),
     ...(req.acknowledged === undefined ? {} : { acknowledged: req.acknowledged }),
     session: {
@@ -96,6 +99,7 @@ export function planDayIn(tx: Tx, req: DayRequest, now: Date): DayPreview {
   const output = planDayV2(input);
   const result = output.result;
   return {
+    request: req,
     asOf,
     input,
     current,

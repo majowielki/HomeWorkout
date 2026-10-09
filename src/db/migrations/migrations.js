@@ -13,6 +13,7 @@ import m0008 from './0008_compose_day.sql';
 import m0009 from './0009_set_shortfall.sql';
 import m0010 from './0010_engine_v2_storage.sql';
 import m0011 from './0011_engine_v2_week.sql';
+import m0012 from './0012_engine_v2_answers.sql';
 
   export default {
     journal,
@@ -28,7 +29,8 @@ m0007,
 m0008,
 m0009,
 m0010,
-m0011
+m0011,
+m0012
     }
   }
   

@@ -84,6 +84,7 @@ export function planWeekIn(tx: Tx, req: WeekSyncRequest, now: Date): WeekSyncOut
     daily: common.daily,
     preferences: common.preferences,
     models: common.models,
+    answers: common.answers,
     constraints: common.constraints,
     week: common.week,
     running: live?.planSchema === 2 ? live.plan : null,

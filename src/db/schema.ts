@@ -540,3 +540,23 @@ export const planGenerationsV2 = sqliteTable(
   },
   (t) => [index('plan_generations_v2_created_idx').on(t.createdAt)],
 );
+
+/**
+ * What the person answered to a question the prescription asked (13 §12, 03 §14): to step up after
+ * two exposures made of untouched suggestions, or to try an easier variant. An answer belongs to the
+ * exposure it was given after and stops applying when a newer one exists.
+ */
+export const prescriptionAnswers = sqliteTable(
+  'prescription_answers',
+  {
+    comparisonKey: text('comparison_key').notNull(),
+    kind: text('kind', { enum: ['step_up', 'variant_down'] }).notNull(),
+    answer: text('answer', { enum: ['yes', 'no'] }).notNull(),
+    /** The newest primary exposure of the key when the question was answered. */
+    afterExposureId: text('after_exposure_id').notNull(),
+    answeredOn: text('answered_on').notNull(),
+    commandId: text('command_id').notNull(),
+    answeredAt: text('answered_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.comparisonKey, t.kind] })],
+);

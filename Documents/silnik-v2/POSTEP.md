@@ -223,12 +223,15 @@ dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu k
 | Zadanie | Zakres | Dowód | Status |
 |---|---|---|---|
 | P5.5a | Serwis dnia: wspólny czytnik wejść z bazy (`planningInputs`), kontekst bloku wspólny z symulacją (`blockContext`), wersje silnika (`versions`), `previewDay` (nic nie zapisuje), `acceptDay` (ponowne planowanie w transakcji, porównanie hasha planu, start sesji + blok + rewizje razem albo wcale) | T17, T60: `sqlite-check-planning-v2.cjs` (14 przypadków, w tym 6 dni pod rząd z bazą); pełne `verify` | ☑ |
-| P5.5b | Sesja dodatkowa i dzień złożony (`only`, `acknowledged`) przez ten sam serwis; zmiana planu po rewalidacji jako diff | T19, T20 | ☐ |
+| P5.5b | Sesja dodatkowa i dzień złożony (`only`, `acknowledged`) przez ten sam serwis; wspólny bilans dnia (mięsień po treningu głównym nie dostaje „świeżych” 3 serii) | T19: przypadek w `sqlite-check-planning-v2.cjs` | ☑ (diff planu po rewalidacji: UI) |
 | P5.1–P5.2 | Tydzień na silniku v2 (decyzja użytkownika: przenieść): `planWeekV2`/`syncWeekV2` (wybór dnia trzymany, dopóki przechodzi zasady; prognoza tylko wewnątrz funkcji; reszta trwającej sesji liczona jako zrobiona), tabele `planned_days_v2` i `plan_generations_v2` (migracja 0011), `weekPlanV2` (`syncWeek`, `previewWeek`, `getWeek`, baner zmian) | T19, T21: `weekV2.test.ts` (21 testów, 100% pokrycia), `sqlite-check-week-v2.cjs` (10 przypadków) | ☑ |
 | P5.1b | Unieważnienie prognozy po zmianie historii/DOMS/profilu poza zapisem tygodnia (każde wejście do ekranu woła `syncWeek`); T35 (rotacja przy małej liczbie ekspozycji) | T35 | ☐ |
 | P5.3a | Ślad decyzji po polsku: `decisionText` (zdanie dla każdego z 42 kodów, liczby z dowodu) i `traceText` | `decisionText.test.ts` (rekord wyczerpujący, snapshot, „lżej” tylko przy zmianie oporu) | ☑ |
 | P5.3b | Podgląd dnia w UI: diff, krótszy legalny dzień, liczba serii „polecane; możesz 1–4” | UI pokazuje przyczynę, nie pusty ekran | ☐ |
-| P5.4 | Logger i głos przez polecenia v2 (P2.4/P2.9, `logSetV2`, `CONFIRM_STEP_UP`, odczyt odczucia) | T38–T40, T85 | ☐ |
+| P5.4a | Logger: `buildObservation` (pochodzenie per pole, dotyk i głos ten sam rekord), `defaultEffort`, `readBackText`, ochrona przed spóźnioną transkrypcją | T38–T40: `entry.test.ts` (13 testów, 100%) | ☑ |
+| P5.4b | Głos: `matchSessionIntent` (dodaj/zamień/serię/za ciężko/pomiń resztę/odpowiedź na kartę) | `sessionIntent.test.ts` (42 testy, 100%) | ☑ |
+| P5.4c | Odpowiedzi na pytania recepty (`CONFIRM_STEP_UP`, wariant łatwiejszy): tabela `prescription_answers` (migracja 0012), `answerPrescription`, odczyt do planowania | T86: `sqlite-check-answers-v2.cjs` (7 przypadków) | ☑ |
+| P5.4d | Podłączenie loggera/głosu do ekranów (P2.4/P2.9 UI) | — | ⏸ po zakończeniu silnika (decyzja: UI bez zmian) |
 | P5.6 | Kontrakt AI/Worker: `getActiveSession`, `assessSessionChange`, `proposeSessionChange`, `simulateProposal`, adnotacje narzędzi; zgodność klient N/N−1 | test starego i nowego klienta; **wymaga wspólnego wdrożenia Workera** | ☐ |
 | P5.7 | Ekrany historii i kopia zapasowa czytają v2; ustawienia → Preferencje; „Zamienniki”, „Dodaj ćwiczenie” w sesji | T52–T55 + przepływ na telefonie | ☐ |
 
@@ -241,6 +244,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P5.4a–c, P5.5b gotowe**: obserwacje z pochodzeniem (dotyk = głos), intencje głosowe sesji, odpowiedzi na pytania recepty zapisane i czytane przez planowanie dnia i tygodnia, sesja dodatkowa ze wspólnym bilansem. `verify`: 4003 testy, 179 zestawów, domena 100% | |
 | 2026-10-09 | **P5.1–P5.2 gotowe** (tydzień na v2, decyzja: przenieść): `planWeekV2`/`syncWeekV2`, wybór dnia trzymany (`DayInputV2.kept`), tabele tygodnia v2 (migracja 0011), serwis `weekPlanV2` na SQLite. UI bez zmian (decyzja: dopiero po zakończeniu implementacji silnika). `verify`: 3939 testów, domena 100% | |
 | 2026-10-09 | **P5.3a gotowe**: polskie zdania dla 42 kodów decyzji (`decisionText`, `traceText`) — wspólne dla UI offline i promptów AI. `verify`: 3907 testów, 176 zestawów, domena 100% | |
 | 2026-10-09 | **P5.5a gotowe** (P5 w toku, gałąź `refactor/engine-p5-integration`): serwis dnia v2 na prawdziwym SQLite — `previewDay`/`acceptDay` ze strażnikiem aktualności, wspólny czytnik wejść i kontekst bloku. `verify`: 3900 testów, domena 100%, baseline bez zmian | |

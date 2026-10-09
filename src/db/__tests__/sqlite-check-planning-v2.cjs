@@ -258,6 +258,57 @@ const CASES = [
     },
   ],
   [
+    'T19 an extra session after the main one shares the balance of the day: the limit is not reset',
+    async () => {
+      await seeded();
+      const main = previewDay(request('main'), NOW);
+      const mainPlan = ready(main);
+      assert.equal(accept('accept-main', main, { request: request('main') }).kind, 'committed');
+      doTheSession(mainPlan, new Date(+NOW + 120000));
+      const done = mainPlan.exposures.find(
+        (e) =>
+          e.slotId !== null &&
+          e.progressionScope === 'primary' &&
+          e.sets.some((q) => q.role === 'work'),
+      );
+      const asExtra = (id, slotId, sets = 3) =>
+        request(id, { kind: 'extra', intent: 'extra', only: [{ slotId, sets }] });
+      const at = new Date(+NOW + 600000);
+      // The muscle that has had its sets today has no room: the extra session says so instead of a fresh three.
+      const full = previewDay(asExtra('extra-0', done.slotId), at);
+      assert.equal(full.planHash, null);
+      assert.equal(full.output.result.kind, 'no_feasible_plan');
+      // A movement of untouched muscles can be added, and it is an extra session of the same day.
+      const slots = require('../../../data/slots.json').slots.filter((x) => x.kind !== 'filler');
+      let shown = null;
+      for (const slot of slots) {
+        const day = previewDay(asExtra('extra-1', slot.id, 2), at);
+        if (day.planHash !== null) {
+          shown = day;
+          break;
+        }
+      }
+      assert.notEqual(shown, null, 'some movement still has room');
+      const plan = ready(shown);
+      assert.equal(plan.kind, 'extra');
+      assert.equal(plan.sessionId, 'extra-1');
+      assert.equal(plan.trainingDate, mainPlan.trainingDate);
+      const accepted = acceptDay(
+        {
+          commandId: 'accept-extra',
+          request: shown.request,
+          expectedPlanHash: shown.planHash,
+          timeZone: null,
+        },
+        new Date(+NOW + 660000),
+      );
+      assert.equal(accepted.kind, 'committed', JSON.stringify(accepted));
+      assert.equal(all("SELECT * FROM workouts WHERE status = 'in_progress'").length, 1);
+      // An extra session does not move the block.
+      assert.equal(all('SELECT * FROM training_blocks').length, 1);
+    },
+  ],
+  [
     'the block carries on from the open one and a new day moves nothing it need not',
     async () => {
       await seeded();

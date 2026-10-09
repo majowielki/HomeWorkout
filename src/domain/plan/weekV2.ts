@@ -35,7 +35,14 @@ import {
   TRAIN_DAILY,
   type TrainingWeek,
 } from './constraints';
-import { type DayOutputV2, type KeptItem, planDayV2, regionsOf, weekWork } from './dayV2';
+import {
+  type DayInputV2,
+  type DayOutputV2,
+  type KeptItem,
+  planDayV2,
+  regionsOf,
+  weekWork,
+} from './dayV2';
 import type { EligibilityContext } from './eligibility';
 import type { PlanVersions, SessionPlanV2 } from './planV2';
 import type { BlockEvent } from './reasons';
@@ -61,6 +68,8 @@ export interface WeekInputV2 {
   daily: readonly DailyReadiness[];
   preferences: TrainingPreferences;
   models?: ModelContext;
+  /** What the person answered to the questions of the prescriptions, by comparison key. */
+  answers?: DayInputV2['answers'];
   constraints?: readonly PlanConstraint[];
   week?: TrainingWeek;
   /** Days chosen earlier, by date; each stays while it still passes the planner's rules. */
@@ -213,6 +222,7 @@ export function planWeekV2(input: WeekInputV2): WeekPlanV2 {
       week,
       preferences: input.preferences,
       models,
+      answers: input.answers,
       ...(items === null
         ? stored === undefined
           ? {}

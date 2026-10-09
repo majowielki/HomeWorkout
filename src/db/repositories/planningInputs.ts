@@ -25,6 +25,7 @@ import {
   workouts,
 } from '../schema';
 import { readNormalizedHistory } from './historyV2';
+import { readAnswers } from './answers';
 import { readRevision } from './ledger';
 
 export const SLOTS = slotCatalogueSchema.parse(slotsJson).slots;
@@ -58,6 +59,7 @@ export function readPlanningInputs(tx: Executor, asOf: string) {
       excludedIds: new Set(profile?.excludedExerciseIds ?? []),
     },
     records: history.records,
+    answers: readAnswers(tx, history.records),
     daily: tx
       .select()
       .from(dailyLogs)

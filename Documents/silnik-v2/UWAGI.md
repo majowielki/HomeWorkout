@@ -201,6 +201,17 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Brak jeszcze źródła prośby o deload w bazie (`deloadRequests`), sesji dodatkowych (`seq > 1`) w tygodniu v2 i unieważniania prognozy poza wejściem do ekranu
   (P5.1b). Tydzień nie zapisuje bloku.
 
+### 2k. P5.4 — logger, głos i odpowiedzi (2026-10-09)
+
+- Spec. 06 §3 mówi „głos przez wspólny command handler”. Sam handler (`logSetV2`) istnieje od P2; tu dodany jest budowniczy rekordu (`buildObservation`),
+  którego ekran loggera i parser głosu mają użyć, oraz intencje sesji. **Podłączenie do ekranów czeka** (decyzja użytkownika: UI bez zmian do końca implementacji
+  silnika) — dziś `useSessionVoice` i logger działają jak przedtem.
+- Odpowiedź na `CONFIRM_STEP_UP` nie była nigdzie zapisywana (`DayInputV2.answers` było tylko parametrem), więc dodałem tabelę. Odpowiedź wygasa z nową ekspozycją klucza;
+  alternatywą było trzymanie jej bez końca, co zamieniłoby „tak” w trwałe wyłączenie ochrony przed autopilotem (D20).
+- `matchSessionIntent` rozpoznaje „dodaj” jako odpowiedź „tak” tylko gdy karta czeka; bez karty „dodaj” bez przedmiotu to `null`. Frazy parametrów („jak było lekko”) są
+  celowo poza zasięgiem: odczucie sesji wymaga „za”/„zbyt”.
+- Do sprawdzenia na telefonie po integracji: czy rozpoznawanie mowy zapisuje „zamień na coś z gumą” w postaci, którą słownik łapie (gum\w*), oraz czy odpowiedź „dodaj” / „tak” nie koliduje z istniejącymi komendami przerwy.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

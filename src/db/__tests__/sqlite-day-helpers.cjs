@@ -4,7 +4,7 @@ const sessions = require('../repositories/sessionsV2.ts');
 const { legalObservation } = require('../../domain/__tests__/planV2Fixtures.ts');
 
 /** Does every set of the running session exactly as planned, and closes it. */
-function doTheSession(plan, when) {
+function doTheSession(plan, when, amountOf) {
   for (const exposure of plan.exposures) {
     for (const set of exposure.sets) {
       const base = legalObservation();
@@ -13,8 +13,8 @@ function doTheSession(plan, when) {
       const target = set.target;
       const value =
         target.kind === 'duration'
-          ? { kind: 'duration', seconds: target.targetSec }
-          : { kind: 'reps', reps: target.target };
+          ? { kind: 'duration', seconds: amountOf ? amountOf(set) : target.targetSec }
+          : { kind: 'reps', reps: amountOf ? amountOf(set) : target.target };
       const r = sessions.logSetV2(
         {
           commandId: `log-${set.id}`,
