@@ -30,6 +30,11 @@ export const RULE_CLASS = {
   RESISTANCE_UNREACHABLE: 'hard',
   /** Sets 1-10, repetitions 1-100, time 1-3600 s: how data is represented, not training. */
   TECHNICAL_LIMIT: 'hard',
+  /** The plan does not hold together: the schema, the hash it was audited with, its recipes and its trace. */
+  PLAN_INVALID: 'hard',
+  PLAN_INTEGRITY: 'hard',
+  RECIPE_INCOMPLETE: 'hard',
+  TRACE_INCONSISTENT: 'hard',
   // ---- advice: the planner stays inside them, a request may go beyond them once confirmed
   DAY_MAX_EXCEEDED: 'advice',
   WEEK_MAX_EXCEEDED: 'advice',

@@ -339,6 +339,16 @@ export const PLANNER_CONFIG = {
 export type PlannerConfig = Tunable<typeof PLANNER_CONFIG>;
 
 /**
+ * What the data can hold (12 §2): hard limits that are about how a plan is represented, not about
+ * training. The limits the planner keeps to itself are `PLANNER_CONFIG.limits`.
+ */
+export const TECHNICAL_LIMITS = {
+  sets: [1, 10],
+  reps: [1, 100],
+  timeSec: [1, 3600],
+} as const;
+
+/**
  * Executing a plan (engine v2, 04 §6-§7): what a change of set-up costs. The time of a set and of a
  * changeover between exercises stay in `PLANNER_CONFIG`, so the two engines count them alike.
  */
