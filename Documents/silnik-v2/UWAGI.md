@@ -119,6 +119,28 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Werdykt, preferencje, deficyt, nakładanie i regeneracja liczone są po wspólnej ocenie. `avoid` nie wyklucza,
   a hard fail zawsze usuwa kandydata. UI/AI/DB pozostają do podłączenia w następnych etapach.
 
+### 2f. P4b.4 — granica zapisu i zachowane recepty (2026-10-09)
+
+- Spec. 11 §6 pokazuje samo `patchId`. Polecenie ma także jawne `change` (z P4b.3): hash jest
+  nieodwracalny, a preview nie zapisuje rejestru propozycji. W transakcji zamiar jest ponownie oceniany,
+  a wygenerowane ID musi zgadzać się z wybranym. Nie ufamy planowi ani operacjom przesłanym przez UI/AI.
+- Kontrakt aplikacji jest asynchroniczny, sama transakcja synchroniczna jak pozostałe polecenia P2.
+  Implementacja zapisów leży w `db/repositories/sessionChanges.ts`, a publiczne wejście w wymaganym
+  `app-services/commands/applySessionChange.ts`; wspólny ledger, counters i outcomes nie są kopiowane.
+- Do ponownej oceny potrzebny jest już teraz świeży odczyt v2, dlatego P4b.4 dodaje minimalny builder
+  `sessionChangeSource.ts` czytający przez executor transakcji. Nie importuje obecnego snapshotu UI v1.
+  Pełna integracja planera/bloków, runnera i kanałów pozostaje w P5. Brak aktywnego bloku używa wyborów
+  zamrożonego planu; inwentarz hantli pozostaje konfiguracją domeny, gumy i kalibracje pochodzą z bazy.
+- Nie dodaję osobnej tabeli rezerwacji: aktualny pending plan i jego rewizja są źródłem rezerwacji
+  uwzględnianym w `remainingVolume`. Zapis podnosi history/session revision i unieważnia starsze oceny.
+- Usunięte pending ID otrzymują dyspozycję `skipped/replaced`; stare recepty pozostają w rewizjach.
+  Odczyt historii/outcomes scala je po ID, nie podaje tego złożenia runnerowi jako nowego planu.
+  Dzięki temu skrócenie nie zmniejsza po cichu expected i nie daje awansu. `USER_REDUCED` jest już
+  zachowane w kontekście normalizacji; opcje `feel` i wybór rekomendowanej opcji są nadal P4b.5.
+- Hard/niejednoznaczność po ponownej ocenie daje `CHANGE_BLOCKED`, przed porównaniem brakującego patcha.
+  Override przechowuje wyłącznie advice-faile rzeczywiście obecne w tej ocenie. Zbędny/hard ACK nie
+  daje dodatkowych uprawnień. Zmiana wykonalnego patcha lub fingerprintu daje `STALE_INPUT`.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

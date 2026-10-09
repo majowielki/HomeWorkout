@@ -1,4 +1,4 @@
-import { and, gte, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, gte, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 
 import {
   type FeelReport,
@@ -9,8 +9,9 @@ import {
 import type { ExposureRecord } from '@/domain/observations/exposure';
 import type { SetDisposition } from '@/domain/observations/types';
 
-import { db } from '../client';
-import { feelReports, setDispositions, setLogs, workouts } from '../schema';
+import { db, type Executor } from '../client';
+import { feelReports, sessionPlanRevisions, setDispositions, setLogs, workouts } from '../schema';
+import type { SessionPlanV2 } from '@/domain/plan/planV2';
 
 /*
  * The read side of engine v2: the sessions of a period, normalized into the
@@ -30,15 +31,43 @@ export interface LoadedHistory {
   unassigned: ReturnType<typeof normalizeObservations>['unassigned'];
 }
 
-async function normalize(sessions: WorkoutRow[]): Promise<LoadedHistory> {
+/** Cumulative prescriptions for history only: removed sets stay expected and have stored skips. */
+export function historyPlans(tx: Executor, sessions: readonly WorkoutRow[]): SessionPlanV2[] {
+  return sessions
+    .filter((w) => w.planSchema === 2 && w.planV2 !== null)
+    .map((w) => {
+      const revisions = tx
+        .select()
+        .from(sessionPlanRevisions)
+        .where(sql`${sessionPlanRevisions.workoutId} = ${w.id}`)
+        .orderBy(asc(sessionPlanRevisions.planRevision))
+        .all();
+      const exposures = new Map<string, SessionPlanV2['exposures'][number]>();
+      for (const plan of [...revisions.map((r) => r.plan), w.planV2!]) {
+        for (const e of plan.exposures) {
+          const previous = exposures.get(e.id);
+          const sets = new Map(previous?.sets.map((s) => [s.id, s]) ?? []);
+          for (const s of e.sets) sets.set(s.id, s);
+          exposures.set(e.id, { ...e, sets: [...sets.values()] });
+        }
+      }
+      return { ...w.planV2!, exposures: [...exposures.values()] };
+    });
+}
+
+/** Synchronous reads through the supplied transaction, also used during session change acceptance. */
+export function readNormalizedHistory(tx: Executor, sessions: WorkoutRow[]): LoadedHistory {
   const withPlans = sessions.filter((w) => w.planSchema === 2 && w.planV2 !== null);
   if (withPlans.length === 0) return { records: [], problems: [], unassigned: [] };
   const ids = withPlans.map((w) => w.id);
-  const [setRows, skipRows, feelRows] = await Promise.all([
-    db.select().from(setLogs).where(inArray(setLogs.workoutId, ids)),
-    db.select().from(setDispositions).where(inArray(setDispositions.workoutId, ids)),
-    db.select().from(feelReports).where(inArray(feelReports.workoutId, ids)),
-  ]);
+  const setRows = tx.select().from(setLogs).where(inArray(setLogs.workoutId, ids)).all();
+  const skipRows = tx
+    .select()
+    .from(setDispositions)
+    .where(inArray(setDispositions.workoutId, ids))
+    .all();
+  const feelRows = tx.select().from(feelReports).where(inArray(feelReports.workoutId, ids)).all();
+  const plans = historyPlans(tx, withPlans);
   const observations: ObservationRow[] = setRows.flatMap((row) =>
     row.observation === null
       ? []
@@ -62,13 +91,22 @@ async function normalize(sessions: WorkoutRow[]): Promise<LoadedHistory> {
     sessionId: w.id,
     trainingDate: w.trainingDate,
     status: w.status,
-    // The phase and the reductions a person asked for join the plan's record with P3 and P4b.
-    deload: false,
-    reducedExposures: [],
+    deload: w.planV2!.exposures.some((e) => e.trace.code === 'DELOAD'),
+    reducedExposures: plans
+      .find((p) => p.sessionId === w.id)!
+      .exposures.filter(
+        (e) =>
+          e.sets.some((s) =>
+            skipRows.some(
+              (d) => d.workoutId === w.id && d.plannedSetId === s.id && d.reason === 'replaced',
+            ),
+          ) || e.trace.evidence.reducedFrom !== undefined,
+      )
+      .map((e) => e.id),
   }));
   return normalizeObservations({
     sessions: sessionMeta,
-    plans: withPlans.map((w) => w.planV2!),
+    plans,
     observations,
     dispositions,
     feel,
@@ -78,7 +116,7 @@ async function normalize(sessions: WorkoutRow[]): Promise<LoadedHistory> {
 /** Every session of engine v2 on or after a date, abandoned and running ones included. */
 export async function loadWindow(from: string): Promise<LoadedHistory> {
   const rows = await db.select().from(workouts).where(gte(workouts.trainingDate, from));
-  return normalize(rows);
+  return readNormalizedHistory(db, rows);
 }
 
 /**
@@ -117,7 +155,7 @@ export async function loadLastComparableBefore(before: string): Promise<Exposure
         candidates.map((c) => c.id),
       ),
     );
-  const { records } = await normalize(sessions);
+  const { records } = readNormalizedHistory(db, sessions);
   const wanted = new Map(newest.map((n) => [n.key, n.day]));
   const last = new Map<string, ExposureRecord>();
   for (const record of records) {

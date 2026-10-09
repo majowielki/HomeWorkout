@@ -25,6 +25,7 @@ import {
   workouts,
 } from '../schema';
 import { bumpRevision, findCommand, recordCommand } from './ledger';
+import { historyPlans } from './historyV2';
 
 /*
  * The write side of a session of engine v2 (02 §6, 13 §14).
@@ -164,7 +165,7 @@ function refreshOutcomes(
   const states = setStates(tx, workout.id);
   const closed = workout.status !== 'in_progress';
   tx.delete(exposureOutcomes).where(eq(exposureOutcomes.workoutId, workout.id)).run();
-  const rows = plan.exposures.map((exposure) =>
+  const rows = historyPlans(tx, [{ ...workout, planV2: plan }])[0]!.exposures.map((exposure) =>
     exposureOutcome(
       exposure,
       states,
@@ -178,6 +179,9 @@ function refreshOutcomes(
       .run();
   }
 }
+
+/** Shared transaction/ledger/session boundary for application commands. */
+export const sessionCommandStore = { transact, replay, commit, sessionFor, touch };
 
 /** A session changed: its counter, the history counter, and the outcomes that follow. */
 function touch(tx: Tx, sessionId: string): void {

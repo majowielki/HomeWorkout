@@ -26,7 +26,9 @@ export type RejectionCode =
   | 'SESSION_NOT_ACTIVE'
   | 'UNKNOWN_PLANNED_SET'
   | 'UNKNOWN_OBSERVATION'
-  | 'INVALID_PLAN';
+  | 'INVALID_PLAN'
+  | 'CHANGE_BLOCKED'
+  | 'ACK_REQUIRED';
 
 export type CommandResult<T> =
   | { kind: 'committed'; result: T; sessionRevision: number }

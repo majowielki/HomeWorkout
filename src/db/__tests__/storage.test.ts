@@ -17,6 +17,7 @@ interface CaseResult {
 const SCRIPTS = [
   ['storage on real SQLite', 'sqlite-check.cjs', 10],
   ['engine v2 storage on real SQLite', 'sqlite-check-v2.cjs', 15],
+  ['P4b.4 session changes on real SQLite', 'sqlite-check-session-changes.cjs', 20],
 ] as const;
 
 for (const [title, script, atLeast] of SCRIPTS) {

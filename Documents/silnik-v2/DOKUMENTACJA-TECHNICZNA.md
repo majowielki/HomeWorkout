@@ -92,7 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 (feel/tekst: kolejne zadania) |
 | `session/{effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
-| `app-services/commands/*` | 13 §14, 11 §6 | P2, P4b | ☐ |
+| `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
 
 ## 4. Zaimplementowane
 
@@ -443,6 +443,48 @@ Nie ma rekurencji; wydajność pełnej puli i pomiar p95 na telefonie pozostają
 (odstępstwo od oszacowania „1 + 3 oceny” opisane w UWAGI §2e).
 Dowody: `rankAlternatives.test.ts` — T67/T75, permutacje katalogu/slotów/krawędzi, własne patche,
 filtrowanie hard-faili, świadomie wykonalne advice, preferencje i zachowanie wykonanych serii.
+
+### 4.19 Transakcyjne zatwierdzenie zmiany sesji (P4b.4)
+
+`app-services/commands/applySessionChange.ts` udostępnia kontrakt Promise z `CommandResult<{planRevision}>`.
+Repozytorium `sessionChanges.ts` wykonuje jedną synchroniczną transakcję Expo/Drizzle, korzystając
+ze wspólnej granicy `sessionCommandStore` istniejących poleceń P2. Żaden await nie rozdziela odczytu i zapisu.
+Polecenie zawiera `commandId`, `sessionId`, `patchId`, jawne `change`, oczekiwane rewizje planu/historii,
+`acknowledged` i kanał. Klient nie przesyła planu ani operacji patcha. `change` jest potrzebne, ponieważ
+hash patcha nie pozwala odtworzyć zamiaru; tę różnicę względem skróconego kontraktu 11 §6 opisuje UWAGI §2f.
+
+Kolejność: ledger (retry zwraca dawny wynik nawet po kolejnej zmianie/zamknięciu sesji), walidacja polecenia,
+aktywna sesja v2 i poprawny schemat planu, rewizje, świeży snapshot w transakcji, ponowne
+`assessSessionChange(..., {maxAlternatives: 0})`, porównanie `patchId`, komplet ACK dla advice-faili.
+Zmiana rewizji lub treści snapshotu/patcha daje `conflict: STALE_INPUT`. Hard fail/niejednoznaczność
+zwraca `CHANGE_BLOCKED`; brak wszystkich potwierdzeń daje `ACK_REQUIRED` z brakującymi kodami.
+Ledger nie przechowuje odrzuceń, więc to samo ID może później zatwierdzić pełny ACK. ID innego typu
+polecenia lub innej sesji nie może udawać powtórzenia tej zmiany. Override obejmuje tylko bieżące advice-faile,
+bez uprawnień wynikających z przesłanych obcych lub hard kodów.
+
+`sessionChangeSource.ts` czyta przez ten sam executor katalog, profil i wykluczenia, preferencje,
+kalibracje i definicje gum, blok, ograniczenia, wybór jutra, dzienniki/rower oraz znormalizowaną historię.
+Snapshot obejmuje również liczniki wejść. Fingerprint wiąże fakty, a nie same liczniki, więc zmiana profilu,
+katalogu, gotowości lub inwentarza bez podniesienia licznika także unieważnia preview. Data pochodzi
+z zamrożonego dnia aktywnej sesji. Przy braku bloku używane są wybory aktywnego planu; adapter nie obraca
+ani nie zapisuje bloku. `loadSessionChangeSource` udostępnia spójny, tylko do odczytu snapshot do preview.
+
+Po autoryzacji zapisuje się nowa `session_plan_revisions` (`user_change`, kanał, overrides), aktualny plan
+i numer rewizji w workout, dyspozycje usuniętych pending ID, odbudowane outcomes, liczniki sesji/historii
+i ledger. Błąd któregokolwiek zapisu cofa całość. Pending recepty aktualnego planu są rezerwacją objętości
+czytaną przez następną ocenę; po ACK serie nadal liczą się normalnie. Nie są tworzone obserwacje wykonania.
+
+`historyV2.historyPlans` scala recepty ze wszystkich rewizji według ID ekspozycji i serii, wyłącznie
+do normalizacji historii/outcomes. Runner nadal dostaje bieżący wykonywalny plan. Usunięte serie zachowują
+receptę i dyspozycję `skipped/replaced`; licznik expected obejmuje pierwotnie wymagane serie. Skrócone
+ekspozycje oraz nowe recepty obniżonego oporu mają kontekst `userReduced`, więc kwalifikacja zwraca
+`USER_REDUCED` zamiast dowodu pełnego wykonania lub porażki siłowej. Logowanie, korekta, undo i zamknięcie
+sesji również odbudowują outcomes na tych samych zachowanych receptach.
+
+Dowody: `sqlite-check-session-changes.cjs`, uruchamiane jako 32 osobne przypadki w `storage.test.ts`:
+T68/T69, pełny i niepełny ACK, retry, kanały, aktualność faktów, własny patch alternatywy,
+wykonana część/historia po redukcji/zamianie, rezerwacja oraz rollback błędów czterech tabel.
+Podłączenie do runnera, UI i AI pozostaje etapem P5.
 
 ## 5. Konwencje testów
 
