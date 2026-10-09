@@ -30,7 +30,7 @@ opisany inny dowód) i commit.
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
-| P4b | Konsultacja zmian w sesji (domena) | ◐ resolver i ocena zmian gotowe; ranking alternatyw i zapis przed nami | `refactor/engine-p4b-session-consultation` | P3, P4 |
+| P4b | Konsultacja zmian w sesji (domena) | ◐ resolver, ocena i ranking gotowe; zapis, feel i teksty przed nami | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
@@ -137,7 +137,7 @@ Kontynuacja: **P4b — konsultacja zmian w sesji** (stan i następny krok poniż
 |---|---|---|---|
 | P4b.1 | `catalog/resolve.ts`: resolver ID/nazw/aliasów, polskie odmiany, literówka jednego znaku w długim słowie, ambiguous/not_found z najbliższymi i wzorcem ruchu; `data/movement-terms.json` v1, katalog v6 ze 109 aliasami dla 63 ćwiczeń | T70: `resolveExerciseRef.test.ts`, `movementLexicon.test.ts`; resolver 100% statements/branches/functions/lines; wszystkie 151 nazw i 109 aliasów sprawdzone na prawdziwym katalogu; `validate:data` | ☑ |
 | P4b.2 | `assessSessionChange`: hipotetyczna rewizja pending, wspólny audyt resume, efekty dnia/tygodnia/regeneracji/nakładania/czasu/jutra, scope i deterministyczny patch | T61–T66: `assessSessionChange.test.ts` (84 testy); pełne `verify`, domena/AI 100% | ☑ |
-| P4b.3 | `rankAlternatives`: werdykt → biomechanika → preferencja; każda alternatywa oceniona | T67, T75 | ☐ |
+| P4b.3 | `rankAlternatives`: werdykt → biomechanika → preferencja; każda alternatywa oceniona, własny patch, pełna pula i filtr sprzętu | T67, T75: `rankAlternatives.test.ts` (25 testów); pełne `verify`, domena/AI 100% | ☑ |
 | P4b.4 | `applySessionChange`: ponowna ocena i zapis w transakcji, idempotencja, rewizje, ACK_REQUIRED/STALE_INPUT | T68, T69 | ☐ |
 | P4b.5 | `feel` → ocenione opcje, USER_REDUCED, FeelReport | T71, T72 | ☐ |
 | P4b.6 | Deterministyczne polskie teksty `assessmentText` | T72, snapshoty kodów | ☐ |
@@ -163,7 +163,19 @@ Pełne `npm run verify`: **172 zestawy, 3761 testów, 4 snapshoty**, domena/AI 1
 Znane 18 ostrzeżeń `NO_EASIER_VARIANT` bez zmian. Integracja z DB/runnerem/UI/AI, ranking, `feel` i teksty PL
 pozostają w kolejnych zadaniach; ocena nie zapisuje niczego.
 
-Następny krok: **P4b.3 — `rankAlternatives`**, z oceną każdej alternatywy przez tę samą funkcję, bez rekurencji.
+**Odbiór P4b.3 2026-10-09:** publiczne `assessSessionChange` dołącza maksymalnie trzy alternatywy,
+ocenione tą samą funkcją bez rekurencji. Hard fail usuwa kandydata, advice zachowuje własny patch;
+preferencje rozstrzygają po werdykcie i biomechanice, `avoid` nie wyklucza. Ranking łączy graf, zamienniki,
+rodzeństwo slotu i opcjonalne rodziny analityczne. Nierozpoznane ćwiczenie korzysta z mięśni podpowiedzi
+słownika; bez podpowiedzi albo przy niejednoznaczności nie podaje przypadkowych opcji. Każda pozycja
+zachowuje jawny zamiar i pełną ocenę do karty/ponownego audytu. Szczegóły: DOKUMENTACJA §4.18, UWAGI §2e.
+
+Pełne `npm run verify`: **173 zestawy, 3786 testów, 4 snapshoty**, domena/AI 100%, golden baseline bez zmian.
+25 nowych testów sprawdza kolejność i permutacje, preferencje, hard/advice, graf/rodziny, filtry, własne
+recepty/patche i nienaruszalność wykonanych serii. Znane 18 ostrzeżeń katalogu bez zmian.
+Ocena całej puli poprzedza wybór trzech wyników; pomiar p95 na telefonie pozostaje do odbioru integracji.
+
+Następny krok: **P4b.4 — `applySessionChange`**, z ponowną oceną, idempotencją, rewizjami i ACK w transakcji.
 
 ## P5–P9
 
@@ -174,6 +186,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P4b.3 gotowe**: ranking pełnej puli przez wspólną ocenę bez rekurencji, werdykt → biomechanika → preferencja, własne patche i filtrowanie hard-faili; T67/T75 + granice (25 testów). `verify`: 3786 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `applySessionChange` | |
 | 2026-10-09 | **P4b.2 gotowe**: ocena pięciu zmian pending, wspólny audyt resume, efekty i patche; T61–T66 + granice (84 testy). `verify`: 3761 testów, 172 zestawy, 100% domena/AI, baseline bez zmian. Następne: `rankAlternatives` | |
 | 2026-10-09 | **P4b.1 gotowe, P4b w toku**: resolver nazw/aliasów T70, wersjonowany słownik, katalog v6 (109 aliasów dla 63 ćwiczeń), walidacja spójności. `npm run verify`: 3677 testów, 171 zestawów; domena/AI 100%, golden baseline identyczny. Następne: rewizja niewykonanej części i `assessSessionChange` | `bf6af96` |
 | 2026-10-09 | **P4 domena odebrana**: dwa testy odblokowane, pełne pokrycie, ślad score, metadane planu po naprawie, poprawny kontekst deloadu w symulacji. `npm run verify`: 3641 testów, 169 zestawów; domena i AI 100%. Konsumenci aplikacji nadal P5/P6 | `77f739c`, `544d66a`, `87858ec` |

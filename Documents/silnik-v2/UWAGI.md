@@ -103,6 +103,22 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   pozornych actual lub wymyślania oporu v1 dla przyszłego sprzętu. Dotychczasowi konsumenci funkcji zachowują
   swoje zachowanie (golden baseline bez zmian).
 
+### 2e. P4b.3 — ranking i pełna pula (2026-10-09)
+
+- Publiczna ocena dołącza alternatywy; podstawowa `evaluateSessionChange` jest współdzieloną oceną
+  bez rankingu. Takie rozdzielenie usuwa rekurencję i cykl importów. `maxAlternatives: 0` pozwala
+  ponownie ocenić konkretny zamiar bez przeglądania zamienników, z tym samym `assessmentId` i `patchId`.
+- Spec. 11 §4 szacuje maksymalnie 1 + 3 oceny, ale §5 wymaga werdyktu jako pierwszego klucza pełnej puli.
+  Oceniam wszystkich kandydatów przed obcięciem do trzech wyników; inaczej mogłaby wygrać odradzana opcja,
+  mimo istnienia wykonalnej poza pierwszą trójką biomechaniczną. Optymalizacja wspólnych indeksów/cache
+  i pomiar na telefonie są odbiorem integracji; nie deklaruję spełnienia p95 < 150 ms na podstawie Jesta.
+- `comparisonFamily` jest opcjonalnym polem katalogu/schematu, bez dopisywania heurystycznych rodzin
+  do obecnych danych. Brak/null nie łączy ćwiczeń. Rodzina służy odkrywaniu kandydatów, bez transferu siły.
+- Każda pozycja zawiera także jawne `change` i pełną ocenę bez dalszych alternatyw. Zachowuje żądane serie,
+  pozycję lub ID zamienianej ekspozycji; UI może pokazać kontrole i ponownie ocenić właściwy patch w P4b.4.
+- Werdykt, preferencje, deficyt, nakładanie i regeneracja liczone są po wspólnej ocenie. `avoid` nie wyklucza,
+  a hard fail zawsze usuwa kandydata. UI/AI/DB pozostają do podłączenia w następnych etapach.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

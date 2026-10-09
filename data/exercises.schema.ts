@@ -85,6 +85,7 @@ export const exerciseSchema = z
     /** Colloquial names for resolving a spoken or typed exercise (13 §11). */
     aliases: z.array(z.string().min(1)).min(1).optional(),
     equivalenceGroup: z.string().min(1).optional(),
+    comparisonFamily: z.string().min(1).nullable().optional(),
     /** Edges to harder or easier variants; the inverse of each is implied (05 §13). */
     progressions: z
       .array(

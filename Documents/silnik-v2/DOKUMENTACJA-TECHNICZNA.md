@@ -89,7 +89,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
 | `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
-| `session/{assess,effects,revision,types}.ts` | 11 §2–4, 13 §12 | P4b | ☑ P4b.2; §4.17 (ranking/feel/tekst: kolejne zadania) |
+| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 (feel/tekst: kolejne zadania) |
 | `session/{effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/*` | 13 §14, 11 §6 | P2, P4b | ☐ |
@@ -366,7 +366,8 @@ Resolver pozostaje poza ścieżkami aplikacji do integracji w P4b/P5.
 
 ### 4.17 Ocena zmian niewykonanej części sesji (P4b.2)
 
-`assessSessionChange(snapshot, activeSession, change)` jest czystą funkcją w `session/assess.ts`.
+`assessSessionChange(snapshot, activeSession, change, opts?)` jest czystą funkcją w `session/assess.ts`.
+Ocena pojedynczego wariantu znajduje się w `session/evaluate.ts`; publiczna funkcja dołącza ranking (§4.18).
 Wejścia z `session/types.ts` są zwykłymi danymi: `SessionChangeSnapshot` rozszerza `DayInputV2` o rewizje
 historii/preferencji, słownik i zapisany wybór jutra; `ActiveSessionState` zawiera plan v2 i aktualne
 znormalizowane rekordy/dyspozycje. Rekordy aktywnej sesji zastępują jej starszą kopię w snapshotcie, więc
@@ -406,8 +407,42 @@ wynik był gotowy do pokazania i ponownego audytu w transakcji P4b.4. Sam stamp 
 `overrides` jest puste, advice wymaga świadomego ACK w poleceniu zapisu.
 
 Dowody: `assessSessionChange.test.ts` — T61–T66 i granice (84 testy), pełne pokrycie nowych funkcji i regresja
-dotychczasowego silnika. Funkcja pozostaje poza aplikacją do P5. `rankAlternatives`, `feel`, zapisy i
+dotychczasowego silnika. Funkcja pozostaje poza aplikacją do P5. `feel`, zapisy i
 deterministyczne teksty PL są kolejnymi zadaniami P4b.
+
+### 4.18 Ranking alternatyw w sesji (P4b.3)
+
+`rankAlternatives(target, ctx)` jest eksportowane z `session/assess.ts`, a implementowane w
+`session/alternatives.ts`. Target podaje opcjonalne ID ćwiczenia/slotu i mięśnie; kontekst zawiera snapshot,
+aktywną sesję i jawny zamiar `add_exercise` albo `swap_remaining`. Alternatywa zastępuje wyłącznie ID
+ćwiczenia w tym zamiarze: zachowuje liczbę serii, pozycję lub ID ekspozycji do zamiany. Recepta pochodzi
+z własnej historii kandydata, bez transferu oporu z oryginału.
+
+Pula łączy warianty łatwiejsze/trudniejsze (także odwrotne krawędzie), jawne zamienniki, rodzeństwo slotu
+i jawne `comparisonFamily`. To nowe opcjonalne pole domeny/schematu katalogu: brak/null nie tworzy grupy.
+Przy nierozpoznanym ćwiczeniu pula obejmuje aktywne ćwiczenia ze wspólnym mięśniem głównym z podpowiedzią
+słownika ruchów. Brak podpowiedzi daje pustą listę; niejednoznaczność wymaga doprecyzowania. Archiwalne,
+nieistniejące i oryginalne ID są pomijane, powody pochodzenia łączone bez duplikatów.
+
+Każdy kandydat przechodzi tę samą `evaluateSessionChange` co prośba. Hard fail oznacza brak patcha
+i usuwa kandydata; advice zachowuje go z `not_recommended`. Klucz porządku to kolejno: grupa werdyktu
+(`ok`/`ok_with_changes` przed `not_recommended`), `biomechSimilarity` (dotychczasowy `substituteScore` / 115),
+`preferenceScore`, rzeczywiście pokryty deficyt do minimum tygodnia, liczba nakładających się ćwiczeń,
+liczba kontroli regeneracji/DOMS, pozycja w slocie i ID porównane po punktach kodowych. Bez oryginału
+podobieństwo oznacza udział pokrytych mięśni zapytania; sam target slotu bez mięśni daje 0.
+`avoid` obniża preferencję, a twarde „nie proponuj” usuwa kandydata w audycie.
+
+Wynik ma maksymalnie trzy pozycje z `why`, werdyktem, receptą i własnym `patchId`; dodatkowo przechowuje
+`change` i pełną ocenę bez dalszych alternatyw, potrzebne karcie i ponownej ocenie przed zapisem.
+`maxAlternatives` ogranicza wynik do 1–3, 0 wyłącza ranking; wartości niepoprawne dają pustą listę.
+Opcjonalny filtr `equipmentFamily` zawęża pulę niezależnie od preferencji. Oceny redukcji, dodania serii
+i pominięcia nie dołączają zamienników.
+
+Pula jest oceniana przed obcięciem wyniku, aby niżej podobny, ale bez advice-faili kandydat nie zniknął.
+Nie ma rekurencji; wydajność pełnej puli i pomiar p95 na telefonie pozostają do odbioru integracji
+(odstępstwo od oszacowania „1 + 3 oceny” opisane w UWAGI §2e).
+Dowody: `rankAlternatives.test.ts` — T67/T75, permutacje katalogu/slotów/krawędzi, własne patche,
+filtrowanie hard-faili, świadomie wykonalne advice, preferencje i zachowanie wykonanych serii.
 
 ## 5. Konwencje testów
 

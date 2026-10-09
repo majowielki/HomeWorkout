@@ -1,4 +1,5 @@
 import type { ExerciseRef, MovementLexicon, ResolvedExercise } from '../catalog/resolve';
+import type { EquipmentFamily } from '../catalog/attributes';
 import type { ExposureRecord } from '../observations/exposure';
 import type { DayInputV2 } from '../plan/dayV2';
 import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
@@ -7,7 +8,7 @@ import type { DaySelection, ViolationCode } from '../plan/types';
 import type { AssessmentCheck, Verdict } from '../policy/hardAdvice';
 import type { MuscleGroup } from '../types';
 
-/** Feel options and ranked alternatives join in P4b.3/P4b.5. */
+/** Feel options join in P4b.5. */
 export type SessionChange =
   | { kind: 'add_exercise'; exercise: ExerciseRef; sets?: number; position?: 'next' | 'end' }
   | { kind: 'add_sets'; exposureId: string; sets: number }
@@ -72,7 +73,8 @@ export interface ChangeEffects {
   tomorrow: { date: string; changedSlots: string[]; reasons: ViolationCode[] } | null;
 }
 
-export interface ChangeAssessment {
+/** An assessment without further alternatives: the leaf evaluation shared by the ranker. */
+export interface SessionChangeEvaluation {
   assessmentId: string;
   basedOn: {
     sessionId: string;
@@ -87,4 +89,44 @@ export interface ChangeAssessment {
   recommendation: { sets: SetsRecommendation; position: 'next' | 'end' } | null;
   prescription: PrescriptionSummary | null;
   patch: SessionPlanPatch | null;
+}
+
+export type AlternativeChange = Extract<SessionChange, { kind: 'add_exercise' | 'swap_remaining' }>;
+export type AlternativeReason =
+  | 'same_slot'
+  | 'same_family'
+  | 'variant_easier'
+  | 'variant_harder'
+  | 'substitute'
+  | 'preference'
+  | 'week_min_helped';
+
+export interface RankedAlternative {
+  exerciseId: string;
+  why: AlternativeReason[];
+  verdict: Verdict;
+  prescription: PrescriptionSummary;
+  patchId: string;
+  /** Explicit intent and full leaf assessment for the card and transactional re-assessment. */
+  change: AlternativeChange;
+  assessment: SessionChangeEvaluation;
+}
+
+export interface AssessmentContext {
+  snap: SessionChangeSnapshot;
+  session: ActiveSessionState;
+  /** Preserve the requested count, insertion position or pending exposure when replacing the exercise. */
+  change: AlternativeChange;
+  maxAlternatives?: number;
+  equipmentFamily?: EquipmentFamily;
+}
+
+export interface AlternativesTarget {
+  exerciseId?: string;
+  slotId?: string;
+  muscles: readonly MuscleGroup[];
+}
+
+export interface ChangeAssessment extends SessionChangeEvaluation {
+  alternatives: RankedAlternative[];
 }
