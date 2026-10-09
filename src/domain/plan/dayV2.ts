@@ -66,7 +66,7 @@ import {
   isEligible,
   slotByExercise,
 } from './eligibility';
-import type { DecisionTrace, PlanVersions } from './planV2';
+import type { DecisionTrace, PlannedExposure, PlanVersions } from './planV2';
 import type { DayReason, FatigueSignal, SkipReason } from './reasons';
 import { type PlanningResult, planWithRepair } from './repair';
 import { type ExerciseResistance, modelFor, resistanceOf } from './resistanceOf';
@@ -254,7 +254,8 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
   // ---- the recipe of an exercise for a number of sets
   const memo = new Map<string, { draft: Draft; spec: ExposureSpec }>();
   const recipe = (p: Prepared, sets: SetsRecommendation) => {
-    const key = `${p.slot.id}|${sets.recommended}|${sets.allowed?.[1] ?? 0}`;
+    // Only recommendations with room reach the recipe builder.
+    const key = `${p.slot.id}|${sets.recommended}|${sets.allowed![1]}`;
     const known = memo.get(key);
     if (known) return known;
     const { draft, trace } = prescribeNext({
@@ -347,6 +348,7 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
       spec: ExposureSpec;
       draft: Draft;
       score: number;
+      scoreParts: { deficit: number; staleness: number; compound: number; preference: number };
       secs: number;
     } | null = null;
     for (const p of remaining) {
@@ -382,21 +384,35 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
       // between the slots that can train the muscle), the wait of the slot (in weeks), the bonus of a
       // compound lift, and the person's preference.
       const coverage = p.exercise.primaryMuscles.reduce(
-        (sum, m, i) => sum + Math.min(n, needs[i]!) / Math.max(1, providers.get(m) ?? 1),
+        (sum, m, i) => sum + Math.min(n, needs[i]!) / providers.get(m)!,
         0,
       );
-      const score =
-        cfg.scoring.deficitWeight * coverage +
-        stale(p.slot) +
-        (p.slot.kind === 'compound' ? cfg.scoring.compoundBonus : 0) +
-        DAY_V2_CONFIG.preferenceWeight * likes(p.exercise);
+      const scoreParts = {
+        deficit: cfg.scoring.deficitWeight * coverage,
+        staleness: stale(p.slot),
+        compound: p.slot.kind === 'compound' ? cfg.scoring.compoundBonus : 0,
+        preference: DAY_V2_CONFIG.preferenceWeight * likes(p.exercise),
+      };
+      const score = Object.values(scoreParts).reduce((sum, part) => sum + part, 0);
       if (best === null || score > best.score || (score === best.score && p.order < best.p.order)) {
-        best = { p, spec, draft, score, secs: total - used };
+        best = { p, spec, draft, score, scoreParts, secs: total - used };
       }
     }
     if (best === null) break;
     const pick = best;
-    chosen.push({ p: pick.p, spec: pick.spec });
+    chosen.push({
+      p: pick.p,
+      spec: {
+        ...pick.spec,
+        trace: {
+          ...pick.spec.trace,
+          evidence: {
+            ...pick.spec.trace.evidence,
+            selection: { ...pick.scoreParts, total: pick.score, addedSec: pick.secs },
+          },
+        },
+      },
+    });
     remaining = remaining.filter((r) => r !== pick.p);
     used += pick.secs;
     for (const m of pick.p.exercise.primaryMuscles) added[m] += pick.spec.sets.length;
@@ -524,6 +540,10 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
   if (input.only === undefined && hardSeconds < minSec / 2) dayReasons.push('LIGHT_DAY');
   if (lighter) dayReasons.push('LIGHTER_DAY_REQUESTED');
 
+  const exposures =
+    result.kind === 'ready' || result.kind === 'adjusted' ? result.plan.exposures : [];
+  const plannedIds = new Set(exposures.map((e) => e.exercise.id));
+
   return {
     result,
     skipped,
@@ -531,8 +551,8 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
     signals,
     phase,
     bike,
-    regions: regionsOf(ordered, new Map(slots.map((s) => [s.id, s]))),
-    proposals,
+    regions: regionsOf(exposures, new Map(slots.map((s) => [s.id, s]))),
+    proposals: proposals.filter((p) => plannedIds.has(p.exerciseId)),
   };
 }
 
@@ -803,15 +823,18 @@ function withoutLoners<T>(groups: readonly T[][]): T[][] {
 }
 
 function regionsOf(
-  specs: readonly ExposureSpec[],
+  exposures: readonly PlannedExposure[],
   slotById: ReadonlyMap<string, Slot>,
 ): SlotRegion[] {
   const sets = new Map<SlotRegion, number>();
-  for (const s of specs) {
-    // Every recipe of a day is of a slot of the plan; mobility never titles a day.
-    const region = slotById.get(s.slotId!)!.region;
-    if (region === 'mobility') continue;
-    sets.set(region, (sets.get(region) ?? 0) + s.sets.length);
+  for (const e of exposures) {
+    const hard = e.sets.filter(
+      (s) => s.role === 'work' || s.role === 'probe' || s.role === 'backoff',
+    );
+    if (hard.length === 0) continue;
+    const region = slotById.get(e.slotId!)!.region;
+    const logical = new Set(hard.map((s) => s.logicalSetId)).size;
+    sets.set(region, (sets.get(region) ?? 0) + logical);
   }
   return [...sets.entries()].sort((a, b) => b[1] - a[1]).map(([region]) => region);
 }

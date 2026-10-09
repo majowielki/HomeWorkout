@@ -114,10 +114,15 @@ Czysta domena: nic w aplikacji tego jeszcze nie woła (pipeline wchodzi do plano
 | P4.3–P4.5 | `plan/compile.ts`: kompilator receptur do planu (id serii, strony, kroki, przezbrojenia zasobów, czas z kroków, superserie), `stampPlan` | ☑ 100% pokrycia |
 | P4.1 | `plan/audit.ts`: jeden audyt dla każdej ścieżki, klasy hard/advice z rejestru, tryby new_plan/start/resume/import/display | ☑ 100% |
 | P4.6 | `plan/repair.ts`: `planWithRepair` (drop_filler, split_superset, reduce_sets, drop_exposure, budżet kroków, ready/adjusted/no_feasible_plan/unsupported_input) | ☑ 100% |
-| P4.2 | `plan/dayV2.ts` `planDayV2` (wybór zachłanny z jawnym score, recommendSets, prescribeNext, wypełniacze, grupy), `blockV2.ts`, `resistanceOf.ts`, `autoregulation/signalsV2.ts`, `plan/simulateV2.ts` (symulacja tygodni) | ◐ działa na prawdziwym katalogu (6 tygodni, własności objętości i czasu zielone); **brakuje pokrycia 100% gałęzi** `dayV2.ts`, `simulateV2.ts`; 2 testy w `dayV2Worlds.test.ts` są `it.skip` z TODO (zamiennik jednonożny przy FATIGUE_HIGH; propozycje wariantu/CONFIRM_STEP_UP w planie dnia) |
+| P4.2 | `plan/dayV2.ts` `planDayV2` (wybór zachłanny z jawnym score, recommendSets, prescribeNext, wypełniacze, grupy), `blockV2.ts`, `resistanceOf.ts`, `autoregulation/signalsV2.ts`, `plan/simulateV2.ts` (symulacja tygodni) | ◐ dzień ma 100% pokrycia, testy zamiennika i propozycji odblokowane; symulacja i pełny odbiór w toku |
 | P4.7 | tryby audytu start/resume/import | ☑ (w audycie) |
 
 **Wznowienie 2026-10-09:** dwa `it.skip` odblokowane (28 testów `dayV2Worlds.test.ts` zielonych): zamiennik badany bez konkurencyjnego przysiadu; propozycje z jawnym wyborem slotu i bez przerwy uruchamiającej regułę powrotu. Test akceptacji awansu sprawdza teraz rzeczywiście zaplanowaną próbę. **Pozostało:** (1) domknąć 100% pokrycia `dayV2.ts`/`simulateV2.ts`; (2) UWAGI + DOKUMENTACJA dla P4; (3) pełne `npm run verify`; (4) scalić `--no-ff`. Obserwacja: przy 3 seriach compound tygodniowe maksima mięśni (pośladki 8, plecy 8) są wyczerpane w 4–5 dniu, więc kolejne dni to głównie wypełniacze (skutek D22; do oceny w benchmarku P8).
+
+**Dzień v2 — domknięty:** `dayV2Edges.test.ts` i odblokowane scenariusze dają 100% statements/branches/functions/lines
+`dayV2.ts`. Ślad zawiera składowe score i czas dodania; propozycje oraz regiony odpowiadają wynikowi po audycie/naprawie.
+Regresje: ból z dodatkowej pracy, brak oporu w dawnej ekspozycji, niedostępna recepta/wypełniacz, wydłużony zakres
+ponad czas, slot stale przy wypełnionym celu. Szczegóły zachowania: UWAGI §2b. Pełny odbiór P4 nadal w toku.
 
 ## P5–P9
 

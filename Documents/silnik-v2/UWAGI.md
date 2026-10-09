@@ -47,6 +47,25 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | 12 §5: `recommendSets(ex, slot, phase, room, policy, prefs)`, czas z kompilatora | `recommendSets({kind, primaryMuscles, phase, lighterDay, room, policy, preferences})`; czas jako wywołanie zwrotne `room.fitsTime(n)` | Kompilator i model czasu to P4; kontrakt wywołania zwrotnego pozwoli go podpiąć bez zmiany funkcji | nie wymaga |
 | 13 §3 (kod `CONFIRM_STEP_UP`) | Autopilot = ostatnie dwie ekspozycje primary tego klucza, w których **każda** wymagana seria miała ilość i wysiłek z niezmienionych podpowiedzi. Odpowiedź osoby (`user.stepUp`) przychodzi z wywołującego | Zgodne z 13 §12; w testach domyślny wynik z fixtur to wpisane przez osobę | nie wymaga |
 
+### 2b. Domknięcie P4 (2026-10-09)
+
+- `planDayV2` zapisuje w `trace.evidence.selection` ważone składniki rzeczywiście użytego score: deficyt,
+  przeterminowanie slotu, bonus compound i preferencję, sumę oraz marginalny koszt kompilatora w sekundach (04 §3, D25).
+  Nie wprowadzono nowych wag ani strojenia polityki. Koszt przezbrojeń ogranicza czas; osobna kara w score i oracle
+  pozostają eksperymentem P8.
+- Propozycje i regiony dnia opisują **końcowy audytowany plan**. Po `no_feasible_plan` są puste; naprawa usuwa propozycje
+  ćwiczeń, których nie ma w wyniku. Regiony liczą serie logiczne work/probe/backoff, bez praktyki i mobilności (D22,
+  04 §2). Wcześniej opisywały kandydata przed naprawą i mogły tytułować dzień wypełniaczem.
+- Dwa wyłączone testy były problemem fixtur: przysiad zużywał budżet zamiennika wykroku, a długa przerwa i osiągnięty
+  cel tygodniowy powstrzymywały generację propozycji. Scenariusze badają teraz samą zamianę oraz jawnie wybrane sloty.
+  Test odpowiedzi „tak” sprawdza próbę szczebla, więc nie przechodzi przez sam brak propozycji.
+- `planDayV2` jest wejściem **domeny v2**, obok starych ścieżek aplikacji. Przeniesienie wszystkich konsumentów,
+  rezerwacje aktywnej sesji, snapshot z DB, UI/AI oraz komunikaty polskie są P4b/P5/P6. Adapter katalogu planera
+  obsługuje obecne hantle, gumy i masę ciała; kompilator/audyt przyjmują modele przez `modelOf`.
+  Włączenie nowego sprzętu w aplikacji nadal wymaga pełnego odbioru P9.
+- Obserwacja D22 pozostaje do benchmarku P8: compound 3 serie wcześniej wyczerpuje maksima tygodniowe; krótszy
+  legalny dzień albo praktyka/mobilność po wyczerpaniu limitów są dopuszczalne. Nie podnoszono limitów dla testów.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon
