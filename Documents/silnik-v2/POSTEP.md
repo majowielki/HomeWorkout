@@ -27,7 +27,7 @@ opisany inny dowód) i commit.
 |---|---|---|---|---|
 | P0 | Baza pomiarowa i poprawki bez zmiany strategii | ☑ 2026-10-09 | `refactor/engine-p0-baseline` | — |
 | P1 | Kontrakty v2, model oporu, katalog (aliasy, graf wariantów, screenery), preferencje | ☑ 2026-10-09 | `refactor/engine-p1-contracts` | P0 |
-| P2 | Zapis i historia: migracja, logger, archiwizacja i reset | ⏸ | | P1 |
+| P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☐ | | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☐ | | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☐ | | P3, P4 |
@@ -70,7 +70,23 @@ Czysta domena: typy, schematy, rejestry i adaptery. **Żadna ścieżka aplikacji
 | P1.9 | Rejestr screenerów per staw (kolano bez zmian) | `screeners.test.ts` (parytet z `screenExercise` dla 151 ćwiczeń × 3 profile) | ☑ | `d812948` |
 | P1.10 | Rejestr reguł hard/advice, werdykt, `TrainingPreferences`, `preferenceScore`, `nearEquivalent` | T61–T64, T69, T73, T74; `hardAdvice.test.ts`, `preferences.test.ts` | ☑ | `86e43af` |
 
-## P2–P9
+## P2 — zapis, historia, archiwizacja
+
+Decyzja użytkownika 2026-10-09: „Start” dla P2. **Zakres wykonany to cała warstwa danych**, sprawdzona na prawdziwym SQLite. Dwie rzeczy z planu świadomie czekają, bo nie mają sensu bez planu v2 w aplikacji: przełączenie loggera UI na polecenia v2 (P2.4/P2.9 — P5) i uruchomienie resetu danych na telefonie (P6). Powód i konsekwencje: UWAGI §2.
+
+| Zadanie | Zakres | Dowód | Status | Commit |
+|---|---|---|---|---|
+| P2.1 | Migracja addytywna `0010_engine_v2_storage`: kolumny w `workouts` i `set_logs`, tabele `set_log_revisions`, `set_dispositions`, `exposure_outcomes`, `command_ledger`, `planning_revisions`, `session_plan_revisions`, `feel_reports`, `preferences`, `legacy_sessions`, `app_state`; stare wiersze bez zmian | „migration 0010 keeps sessions…” | ☑ | `9834c53`, `9a44a3c` |
+| P2.2 | Idempotentne `logSetV2`: ten sam `commandId` = jeden wynik; unikalny bieżący wynik serii (indeks częściowy); konflikt rewizji; wycofanie awarii w transakcji | T15, T17 (SQLite) | ☑ | `488c361` |
+| P2.3 | Trwałe pominięcia, `exposure_outcomes`, zamknięcie/porzucenie bez dopisywania wyników | T12, T13, T14 (SQLite + domena) | ☑ | `488c361`, `6edd1a0` |
+| P2.4 | Pochodzenie per pole w zapisie (`SetObservation` w kolumnie `observation`); **logger UI** | warstwa danych ☑; UI: P5 | ◐ | `9834c53` |
+| P2.5 | `normalizeObservations` i `buildHistoryIndex`; praca z porzuconych sesji zostaje | `normalize.test.ts`, `historyIndex.test.ts` | ☑ | `6edd1a0`, `956827e` |
+| P2.6 | Ostatni porównywalny wynik klucza bez limitu dni (`loadLastComparableBefore`) | T34 (SQLite) | ☑ | `488c361` |
+| P2.7 | Korekta (z historią zmian), cofnięcie (nagrobek), rewizje i liczniki wejść planowania | T18 (SQLite + domena) | ☑ | `488c361`, `18c2d25` |
+| P2.8 | Kopia zapasowa 7: pełny round trip danych v2; archiwizacja → sprawdzenie → reset (D21); import archiwum jako historia do wglądu | T52, T53 (SQLite) | ☑ (reset wyłączony) | `9834c53`, `9a44a3c` |
+| P2.9 | Migracja aktywnej sesji, restart sesji v2 | P5 (potrzebuje UI) | ☐ | |
+
+## P3–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą
 rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany.
@@ -80,5 +96,6 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 | Data | Co | Commit |
 |---|---|---|
 | 2026-10-09 | Przeczytany pakiet architektury (v1.3). Założona gałąź `docs/engine-v2-tracking`; trzy dokumenty w `Documents/silnik-v2/`. Stan wyjściowy: `main` @ `33d0f1e` + niezatwierdzone zmiany użytkownika (głos/trener v6, 40 plików) — patrz UWAGI §1 | |
+| 2026-10-09 | Zatwierdzone niezatwierdzone zmiany użytkownika (`51237d0`, Q-1). Przełącznik „Uwzględniaj ograniczenia kolana” i „Ostrożny zakres powtórzeń” w Ustawieniach (`e3d511d`, Q-3). Krawędzie wariantów zmieniające jednostkę, jawnie (`a340051`, Q-4). **P2 (warstwa danych) zamknięty**: normalizator, indeks historii, schemat i migracja 0010, polecenia sesji v2, kopia zapasowa 7, archiwizacja/reset (wyłączony). `npm run verify`: 3138 testów, pokrycie domeny 100% | |
 | 2026-10-09 | **P1 zamknięty** (10 zadań, ok. 370 nowych testów, `npm run verify` zielone: 3047 testów, pokrycie domeny 100%). Czysta domena: kontrakty planu i wyników, modele oporu, graf wariantów, screenery, reguły hard/advice, preferencje, sprzęt. Aplikacja bez zmian zachowania (golden baseline identyczny) | |
 | 2026-10-09 | **P0 zamknięty** (7 zadań, 46 nowych testów, `npm run verify` zielone: 2673 testy, pokrycie domeny 100%). Gałąź `refactor/engine-p0-baseline` scalona do `main`. Porównanie planów z kodem sprzed przebudowy: jedna różnica, wyjaśniona (P0.7) — DOKUMENTACJA §4.4 | |
