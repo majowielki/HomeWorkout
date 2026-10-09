@@ -533,6 +533,7 @@ export function evaluateSessionChange(
     subject,
     beforeSec,
     changed.remainingSec,
+    target !== undefined && change.kind !== 'swap_remaining',
   );
   checks.push(...extra.checks);
   const sorted = sortChecks(checks);

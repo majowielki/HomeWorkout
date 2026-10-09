@@ -157,6 +157,8 @@ export function changeEffects(
   subject: PlannedExposure | null,
   beforeSec: number,
   afterSec: number,
+  /** The change carries on an exposure already in the plan: it does not overlap with its own earlier sets. */
+  continuing = false,
 ): { effects: ChangeEffects; checks: AssessmentCheck[] } {
   const volume = remainingVolume(plan, settled, snap);
   const checks: AssessmentCheck[] = [];
@@ -211,6 +213,7 @@ export function changeEffects(
       if (
         r.trainingDate !== snap.asOf ||
         seen.has(r.exerciseId) ||
+        (continuing && r.exerciseId === exercise.id) ||
         !(r.sets.some(isPerformed) || r.extra.some((o) => o.status === 'performed'))
       )
         continue;

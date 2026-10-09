@@ -818,6 +818,25 @@ describe('history, projection and recommendation boundaries', () => {
       expect.objectContaining({ code: 'OVERLAP_TODAY', status: 'warn' }),
     );
   });
+  it('a change that carries on an exercise in progress does not overlap with its own earlier sets', () => {
+    const { snap, session } = world([recipe('db-floor-press', 3)]);
+    session.records = perform(session, 1);
+    const id = session.plan.exposures[0]!.id;
+    for (const change of [
+      { kind: 'reduce_remaining', exposureId: id, easier: true },
+      { kind: 'reduce_remaining', exposureId: id, dropSets: 1 },
+      { kind: 'add_sets', exposureId: id, sets: 1 },
+    ] as const) {
+      const a = assessSessionChange(snap, session, change);
+      expect(codes(a)).not.toContain('OVERLAP_TODAY');
+      expect(a.effects.overlapToday).toEqual([]);
+    }
+    // Starting the same exercise again as a new exposure is still the same movement done today.
+    const again = assessSessionChange(snap, session, add('db-floor-press', 1));
+    expect(again.effects.overlapToday).toContainEqual(
+      expect.objectContaining({ exerciseId: 'db-floor-press', samePattern: true }),
+    );
+  });
   it('effects support partial day balances with no prefilled muscle keys', () => {
     const { snap, session } = world();
     const state = assessmentDay(snap, [], 1800);
