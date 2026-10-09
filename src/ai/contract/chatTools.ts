@@ -36,7 +36,15 @@ import {
   REQUEST_SKIP_REASONS,
   SKIP_REASONS,
 } from '../../domain/plan/reasons';
+import { DECISION_CODES } from '../../domain/progression/codes';
 import { isoDate, setSchema, volumeWeekSchema, waistSchema, weightSchema } from './coachContext';
+import {
+  activeSessionSummarySchema,
+  assessmentSummarySchema,
+  sessionChangeInputSchema,
+  sessionProposalSummarySchema,
+} from './sessionTools';
+import { simulateInputSchema, simulateOutputSchema } from './simulationTools';
 
 export const TOOL_NAMES = [
   'getRecentSessions',
@@ -50,6 +58,10 @@ export const TOOL_NAMES = [
   'proposeExtraSession',
   'getDayOptions',
   'proposeDayPlan',
+  'getActiveSession',
+  'assessSessionChange',
+  'proposeSessionChange',
+  'simulateProposal',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -102,7 +114,17 @@ export const TOOL_ERRORS = [
   'date_changed',
   /** Today is already trained: its plan is closed. */
   'day_done',
+  /** No workout is under way: the session tools have nothing to look at. */
+  'no_active_session',
+  /** The session moved on since the assessment: assess again. */
+  'stale_assessment',
 ] as const;
+
+type PlanReasonCode = (typeof PROGRESSION_REASONS)[number] | (typeof DECISION_CODES)[number];
+/** Why a prescription is what it is: the codes of the first engine and of the second (contract 7). */
+export const PLAN_REASON_CODES = [
+  ...new Set<string>([...PROGRESSION_REASONS, ...DECISION_CODES]),
+] as unknown as readonly [PlanReasonCode, ...PlanReasonCode[]];
 
 export const PLAN_DAY_REASONS = [...DAY_REASONS, ...REQUEST_DAY_REASONS] as const;
 export const PLAN_SKIP_REASONS = [...SKIP_REASONS, ...REQUEST_SKIP_REASONS] as const;
@@ -376,7 +398,7 @@ export const CHAT_TOOLS = {
             /** The movement slot, in Polish, from the shipped data. */
             movement: z.string().min(1).max(60),
             sets: count,
-            reasons: z.array(z.enum(PROGRESSION_REASONS)),
+            reasons: z.array(z.enum(PLAN_REASON_CODES)),
           }),
         )
         .max(TOOL_LIMITS.planExercisesShown),
@@ -435,7 +457,60 @@ export const CHAT_TOOLS = {
     input: composeIntentSchema,
     output: composeProposalSummarySchema,
   },
+  getActiveSession: {
+    description:
+      "The workout that is under way, as the app's rules engine has it: the exercises in order with how many sets are done, pending and skipped, the muscles each trains, the sets each muscle has had today against the daily maximum, and the seconds left of the session. Use it to find the exposureId of the exercise the person is on before asking about a change to it. Returns no_active_session when no workout is running.",
+    input: z.strictObject({}),
+    output: activeSessionSummarySchema,
+  },
+  assessSessionChange: {
+    description:
+      "Ask the rules engine whether a change to the workout under way is advisable, without changing anything: add an exercise (name it in the person's words), add sets to an exercise, swap what is left of it for another exercise, drop sets or make the rest easier, skip the rest, or report that it felt too hard or too easy. The answer is the engine's: a verdict (ok, ok_with_changes, not_recommended, blocked, needs_clarification), the checks behind it with their figures, the sets it recommends, what it would prescribe, and up to three alternatives, each assessed the same way. A blocked change is not possible and an unknown exercise is not assessed: say so and offer the alternatives. Quote the figures as they are. Get exposureId from getActiveSession. Maximum two calls in one turn.",
+    input: sessionChangeInputSchema,
+    output: assessmentSummarySchema,
+  },
+  proposeSessionChange: {
+    description:
+      'Put an assessed change on a card on the phone for the person to accept or refuse; nothing changes until they press the button. Give the assessmentId and patchId of the assessment or of one of its alternatives. A change the engine advised against can still be accepted knowingly: the card lists what the person has to accept. Never claim the change was made, and never propose one the person did not ask for or accept in words. Returns stale_assessment when the workout moved on: assess again.',
+    input: z.strictObject({
+      assessmentId: z.string().regex(/^[0-9a-f]{64}$/),
+      patchId: z.string().regex(/^[0-9a-f]{64}$/),
+    }),
+    output: sessionProposalSummarySchema,
+  },
+  simulateProposal: {
+    description:
+      "Check what a proposal would do to the coming days, with the same planner that makes the plan, before suggesting it: a week change (rest day, lighter day, a muscle left out), a change of the person's sets per exercise or volume profile, or a change to the workout under way. It returns the plan as it stands and the plan with the proposal side by side (sets per muscle against its minimum and maximum, minutes per day, expected steps up in resistance, expected trial sets, whether a deload comes) and their difference, and the engine's warnings. It is a forecast that assumes the person does what is planned (follows_plan) or what the last four weeks suggest (observed_trend). Nothing is saved. Before a week or policy proposal, call it and quote one or two figures from the difference; never present the forecast as a promise.",
+    input: simulateInputSchema,
+    output: simulateOutputSchema,
+  },
 } as const satisfies Record<ToolName, { description: string; input: z.ZodType; output: z.ZodType }>;
+
+/**
+ * What a tool does to the world (11 §13): the ones that only look, and the ones that put a proposal in
+ * front of the person. No tool of the chat changes anything on its own; a proposal needs the person's
+ * acceptance on the phone, and asking again after a timeout gives the same card.
+ */
+export const TOOL_ANNOTATIONS: Record<
+  ToolName,
+  { readOnly: boolean; proposal: boolean; idempotent: boolean }
+> = {
+  getRecentSessions: { readOnly: true, proposal: false, idempotent: true },
+  getExerciseHistory: { readOnly: true, proposal: false, idempotent: true },
+  getWeeklyVolume: { readOnly: true, proposal: false, idempotent: true },
+  getBodyTrend: { readOnly: true, proposal: false, idempotent: true },
+  findExercises: { readOnly: true, proposal: false, idempotent: true },
+  getPlanExplanation: { readOnly: true, proposal: false, idempotent: true },
+  getWeekPlan: { readOnly: true, proposal: false, idempotent: true },
+  getDayOptions: { readOnly: true, proposal: false, idempotent: true },
+  getActiveSession: { readOnly: true, proposal: false, idempotent: true },
+  assessSessionChange: { readOnly: true, proposal: false, idempotent: true },
+  simulateProposal: { readOnly: true, proposal: false, idempotent: true },
+  proposePlanChange: { readOnly: false, proposal: true, idempotent: true },
+  proposeExtraSession: { readOnly: false, proposal: true, idempotent: true },
+  proposeDayPlan: { readOnly: false, proposal: true, idempotent: true },
+  proposeSessionChange: { readOnly: false, proposal: true, idempotent: true },
+};
 
 export type ToolInput<N extends ToolName> = z.infer<(typeof CHAT_TOOLS)[N]['input']>;
 export type ToolOutput<N extends ToolName> = z.infer<(typeof CHAT_TOOLS)[N]['output']>;

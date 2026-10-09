@@ -176,6 +176,78 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Do sprawdzenia na telefonie w P5: czy zdania czytane głosem (pierwsze dwa) są zrozumiałe; formy bezosobowe
   („Dziś zgłoszono ból”) wybrane celowo, żeby nie zgadywać rodzaju gramatycznego.
 
+### 2i. P5.5a — serwis dnia (2026-10-09)
+
+- Spec. 01 §4 mówi o `PlanningSnapshot` jako osobnym obiekcie z rewizjami. W kodzie jego rolę pełni odcisk całego wejścia
+  (`fingerprint` w `planDayIn`) i hasz planu: wystarczy do porównania podglądu z akceptacją, a rewizje domen i tak są częścią wejścia.
+  Osobny typ `PlanningSnapshot` nie jest potrzebny, dopóki nie pojawi się konsument, który go wymaga (replay diagnostyczny).
+- Historia jest czytana w całości (jak w konsultacji), bez okna 120 dni i bez `loadLastComparableBefore`. Przy dużej bazie to
+  kandydat do pomiaru (UWAGI T-2) — wtedy ten sam czytnik przechodzi na okno + starsze „ostatnie wyniki”.
+- Prośba o deload nie ma jeszcze źródła w bazie (v1 nie miał takiej prośby); `DayRequest.deloadRequested` czeka na ekran/AI (P5.3/P5.6).
+- `ENGINE_VERSIONS` (2.0.0 / policy-2.0 / compiler-1 / trace 1) to wartości z symulacji; zmiana któregokolwiek składnika
+  planu wymaga podniesienia odpowiedniej wersji w `plan/versions.ts` razem z opisem tutaj.
+
+### 2j. P5.1–P5.2 — tydzień na v2 (2026-10-09)
+
+- Decyzja użytkownika: tydzień przechodzi na model v2 (zamiast planowania samego dnia). UI nie jest zmieniane do końca implementacji silnika (decyzja
+  tego samego dnia), więc ekrany kalendarza i „Dziś” nadal czytają `planned_days` pierwszego silnika.
+- Spec. 04 §5 każe przechowywać „wybory ruchów/slotów”. Przechowywany jest `KeptItem` (slot, ćwiczenie, liczba serii) i prognoza planu v2 (do pokazania
+  dnia). Prognoza nie jest źródłem prawdy o obciążeniu: start sesji planuje dzień od nowa z prawdziwej historii (`acceptDay`).
+- Stabilizacja jest „twarda w obrębie reguł”, nie miękka premia w score: dzień trzymany jest planowany tylko ze zapisanych slotów i albo mieści się w całości,
+  albo jest wybrany od nowa. Dzięki temu zmiana zawsze ma wymieniony powód.
+- Obserwacja (D22 jak w P4): przy 3 seriach compound maksima pośladków i pleców wyczerpują się w 4–5 dniu, więc dni 6–7 prognozy mają tylko lekką pracę
+  i mobilność. Gdy użytkownik doda dzień odpoczynku, te puste dni dostają prawdziwy trening i pojawiają się w banerze jako zmiana (bez powodu reguły —
+  to wolna pojemność, nie naruszenie). Limity nie zostały zmienione; do rozstrzygnięcia przy benchmarku P8.
+- Brak jeszcze źródła prośby o deload w bazie (`deloadRequests`), sesji dodatkowych (`seq > 1`) w tygodniu v2 i unieważniania prognozy poza wejściem do ekranu
+  (P5.1b). Tydzień nie zapisuje bloku.
+
+### 2k. P5.4 — logger, głos i odpowiedzi (2026-10-09)
+
+- Spec. 06 §3 mówi „głos przez wspólny command handler”. Sam handler (`logSetV2`) istnieje od P2; tu dodany jest budowniczy rekordu (`buildObservation`),
+  którego ekran loggera i parser głosu mają użyć, oraz intencje sesji. **Podłączenie do ekranów czeka** (decyzja użytkownika: UI bez zmian do końca implementacji
+  silnika) — dziś `useSessionVoice` i logger działają jak przedtem.
+- Odpowiedź na `CONFIRM_STEP_UP` nie była nigdzie zapisywana (`DayInputV2.answers` było tylko parametrem), więc dodałem tabelę. Odpowiedź wygasa z nową ekspozycją klucza;
+  alternatywą było trzymanie jej bez końca, co zamieniłoby „tak” w trwałe wyłączenie ochrony przed autopilotem (D20).
+- `matchSessionIntent` rozpoznaje „dodaj” jako odpowiedź „tak” tylko gdy karta czeka; bez karty „dodaj” bez przedmiotu to `null`. Frazy parametrów („jak było lekko”) są
+  celowo poza zasięgiem: odczucie sesji wymaga „za”/„zbyt”.
+- Do sprawdzenia na telefonie po integracji: czy rozpoznawanie mowy zapisuje „zamień na coś z gumą” w postaci, którą słownik łapie (gum\w*), oraz czy odpowiedź „dodaj” / „tak” nie koliduje z istniejącymi komendami przerwy.
+
+### 2l. P5.6a — kontrakt 7 (2026-10-09)
+
+- Decyzja użytkownika: kod Workera i kontraktu zmieniam teraz, **wdrożenie Workera i nowego APK razem po zakończeniu implementacji silnika**, potem testy na działającej aplikacji. Do tego czasu
+  telefon i wdrożony Worker pozostają na kontrakcie 6; kontrakt 7 jest tylko w repozytorium (klient N/N−1 nie jest zapewniony — zob. P5.6b).
+- Spec. 11 §8 mówi o odpowiedzi „z liczbami z `checks.data`” i receptach z kilogramami, a obecny prompt zakazuje cytowania obciążeń planu. Rozstrzygnięcie: recepta z
+  `assessSessionChange` jest policzona przez silnik dla dokładnie tej zmiany i wolno ją cytować; reszta narzędzi planu nadal nie niesie obciążeń.
+- Pole `position` żądania zmiany nazwałem `placement`, bo test architektury (ADR 0001) zabrania w wejściu modelu pól o nazwach kojarzących się z obciążeniem (`position`, `target`, `rep…`).
+- Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie i podpięcie `createPhoneSessionTools` do `useCoachChat` czekają na etap UI (decyzja: UI bez zmian).
+- Przypadki ewaluacji dla narzędzi sesji (`evals/cases/chat`) wymagają syntetycznej sesji v2 w środowisku ewaluacji i nagrania na żywym modelu — do zrobienia przy testach na działającej aplikacji.
+
+### 2m. P5.6b — symulacja i adnotacje (2026-10-09)
+
+- Spec. 11 §13 każe Workerowi odrzucać wywołanie narzędzia propozycji bez `proposalId`. Obecne narzędzia propozycji nie przyjmują `proposalId` od modelu (powstaje po stronie telefonu, a powtórka daje tę samą
+  kartę), więc adnotacje są deklaracją i testem kształtu, nie egzekwowaną regułą Workera. Egzekwowanie wymaga zmiany protokołu (wspólne wdrożenie, razem z kontraktem 7).
+- Ostrzeżenia symulacji obejmują przekroczenie tygodniowego maksimum (z uwzględnieniem wyższego limitu pośladków i pleców). Brak „poniżej minimum” w rejestrze kodów: model czyta je z liczb (`musclesWeek` vs `min`).
+  Przekroczenia czasu dnia nie raportuję, bo prognoza z konstrukcji mieści się w budżecie dnia.
+- Symulacja używa `observed_trend` tylko do powtórzeń; wysiłek (RIR) zostaje na dole celu. Wystarczy na rekomendację „czy dodanie X zmieni tydzień”, nie na przewidywanie siły.
+
+### 2n. P5.6c — plan i propozycje na tygodniu v2 (2026-10-09)
+
+- Wyjaśnienie planu dla sesji, która już wystartowała, bierze powody dnia z `summary` zapisanego z dniem tygodnia. Dla dnia bez zapisanego wiersza (np. sesja dodatkowa albo dzień sprzed pierwszego
+  zapisu tygodnia) tłumaczy tylko ćwiczenia z kodów śladu; powody dnia, sygnały i rower są puste.
+- Opcje dnia (`getDayOptions`) liczą się osobnym planowaniem dla każdego z ~19 ruchów (≈ 0,5 s na telefonie według pomiaru w node ≈ 150 ms). Do pomiaru na telefonie (UWAGI T-2); jeśli za wolne — jedno planowanie
+  z `only` = wszystkie sloty i odczyt `skipped`.
+- `ProposalChangedError` także gdy zmieniła się data lub jakikolwiek zapisany dzień — ostrożniej niż pierwszy silnik (porównywał klucz migawki). Karta stara się więc częściej wygasać niż aplikować coś,
+  czego osoba nie widziała.
+- Pierwszy silnik (`proposals.ts`) i jego testy pozostają bez zmian do P6. Test architektury (ADR 0001/0006) obejmuje teraz `saveCoachWeekV2` i `acceptDay`: wolno je wołać tylko z orkiestratorów.
+
+### 2o. Co zostaje do ekranów i P6 (2026-10-09)
+
+- Ekrany, które czytają `workouts.plan` (JSON pierwszego silnika) — podgląd planu sesji, wznowienie, historia „plan vs wykonane” — dla sesji v2 mają `plan = null` i `plan_v2`; trzeba je przestawić na `plan_v2` przy pracy nad UI.
+  Liczby i serie historii są w kolumnach starego formatu (`legacyColumns`), więc listy, wykresy i kontekst trenera działają bez zmian.
+- Wywołania do wpięcia w P6: `syncWeek` na wejściu do ekranów i po zamknięciu sesji; `previewDay`/`acceptDay` zamiast `computeToday`/`startPlannedWorkout`; `createPhoneSessionTools`, `createPhonePlanTools`, kontroler
+  `createProposalControllerV2` i `createSimulationHook(loadSimulationBase)` w środowisku narzędzi czatu (`useCoachChat`); `matchSessionIntent` obok `matchCommand`; `buildObservation` w loggerze; `answerPrescription` pod pytaniem o awans.
+- Kontrakt 7 jest w repozytorium, wdrożony Worker ma 6: APK zbudowany z `main` po scaleniu P5 wymaga wdrożenia Workera (i odwrotnie). Czat nie zadziała z niezgodnym Workerem (czytelny błąd „zaktualizuj aplikację”).
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

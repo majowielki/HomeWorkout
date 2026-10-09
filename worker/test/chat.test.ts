@@ -80,7 +80,7 @@ describe('a question that needs no tool', () => {
     expect(result.headers.get('content-type')).toBe('application/x-ndjson; charset=utf-8');
     expect(result.headers.get('cache-control')).toBe('no-store');
     expect(result.events).toEqual([
-      { type: 'start', requestId: 'req-chat-0001', promptVersion: 'chat/v6', model: 'mock-coach' },
+      { type: 'start', requestId: 'req-chat-0001', promptVersion: 'chat/v7', model: 'mock-coach' },
       { type: 'text', delta: 'Trzy ' },
       { type: 'text', delta: 'sesje ' },
       { type: 'text', delta: 'w tygodniu.' },
@@ -269,7 +269,7 @@ describe('a question that needs tools', () => {
     const result = await run(model, chatBody([ask()]));
     // Nothing had been sent yet, so it is a proper error response.
     expect(result.status).toBe(422);
-    expect(result.json).toMatchObject({ kind: 'invalid_output', promptVersion: 'chat/v6' });
+    expect(result.json).toMatchObject({ kind: 'invalid_output', promptVersion: 'chat/v7' });
   });
 
   it('fails the turn when the arguments do not fit the tool', async () => {
@@ -656,7 +656,7 @@ describe('what is charged and what is logged', () => {
     expect(chatLines[0]).toMatchObject({
       event: 'chat',
       requestId: 'req-chat-0001',
-      promptVersion: 'chat/v6',
+      promptVersion: 'chat/v7',
       model: 'mock-coach',
       tokensIn: 900,
       tokensOut: 20,

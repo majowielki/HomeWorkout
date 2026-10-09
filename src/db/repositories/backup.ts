@@ -16,7 +16,10 @@ import {
   measurements,
   planConstraints,
   plannedDays,
+  plannedDaysV2,
   planGenerations,
+  planGenerationsV2,
+  prescriptionAnswers,
   preferences,
   sessionPlanRevisions,
   setDispositions,
@@ -164,6 +167,10 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     // The planned week follows from the logs being replaced: it is planned again.
     tx.delete(plannedDays).run();
     tx.delete(planGenerations).run();
+    tx.delete(plannedDaysV2).run();
+    tx.delete(planGenerationsV2).run();
+    // The answers belong to exposures of the history that is being replaced.
+    tx.delete(prescriptionAnswers).run();
     tx.delete(userProfile).run();
     tx.delete(preferences).run();
     tx.delete(legacySessions).run();

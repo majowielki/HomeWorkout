@@ -199,6 +199,69 @@ export interface StartSessionCommand {
   timeZone: string | null;
 }
 
+/**
+ * Freezes a plan of engine v2 into a running session inside a transaction that
+ * is already open: the ledger has been checked by the caller. Only one session
+ * runs at a time.
+ */
+export function startSessionIn(
+  tx: Tx,
+  cmd: StartSessionCommand,
+  now: Date,
+): CommandResult<{ sessionId: string }> {
+  const parsed = sessionPlanV2Schema.safeParse(cmd.plan);
+  if (!parsed.success) {
+    return { kind: 'rejected', code: 'INVALID_PLAN', detail: z.prettifyError(parsed.error) };
+  }
+  const plan = parsed.data;
+  const running = tx
+    .select({ id: workouts.id })
+    .from(workouts)
+    .where(eq(workouts.status, 'in_progress'))
+    .get();
+  if (running) {
+    return {
+      kind: 'conflict',
+      code: 'ACTIVE_SESSION_EXISTS',
+      actualRevision: null,
+      detail: running.id,
+    };
+  }
+  tx.insert(workouts)
+    .values({
+      id: plan.sessionId,
+      trainingDate: plan.trainingDate,
+      startedAt: now.toISOString(),
+      status: 'in_progress',
+      templateId: null,
+      plan: null,
+      planSchema: 2,
+      planV2: plan,
+      planRevision: plan.planRevision,
+      revision: 0,
+      timeZone: cmd.timeZone,
+    })
+    .run();
+  tx.insert(sessionPlanRevisions)
+    .values({
+      workoutId: plan.sessionId,
+      planRevision: plan.planRevision,
+      plan,
+      reason: 'start',
+      channel: 'engine',
+      overrides: plan.audit.overrides,
+      createdAt: now.toISOString(),
+    })
+    .run();
+  touch(tx, plan.sessionId);
+  return commit(
+    tx,
+    { commandId: cmd.commandId, kind: 'start_session', workoutId: plan.sessionId },
+    { sessionId: plan.sessionId },
+    now,
+  );
+}
+
 /** Freezes a plan of engine v2 into a running session. Only one session runs at a time. */
 export function startSessionV2(
   cmd: StartSessionCommand,
@@ -207,57 +270,7 @@ export function startSessionV2(
   return transact(cmd.commandId, (tx) => {
     const again = replay<{ sessionId: string }>(tx, cmd.commandId);
     if (again) return again;
-    const parsed = sessionPlanV2Schema.safeParse(cmd.plan);
-    if (!parsed.success) {
-      return { kind: 'rejected', code: 'INVALID_PLAN', detail: z.prettifyError(parsed.error) };
-    }
-    const plan = parsed.data;
-    const running = tx
-      .select({ id: workouts.id })
-      .from(workouts)
-      .where(eq(workouts.status, 'in_progress'))
-      .get();
-    if (running) {
-      return {
-        kind: 'conflict',
-        code: 'ACTIVE_SESSION_EXISTS',
-        actualRevision: null,
-        detail: running.id,
-      };
-    }
-    tx.insert(workouts)
-      .values({
-        id: plan.sessionId,
-        trainingDate: plan.trainingDate,
-        startedAt: now.toISOString(),
-        status: 'in_progress',
-        templateId: null,
-        plan: null,
-        planSchema: 2,
-        planV2: plan,
-        planRevision: plan.planRevision,
-        revision: 0,
-        timeZone: cmd.timeZone,
-      })
-      .run();
-    tx.insert(sessionPlanRevisions)
-      .values({
-        workoutId: plan.sessionId,
-        planRevision: plan.planRevision,
-        plan,
-        reason: 'start',
-        channel: 'engine',
-        overrides: plan.audit.overrides,
-        createdAt: now.toISOString(),
-      })
-      .run();
-    touch(tx, plan.sessionId);
-    return commit(
-      tx,
-      { commandId: cmd.commandId, kind: 'start_session', workoutId: plan.sessionId },
-      { sessionId: plan.sessionId },
-      now,
-    );
+    return startSessionIn(tx, cmd, now);
   });
 }
 

@@ -14,6 +14,8 @@ import type { SetObservation } from '@/domain/observations/types';
 import type { SessionPlanV2 } from '@/domain/plan/planV2';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
+import type { KeptItem } from '@/domain/plan/dayV2';
+import type { DaySummaryV2, StoredDayChangeV2 } from '@/domain/plan/weekV2';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import {
   type AnchorPosition,
@@ -505,3 +507,58 @@ export const planConstraints = sqliteTable('plan_constraints', {
   /** For `compose_day`: the movements and sets composed with the coach (ADR 0006). Null otherwise. */
   items: text('items', { mode: 'json' }).$type<ComposedItem[] | null>(),
 });
+
+/**
+ * The week of engine v2: the choice of each day ahead (never a load) and the forecast it was
+ * made with. Separate from `planned_days` so the first engine's week is untouched until the
+ * switch (P6).
+ */
+export const plannedDaysV2 = sqliteTable('planned_days_v2', {
+  date: text('date').primaryKey(),
+  /** The working exercises of the day; null on a rest day. */
+  selection: text('selection', { mode: 'json' }).$type<KeptItem[] | null>(),
+  forecast: text('forecast', { mode: 'json' }).$type<SessionPlanV2 | null>(),
+  /** What the day was planned for: its reasons, regions and the movements left out. */
+  summary: text('summary', { mode: 'json' }).$type<DaySummaryV2 | null>(),
+  /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
+  status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
+  generationId: text('generation_id').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/** Every time the week of engine v2 was planned again, and what changed. */
+export const planGenerationsV2 = sqliteTable(
+  'plan_generations_v2',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull(),
+    trigger: text('trigger', {
+      enum: ['horizon', 'missed_day', 'unsafe', 'manual', 'constraint', 'coach'],
+    }).notNull(),
+    fromDate: text('from_date').notNull(),
+    changes: text('changes', { mode: 'json' }).$type<StoredDayChangeV2[]>().notNull(),
+    /** When the person closed the banner; null while it shows. */
+    seenAt: text('seen_at'),
+  },
+  (t) => [index('plan_generations_v2_created_idx').on(t.createdAt)],
+);
+
+/**
+ * What the person answered to a question the prescription asked (13 §12, 03 §14): to step up after
+ * two exposures made of untouched suggestions, or to try an easier variant. An answer belongs to the
+ * exposure it was given after and stops applying when a newer one exists.
+ */
+export const prescriptionAnswers = sqliteTable(
+  'prescription_answers',
+  {
+    comparisonKey: text('comparison_key').notNull(),
+    kind: text('kind', { enum: ['step_up', 'variant_down'] }).notNull(),
+    answer: text('answer', { enum: ['yes', 'no'] }).notNull(),
+    /** The newest primary exposure of the key when the question was answered. */
+    afterExposureId: text('after_exposure_id').notNull(),
+    answeredOn: text('answered_on').notNull(),
+    commandId: text('command_id').notNull(),
+    answeredAt: text('answered_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.comparisonKey, t.kind] })],
+);

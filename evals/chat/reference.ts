@@ -16,7 +16,7 @@
  */
 import type { ChatEvent, ChatMessage, ChatRequest, ToolCall, ToolResult } from '@/ai/contract/chat';
 import type { ToolName, ToolOutput } from '@/ai/contract/chatTools';
-import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v6';
+import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v7';
 import { fold } from '@/domain/coach/text';
 import type { SkipReason } from '@/domain/plan/reasons';
 import type { ShortfallReason } from '@/domain/types';

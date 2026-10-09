@@ -31,7 +31,7 @@ opisany inny dowód) i commit.
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
-| P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
+| P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☑ 2026-10-09: serwisy, domena i kontrakt gotowe i sprawdzone na SQLite; **ekrany czekają** (decyzja: UI bez zmian do końca implementacji), wdrożenie Workera przy testach | `refactor/engine-p5-integration` | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
 | P8 | Eksperymenty warunkowe | ☐ | | P6 |
@@ -214,7 +214,32 @@ Pełne `npm run verify`: **175 zestawów, 3885 testów, 8 snapshotów**, domena/
 
 Następny krok: **P5 — tydzień, UI, głos, AI, transakcyjna akceptacja** (plan zadań w 07).
 
-## P5–P9
+## P5 — tydzień, UI, głos, AI, transakcyjna akceptacja (w toku)
+
+Zadania i dowody ze specyfikacji: [07 §8](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md), konsumenci: [06 §7](../../../architektura-silnika-2026-10-08/06-UI-AI-INTEGRACJA.md).
+Zasada etapu: wszystko za przełącznikiem — aplikacja nadal używa silnika pierwszego (reset danych wyłączony do P6), a v2 jest
+dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu każdy kawałek da się scalić bez zmiany zachowania telefonu.
+
+| Zadanie | Zakres | Dowód | Status |
+|---|---|---|---|
+| P5.5a | Serwis dnia: wspólny czytnik wejść z bazy (`planningInputs`), kontekst bloku wspólny z symulacją (`blockContext`), wersje silnika (`versions`), `previewDay` (nic nie zapisuje), `acceptDay` (ponowne planowanie w transakcji, porównanie hasha planu, start sesji + blok + rewizje razem albo wcale) | T17, T60: `sqlite-check-planning-v2.cjs` (14 przypadków, w tym 6 dni pod rząd z bazą); pełne `verify` | ☑ |
+| P5.5b | Sesja dodatkowa i dzień złożony (`only`, `acknowledged`) przez ten sam serwis; wspólny bilans dnia (mięsień po treningu głównym nie dostaje „świeżych” 3 serii) | T19: przypadek w `sqlite-check-planning-v2.cjs` | ☑ (diff planu po rewalidacji: UI) |
+| P5.1–P5.2 | Tydzień na silniku v2 (decyzja użytkownika: przenieść): `planWeekV2`/`syncWeekV2` (wybór dnia trzymany, dopóki przechodzi zasady; prognoza tylko wewnątrz funkcji; reszta trwającej sesji liczona jako zrobiona), tabele `planned_days_v2` i `plan_generations_v2` (migracja 0011), `weekPlanV2` (`syncWeek`, `previewWeek`, `getWeek`, baner zmian) | T19, T21: `weekV2.test.ts` (21 testów, 100% pokrycia), `sqlite-check-week-v2.cjs` (10 przypadków) | ☑ |
+| P5.1b | Unieważnienie prognozy: każde wejście woła `syncWeek`, który planuje tydzień z bieżących wejść i odświeża prognozę; dzień wybrany wcześniej zostaje, dopóki przechodzi zasady (`keptViolations` mówi, dlaczego nie). Wywołanie z ekranów i po zamknięciu sesji: P6 | `weekV2.test.ts`, `sqlite-check-week-v2.cjs` | ☑ (wywołania: P6) |
+| P5.7a | Kopia zapasowa i reset: przywrócenie kopii i migracja do v2 czyszczą tydzień v2, generacje i odpowiedzi (wynikają z historii, która jest wymieniana); historia v2 pisze kolumny starego formatu, więc ekrany historii czytają ją jak dotąd | `sqlite-check-week-v2.cjs` (przywrócenie), `sqlite-check-v2.cjs` | ☑ |
+| P5.3a | Ślad decyzji po polsku: `decisionText` (zdanie dla każdego z 42 kodów, liczby z dowodu) i `traceText` | `decisionText.test.ts` (rekord wyczerpujący, snapshot, „lżej” tylko przy zmianie oporu) | ☑ |
+| P5.3b | Podgląd dnia w UI: diff, krótszy legalny dzień, liczba serii „polecane; możesz 1–4” | UI pokazuje przyczynę, nie pusty ekran | ☐ |
+| P5.4a | Logger: `buildObservation` (pochodzenie per pole, dotyk i głos ten sam rekord), `defaultEffort`, `readBackText`, ochrona przed spóźnioną transkrypcją | T38–T40: `entry.test.ts` (13 testów, 100%) | ☑ |
+| P5.4b | Głos: `matchSessionIntent` (dodaj/zamień/serię/za ciężko/pomiń resztę/odpowiedź na kartę) | `sessionIntent.test.ts` (42 testy, 100%) | ☑ |
+| P5.4c | Odpowiedzi na pytania recepty (`CONFIRM_STEP_UP`, wariant łatwiejszy): tabela `prescription_answers` (migracja 0012), `answerPrescription`, odczyt do planowania | T86: `sqlite-check-answers-v2.cjs` (7 przypadków) | ☑ |
+| P5.4d | Podłączenie loggera/głosu do ekranów (P2.4/P2.9 UI) | — | ⏸ po zakończeniu silnika (decyzja: UI bez zmian) |
+| P5.6a | Kontrakt 7: narzędzia `getActiveSession`, `assessSessionChange`, `proposeSessionChange`, błędy `no_active_session` / `stale_assessment`, kody decyzji w powodach recepty; prompt `chat/v7` (reguły sesji, słownik kodów generowany z rejestrów); implementacje i środowisko telefonu; Worker na `chat/v7` | `sessionTools.test.ts` (100%), `chatV7.test.ts`, `sqlite-check-ai-session-v2.cjs` (6 przypadków: model → karta → `applySessionChange`), testy Workera 143 ✔ | ☑ (kod; **wdrożenie Workera razem z APK po zakończeniu silnika**) |
+| P5.6b | `simulateProposal` (11 §13): domena (`session/simulateProposal.ts`: zmiana tygodnia, polityki albo trwającego treningu, baseline vs z propozycją, trend z 4 tygodni), narzędzie kontraktu 7 z adnotacjami (`TOOL_ANNOTATIONS`), środowisko telefonu, `loadSimulationBase`, reguły w `chat/v7` | `simulateProposal.test.ts` (12), `simulationTools.test.ts`, 2 przypadki SQLite | ☑ |
+| P5.6c | Narzędzia planu czytają i proponują na tygodniu v2: `planPreviewV2` (podsumowanie dnia, tydzień, wyjaśnienie planu, podgląd zmiany/dnia, opcje dnia, walidacje słów osoby), `proposalsV2` (kontroler: podgląd, `apply` w jednej transakcji, wygasanie karty), `weekPlanV2` (`loadWeekContext`, `saveCoachWeekV2`, `startedPlanOn`), `summary` dnia w `planned_days_v2` (migracja 0013) | `planPreviewV2.test.ts` (29, 100%), `sqlite-check-proposals-v2.cjs` (7 przypadków), architektura: nowi zapisujący na liście ADR 0001/0006 | ☑ |
+| P5.6d | Przypadki ewaluacji dla narzędzi v2 i zgodność klient N/N−1 | wymaga żywego modelu i wdrożenia | ⏸ przy testach na działającej aplikacji |
+| P5.7b | Ekrany: historia (plan wykonany vs zaplanowany), Ustawienia → Preferencje, „Zamienniki”, „Dodaj ćwiczenie”, karta propozycji w czacie, baner zmian tygodnia, pytanie o awans | przepływ na telefonie | ⏸ po zakończeniu silnika (UI bez zmian) |
+
+## P6–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą
 rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany.
@@ -223,6 +248,14 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P5 zamknięty po stronie silnika**: kopia zapasowa i reset obejmują tabele v2; wszystkie kawałki P5 poza ekranami gotowe i sprawdzone. `verify`: 4138 testów, 184 zestawy, domena i AI 100%, Worker 143 | |
+| 2026-10-09 | **P5.6c gotowe**: plan, tydzień, opcje dnia, propozycje (zmiana planu, dzień złożony, sesja dodatkowa) i wyjaśnienie planu na tygodniu v2, karta stosowana w jednej transakcji. `verify`: 4137 testów, 184 zestawy, domena i AI 100% | |
+| 2026-10-09 | **P5.6b gotowe**: `simulateProposal` (domena, narzędzie, SQLite), adnotacje narzędzi. `verify`: 4094 testy, 183 zestawy, domena i AI 100%; Worker 143 ✔ | |
+| 2026-10-09 | **P5.6a gotowe** (kontrakt 7 i prompt `chat/v7`, bez wdrożenia): model czyta trwający trening, pyta silnik o zmianę i kładzie kartę; akceptacja przez `applySessionChange`. `verify`: 4068 testów, 181 zestawów, domena i AI 100% | |
+| 2026-10-09 | **P5.4a–c, P5.5b gotowe**: obserwacje z pochodzeniem (dotyk = głos), intencje głosowe sesji, odpowiedzi na pytania recepty zapisane i czytane przez planowanie dnia i tygodnia, sesja dodatkowa ze wspólnym bilansem. `verify`: 4003 testy, 179 zestawów, domena 100% | |
+| 2026-10-09 | **P5.1–P5.2 gotowe** (tydzień na v2, decyzja: przenieść): `planWeekV2`/`syncWeekV2`, wybór dnia trzymany (`DayInputV2.kept`), tabele tygodnia v2 (migracja 0011), serwis `weekPlanV2` na SQLite. UI bez zmian (decyzja: dopiero po zakończeniu implementacji silnika). `verify`: 3939 testów, domena 100% | |
+| 2026-10-09 | **P5.3a gotowe**: polskie zdania dla 42 kodów decyzji (`decisionText`, `traceText`) — wspólne dla UI offline i promptów AI. `verify`: 3907 testów, 176 zestawów, domena 100% | |
+| 2026-10-09 | **P5.5a gotowe** (P5 w toku, gałąź `refactor/engine-p5-integration`): serwis dnia v2 na prawdziwym SQLite — `previewDay`/`acceptDay` ze strażnikiem aktualności, wspólny czytnik wejść i kontekst bloku. `verify`: 3900 testów, domena 100%, baseline bez zmian | |
 | 2026-10-09 | **P4b.6 gotowe, P4b odebrane**: `assessmentText` (PL, 29 kodów + werdykty, zalecenie, recepta, alternatywy, feel); poprawka samonakładania się zmian na ćwiczeniu w toku. `verify`: 3885 testów, 175 zestawów, 100% domena/AI, baseline bez zmian. Następne: P5 | |
 | 2026-10-09 | **P4b.5 gotowe**: ocenione opcje `feel`, rekomendacje, transakcyjny FeelReport; T71/T72/T105, USER_REDUCED i supplemental, retry/stale/ACK/rollback SQLite. `verify`: 3855 testów, 174 zestawy, 100% domena/AI, baseline bez zmian. Następne: `assessmentText` | |
 | 2026-10-09 | **P4b.4 gotowe**: transakcyjne `applySessionChange`, świeży odczyt/ponowna ocena, rewizje/ACK/ledger, zachowane recepty i rezerwacja; T68/T69 + granice (32 przypadki SQLite). `verify`: 3819 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `feel` | |

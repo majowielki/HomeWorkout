@@ -1001,6 +1001,10 @@ export const pl = {
         proposeExtraSession: 'Sprawdzam dodatkowy trening…',
         getDayOptions: 'Sprawdzam, co silnik dopuszcza na ten dzień…',
         proposeDayPlan: 'Układam dzień z silnikiem…',
+        getActiveSession: 'Sprawdzam trwający trening…',
+        assessSessionChange: 'Silnik ocenia zmianę w treningu…',
+        proposeSessionChange: 'Przygotowuję propozycję zmiany…',
+        simulateProposal: 'Sprawdzam skutki zmiany w kolejnych dniach…',
       } satisfies Record<ToolName, string>,
       proposal: {
         plan: 'Propozycja zmiany planu',

@@ -92,7 +92,13 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
-| `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
+| `ai/tools/planPreviewV2.ts`, `app-services/coach/proposalsV2.ts`, `app-services/queries/planTools.ts`, migracja 0013 | 06 §4, 04 §5 | P5 | ☑ P5.6c; §4.28 |
+| `session/simulateProposal.ts`, `ai/contract/simulationTools.ts`, `ai/tools/simulationEnvironment.ts`, `weekPlanV2.loadSimulationBase` | 11 §13 | P5 | ☑ P5.6b; §4.27 |
+| `ai/contract/sessionTools.ts`, `ai/tools/{sessionSummary,sessionEnvironment}.ts`, `ai/prompts/chat/{v7,sessionRules}.ts`, `session/overview.ts`, `app-services/queries/sessionTools.ts` | 11 §8, 06 §4 | P5 | ☑ P5.6a; §4.26 |
+| `observations/entry.ts`, `voice/sessionIntent.ts`, `db/repositories/answers.ts`, migracja 0012 | 06 §1, §3, 13 §12 | P5 | ☑ P5.4; §4.25 |
+| `plan/weekV2.ts` (`planWeekV2`, `syncWeekV2`), `db/repositories/weekPlanV2.ts`, migracja 0011 | 04 §5, 06 §7 | P5 | ☑ P5.1–2; §4.24 |
+| `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
+| `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
 
@@ -548,6 +554,138 @@ Dla `feel`: `Przyjęto: za ciężko/za lekko.`, `Polecam: …`, `Inne możliwoś
 na prośbę nie liczy się jako porażka siłowa (zgodne z USER_REDUCED). Dowód: `assessmentText.test.ts` — snapshot
 zdania każdego kodu, scenariusze na realnym silniku (dodanie, ponad limit dnia, nieznane ćwiczenie, niejednoznaczne,
 feel), determinizm i niezmienność wejścia.
+
+### 4.22 Serwis dnia: od bazy do sesji (P5.5a)
+
+Pierwszy kawałek integracji. Nic w ekranach go jeszcze nie woła; sprawdzony jest na prawdziwym SQLite
+(`sqlite-check-planning-v2.cjs`).
+
+- `planningInputs.ts` (`readPlanningInputs(tx, asOf)`, `readDayBoundaryHour`): jeden czytnik wejść (profil, preferencje,
+  katalog, gumy, historia znormalizowana, odczyty dnia, jazdy, prośby, tydzień, rewizje) w transakcji wywołującego. Używają go
+  dzień i konsultacja w sesji (`sessionChangeSource` został do niego przepisany bez zmiany wyniku), więc nie mogą widzieć różnych historii.
+- `plan/blockContext.ts` (`blockContextV2`): co blok czyta z historii (dowód każdego slotu, sygnały deloadu). Wyodrębnione z
+  `simulateV2`, które teraz woła tę samą funkcję — symulacja i aplikacja nie mogą inaczej zdecydować o bloku. `plan/versions.ts`:
+  wersje wpisywane do planu (silnik 2.0.0, polityki, kompilator, schemat śladu); wersja katalogu = najnowsza `data_version` z bazy.
+- `planDayIn(tx, request, now)`: data dnia z godziny granicznej profilu → wejścia → blok przesunięty do dziś (`advanceBlockV2`,
+  bez zapisu) → `planDayV2`. `DayRequest` niesie id sesji nadawane przez wywołującego (podgląd i akceptacja muszą się zgadzać),
+  intencję, rodzaj, `only`, `acknowledged`, prośbę o deload. Odcisk wejścia obejmuje całe wejście i prośbę.
+- `previewDay`: transakcja tylko do odczytu, wynik `{asOf, input, current, advance, output, planHash}`.
+- `acceptDay({commandId, request, expectedPlanHash, timeZone})`: w jednej transakcji ledger → ponowne planowanie z bazy →
+  porównanie hasha → `startSessionIn` (wyodrębnione z `startSessionV2`) → zapis bloku (`writeBlockAdvance`) i podniesienie rewizji
+  `block`. Inny hasz (zmiana profilu, historii, odczytu, prośby albo dnia) to `conflict: STALE_INPUT` z nowym haszem w `detail`;
+  brak planu to `rejected: INVALID_PLAN`; trwająca sesja to `ACTIVE_SESSION_EXISTS`. Błąd zapisu bloku cofa też sesję i ledger.
+  Powtórka tego samego `commandId` zwraca zapisany wynik.
+- Dowód: plan z pustej bazy, brak zapisu w podglądzie, ten sam plan o różnych porach, start sesji, odczyt przez konsultację,
+  powtórka, konflikt po zmianie odczytu i po zmianie dnia, odrzucony obcy hasz, trwająca sesja, cofnięcie przy błędzie bloku,
+  dzień bez planu i **sześć dni pod rząd** (planowanie → wykonanie zgodne z planem → zamknięcie → następny dzień czyta poprzednie:
+  pojawia się `REP_PROGRESSION`).
+
+### 4.23 Zdania śladu decyzji (P5.3a)
+
+`decisionText(code, evidence?)` zwraca jedno polskie zdanie dla kodu z zamkniętego rejestru `DECISION_CODES`; rekord
+`Record<DecisionCode, …>` jest wyczerpujący, więc nowy kod nie skompiluje się bez zdania. Zdanie mówi, co silnik zrobił i jaka
+jedna rzecz go do tego skłoniła; liczby (`gapDays`, `failures`) bierze z dowodu śladu, a bez nich pisze ogólnie. Zdania o kroku
+„lżej/wyżej” mają tylko kody, które ten krok robią (D39 e) — pilnuje tego test. `traceText(trace)` zwraca zdania rozstrzygającego
+kodu i pozostałych zapisanych w śladzie (`evidence.codes`), każde raz; kod, którego ten silnik nie zna (plan z nowszej wersji),
+jest pomijany, a nie pokazywany jako surowy identyfikator. Używają tego: karta „Dlaczego?” (P5.3b) i prompty AI (P5.6).
+
+### 4.24 Tydzień na silniku v2 (P5.1–P5.2)
+
+**Wybór dnia, nie obciążenie.** `KeptItem {slotId, exerciseId, sets}`; `DayInputV2.kept` mówi `planDayV2`, co wybrano wcześniej.
+Dzień jest planowany tylko z tych slotów i z tą liczbą serii (przez te same reguły: kwalifikacja, regeneracja, limity, czas, audyt).
+Jeśli każdy element się mieści — `kept: 'held'`; jeśli któryś nie (inny ćwiczenie w slocie po rotacji bloku, brak miejsca w objętości,
+prośba o pominięcie partii, DOMS) — dzień jest wybrany od nowa, `kept: 'changed'`, a `keptViolations` niesie powód z `SkipReason`.
+Pominięte jest tu kryterium „warto robić”, więc dzień nie zmienia się tylko dlatego, że cel tygodniowy został osiągnięty. Dzień
+zapisany bez ćwiczeń roboczych (tylko lekka praca) jest utrzymany, dopóki nadal takiego nie ma. Wybrane ćwiczenie roboczego dnia to
+`selectionOf(plan)`.
+
+**`planWeekV2`** idzie dzień po dniu jak `simulateV2`: blok (`advanceBlockV2` z `blockContextV2`), dzień odpoczynku (wzór tygodnia albo
+prośba), dzień złożony z trenerem (`compose_day` → `only`), w innym razie `planDayV2` z `kept`. Prognoza kolejnych dni czyta plan poprzednich
+jako zrobiony zgodnie z planem (`recordsOf`), ale **te rekordy żyją tylko wewnątrz funkcji**: wynik nie zawiera `ExposureRecord`, wejście nie
+jest zmieniane, a dzień pierwszy widzi wyłącznie prawdziwą historię (T21). Prognozowane sesje mają id `forecast-<data>`. Trwająca sesja dnia
+(`running`): jej niewykonane serie liczą się w prognozach po niej jako zrobione (`completedAsPlanned`), a wykonane zostają, jak były (T19).
+
+**`syncWeekV2`** to odpowiednik `syncWeek` pierwszego silnika: dni minione oznaczone `done`/`missed`, horyzont 7 dni od dziś (dziś odpada, gdy ma
+sesję zakończoną albo trwającą), dzień chybiony albo jawna prośba planuje od nowa, wynik niesie `trigger`, wiersze do zapisu i `changes` (regiony
+przed i po, powody) dla banera.
+
+**Zapis.** Migracja 0011: `planned_days_v2` (data, `selection`, `forecast` = plan v2, status, generacja) i `plan_generations_v2`. Osobne tabele,
+żeby tydzień pierwszego silnika nie zmienił się do P6. `weekPlanV2.syncWeek` w jednej transakcji czyta, planuje i zapisuje: bez zmian wyboru zapisuje
+tylko statusy i odświeżoną prognozę (obciążenia idą za historią), przy zmianie nową generację (urodzoną jako zobaczoną, jeśli nic się nie zmieniło).
+Blok nie jest tu zapisywany — przesuwa go dopiero start sesji dnia (`acceptDay`). `previewWeek` niczego nie zapisuje.
+
+### 4.25 Logger, głos i odpowiedzi na pytania recepty (P5.4)
+
+**Rekord wyniku** (`observations/entry.ts`). `buildObservation(entry, ctx)` jest jedynym miejscem, gdzie wpis na loggerze staje się wynikiem, więc dotyk
+i głos dają ten sam rekord, różny tylko kanałem i tym, co zostało pokazane. Pole wpisane albo wypowiedziane: `user_reported` / `edited`. Podpowiedź
+przyjęta: `user_confirmed` / `presentedDefault` z potwierdzeniem `visible` (chip na ekranie), `read_back` (odczytana głosem) albo `none` (zapisana,
+ale nikt jej nie pokazał — wysiłek z takiej serii nie jest dowodem, `effortOf` = null). Wysiłek, którego nikt nie podał i nic nie zaproponowało,
+zapisuje się jako `null` (nic nie jest twierdzone). `defaultEffort`: wynik poprzedniej serii → dolny RIR celu → „ciężko” (2). `readBackText`:
+„Zapisuję 12, ciężko”. `transcriptStillApplies(started, now)`: spóźniona transkrypcja dotyczy serii i rewizji planu, dla których zaczęto słuchać (T40).
+
+**Intencje głosu w sesji** (`voice/sessionIntent.ts`, 11 §9). `matchSessionIntent(transcript, {exposureId, offer})` → `add_exercise{query}`,
+`add_sets{n}`, `swap_remaining{query}`, `skip_remaining`, `feel`, `alternatives{family}` („zamień na coś z gumą”) albo odpowiedź na kartę (`yes`/`no`/`mine`;
+tylko gdy karta czeka). Słowa ćwiczenia wychodzą w postaci złożonej do rozpoznania przez `resolveExerciseRef` — ten plik nigdy nie zgaduje nazwy.
+Negacja unieważnia rozkaz. Zdania spoza słownika to `null`. Nie zastępuje dotychczasowego `matchCommand` (stoper, przerwa, parametry); kolejność
+ich wywołania ustali integracja z ekranem.
+
+**Odpowiedzi** (migracja 0012, `prescription_answers`, `answers.ts`). `answerPrescription({commandId, comparisonKey, kind, answer, afterExposureId, on})`:
+idempotentne, jedna odpowiedź na klucz i rodzaj (zmiana zdania nadpisuje), podnosi rewizję historii (podgląd sprzed odpowiedzi jest nieaktualny). Odpowiedź
+`step_up` dotyczy ostatniej ekspozycji klucza (`afterExposureId`); nowsza ekspozycja unieważnia odpowiedź przy odczycie, więc „tak” nie zatwierdza
+każdego kolejnego awansu, a pytanie o nieaktualną ekspozycję to `STALE_INPUT`. `variant_down` zapamiętuje tylko odroczenie („nie”, z datą);
+przyjęcie łatwiejszego wariantu jest zmianą wyboru slotu, nie odpowiedzią. `readPlanningInputs` dokłada `answers` do wejścia dnia i tygodnia, więc
+trafiają też do odcisku wejścia.
+
+### 4.26 Model konsultuje trwający trening (P5.6a, kontrakt 7)
+
+**Kontrakt** (`CONTRACT_VERSION = 7`). Trzy narzędzia, wszystkie w `CHAT_TOOLS` (źródło dla aplikacji i Workera): `getActiveSession` (ćwiczenia z liczbą serii zrobionych,
+oczekujących i pominiętych, partie, serie partii dziś wobec dziennego maksimum, sekundy do końca), `assessSessionChange` (wejście: rodzaj zmiany ze **słowami** ćwiczenia, bez
+pola na obciążenie ani powtórzenia — pilnuje tego `architecture.test.ts`; wyjście: skrót oceny silnika) i `proposeSessionChange` (karta do akceptacji na telefonie).
+Nowe błędy narzędzi: `no_active_session`, `stale_assessment`. Powody recepty w `getPlanExplanation` przyjmują też kody decyzji drugiego silnika (`PLAN_REASON_CODES`).
+
+**Skrót oceny** (`sessionSummary.ts`): werdykt, rozpoznanie ćwiczenia (id i nazwa z katalogu, kandydaci, najbliższe), do 5 kontroli z liczbami (słowa wpisane przez osobę —
+`query`, `message`, `path` — nie opuszczają telefonu; wartości ucięte do 80 znaków), zalecenie liczby serii, recepta jako liczby (serie, `massKg` albo null dla gumy,
+zakres powtórzeń/czasu, pogrupowane), do 3 alternatyw z własnym `assessmentId`/`patchId`, opcje `feel` i budżet czasu. Brak wolnego tekstu (I9).
+
+**Środowisko** (`sessionEnvironment.ts`): `createSessionToolHooks(source)` czyta świeży stan przy każdym wywołaniu; maksymalnie 2 oceny na turę (`newTurn()` zeruje licznik); pamięta
+zmianę stojącą za każdym `assessmentId` (także alternatyw i opcji feel). `proposeSessionChange` ocenia zmianę **jeszcze raz** na aktualnej sesji: inny `assessmentId` to
+`stale_assessment`, brak patcha albo inny `patchId` — `invalid_input`. Karta (`SessionProposal`) niesie zmianę, `patchId`, oczekiwane rewizje i listę rad do zaakceptowania; jej
+zatwierdzenie to istniejące `applySessionChange` z kanałem `ai_proposal` (ponowna ocena w transakcji, ACK_REQUIRED). Model niczego nie zapisuje (T72, T60).
+`app-services/queries/sessionTools.ts` wiąże to z bazą (`loadActiveSessionSource`); `session/overview.ts` wyodrębnia z oceny budżet czasu i sumę serii dnia.
+
+**Prompt** `chat/v7` (v6 pozostaje nietknięte): blok `<session_rules>` (kiedy konsultować, werdykty, odpowiedź do 80 słów z liczbami z kontroli, nieznane ćwiczenie = silnik go nie
+ocenia, karta dopiero po „tak”, nic nie jest zrobione przez model), `<session_guide>` (znaczenie kodów kontroli i opcji) i `<decision_codes>` (zdanie `decisionText` dla każdego z 42 kodów).
+Wyjątek od zakazu cytowania obciążeń dotyczy wyłącznie recepty z `assessSessionChange`. Worker deklaruje narzędzia z `CHAT_TOOLS` i używa `chat/v7`; nie wdrożono go.
+
+### 4.27 Symulacja propozycji (P5.6b)
+
+`simulateProposal(base, input, {horizonDays, athlete})` uruchamia ten sam `planWeekV2`, który układa plan, dwa razy: raz jak jest i raz z propozycją. Propozycja to zmiana
+tygodnia (prośby: dzień wolny, lżejszy, partia pominięta), zmiana polityki (własna liczba serii na rodzaj ćwiczenia, profil objętości) albo zmiana trwającego treningu (ocena silnika +
+plan po łatce: wykonane serie zostają, reszta liczy się jak zrobiona zgodnie z planem). Wynik: `baseline`, `withProposal`, `diff` (serie partii w ostatnim tygodniu horyzontu wobec min/max,
+minuty dni, oczekiwane awanse i serie próbne, czy przyjdzie deload, dni ze zmienionym wyborem) i `warnings` w kodach rejestru (`WEEK_MAX_EXCEEDED`, a przy zmianie treningu także kontrole oceny).
+Prognoza żyje w `planWeekV2` i nigdzie się nie zapisuje (test: tabela `planned_days_v2` pusta po symulacji). `athlete`: `follows_plan` (dokładnie jak w planie) albo `observed_trend`
+(powtórzenia przesunięte o średnią różnicę wynik−cel z 28 dni, w granicach ±2).
+
+Narzędzie `simulateProposal` (kontrakt 7) przyjmuje te same względne daty i rodzaje próśb co `proposePlanChange`, bez pola na obciążenie. `TOOL_ANNOTATIONS` (readOnly / proposal / idempotent) odpowiada tabeli
+z 11 §13: narzędzia odczytu i symulacja są tylko do odczytu; cztery narzędzia propozycji nic nie zmieniają bez akceptacji na telefonie. `loadSimulationBase` czyta bazę świeżo (tydzień, historia, blok,
+odpowiedzi, trwający trening v2).
+
+### 4.28 Narzędzia planu na tygodniu v2 (P5.6c)
+
+**Podsumowanie dnia.** Do wiersza `planned_days_v2` dochodzi `summary` (migracja 0013, JSON): faza, powody dnia, regiony, pominięte ruchy z powodem, `composed`, szacowane minuty, blok, sygnały
+przeciążenia i rower. Prognoza planu v2 tego nie niesie, a model ma tłumaczyć decyzje silnika tylko z kodów, więc powody zapisują się razem z dniem (`summaryOf` w `weekV2`).
+
+**`planPreviewV2.ts`** (czyste, w warstwie AI, 100%): `summarizeDay` (ćwiczenia z nazwą katalogu i ruchem ze slotu, serie logiczne, powody tylko znane kontraktowi, nigdy obciążenie),
+`describeWeek` (7 dni; dziś z trwającego treningu, dni zrobione), `previewPlanChange` / `previewDayPlan` (tydzień zaplanowany z dodaną prośbą obok tygodnia jak jest; różniące się dni
+jako przed/po, konflikty ruchów z powodem, zastąpiona wcześniejsza kompozycja), `describeDayOptions` (dla każdego ruchu roboczego dzień zaplanowany tylko dla niego: dostępny albo powód
+i serie, które dałby silnik; dzień minięty to `day_done`), `describePlan` (`getPlanExplanation`: plan zamrożony przy starcie sesji albo dzisiejszy z tygodnia; powody ćwiczeń z kodów śladu)
+oraz walidacje słów osoby (notatka nie przepisuje, partia po DOMS tylko za silnym zakwasem, nieznane ruchy, ból).
+
+**Kontroler** (`app-services/coach/proposalsV2.ts`): to samo API co pierwszy silnik (`tools`, `beginTurn`, `resolve`, `reject`, `apply`). Narzędzia tylko podglądają i trzymają szkic do końca pytania.
+`apply` w kolejce: ponowne wczytanie tygodnia, porównanie odcisku (data, odcisk wejścia, zapisane dni, dni trenowane) i — dla zmian — ponowne zrobienie podglądu i porównanie z tym, który widziała
+osoba; różnica to `ProposalChangedError`. Zmiana planu i dzień złożony zapisuje `saveCoachWeekV2` (prośby, zastąpione prośby i tydzień w jednej transakcji; generacją jest id propozycji, więc
+druga akceptacja nic nie zapisuje). Sesja dodatkowa to `acceptDay` z `kind: 'extra'` i hashem pokazanego planu; wymaga zakończonej sesji głównej dnia (`finish_first`) i dnia treningowego (`rest_day`).
+Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zapisywany przy akceptacji tygodnia — przesuwa go start sesji.
 
 ## 5. Konwencje testów
 

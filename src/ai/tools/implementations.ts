@@ -67,6 +67,22 @@ export interface ToolEnvironment {
   proposeDay?(
     input: ToolInput<'proposeDayPlan'>,
   ): Promise<ToolOutput<'proposeDayPlan'> | ToolError>;
+  /** The explanation of a day's plan on the week of engine v2 (contract 7); the first engine's goes through `plan`. */
+  explainPlan?(
+    input: ToolInput<'getPlanExplanation'>,
+  ): Promise<ToolOutput<'getPlanExplanation'> | ToolError>;
+  /** The workout under way, the engine's assessment of a change to it, and a card for the person (contract 7). */
+  activeSession?(): Promise<ToolOutput<'getActiveSession'> | ToolError>;
+  assessChange?(
+    input: ToolInput<'assessSessionChange'>,
+  ): Promise<ToolOutput<'assessSessionChange'> | ToolError>;
+  proposeSessionChange?(
+    input: ToolInput<'proposeSessionChange'>,
+  ): Promise<ToolOutput<'proposeSessionChange'> | ToolError>;
+  /** The plan with and without a proposal, from the engine's own planner (11 §13). */
+  simulate?(
+    input: ToolInput<'simulateProposal'>,
+  ): Promise<ToolOutput<'simulateProposal'> | ToolError>;
 }
 
 type Result<N extends ToolName> = ToolOutput<N> | ToolError;
@@ -107,6 +123,18 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
   async proposeDayPlan(input, env) {
     return env.proposeDay ? env.proposeDay(input) : { error: 'failed' };
+  },
+  async getActiveSession(_input, env) {
+    return env.activeSession ? env.activeSession() : { error: 'no_active_session' };
+  },
+  async assessSessionChange(input, env) {
+    return env.assessChange ? env.assessChange(input) : { error: 'no_active_session' };
+  },
+  async simulateProposal(input, env) {
+    return env.simulate ? env.simulate(input) : { error: 'failed' };
+  },
+  async proposeSessionChange(input, env) {
+    return env.proposeSessionChange ? env.proposeSessionChange(input) : { error: 'failed' };
   },
   async getRecentSessions({ count }, env) {
     const source = await env.load(RECENT_WINDOW_DAYS);
@@ -219,6 +247,7 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
 
   async getPlanExplanation({ daysAgo }, env) {
+    if (env.explainPlan) return env.explainPlan({ daysAgo });
     const found = await env.plan(daysAgo);
     if (!found) return { error: 'no_plan' };
     const source = await env.load(1);

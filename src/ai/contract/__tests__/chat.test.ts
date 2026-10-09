@@ -1,5 +1,6 @@
 import {
   CHAT_TOOLS,
+  TOOL_ANNOTATIONS,
   TOOL_ERRORS,
   TOOL_LIMITS,
   TOOL_NAMES,
@@ -142,6 +143,92 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
     total: 1,
     exercises: [{ id: 'row', name: 'Wiosłowanie', primaryMuscles: ['back', 'lats'] }],
   },
+  getActiveSession: {
+    sessionId: 's1',
+    planRevision: 1,
+    trainingDate: '2026-10-01',
+    exposures: [
+      {
+        exposureId: 's1/r1/e1',
+        exercise: { id: 'row', name: 'Wiosłowanie' },
+        sets: { done: 1, pending: 2, skipped: 0 },
+        muscles: ['back'],
+      },
+    ],
+    musclesToday: [{ muscle: 'back', done: 1, remainingPlanned: 2, dayMax: 3 }],
+    timeRemainingSec: 900,
+  },
+  assessSessionChange: {
+    assessmentId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    verdict: 'not_recommended',
+    resolved: { kind: 'exercise', exercise: { id: 'row', name: 'Wiosłowanie' } },
+    checks: [
+      {
+        code: 'DAY_MAX_EXCEEDED',
+        class: 'advice',
+        status: 'fail',
+        data: { muscle: 'back', done: 3, after: 5, dayMax: 3 },
+      },
+    ],
+    recommendation: {
+      sets: { recommended: 0, allowed: null, advisable: [1, 10], reasons: ['DAY_ROOM', 'NO_ROOM'] },
+      placement: 'next',
+    },
+    prescription: {
+      exercise: { id: 'row', name: 'Wiosłowanie' },
+      sets: 2,
+      work: [{ sets: 2, massKg: 6, target: { kind: 'reps', min: 8, max: 15, perSide: false } }],
+    },
+    alternatives: [
+      {
+        exercise: { id: 'goblet', name: 'Goblet' },
+        why: ['same_slot'],
+        verdict: 'ok',
+        assessmentId: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        patchId: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+        sets: 1,
+      },
+    ],
+    feelOptions: null,
+    time: { remainingAfterSec: 1200, maxSec: 2400 },
+  },
+  proposeSessionChange: {
+    proposalId: 'session-p1',
+    kind: 'session_change',
+    requiresAcceptance: true,
+    verdict: 'not_recommended',
+    patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    acknowledge: ['DAY_MAX_EXCEEDED'],
+  },
+  simulateProposal: {
+    horizonDays: 7,
+    athlete: 'follows_plan',
+    baseline: {
+      musclesWeek: [{ muscle: 'glutes', sets: 6, min: 3, max: 8 }],
+      minutesPerDay: [40, 0, 35],
+      expectedLoadSteps: 1,
+      expectedProbes: 0,
+      deloadTriggered: false,
+    },
+    withProposal: {
+      musclesWeek: [{ muscle: 'glutes', sets: 4, min: 3, max: 8 }],
+      minutesPerDay: [40, 0, 0],
+      expectedLoadSteps: 1,
+      expectedProbes: 0,
+      deloadTriggered: false,
+    },
+    diff: {
+      musclesWeek: [{ muscle: 'glutes', sets: -2 }],
+      minutesPerDay: [0, 0, -35],
+      expectedLoadSteps: 0,
+      expectedProbes: 0,
+      deloadTriggered: false,
+      daysChanged: ['2026-10-03'],
+    },
+    warnings: [],
+    verdict: null,
+  },
   getPlanExplanation: {
     date: '2026-10-01',
     source: 'today',
@@ -183,6 +270,20 @@ const INPUTS: Record<ToolName, ToolCall['input']> = {
   getBodyTrend: { days: 28 },
   findExercises: { query: 'wios' },
   getPlanExplanation: { daysAgo: 0 },
+  simulateProposal: {
+    proposal: {
+      kind: 'week_change',
+      constraints: [{ kind: 'rest_day', muscles: [], fromDaysAhead: 2, days: 1, reason: 'busy' }],
+    },
+    horizonDays: 7,
+    athlete: 'follows_plan',
+  },
+  getActiveSession: {},
+  assessSessionChange: { kind: 'add_sets', exposureId: 's1/r1/e1', sets: 1 },
+  proposeSessionChange: {
+    assessmentId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  },
 };
 
 const user = (text = 'Jak idzie wiosłowanie?'): ChatMessage => ({ role: 'user', text });
@@ -251,6 +352,25 @@ describe('tool definitions', () => {
       CHAT_TOOLS.findExercises.input.safeParse({ query: 'a'.repeat(TOOL_LIMITS.queryChars + 1) })
         .success,
     ).toBe(false);
+  });
+
+  it('annotate every tool: the ones that look, and the ones that propose, none of which acts alone', () => {
+    expect(Object.keys(TOOL_ANNOTATIONS).sort()).toEqual([...TOOL_NAMES].sort());
+    const proposals = TOOL_NAMES.filter((n) => TOOL_ANNOTATIONS[n].proposal).sort();
+    expect(proposals).toEqual([
+      'proposeDayPlan',
+      'proposeExtraSession',
+      'proposePlanChange',
+      'proposeSessionChange',
+    ]);
+    for (const name of TOOL_NAMES) {
+      const a = TOOL_ANNOTATIONS[name];
+      expect(a.readOnly).toBe(!a.proposal);
+      expect(a.idempotent).toBe(true);
+    }
+    // Everything that reads the plan or the session, and the simulation, is read-only.
+    for (const name of ['getActiveSession', 'assessSessionChange', 'simulateProposal'] as const)
+      expect(TOOL_ANNOTATIONS[name].readOnly).toBe(true);
   });
 
   it('describe every tool to the model', () => {

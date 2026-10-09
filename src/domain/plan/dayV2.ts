@@ -66,7 +66,7 @@ import {
   isEligible,
   slotByExercise,
 } from './eligibility';
-import type { DecisionTrace, PlannedExposure, PlanVersions } from './planV2';
+import type { DecisionTrace, PlannedExposure, PlanVersions, SessionPlanV2 } from './planV2';
 import type { DayReason, FatigueSignal, SkipReason } from './reasons';
 import { type PlanningResult, planWithRepair } from './repair';
 import { type ExerciseResistance, modelFor, resistanceOf } from './resistanceOf';
@@ -110,6 +110,18 @@ export interface DayInputV2 {
     inputFingerprint: string;
   };
   acknowledged?: readonly string[];
+  /**
+   * The choice made for this day earlier (the week keeps it firm, 04 §5): it stays while the day, planned
+   * with these slots and numbers of sets, still passes the planner's rules; otherwise the day is chosen anew.
+   */
+  kept?: readonly KeptItem[];
+}
+
+/** What a day's choice is: which exercise trains in which slot, for how many sets. Loads are never part of it. */
+export interface KeptItem {
+  slotId: string;
+  exerciseId: string;
+  sets: number;
 }
 
 export interface DayOutputV2 {
@@ -123,6 +135,11 @@ export interface DayOutputV2 {
   regions: SlotRegion[];
   /** What the prescriptions put to the person: a harder or an easier variant, a step up to confirm. */
   proposals: { exerciseId: string; kind: string; to: string | null }[];
+  /** The choice of the day, to be kept: its working exercises. Empty when there is no plan. */
+  selection: KeptItem[];
+  /** With a kept choice: it `held`, or the day was chosen anew (`changed`) and `keptViolations` say why. Null otherwise. */
+  kept: 'held' | 'changed' | null;
+  keptViolations: { slotId: string; reason: SkipReason }[];
 }
 
 interface Prepared {
@@ -164,7 +181,51 @@ const rangeOf = (p: Pick<Prepared, 'exercise' | 'slot'>) => {
   return { lo: r[0], hi: r[1] };
 };
 
+/** The working exercises of a plan as the choice that can be kept. */
+export function selectionOf(plan: SessionPlanV2): KeptItem[] {
+  return plan.exposures
+    .filter((e) => e.slotId !== null && e.sets.some((s) => s.role === 'work' || s.role === 'probe'))
+    .map((e) => ({
+      slotId: e.slotId!,
+      exerciseId: e.exercise.id,
+      sets: new Set(e.sets.filter((s) => s.role === 'work').map((s) => s.logicalSetId)).size,
+    }));
+}
+
 export function planDayV2(input: DayInputV2): DayOutputV2 {
+  if (input.kept === undefined) {
+    return { ...planDayCore(input, null), kept: null, keptViolations: [] };
+  }
+  const keep = input.kept;
+  if (keep.length === 0) {
+    // A day kept with no working exercise (only light work) holds while the day still has none.
+    const fresh = planDayCore(input, null);
+    return {
+      ...fresh,
+      kept: fresh.selection.length === 0 ? 'held' : 'changed',
+      keptViolations: [],
+    };
+  }
+  const held = planDayCore(input, keep);
+  const has = new Map(held.selection.map((k) => [k.slotId, k]));
+  const lost = keep.filter((k) => {
+    const found = has.get(k.slotId);
+    return found === undefined || found.exerciseId !== k.exerciseId || found.sets !== k.sets;
+  });
+  if (lost.length === 0) return { ...held, kept: 'held', keptViolations: [] };
+  const why = (k: KeptItem): SkipReason =>
+    held.skipped.find((x) => x.slotId === k.slotId)?.reason ?? 'NOT_PICKED';
+  return {
+    ...planDayCore(input, null),
+    kept: 'changed',
+    keptViolations: lost.map((k) => ({ slotId: k.slotId, reason: why(k) })),
+  };
+}
+
+function planDayCore(
+  input: DayInputV2,
+  keep: readonly KeptItem[] | null,
+): Omit<DayOutputV2, 'kept' | 'keptViolations'> {
   const { asOf, catalog, slots, block, eligibility } = input;
   const policy = resolveDayPolicy(BASE_POLICY, input.week, input.intent ?? 'auto_day');
   const cfg = policy.planner;
@@ -224,8 +285,10 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
   const skipped: SkippedSlot[] = [];
   const prepared: Prepared[] = [];
   const wanted = input.only === undefined ? null : new Set(input.only.map((o) => o.slotId));
+  const keptSlots = keep === null ? null : new Set(keep.map((k) => k.slotId));
   slots.forEach((slot, order) => {
     if (slot.kind === 'filler' || (wanted !== null && !wanted.has(slot.id))) return;
+    if (keptSlots !== null && !keptSlots.has(slot.id)) return;
     const selected = block.selections[slot.id];
     let exercise = selected === undefined ? undefined : catalog[selected];
     const skip = (reason: SkipReason) =>
@@ -355,7 +418,7 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
   });
 
   const limit = input.only === undefined ? cfg.maxExercisesPerSession : slots.length;
-  const aim = input.only === undefined ? cfg.sessionMinutes.target * 60 : Infinity;
+  const aim = input.only === undefined && keep === null ? cfg.sessionMinutes.target * 60 : Infinity;
   const proposals: DayOutputV2['proposals'] = [];
   while (chosen.length < limit && used < aim) {
     let best: {
@@ -376,7 +439,9 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
         preferences: input.preferences,
       });
       if (rec.allowed === null) continue;
-      const asked = input.only?.find((o) => o.slotId === p.slot.id)?.sets;
+      const asked =
+        input.only?.find((o) => o.slotId === p.slot.id)?.sets ??
+        keep?.find((k) => k.slotId === p.slot.id)?.sets;
       const sets =
         asked === undefined ? rec : { ...rec, recommended: Math.min(asked, rec.allowed[1]) };
       const { draft, spec } = recipe(p, sets);
@@ -388,6 +453,7 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
       // Worth doing: a muscle below its target, or a slot that has waited too long.
       if (
         input.only === undefined &&
+        keep === null &&
         !needs.some((x) => x > 0) &&
         daysAway(p.slot) < cfg.forceStaleDays
       ) {
@@ -568,6 +634,8 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
     bike,
     regions: regionsOf(exposures, new Map(slots.map((s) => [s.id, s]))),
     proposals: proposals.filter((p) => plannedIds.has(p.exerciseId)),
+    selection:
+      result.kind === 'ready' || result.kind === 'adjusted' ? selectionOf(result.plan) : [],
   };
 }
 
@@ -839,7 +907,7 @@ function withoutLoners<T>(groups: readonly T[][]): T[][] {
   return out;
 }
 
-function regionsOf(
+export function regionsOf(
   exposures: readonly PlannedExposure[],
   slotById: ReadonlyMap<string, Slot>,
 ): SlotRegion[] {

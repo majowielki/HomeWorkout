@@ -18,6 +18,15 @@ const SCRIPTS = [
   ['storage on real SQLite', 'sqlite-check.cjs', 10],
   ['engine v2 storage on real SQLite', 'sqlite-check-v2.cjs', 15],
   ['P4b.4 session changes on real SQLite', 'sqlite-check-session-changes.cjs', 20],
+  ['P5.5 the day of engine v2 on real SQLite', 'sqlite-check-planning-v2.cjs', 10],
+  ['P5.1 the week of engine v2 on real SQLite', 'sqlite-check-week-v2.cjs', 8],
+  ['P5.4 the answers to the prescription on real SQLite', 'sqlite-check-answers-v2.cjs', 5],
+  [
+    'P5.6 the model consults the running workout on real SQLite',
+    'sqlite-check-ai-session-v2.cjs',
+    6,
+  ],
+  ['P5.6c the proposals of the chat on the week of engine v2', 'sqlite-check-proposals-v2.cjs', 5],
 ] as const;
 
 for (const [title, script, atLeast] of SCRIPTS) {
