@@ -28,6 +28,8 @@ export interface ExposureSetRecord {
   /** `skipped` with reason `session_closed` is worked out when a closed session has nothing for the set. */
   disposition: SetDisposition['status'];
   observation: SetObservation | null;
+  /** The set was left out because it hurt: said once, it counts as pain wherever pain is read. */
+  skippedForPain?: true;
 }
 
 export interface ExposureRecord {

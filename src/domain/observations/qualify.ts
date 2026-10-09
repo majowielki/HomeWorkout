@@ -155,6 +155,10 @@ export function qualifyExposure(
   const shortfalls = [
     ...new Set(everything.flatMap((o) => (o.shortfall === null ? [] : [o.shortfall]))),
   ].sort();
+  if (rec.sets.some((s) => s.skippedForPain) && !shortfalls.includes('pain')) {
+    shortfalls.push('pain');
+    shortfalls.sort();
+  }
   if (shortfalls.includes('pain')) add('PAIN_REPORTED');
   if (shortfalls.includes('short_rest') || shortfalls.includes('doms')) add('CONTEXT_CONFOUNDED');
   if (rec.context.userReduced) add('USER_REDUCED');

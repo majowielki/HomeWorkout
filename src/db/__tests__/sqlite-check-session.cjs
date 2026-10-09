@@ -979,6 +979,37 @@ const CASES = [
       );
     },
   ],
+  [
+    'a set beyond the plan must belong to an exposure of it (ENG-08)',
+    async () => {
+      await started();
+      const base = legalObservation();
+      const extra = (exposureId, commandId) =>
+        sessions.logSet(
+          {
+            commandId,
+            sessionId: 's1',
+            plannedSetId: null,
+            extra: { exerciseId: 'one-arm-db-row', exposureId, source: 'extra' },
+            expectedSessionRevision: 1,
+            observation: {
+              status: 'performed',
+              amount: base.amount,
+              resistance: base.resistance,
+              rir: base.rir,
+              shortfall: null,
+              performedAt: NOW.toISOString(),
+            },
+          },
+          at(1),
+        );
+      const orphan = extra(null, 'x-null');
+      assert.equal(orphan.kind, 'rejected', JSON.stringify(orphan));
+      assert.equal(extra('s1/r1/nowhere', 'x-none').kind, 'rejected');
+      assert.equal(rows('set_logs').length, 0);
+      assert.equal(extra('s1/r1/e1', 'x-ok').kind, 'committed');
+    },
+  ],
 ];
 
 async function main() {

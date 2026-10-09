@@ -694,7 +694,7 @@ export function painToday(
   for (const r of records) {
     if (r.trainingDate !== asOf) continue;
     const hurt =
-      r.sets.some((s) => s.observation?.shortfall === 'pain') ||
+      r.sets.some((s) => s.observation?.shortfall === 'pain' || s.skippedForPain === true) ||
       r.extra.some((o) => o.shortfall === 'pain');
     const exercise = catalog[r.exerciseId];
     if (hurt && exercise !== undefined)

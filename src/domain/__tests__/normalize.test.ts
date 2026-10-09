@@ -264,6 +264,13 @@ describe('results that are not for a planned set', () => {
     expect(records[0]!.extra.map((o) => o.id)).toEqual(['a']);
   });
 
+  it('remembers that a set was left out because it hurt, and only then', () => {
+    const hurt = { ...skip(SET_IDS[0]!), reason: 'pain' as const };
+    const records = run([], { dispositions: [hurt, skip(SET_IDS[1]!)] }).records;
+    expect(records[0]!.sets[0]!.skippedForPain).toBe(true);
+    expect(records[0]!.sets[1]!.skippedForPain).toBeUndefined();
+  });
+
   it('reports a skip for a set that is not planned', () => {
     const { problems } = run([], { dispositions: [skip('s1/r1/e1/9')] });
     expect(problems).toEqual([

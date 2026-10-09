@@ -123,6 +123,22 @@ describe('T36, T51 no usable prescription', () => {
 });
 
 describe('T64 pain from extra work', () => {
+  it('keeps a set left out for pain in the pain guard (ENG-07)', () => {
+    const source = did('2026-10-14', 'curl', [null]);
+    const record = {
+      ...source,
+      sets: source.sets.map((s) => ({
+        ...s,
+        disposition: 'skipped' as const,
+        skippedForPain: true as const,
+      })),
+    };
+    const out = planDay(world({ records: [record], only: [{ slotId: 'curl' }] }));
+    expect(out.result.kind).toBe('no_feasible_plan');
+    if (out.result.kind !== 'no_feasible_plan') throw new Error('Expected a pain rejection');
+    expect(out.result.reasons.map((r) => r.code)).toContain('PAIN_TODAY');
+  });
+
   it('keeps extra observations in the pain guard', () => {
     const source = did('2026-10-14', 'curl', [{ amount: 6, shortfall: 'pain' }]);
     const record = { ...source, sets: [], extra: [source.sets[0]!.observation!] };

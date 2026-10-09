@@ -68,7 +68,7 @@ const newer = (a: ObservationRow, b: ObservationRow) =>
 export function normalizeObservations(input: NormalizationInput): {
   records: ExposureRecord[];
   problems: NormalizationProblem[];
-  /** Sound work that belongs to no exposure of any plan: still work for the volume, evidence for nothing. */
+  /** Sound work that belongs to no exposure of any plan (the store no longer takes it; old data may hold it): neither volume nor evidence. */
   unassigned: SetObservation[];
 } {
   const problems: NormalizationProblem[] = [];
@@ -195,7 +195,12 @@ export function normalizeObservations(input: NormalizationInput): {
             : session.status === 'in_progress'
               ? 'pending'
               : 'skipped';
-        return { planned, disposition, observation };
+        return {
+          planned,
+          disposition,
+          observation,
+          ...(!observation && skip?.reason === 'pain' ? { skippedForPain: true as const } : {}),
+        };
       });
       records.push({
         exposureId: exposure.id,

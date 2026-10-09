@@ -369,7 +369,8 @@ export interface LogSetCommand {
   /** For a set beyond the plan: what it was, and why it is there. */
   extra?: {
     exerciseId: string;
-    exposureId: string | null;
+    /** The exposure of the plan the extra set belongs to. */
+    exposureId: string;
     source: 'extra' | 'user_override';
   };
   expectedSessionRevision: number;
@@ -470,6 +471,13 @@ export function logSet(cmd: LogSetCommand, now: Date = new Date()): CommandResul
         kind: 'rejected',
         code: 'INVALID_COMMAND',
         detail: 'a set beyond the plan says what it is',
+      } as const;
+    } else if (!plan.exposures.some((e) => e.id === cmd.extra!.exposureId)) {
+      // Work that belongs to no exposure of the plan would count for neither the volume nor the history.
+      return {
+        kind: 'rejected',
+        code: 'INVALID_COMMAND',
+        detail: 'a set beyond the plan belongs to an exposure of it',
       } as const;
     }
 
