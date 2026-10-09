@@ -155,6 +155,66 @@ function setStates(tx: Tx, sessionId: string): Map<string, SetDispositionStatus>
   return states;
 }
 
+/** A session as the screen that runs it reads it: the plan, what became of each set, and the results. */
+export interface SessionState {
+  workout: {
+    id: string;
+    trainingDate: string;
+    status: WorkoutRow['status'];
+    startedAt: string;
+    finishedAt: string | null;
+    sessionRpe: number | null;
+    notes: string | null;
+    /** The counter every command of the session is checked against. */
+    revision: number;
+  };
+  plan: SessionPlanV2;
+  states: Map<string, SetDispositionStatus>;
+  /** The current result of each planned set that has one, with the row it is stored in. */
+  results: Map<string, { id: string; revision: number; observation: SetObservation }>;
+}
+
+/** The session with that id, if it is a session of the second engine. One consistent read. */
+export function readSessionState(sessionId: string): SessionState | null {
+  return db.transaction((tx) => {
+    const workout = workoutOf(tx, sessionId);
+    if (workout === undefined || workout.planSchema !== 2 || workout.planV2 === null) return null;
+    const results = new Map<
+      string,
+      SessionState['results'] extends Map<string, infer R> ? R : never
+    >();
+    const rows = tx
+      .select()
+      .from(setLogs)
+      .where(and(eq(setLogs.workoutId, sessionId), isNull(setLogs.deletedAt)))
+      .all();
+    for (const row of rows) {
+      if (row.plannedSetId !== null && row.observation !== null) {
+        results.set(row.plannedSetId, {
+          id: row.id,
+          revision: row.revision,
+          observation: row.observation,
+        });
+      }
+    }
+    return {
+      workout: {
+        id: workout.id,
+        trainingDate: workout.trainingDate,
+        status: workout.status,
+        startedAt: workout.startedAt,
+        finishedAt: workout.finishedAt,
+        sessionRpe: workout.sessionRpe,
+        notes: workout.notes,
+        revision: workout.revision,
+      },
+      plan: workout.planV2,
+      states: setStates(tx, sessionId),
+      results,
+    };
+  });
+}
+
 /** Rebuilds the stored outcomes of a session from its plan and what is stored for it. */
 function refreshOutcomes(
   tx: Tx,

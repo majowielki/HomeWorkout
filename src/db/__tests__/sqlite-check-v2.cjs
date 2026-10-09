@@ -236,6 +236,41 @@ const CASES = [
     },
   ],
   [
+    'the session as the screen reads it: the plan, what became of each set, and the results by planned set',
+    async () => {
+      assert.equal(sessions.readSessionState('nope'), null);
+      await started();
+      let state = sessions.readSessionState('s1');
+      assert.deepEqual(
+        [state.workout.status, state.workout.revision, state.workout.finishedAt],
+        ['in_progress', 1, null],
+      );
+      assert.equal(state.plan.sessionId, 's1');
+      assert.equal(state.states.size, 0);
+      assert.equal(state.results.size, 0);
+
+      const logged = sessions.logSetV2(logCommand('log-1', SETS[0], 1), at(1));
+      assert.equal(logged.kind, 'committed');
+      const skipped = sessions.skipSetsV2(
+        {
+          commandId: 'skip-1',
+          sessionId: 's1',
+          plannedSetIds: [SETS[1]],
+          expectedSessionRevision: logged.sessionRevision,
+          reason: 'user_skipped',
+        },
+        at(2),
+      );
+      assert.equal(skipped.kind, 'committed');
+      state = sessions.readSessionState('s1');
+      assert.equal(state.states.get(SETS[0]), 'performed');
+      assert.equal(state.states.get(SETS[1]), 'skipped');
+      assert.deepEqual([...state.results.keys()], [SETS[0]]);
+      assert.equal(state.results.get(SETS[0]).observation.status, 'performed');
+      assert.equal(state.workout.revision, skipped.sessionRevision);
+    },
+  ],
+  [
     'T17 a second start while one session runs is a conflict, and the same start twice is one session',
     async () => {
       await started();
