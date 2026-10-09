@@ -129,6 +129,24 @@ describe('useSessionVoice', () => {
     expect(session.undo).toHaveBeenCalled();
   });
 
+  it('takes back the set it saved, not whichever is last by then', async () => {
+    const session = fakeSession({
+      currentStep: { set: { id: 'set-a' } },
+    } as unknown as Partial<Session>);
+    const { voice: v } = await voice(session);
+    v.run({ action: 'set_done' })?.undo?.();
+    expect(session.undo).toHaveBeenCalledWith('set-a');
+  });
+
+  it('tells the voice bar where the screen is, so a late answer can be refused (T40)', async () => {
+    const session = fakeSession({
+      currentStep: { set: { id: 'set-a' } },
+      session: { plan: { sessionId: 'w1', planRevision: 3 } },
+    } as unknown as Partial<Session>);
+    const { voice: v } = await voice(session);
+    expect(v.target).toEqual({ sessionId: 'w1', planRevision: 3, plannedSetId: 'set-a' });
+  });
+
   it('runs the stopwatch and takes a start or stop back', async () => {
     const { voice: idle, logger } = await voice(fakeSession({}), { timed: true });
     const started = idle.run({ action: 'stopwatch_start' });

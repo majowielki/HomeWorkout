@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 
 import type { FallbackOutcome } from '@/ai/voice/fallback';
+import { transcriptStillApplies, type VoiceTarget } from '@/domain/observations/entry';
 import { matchAlternatives, type VoiceActionId, type VoiceCommand } from '@/domain/voice/commands';
 import { pl } from '@/strings/pl';
 
@@ -24,6 +25,11 @@ export interface VoiceCommandOptions {
   run: (command: VoiceCommand) => VoiceFeedback | null;
   /** Asks a model about a phrase the vocabulary does not know; absent when AI is off. */
   fallback?: VoiceFallback;
+  /**
+   * What the screen is on: the session, its plan and the set. An answer that comes back after
+   * this changed is not done on the new screen (T40). Absent: the screen has no such notion.
+   */
+  target?: VoiceTarget | null;
 }
 
 export type Shown = VoiceFeedback & { tone: 'done' | 'warn' };
@@ -41,16 +47,16 @@ export const FEEDBACK_MS = 6000;
  * a phrase the vocabulary is sure of does anything, and nothing else is said
  * back or sent anywhere.
  */
-export function useVoiceCommands({ available, run, fallback }: VoiceCommandOptions) {
+export function useVoiceCommands({ available, run, fallback, target }: VoiceCommandOptions) {
   const [shown, setShown] = useState<Shown | null>(null);
   // The model is being asked; listening again cancels it.
   const [asking, setAsking] = useState<AbortController | null>(null);
 
   // An answer from the model comes back after the screen may have moved on:
   // it is checked against what the screen offers then, not when it was asked.
-  const latest = useRef({ available, run, fallback });
+  const latest = useRef({ available, run, fallback, target });
   useEffect(() => {
-    latest.current = { available, run, fallback };
+    latest.current = { available, run, fallback, target };
   });
   useEffect(() => () => asking?.abort(), [asking]);
 
@@ -60,7 +66,11 @@ export function useVoiceCommands({ available, run, fallback }: VoiceCommandOptio
     return () => clearTimeout(id);
   }, [shown]);
 
-  function done(command: VoiceCommand, byAi: boolean) {
+  /** `started` is where the screen was when the words were heard: a command is for that set, not the one on screen later. */
+  function done(command: VoiceCommand, byAi: boolean, started: VoiceTarget | null | undefined) {
+    const now = latest.current.target;
+    if (started && now && !transcriptStillApplies(started, now))
+      return warn(pl.voice.screenChanged);
     const result = latest.current.run(command);
     if (result) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -75,7 +85,7 @@ export function useVoiceCommands({ available, run, fallback }: VoiceCommandOptio
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   }
 
-  async function askModel(alternatives: string[]) {
+  async function askModel(alternatives: string[], started: VoiceTarget | null | undefined) {
     const ask = latest.current.fallback;
     if (!ask) return warn(pl.voice.notUnderstood(alternatives[0]!));
     const controller = new AbortController();
@@ -84,7 +94,7 @@ export function useVoiceCommands({ available, run, fallback }: VoiceCommandOptio
     setAsking((current) => (current === controller ? null : current));
     switch (outcome.kind) {
       case 'command':
-        return done(outcome.command, true);
+        return done(outcome.command, true, started);
       case 'medical':
         return warn(pl.workout.session.shortfall.painNote);
       case 'failed':
@@ -97,13 +107,14 @@ export function useVoiceCommands({ available, run, fallback }: VoiceCommandOptio
   }
 
   function handle(alternatives: string[], options: { quiet?: boolean } = {}) {
+    const started = latest.current.target;
     const match = matchAlternatives(alternatives, latest.current.available);
-    if (match.kind === 'command') return done(match.command, false);
+    if (match.kind === 'command') return done(match.command, false, started);
     if (options.quiet) return;
     if (match.kind === 'ambiguous') {
       return warn(pl.voice.ambiguous(match.actions.map((a) => pl.voice.phrase[a]).join(' albo ')));
     }
-    void askModel(alternatives);
+    void askModel(alternatives, started);
   }
 
   /** Clears the line and cancels a question to the model: the person is about to speak again. */

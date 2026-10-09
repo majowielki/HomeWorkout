@@ -486,10 +486,15 @@ export function useActiveSession(
    * "Cofnij serię" on the rest timer or the done card: the set just done is
    * taken back and its step opens again with the recorded numbers in it.
    */
-  function undo() {
+  function undo(plannedSetId?: string) {
     if (!session || saving) return;
     const last = latestResult(session.results.values());
     if (last === null) return;
+    // "Cofnij" offered for a set that is no longer the last one would take back another set.
+    if (plannedSetId !== undefined && last.observation.plannedSetId !== plannedSetId) {
+      deps.alert(pl.workout.session.undoStale);
+      return;
+    }
     setSaving(true);
     try {
       const commandId = deps.newId();

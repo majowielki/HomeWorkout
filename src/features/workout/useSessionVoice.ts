@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef } from 'react';
 
+import type { VoiceTarget } from '@/domain/observations/entry';
 import { isTimed, usesBand, usesDumbbell } from '@/domain/session/setEntry';
 import type { Exercise } from '@/domain/types';
 import type { VoiceActionId, VoiceCommand } from '@/domain/voice/commands';
@@ -102,9 +103,10 @@ export function useSessionVoice({
         return { text: t.stopwatchStop(seconds), undo: () => logger.current?.revertStopwatch() };
       }
       case 'set_done': {
+        const savedSet = session.currentStep?.set.id;
         const text = logger.current?.save() ?? null;
         if (text === null) return null;
-        return { text, undo: () => latest.current.undo() };
+        return { text, undo: () => latest.current.undo(savedSet) };
       }
       case 'rest_end': {
         const ended = session.endRest();
@@ -146,5 +148,14 @@ export function useSessionVoice({
     }
   }
 
-  return { available, run };
+  // The set and plan the screen is on: an answer that arrives later is checked against this (T40).
+  const target: VoiceTarget | null = !session.session
+    ? null
+    : {
+        sessionId: session.session.plan.sessionId,
+        planRevision: session.session.plan.planRevision,
+        plannedSetId: session.currentStep?.set.id ?? null,
+      };
+
+  return { available, run, target };
 }

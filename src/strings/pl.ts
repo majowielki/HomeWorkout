@@ -341,6 +341,7 @@ export const pl = {
       notFound: 'Nie znaleziono treningu.',
       saveSetError: 'Nie udało się zapisać serii. Wpisane liczby zostały — spróbuj ponownie.',
       undoError: 'Nie udało się cofnąć serii. Spróbuj ponownie.',
+      undoStale: 'Ta seria nie jest już ostatnia. Cofnij ją z listy serii.',
       blockSwapError:
         'Zamiana działa w tej sesji, ale nie udało się zapisać jej do końca bloku. Spróbuj ponownie.',
     },
@@ -393,6 +394,7 @@ export const pl = {
     },
   },
   voice: {
+    screenChanged: 'Ekran się zmienił, zanim polecenie wróciło — powiedz je jeszcze raz.',
     mic: 'Polecenie głosowe',
     micStop: 'Przestań słuchać',
     listening: 'Słucham…',

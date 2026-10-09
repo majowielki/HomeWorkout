@@ -130,7 +130,7 @@ export default function ActiveSessionScreen() {
             nextExercise={upcoming?.exercise}
             nextNote={upcoming?.note}
             onDone={session.restDone}
-            onUndo={session.undo}
+            onUndo={() => session.undo()}
           />
         </ScrollView>
       ) : null}
@@ -141,7 +141,7 @@ export default function ActiveSessionScreen() {
             exercises={session.groupDone}
             nextLabel={upcoming.label}
             onNext={session.restDone}
-            onUndo={session.undo}
+            onUndo={() => session.undo()}
           />
         </ScrollView>
       ) : null}
@@ -193,6 +193,7 @@ export default function ActiveSessionScreen() {
           mode={voiceMode}
           available={voice.available}
           run={voice.run}
+          target={voice.target}
           fallback={voiceFallback ?? undefined}
         />
       ) : null}

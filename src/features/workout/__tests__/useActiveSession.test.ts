@@ -320,6 +320,17 @@ it('says so when a set cannot be taken back, and does nothing when there is none
   expect(fresh.result.current.phase).toBe('warmup');
 });
 
+it('takes back the set it was asked to, and says so when another one is last by then', async () => {
+  const { deps } = setup({ done: [0, 1] });
+  const { result } = await open(deps);
+  const first = result.current.steps[0]!.set.id;
+  await act(async () => result.current.undo(first));
+  expect(deps.undoSet).not.toHaveBeenCalled();
+  expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.undoStale);
+  await act(async () => result.current.undo(result.current.steps[1]!.set.id));
+  expect(deps.undoSet).toHaveBeenCalledWith(expect.objectContaining({ observationId: 'obs-1' }));
+});
+
 it('opens on the set that was taken back on the summary screen', async () => {
   const { deps, store } = setup({ done: [0, 1, 2] });
   const stored = store.results.get(store.setIds[2]!)!;
