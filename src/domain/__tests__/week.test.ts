@@ -430,6 +430,15 @@ describe('P5.1: bringing the stored week up to date', () => {
     expect(running.statusUpdates).toEqual([]);
   });
 
+  it('a session begun yesterday and still under way is not a missed day (Q-04)', () => {
+    const first = syncWeek(sync());
+    const live = planWeek(week({ days: 1 })).days[0]!.forecast!;
+    const result = syncWeek(sync({ asOf: '2026-10-06', stored: first.rows, running: live }));
+    expect(result.statusUpdates).toEqual([]);
+    expect(result.trigger).not.toBe('missed_day');
+    expect(result.from).toBe('2026-10-07');
+  });
+
   it('an explicit request plans from scratch from the day asked, keeping the days before it', () => {
     const first = syncWeek(sync());
     const manual = syncWeek(sync({ stored: first.rows, request: { trigger: 'manual' } }));

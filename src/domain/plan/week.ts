@@ -399,8 +399,11 @@ export function syncWeek(input: SyncInput): SyncResult {
 
   const statusUpdates: SyncResult['statusUpdates'] = [];
   const missed: string[] = [];
+  // A session begun on an earlier day and still under way (the day turned over while it ran) is not a miss.
+  const underWay = input.running?.trainingDate;
   for (const day of stored) {
     if (day.status !== 'planned') continue;
+    if (day.date === underWay && day.date < asOf) continue;
     const trained = trainedDates.has(day.date);
     if (day.date < asOf) {
       const status = trained || day.selection === null ? 'done' : 'missed';

@@ -68,7 +68,9 @@ export function readWeekBase(tx: Tx, now: Date, request: WeekSyncRequest['reques
   const live = tx
     .select({ plan: workouts.sessionPlan, planSchema: workouts.planSchema })
     .from(workouts)
-    .where(and(eq(workouts.status, 'in_progress'), eq(workouts.trainingDate, asOf)))
+    // The session under way, whatever day it began: one that crossed midnight is still today's work.
+    .where(and(eq(workouts.status, 'in_progress'), eq(workouts.planSchema, 2)))
+    .orderBy(desc(workouts.startedAt))
     .get();
   const snapshot = fingerprint({
     ...common,
