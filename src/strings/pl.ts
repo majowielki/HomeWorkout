@@ -567,6 +567,7 @@ export const pl = {
         horizon: 'Doszedł nowy dzień.',
         missed_day: 'Pominięta sesja — reszta tygodnia ułożona od nowa.',
         unsafe: 'Część dni przestała pasować do tego, co zrobione i zgłoszone.',
+        block: 'Zmienił się blok treningowy (np. deload) — serie dni dopasowane.',
         manual: 'Tydzień przeliczony na Twoją prośbę.',
         constraint: 'Plan uwzględnia Twoją prośbę.',
         coach: 'Plan uwzględnia propozycję trenera.',

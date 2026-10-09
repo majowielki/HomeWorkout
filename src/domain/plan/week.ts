@@ -449,9 +449,20 @@ export function syncWeek(input: SyncInput): SyncResult {
     });
   }
 
+  const blockMoved = week.advances.some((a) =>
+    a.events.some((e) => e === 'DELOAD_REACTIVE' || e === 'BLOCK_ROTATED'),
+  );
   const trigger: SyncTrigger | null =
     input.request?.trigger ??
-    (missed.length > 0 ? 'missed_day' : changes.length > 0 ? 'unsafe' : added ? 'horizon' : null);
+    (missed.length > 0
+      ? 'missed_day'
+      : changes.length > 0
+        ? blockMoved
+          ? 'block'
+          : 'unsafe'
+        : added
+          ? 'horizon'
+          : null);
 
   return {
     from,
@@ -469,4 +480,5 @@ export function syncWeek(input: SyncInput): SyncResult {
   };
 }
 
-export type SyncTrigger = 'horizon' | 'missed_day' | 'unsafe' | 'manual' | 'constraint' | 'coach';
+export type SyncTrigger =
+  'horizon' | 'missed_day' | 'unsafe' | 'block' | 'manual' | 'constraint' | 'coach';

@@ -181,14 +181,20 @@ const rangeOf = (p: Pick<Prepared, 'exercise' | 'slot'>) => {
   return { lo: r[0], hi: r[1] };
 };
 
-/** The working exercises of a plan as the choice that can be kept. */
+/**
+ * The working exercises of a plan as the choice that can be kept. The sets are the number the
+ * planner was asked for, a probe set included: it takes one of them, so a day with a probe asks
+ * for the same number again and holds.
+ */
 export function selectionOf(plan: SessionPlan): KeptItem[] {
   return plan.exposures
     .filter((e) => e.slotId !== null && e.sets.some((s) => s.role === 'work' || s.role === 'probe'))
     .map((e) => ({
       slotId: e.slotId!,
       exerciseId: e.exercise.id,
-      sets: new Set(e.sets.filter((s) => s.role === 'work').map((s) => s.logicalSetId)).size,
+      sets: new Set(
+        e.sets.filter((s) => s.role === 'work' || s.role === 'probe').map((s) => s.logicalSetId),
+      ).size,
     }));
 }
 
@@ -208,9 +214,15 @@ export function planDay(input: DayInput): DayOutput {
   }
   const held = planDayCore(input, keep);
   const has = new Map(held.selection.map((k) => [k.slotId, k]));
+  // A deload or a lighter day gives fewer sets of the same exercises: the choice holds, the sets follow the day.
+  const eased = held.phase === 'deload' || isLighterDay(input.constraints ?? [], input.asOf);
   const lost = keep.filter((k) => {
     const found = has.get(k.slotId);
-    return found === undefined || found.exerciseId !== k.exerciseId || found.sets !== k.sets;
+    return (
+      found === undefined ||
+      found.exerciseId !== k.exerciseId ||
+      (found.sets !== k.sets && !(eased && found.sets < k.sets))
+    );
   });
   if (lost.length === 0) return { ...held, kept: 'held', keptViolations: [] };
   const why = (k: KeptItem): SkipReason =>
@@ -442,8 +454,15 @@ function planDayCore(
       const asked =
         input.only?.find((o) => o.slotId === p.slot.id)?.sets ??
         keep?.find((k) => k.slotId === p.slot.id)?.sets;
+      // A kept day follows the deload and the lighter day (the recommendation), an explicit number does not.
+      const eased = keep !== null && (phase === 'deload' || lighter);
       const sets =
-        asked === undefined ? rec : { ...rec, recommended: Math.min(asked, rec.allowed[1]) };
+        asked === undefined
+          ? rec
+          : {
+              ...rec,
+              recommended: Math.min(asked, rec.allowed[1], eased ? rec.recommended : Infinity),
+            };
       const { draft, spec } = recipe(p, sets);
       if (draft.resistance === null || draft.sets === 0) continue;
       const n = spec.sets.length;

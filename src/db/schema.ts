@@ -442,7 +442,7 @@ export const planGenerations = sqliteTable(
     id: text('id').primaryKey(),
     createdAt: text('created_at').notNull(),
     trigger: text('trigger', {
-      enum: ['horizon', 'missed_day', 'unsafe', 'manual', 'constraint', 'coach'],
+      enum: ['horizon', 'missed_day', 'unsafe', 'block', 'manual', 'constraint', 'coach'],
     }).notNull(),
     fromDate: text('from_date').notNull(),
     changes: text('changes', { mode: 'json' }).$type<StoredDayChange[]>().notNull(),
