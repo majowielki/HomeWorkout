@@ -6,7 +6,7 @@ import {
   weeklySummaryRequestSchema,
   type WeeklySummaryResponse,
 } from '../../src/ai/contract/weeklySummary';
-import { WEEKLY_SUMMARY_PROMPT_VERSION } from '../../src/ai/prompts/weeklySummary/v1';
+import { WEEKLY_SUMMARY_PROMPT_VERSION } from '../../src/ai/prompts/weeklySummary/v3';
 import type { Env } from './env';
 import { admit, type Deps, json, STATUS, type Tracked } from './http';
 import { estimateCostUsd, logRecord, type Outcome } from './log';

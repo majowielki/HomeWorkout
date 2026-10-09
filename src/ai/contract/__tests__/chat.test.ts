@@ -106,7 +106,7 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
         durationMin: 41,
         sessionRpe: 7,
         workingSets: 12,
-        exercises: [{ id: 'row', name: 'Wiosłowanie', sets: 3 }],
+        exercises: [{ id: 'row', name: 'Wiosłowanie', sets: 3, shortfalls: [] }],
       },
     ],
   },
@@ -118,7 +118,7 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
     sessions: [
       {
         date: '2026-09-30',
-        sets: [{ reps: 10, timeSec: null, rir: 2, load: { kind: 'bodyweight' } }],
+        sets: [{ reps: 10, timeSec: null, rir: 2, shortfall: null, load: { kind: 'bodyweight' } }],
       },
     ],
   },

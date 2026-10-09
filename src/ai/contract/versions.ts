@@ -10,5 +10,6 @@
  * 4 (ADR 0006): composing days from the engine options (getDayOptions, proposeDayPlan),
  *   `composed` on a day summary, the tool error day_done.
  * 5 (voice): `POST /v1/voice-intent`, the fallback for a spoken command the phone did not understand.
+ * 6 (shortfall): reported reasons on historical sets and per-exercise counts in recent sessions.
  */
-export const CONTRACT_VERSION = 5;
+export const CONTRACT_VERSION = 6;

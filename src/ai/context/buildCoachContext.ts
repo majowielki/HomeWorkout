@@ -81,6 +81,7 @@ export function buildCoachContext(source: CoachSource, cfg = COACH_CONFIG): Buil
           reps: s.reps,
           timeSec: s.timeSec,
           rir: s.rir,
+          shortfall: s.shortfall ?? null,
           load: loadOfSet(s) satisfies LoadContext,
         })),
       })),

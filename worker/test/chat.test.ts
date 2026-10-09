@@ -6,6 +6,8 @@ import { CHAT_LIMITS, type ChatMessage, type ToolCall } from '../../src/ai/contr
 import { CHAT_TOOLS, TOOL_NAMES } from '../../src/ai/contract/chatTools';
 import { CONTRACT_VERSION } from '../../src/ai/contract/versions';
 import { estimateInputTokens } from '../src/chatRoute';
+import { reasonMessages } from './helpers';
+import { MEDICAL_REFERRAL } from '../../src/ai/prompts/weeklySummary/v1';
 import { createHandler } from '../src/index';
 import {
   ask,
@@ -78,7 +80,7 @@ describe('a question that needs no tool', () => {
     expect(result.headers.get('content-type')).toBe('application/x-ndjson; charset=utf-8');
     expect(result.headers.get('cache-control')).toBe('no-store');
     expect(result.events).toEqual([
-      { type: 'start', requestId: 'req-chat-0001', promptVersion: 'chat/v4', model: 'mock-coach' },
+      { type: 'start', requestId: 'req-chat-0001', promptVersion: 'chat/v6', model: 'mock-coach' },
       { type: 'text', delta: 'Trzy ' },
       { type: 'text', delta: 'sesje ' },
       { type: 'text', delta: 'w tygodniu.' },
@@ -144,6 +146,17 @@ describe('a question that needs no tool', () => {
 });
 
 describe('a question that needs tools', () => {
+  it('appends the required sentence to a completed pain-context reply and does not duplicate it', async () => {
+    for (const text of ['Wynik zapisany.', `Wynik zapisany. ${MEDICAL_REFERRAL}`]) {
+      const model = streamingModel(textStep([text]));
+      const result = await run(model, chatBody(reasonMessages('pain')));
+      const reply = result.events
+        .flatMap((event) => (event.type === 'text' ? [event.delta] : []))
+        .join('');
+      expect(reply).toBe(`Wynik zapisany. ${MEDICAL_REFERRAL}`);
+      expect(result.events.at(-1)).toMatchObject({ type: 'finish', reason: 'stop' });
+    }
+  });
   const lookup = { id: 'c1', name: 'findExercises', input: { query: 'wios' } };
 
   it('hands the call back, with its id and arguments, and says to run it', async () => {
@@ -256,7 +269,7 @@ describe('a question that needs tools', () => {
     const result = await run(model, chatBody([ask()]));
     // Nothing had been sent yet, so it is a proper error response.
     expect(result.status).toBe(422);
-    expect(result.json).toMatchObject({ kind: 'invalid_output', promptVersion: 'chat/v4' });
+    expect(result.json).toMatchObject({ kind: 'invalid_output', promptVersion: 'chat/v6' });
   });
 
   it('fails the turn when the arguments do not fit the tool', async () => {
@@ -324,11 +337,11 @@ describe('what is refused before the model is asked', () => {
       got: CONTRACT_VERSION + 1,
     });
   });
-  it('rejects the previously deployed v4 client before calling the provider', async () => {
+  it('rejects the previously deployed v5 client before calling the provider', async () => {
     const model = never();
-    const result = await run(model, { ...chatBody([ask()]), contractVersion: 4 });
+    const result = await run(model, { ...chatBody([ask()]), contractVersion: 5 });
     expect(result.status).toBe(409);
-    expect(result.json).toEqual({ kind: 'contract_mismatch', expected: 5, got: 4 });
+    expect(result.json).toEqual({ kind: 'contract_mismatch', expected: CONTRACT_VERSION, got: 5 });
     expect(model.doStreamCalls).toHaveLength(0);
   });
 
@@ -643,7 +656,7 @@ describe('what is charged and what is logged', () => {
     expect(chatLines[0]).toMatchObject({
       event: 'chat',
       requestId: 'req-chat-0001',
-      promptVersion: 'chat/v4',
+      promptVersion: 'chat/v6',
       model: 'mock-coach',
       tokensIn: 900,
       tokensOut: 20,

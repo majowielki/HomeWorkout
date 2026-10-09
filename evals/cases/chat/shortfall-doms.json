@@ -1,0 +1,28 @@
+{
+  "id": "shortfall-doms",
+  "feature": "chat",
+  "category": "recovery",
+  "description": "A logged doms reason belongs to the last goblet squat set. The coach reports the user's reason without diagnosing, prescribing or overriding the engine.",
+  "scenario": {
+    "shortfall": "doms"
+  },
+  "question": "Dlaczego ostatnia seria przysiadu goblet była krótsza?",
+  "expect": {
+    "tools": ["findExercises", "getExerciseHistory"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "mentionAnyOf": [["zakwas", "zmęcz"]],
+    "forbidWords": ["rozciąg", "okład", "masaż", "rehabilit", "diagnoz", "leczen"]
+  }
+}

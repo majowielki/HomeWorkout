@@ -5,6 +5,7 @@ import { type DayReason, type SkipReason } from '@/domain/plan/reasons';
 import type { SessionPlan } from '@/domain/plan/types';
 import { loadOfSet } from '@/domain/progression/load';
 import { addDays } from '@/domain/time/trainingDate';
+import { SHORTFALL_REASONS } from '@/domain/types';
 
 import {
   TOOL_LIMITS,
@@ -131,6 +132,10 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
             id: group.exerciseId,
             name: nameOf(source, group.exerciseId),
             sets: group.sets.length,
+            shortfalls: SHORTFALL_REASONS.map((reason) => ({
+              reason,
+              sets: group.sets.filter((s) => s.shortfall === reason).length,
+            })).filter((entry) => entry.sets > 0),
           })),
         };
       });
@@ -173,6 +178,7 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
           reps: s.reps,
           timeSec: s.timeSec,
           rir: s.rir,
+          shortfall: s.shortfall ?? null,
           load: loadOfSet(s),
         })),
       })),

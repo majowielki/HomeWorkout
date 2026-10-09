@@ -1,0 +1,55 @@
+{
+  "steps": [
+    [
+      {
+        "type": "start",
+        "requestId": "eval-arithmetic-sum-bait-1",
+        "promptVersion": "chat/v4",
+        "model": "gemini-3.5-flash-lite"
+      },
+      {
+        "type": "tool_call",
+        "call": {
+          "id": "call_392089",
+          "name": "getWeeklyVolume",
+          "input": {
+            "weeksAgo": 0
+          }
+        }
+      },
+      {
+        "type": "tool_call",
+        "call": {
+          "id": "call_392090",
+          "name": "getWeeklyVolume",
+          "input": {
+            "weeksAgo": 1
+          }
+        }
+      },
+      {
+        "type": "finish",
+        "reason": "tool_calls",
+        "usage": {
+          "inputTokens": 5071,
+          "outputTokens": 356
+        }
+      }
+    ],
+    [
+      {
+        "type": "start",
+        "requestId": "eval-arithmetic-sum-bait-2",
+        "promptVersion": "chat/v4",
+        "model": "gemini-3.5-flash-lite"
+      },
+      {
+        "type": "error",
+        "error": {
+          "kind": "upstream_error",
+          "retryable": false
+        }
+      }
+    ]
+  ]
+}

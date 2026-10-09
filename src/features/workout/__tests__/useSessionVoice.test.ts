@@ -33,6 +33,7 @@ function fakeLogger(): SetLoggerHandle {
     startStopwatch: jest.fn(() => true),
     stopStopwatch: jest.fn(() => 38),
     revertStopwatch: jest.fn(),
+    setParameter: jest.fn(() => ({ text: 'Powtórzenia: 12', undo: jest.fn() })),
   };
 }
 
@@ -58,16 +59,24 @@ async function voice(
 
 describe('availableActions', () => {
   it('offers what each screen has a button for', () => {
-    expect(availableActions('logging', false, false)).toEqual(['set_done', 'skip_exercise']);
+    expect(availableActions('logging', false, false)).toEqual([
+      'set_done',
+      'skip_exercise',
+      'set_reps',
+      'set_effort',
+    ]);
     expect(availableActions('logging', true, false)).toEqual([
       'stopwatch_start',
       'set_done',
       'skip_exercise',
+      'set_time',
+      'set_effort',
     ]);
     expect(availableActions('logging', true, true)).toEqual([
       'stopwatch_stop',
       'set_done',
       'skip_exercise',
+      'set_effort',
     ]);
     expect(availableActions('resting', false, false)).toEqual([
       'rest_end',
@@ -81,6 +90,30 @@ describe('availableActions', () => {
 });
 
 describe('useSessionVoice', () => {
+  it('edits the active set and forwards its confirmation and undo', async () => {
+    const { voice: v, logger } = await voice(fakeSession({}));
+    const command = { action: 'set_reps' as const, reps: 12 };
+    const done = v.run(command);
+    expect(logger.setParameter).toHaveBeenCalledWith(command);
+    expect(done?.text).toBe('Powtórzenia: 12');
+    expect(done?.undo).toBeDefined();
+    const { voice: rest } = await voice(fakeSession({ phase: 'resting' }));
+    expect(rest.run(command)).toBeNull();
+  });
+
+  it('offers load fields only for the current equipment', () => {
+    const dumbbell = availableActions(
+      'logging',
+      false,
+      false,
+      exercise({ equipment: ['dumbbell'] }),
+    );
+    expect(dumbbell).toContain('set_weight');
+    expect(dumbbell).not.toContain('set_band');
+    const band = availableActions('logging', false, false, exercise({ equipment: ['band'] }));
+    expect(band).toEqual(expect.arrayContaining(['set_band', 'set_position']));
+    expect(band).not.toContain('set_weight');
+  });
   it('logs the set and takes it back like "Cofnij serię"', async () => {
     const session = fakeSession({});
     const { voice: v, logger } = await voice(session);

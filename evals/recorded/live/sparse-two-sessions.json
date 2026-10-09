@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "headline": "Aplikacja wciąż zbiera dane, a za Tobą są już pierwsze ukończone treningi.",
+    "highlights": [
+      "W oknie zanotowano 2 ukończone sesje treningowe.",
+      "Średnia masa ciała wyniosła 94 kg przy najnowszym pomiarze 93,7 kg.",
+      "Obwód talii zmienił się o -1,5 cm."
+    ],
+    "flags": [
+      {
+        "code": "SPARSE_HISTORY",
+        "comment": "Aplikacja jest jeszcze na etapie zbierania danych i budowania historii."
+      }
+    ],
+    "questions": [
+      "Jak oceniasz swój poziom energii po ostatnich sesjach?",
+      "Czy ćwiczenia wykonywało się komfortowo?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 2775,
+    "outputTokens": 195
+  },
+  "latencyMs": 2429,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

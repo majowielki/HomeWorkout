@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "headline": "Ostatnie cztery tygodnie przyniosły stabilne wyniki treningowe przy utrzymaniu regularności.",
+    "highlights": [
+      "W analizowanym okresie odnotowano 9 ukończonych sesji treningowych.",
+      "Wszystkich 12 ćwiczeń utrzymało swoje dotychczasowe rezultaty bez spadków.",
+      "Średnia masa ciała wyniosła 94 kg, a zmiana średniej to -2 kg.",
+      "Obwód w pasie zmienił się o -1,5 cm."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swoje odczucia po ostatnim tygodniu treningowym?",
+      "Czy planowane obciążenia były odpowiednie do Twoich możliwości?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7087,
+    "outputTokens": 182
+  },
+  "latencyMs": 2052,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

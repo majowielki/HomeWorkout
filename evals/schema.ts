@@ -12,6 +12,7 @@ import { z } from 'zod';
 
 import { MUSCLE_GROUPS, SIGNAL_CODES } from '@/domain/coach/vocabulary';
 import type { ScenarioSpec } from '@/ai/testing/synthetic';
+import { SHORTFALL_REASONS } from '@/domain/types';
 
 export const CATEGORIES = [
   'typical',
@@ -67,6 +68,7 @@ export const scenarioSchema = z.strictObject({
     .nullable()
     .optional(),
   highSoreness: z.array(z.enum(MUSCLE_GROUPS)).optional(),
+  shortfall: z.enum(SHORTFALL_REASONS).optional(),
   notes: z.array(note).optional(),
 }) satisfies z.ZodType<ScenarioSpec>;
 

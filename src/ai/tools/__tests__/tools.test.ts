@@ -53,6 +53,57 @@ describe('the implementations', () => {
 });
 
 describe('getRecentSessions', () => {
+  it('counts each reported reason per exercise, excluding warm-ups', async () => {
+    const source = scenario({ sessions: 1 });
+    const first = source.sets[0]!;
+    const reasons = ['doms', 'short_rest', 'technique', 'pain'] as const;
+    const sets = reasons.map((shortfall, i) => ({
+      ...first,
+      id: `reported-${i}`,
+      setIndex: i,
+      shortfall,
+    }));
+    const out = await TOOL_IMPLEMENTATIONS.getRecentSessions(
+      { count: 1 },
+      envFor({
+        ...source,
+        sets: [
+          ...sets,
+          { ...first, id: 'none' },
+          { ...first, id: 'warmup', isWarmup: true, shortfall: 'pain' },
+        ],
+      }),
+    );
+    expect(out).toMatchObject({
+      sessions: [
+        { exercises: [{ sets: 5, shortfalls: reasons.map((reason) => ({ reason, sets: 1 })) }] },
+      ],
+    });
+    expect(CHAT_TOOLS.getRecentSessions.output.safeParse(out).success).toBe(true);
+  });
+
+  it.each(['doms', 'short_rest', 'technique', 'pain'] as const)(
+    'passes %s through the strict exercise-history contract',
+    async (reason) => {
+      const source = scenario({ sessions: 1 });
+      const first = source.sets[0]!;
+      const out = await TOOL_IMPLEMENTATIONS.getExerciseHistory(
+        { exerciseId: first.exerciseId, weeks: 4 },
+        envFor({
+          ...source,
+          sets: [
+            { ...first, shortfall: reason },
+            { ...first, id: 'missing', setIndex: 1 },
+            { ...first, id: 'null', setIndex: 2, shortfall: null },
+          ],
+        }),
+      );
+      expect(out).toMatchObject({
+        sessions: [{ sets: [{ shortfall: reason }, { shortfall: null }, { shortfall: null }] }],
+      });
+      expect(CHAT_TOOLS.getExerciseHistory.output.safeParse(out).success).toBe(true);
+    },
+  );
   it('lists the newest sessions first with what was done, and counts all of them', async () => {
     const source = scenario();
     const out = (await run('getRecentSessions', { count: 3 }, source)) as {

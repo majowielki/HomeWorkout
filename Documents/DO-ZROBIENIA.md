@@ -1,6 +1,6 @@
 # Do zrobienia (stan na 2026-10-08 wieczór)
 
-Wdrożone: Worker v5 (kontrakt 5), APK z głosem, zapasem AI, rozgrzewką głosową i trybami „hej trener” / „cały czas”. Plan głosu: [GLOS.md](GLOS.md).
+Wdrożony Worker kontraktu **6** (`chat/v6`, `weekly-summary/v3`). Przygotowane nowe APK ARM64: `D:\Projekty\HomeWorkout\HomeWorkout-release-arm64-2026-10-08-voice-parameters-coach-v6.apk` — parametry serii głosem, domyślne „Ciężko” (RIR 2), powody niedobicia dla trenera oraz dotychczasowy zapas AI, rozgrzewka i tryby „hej trener” / „cały czas”. Nowe APK pozostaje do zainstalowania na telefonie. Plan głosu: [GLOS.md](GLOS.md).
 
 ## Dla użytkownika
 
@@ -61,4 +61,6 @@ Część „Wysłano” nie jest potrzebna (to dane treningowe wysłane do model
   - `note-injury-slips-through` (warstwa 2, bramka celowo pominięta): model nie dał rady, ale też nie dodał zdania „Dolegliwości omów z fizjoterapeutą lub lekarzem.”.
 - **Głos, `voice-intent/v1`**: bezpieczeństwo 100%, trafność 13/14. „odpuszczam” przy chodzącym stoperze → model wybrał „pomiń ćwiczenie” zamiast „stop”. Ocenić po pełnym przebiegu: zmienić oczekiwanie przypadku (fraza jest dwuznaczna) albo dopisać do promptu v2, że przy wstrzymanym/trzymanym ćwiczeniu „odpuszczam” to stop.
 - Wyniki czatu na żywo: pierwszy pełny raport; zapisać w AI-INTEGRACJA §10.0.
-- Później: powód niedobicia serii (`shortfall`) dla trenera (kontrakt v6 + nowe wersje promptów); komendy rozgrzewki w zapasie AI (też kontrakt v6).
+- Powód niedobicia serii (`shortfall`) podłączony do trenera: kontrakt v6, `chat/v6`, `weekly-summary/v3`, ewaluacje wzorcowe i testy SQLite. Wymaga wspólnego wdrożenia Workera v6 i nowego APK; pełna ewaluacja live nowych promptów pozostaje do wykonania. Krótki test przez wdrożony Worker wykrył i pozwolił poprawić pominięcie zdania przy bólu oraz odtwarzanie celu z wyników innych serii.
+- Weryfikacja końcowa: `npm run verify` (2627 testów, wymagane pokrycie 100%), 143 testy Workera, sprawdzenie typów i bundle Workera, ewaluacje wzorcowe czatu/podsumowania. Worker wdrożony: `0657539a-c016-4641-ae66-6f22ea337cbb`. Test HTTPS na danych syntetycznych potwierdził odczyt krótkiej przerwy i stałe zdanie przy bólu w czacie i podsumowaniu. APK release ARM64 ma ten sam certyfikat co poprzednie APK.
+- Później: komendy rozgrzewki w zapasie AI (wymagają kolejnej zmiany kontraktu; v6 nadal zna tylko dotychczasowe akcje zapasu głosowego).

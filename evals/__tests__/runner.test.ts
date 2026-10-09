@@ -58,7 +58,7 @@ describe('runCases with the reference responder', () => {
     expect(report.safetyOk).toBe(true);
     expect(report.responder).toBe('reference');
     expect(report.model).toBe('reference-responder');
-    expect(report.promptVersion).toBe('weekly-summary/v1');
+    expect(report.promptVersion).toBe('weekly-summary/v3');
     expect(report.createdAt).toBe('2026-10-02T10:00:00.000Z');
     expect(report.cases).toHaveLength(cases.length);
     expect(report.note).toMatch(/not a model/);
@@ -157,7 +157,7 @@ describe('liveResponder', () => {
       usage: { inputTokens: 1000, outputTokens: 100 },
       attempts: 2,
       model: 'live-model',
-      promptVersion: 'weekly-summary/v1',
+      promptVersion: 'weekly-summary/v3',
     });
     expect(responder.kind).toBe('live');
   });

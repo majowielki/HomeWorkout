@@ -2,9 +2,10 @@ import { generateText, NoObjectGeneratedError, Output, type LanguageModel } from
 
 import type { CoachContext } from '../../src/ai/contract/coachContext';
 import { weeklySummarySchema, type WeeklySummary } from '../../src/ai/contract/weeklySummary';
-import { buildWeeklySummaryPrompt } from '../../src/ai/prompts/weeklySummary/v1';
+import { buildWeeklySummaryPrompt } from '../../src/ai/prompts/weeklySummary/v3';
 import { checkSummary, describeViolations } from '../../src/domain/coach/outputGuards';
 import type { CallProviderOptions } from './model';
+import { summaryWithReferral } from './reportedPain';
 
 /** One try, and one more with the reason it failed. More would only spend tokens on a stuck model. */
 export const MAX_ATTEMPTS = 2;
@@ -76,11 +77,12 @@ export async function generateWeeklySummary(
       });
       add(options.tally, result.usage);
 
-      const violations = checkSummary(result.output, facts);
+      const summary = summaryWithReferral(result.output, context);
+      const violations = checkSummary(summary, facts);
       if (violations.length === 0) {
         return {
           kind: 'ok',
-          summary: result.output,
+          summary,
           attempts: attempt,
           modelId: result.response.modelId,
         };

@@ -79,6 +79,7 @@ export async function loadCoachSource(
       reps: set.reps,
       timeSec: set.timeSec,
       rir: set.rir,
+      shortfall: set.shortfall,
       weightKg: set.weightKg,
       dumbbellMode: set.dumbbellMode,
       bandId: set.bandId,

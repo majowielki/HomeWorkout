@@ -131,6 +131,19 @@ describe('toVoiceExchangeRecord', () => {
 });
 
 describe('what contract 5 knows', () => {
+  it.each([
+    'ustaw gumę i pomiń ćwiczenie',
+    'ustaw 12 powtórzeń',
+    'jak było spokojnie',
+    'ustaw ciężar',
+  ])('never maps a parameter request to an action-only AI command: %s', async (phrase) => {
+    const d = deps(ok('set_done'));
+    expect(await askVoiceFallback([phrase], ['set_done', 'set_reps', 'set_effort'], d)).toEqual({
+      kind: 'unknown',
+    });
+    expect(d.call).not.toHaveBeenCalled();
+  });
+
   it('asks nothing about the warm-up, whose commands the model was never offered', async () => {
     const d = deps(ok('rest_end'));
     expect(await askVoiceFallback(['lecimy dalej'], ['warmup_next', 'warmup_finish'], d)).toEqual({

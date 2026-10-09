@@ -2,7 +2,7 @@ import { toJSONSchema, type z } from 'zod';
 
 import { buildCoachContext } from '../../context/buildCoachContext';
 import { scenario } from '../../testing/synthetic';
-import { coachContextSchema, loadSchema } from '../coachContext';
+import { coachContextSchema, loadSchema, setSchema } from '../coachContext';
 import { CONTRACT_VERSION } from '../versions';
 import {
   apiErrorSchema,
@@ -30,6 +30,14 @@ const goodSummary: WeeklySummary = {
 };
 
 describe('coachContextSchema', () => {
+  it('accepts only the four reported reasons or null, requiring an explicit field in contract 6', () => {
+    const set = { reps: 8, timeSec: null, rir: 2, load: { kind: 'bodyweight' } };
+    for (const shortfall of ['doms', 'short_rest', 'technique', 'pain', null])
+      expect(setSchema.safeParse({ ...set, shortfall }).success).toBe(true);
+    expect(setSchema.safeParse(set).success).toBe(false);
+    expect(setSchema.safeParse({ ...set, shortfall: 'weakness' }).success).toBe(false);
+    expect(CONTRACT_VERSION).toBe(6);
+  });
   it('accepts what the builder produces', () => {
     expect(coachContextSchema.safeParse(context()).success).toBe(true);
   });

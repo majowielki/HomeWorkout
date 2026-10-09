@@ -78,6 +78,22 @@ it('says back a phrase it does not know and does nothing', async () => {
   expect(screen.getByText(pl.voice.notUnderstood('zmień obciążenie'))).toBeTruthy();
 });
 
+it('recognises a spoken field edit locally, confirms it and offers undo', async () => {
+  const undo = jest.fn();
+  const run = jest.fn(() => ({ text: 'Jak było: spokojnie', undo }));
+  const fallback = jest.fn();
+  await render(
+    <VoiceBar available={['set_done', 'set_reps', 'set_effort']} run={run} fallback={fallback} />,
+  );
+  await listen();
+  await act(async () => speech.__emit('result', final('ustaw jak było na spokojnie')));
+  expect(run).toHaveBeenCalledWith({ action: 'set_effort', rir: 3 });
+  expect(fallback).not.toHaveBeenCalled();
+  expect(screen.getByText('Jak było: spokojnie')).toBeTruthy();
+  await fireEvent.press(screen.getByText(pl.voice.undo));
+  expect(undo).toHaveBeenCalledTimes(1);
+});
+
 it('asks for more when two commands fit, and says so when the screen could not do it', async () => {
   const run = jest.fn(() => null);
   await render(<VoiceBar available={REST} run={run} />);

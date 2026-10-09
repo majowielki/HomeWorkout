@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne wyniki w treningach i widoczny spadek wagi oraz obwodu w pasie.",
+    "highlights": [
+      "W minionym oknie zrealizowano 9 sesji treningowych.",
+      "Waga średnia 7-dniowa wynosi 94 kg, przy zmianie o -2 kg.",
+      "Obwód w pasie zmienił się o -1,5 cm.",
+      "Podsumowanie trendów wykazuje 12 ćwiczeń utrzymanych."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swój poziom energii podczas ostatnich sesji?",
+      "Czy ćwiczenia wykonywane były z zapasem sił zgodnie z planem?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7087,
+    "outputTokens": 183
+  },
+  "latencyMs": 1722,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

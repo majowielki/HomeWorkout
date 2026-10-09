@@ -1,0 +1,29 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne utrzymanie wyników siłowych przy spadku masy ciała.",
+    "highlights": [
+      "W minionym okienku odnotowano 9 ukończonych sesji treningowych.",
+      "Średnia masa ciała wyniosła 94 kg ze zmianą średniej o -2 kg.",
+      "Obwód talii zmienił się o -1,5 cm.",
+      "Wszystkie 12 ćwiczeń utrzymało swoje wyniki."
+    ],
+    "flags": [
+      {
+        "code": "SLEEP_LOW_STREAK",
+        "comment": "Zauważono serię nocy z małą ilością snu."
+      }
+    ],
+    "questions": [
+      "Jak ocenasz swoją regenerację w ostatnich dniach?",
+      "Czy plan na kolejny tydzień odpowiada Twoim możliwościom?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7095,
+    "outputTokens": 219
+  },
+  "latencyMs": 1609,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

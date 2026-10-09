@@ -11,10 +11,12 @@ import {
   toolRoundsUsed,
 } from '../../src/ai/contract/chat';
 import { CHAT_TOOLS, TOOL_NAMES, type ToolName } from '../../src/ai/contract/chatTools';
-import { buildChatPrompt } from '../../src/ai/prompts/chat/v4';
+import { buildChatPrompt } from '../../src/ai/prompts/chat/v6';
 import { checkReply } from '../../src/domain/coach/outputGuards';
 import type { CallProviderOptions } from './model';
 import { modelIdOf, type Tally } from './weeklySummary';
+import { messagesReportPain } from './reportedPain';
+import { MEDICAL_REFERRAL } from '../../src/ai/prompts/weeklySummary/v1';
 
 export const CHAT_TEMPERATURE = 0.3;
 
@@ -192,6 +194,17 @@ export async function* streamChatStep(
         return;
 
       case 'finish': {
+        if (
+          part.finishReason === 'stop' &&
+          options.stats.toolCalls === 0 &&
+          reply.trim() !== '' &&
+          messagesReportPain(request.messages) &&
+          !reply.includes(MEDICAL_REFERRAL)
+        ) {
+          const delta = ` ${MEDICAL_REFERRAL}`;
+          reply += delta;
+          yield { type: 'text', delta };
+        }
         const usage = {
           inputTokens: part.totalUsage.inputTokens ?? 0,
           outputTokens: part.totalUsage.outputTokens ?? 0,

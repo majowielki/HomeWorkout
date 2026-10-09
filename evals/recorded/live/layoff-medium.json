@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły przerwę w treningach oraz zmianę wymiarów.",
+    "highlights": [
+      "W oknie zarejestrowano 3 ukończone sesje treningowe.",
+      "Średnia masa ciała wyniosła 94 kg ze zmianą o -2 kg.",
+      "Obwód talii zmienił się o -1,5 cm."
+    ],
+    "flags": [
+      {
+        "code": "LAYOFF_MEDIUM",
+        "comment": "Wystąpiła przerwa w regularnych treningach trwająca ponad dwa tygodnie."
+      }
+    ],
+    "questions": [
+      "Jak oceniasz swoje samopoczucie po powrocie do aktywności?",
+      "Czy planujesz kontynuować dotychczasowy harmonogram sesji?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 3586,
+    "outputTokens": 198
+  },
+  "latencyMs": 1382,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

@@ -2,7 +2,13 @@ import { simulateReadableStream } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { env as workerEnv } from 'cloudflare:workers';
 
-import type { ChatEvent, ChatFacts, ChatMessage } from '../../src/ai/contract/chat';
+import type {
+  ChatEvent,
+  ChatFacts,
+  ChatMessage,
+  ToolCall,
+  ToolResult,
+} from '../../src/ai/contract/chat';
 import { chatEventSchema } from '../../src/ai/contract/chat';
 import type { CoachContext } from '../../src/ai/contract/coachContext';
 import { CONTRACT_VERSION } from '../../src/ai/contract/versions';
@@ -10,6 +16,53 @@ import type { WeeklySummary } from '../../src/ai/contract/weeklySummary';
 import type { Env } from '../src/env';
 
 export const SECRET = 'test-secret';
+export function reasonMessages(
+  shortfall: 'pain' | 'short_rest' | null,
+  recent = false,
+): ChatMessage[] {
+  const call: ToolCall = recent
+    ? { id: 'r1', name: 'getRecentSessions' as const, input: { count: 1 } }
+    : { id: 'r1', name: 'getExerciseHistory' as const, input: { exerciseId: 'row', weeks: 4 } };
+  const output: ToolResult['output'] = recent
+    ? {
+        totalCompleted: 1,
+        sessions: [
+          {
+            date: '2026-10-01',
+            durationMin: 30,
+            sessionRpe: 7,
+            workingSets: 1,
+            exercises: [
+              {
+                id: 'row',
+                name: 'Wiosłowanie',
+                sets: 1,
+                shortfalls: shortfall === null ? [] : [{ reason: shortfall, sets: 1 }],
+              },
+            ],
+          },
+        ],
+      }
+    : {
+        exercise: { id: 'row', name: 'Wiosłowanie' },
+        weeks: 4,
+        sessionCount: 1,
+        verdict: 'insufficient_data' as const,
+        sessions: [
+          {
+            date: '2026-10-01',
+            sets: [
+              { reps: 8, timeSec: null, rir: 2, shortfall, load: { kind: 'bodyweight' as const } },
+            ],
+          },
+        ],
+      };
+  return [
+    { role: 'user', text: 'Jak wyglądała ostatnia sesja?' },
+    { role: 'assistant', text: '', toolCalls: [call] },
+    { role: 'tool', results: [{ callId: call.id, name: call.name, output }] },
+  ];
+}
 export const URL_SUMMARY = 'https://coach.test/v1/weekly-summary';
 
 /** A small but complete context. The shared fixtures live in the app; the Worker cannot import them. */

@@ -21,6 +21,7 @@
  * and the tool carries no load, so there is nothing to prescribe from.
  */
 import { z } from 'zod';
+import { SHORTFALL_REASONS } from '../../domain/types';
 
 import { MUSCLE_GROUPS, TREND_VERDICTS } from '../../domain/coach/vocabulary';
 import { PLANNER_CONFIG, WEEK_CONFIG } from '../../domain/config/training';
@@ -255,7 +256,7 @@ export type ToolError = z.infer<typeof toolErrorSchema>;
 export const CHAT_TOOLS = {
   getRecentSessions: {
     description:
-      "The person's most recent completed training sessions, newest first: date, duration, how hard it felt (session RPE 1-10), working sets and the exercises done with their set counts. Use it for questions about what was trained lately or how often.",
+      "The person's most recent completed training sessions, newest first: date, duration, how hard it felt (session RPE 1-10), working sets and the exercises done with their set counts and reported shortfall reasons (each with its set count). Use it for questions about what was trained lately or how often. For individual sets and their reasons use getExerciseHistory.",
     input: z.strictObject({
       count: z
         .number()
@@ -273,7 +274,19 @@ export const CHAT_TOOLS = {
             durationMin: count.nullable(),
             sessionRpe: z.number().int().min(1).max(10).nullable(),
             workingSets: count,
-            exercises: z.array(exerciseRef.extend({ sets: count })),
+            exercises: z.array(
+              exerciseRef.extend({
+                sets: count,
+                shortfalls: z
+                  .array(
+                    z.strictObject({
+                      reason: z.enum(SHORTFALL_REASONS),
+                      sets: z.number().int().positive(),
+                    }),
+                  )
+                  .max(SHORTFALL_REASONS.length),
+              }),
+            ),
           }),
         )
         .max(TOOL_LIMITS.recentSessions.max),
@@ -282,7 +295,7 @@ export const CHAT_TOOLS = {
 
   getExerciseHistory: {
     description:
-      'How one exercise went over the last N weeks: the trend verdict computed by the app (improved, maintained, declined, not_comparable, insufficient_data), how many sessions it appeared in, and the logged sets of the latest sessions (reps or seconds, reps in reserve, load). Get the exerciseId from findExercises first; never guess it.',
+      'How one exercise went over the last N weeks: the trend verdict computed by the app (improved, maintained, declined, not_comparable, insufficient_data), how many sessions it appeared in, and the logged sets of the latest sessions (reps or seconds, reps in reserve, load, and the user-reported shortfall reason or null). Get the exerciseId from findExercises first; never guess it.',
     input: z.strictObject({
       exerciseId: z.string().min(1).max(64),
       weeks: z.number().int().min(TOOL_LIMITS.historyWeeks.min).max(TOOL_LIMITS.historyWeeks.max),

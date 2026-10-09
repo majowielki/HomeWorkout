@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "headline": "Masz za sobą udany okres treningowy z regularną aktywnością i dobrymi wynikami.",
+    "highlights": [
+      "W oknie pomiarowym ukończono 9 sesji treningowych.",
+      "Średnia masa ciała wyniosła 94 kg, a obwód talii zmienił się o -1,5 cm.",
+      "Odnotowano 9 ćwiczeń z wynikiem poprawionym i 3 utrzymane."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak ocenasz swoją regenerację po ostatnim tygodniu?",
+      "Czy plan na kolejny tydzień odpowiada Twoim możliwościom?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7096,
+    "outputTokens": 161
+  },
+  "latencyMs": 1477,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

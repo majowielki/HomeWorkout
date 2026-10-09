@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne wyniki treningowe przy spadku wagi.",
+    "highlights": [
+      "Wykonałeś 6 sesji treningowych w ciągu ostatnich czterech tygodni.",
+      "Waga średnia spadła o 2 kg, osiągając 94 kg, a obwód talii zmniejszył się o 1,5 cm.",
+      "Wszystkie 12 ćwiczeń utrzymało swoje wyniki na niezmienionym poziomie."
+    ],
+    "flags": [
+      {
+        "code": "LAYOFF_SHORT",
+        "comment": "Odnotowano dłuższą przerwę między sesjami."
+      }
+    ],
+    "questions": [
+      "Jak oceniasz swoje samopoczucie po ostatnich treningach?",
+      "Czy planowane dni treningowe odpowiadają Twojemu rytmowi?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 5421,
+    "outputTokens": 213
+  },
+  "latencyMs": 1591,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

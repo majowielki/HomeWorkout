@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 
-import { WEEKLY_SUMMARY_PROMPT_VERSION } from '@/ai/prompts/weeklySummary/v1';
+import { WEEKLY_SUMMARY_PROMPT_VERSION } from '@/ai/prompts/weeklySummary/v3';
 import type { CoachContext } from '@/ai/contract/coachContext';
 import type { WeeklySummary } from '@/ai/contract/weeklySummary';
 

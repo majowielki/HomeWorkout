@@ -1,4 +1,5 @@
 import { fold } from '../coach/text';
+import { isParameterUtterance, matchParameter, type ParameterCommand } from './parameters';
 
 /**
  * Voice commands during a session: what a spoken phrase asks for, decided on
@@ -17,12 +18,20 @@ export const VOICE_ACTIONS = [
   'skip_exercise',
   'warmup_next',
   'warmup_finish',
+  'set_reps',
+  'set_time',
+  'set_weight',
+  'set_band',
+  'set_position',
+  'set_effort',
 ] as const;
 
 export type VoiceActionId = (typeof VOICE_ACTIONS)[number];
 
 export type VoiceCommand =
-  { action: 'rest_extend'; seconds: number } | { action: Exclude<VoiceActionId, 'rest_extend'> };
+  | { action: 'rest_extend'; seconds: number }
+  | ParameterCommand
+  | { action: Exclude<VoiceActionId, 'rest_extend' | ParameterCommand['action']> };
 
 export type VoiceMatch =
   | { kind: 'command'; command: VoiceCommand }
@@ -41,7 +50,7 @@ export const MAX_EXTEND_SEC = 180;
  * covers "zrobiona", "zrobione" and "zrobiony"; any other word must match
  * whole ("stop" is not "stoper").
  */
-const PHRASES: Record<VoiceActionId, readonly string[]> = {
+const PHRASES: Record<Exclude<VoiceActionId, ParameterCommand['action']>, readonly string[]> = {
   stopwatch_start: [
     'start*',
     'wystartuj',
@@ -144,37 +153,54 @@ const NEGATIONS = new Set(['nie', 'niech', 'czekaj', 'zaczekaj', 'poczekaj']);
 const MAX_EXTRA_WORDS = 3;
 
 const NUMBER_WORDS: Record<string, number> = {
+  zero: 0,
   jedna: 1,
   jedno: 1,
   jeden: 1,
   dwie: 2,
   dwa: 2,
   trzy: 3,
+  cztery: 4,
   piec: 5,
+  szesc: 6,
+  siedem: 7,
+  osiem: 8,
+  dziewiec: 9,
   dziesiec: 10,
+  jedenascie: 11,
+  dwanascie: 12,
+  trzynascie: 13,
+  czternascie: 14,
   pietnascie: 15,
+  szesnascie: 16,
+  siedemnascie: 17,
+  osiemnascie: 18,
+  dziewietnascie: 19,
   dwadziescia: 20,
   trzydziesci: 30,
   czterdziesci: 40,
   piecdziesiat: 50,
   szescdziesiat: 60,
+  siedemdziesiat: 70,
+  osiemdziesiat: 80,
   dziewiecdziesiat: 90,
   sto: 100,
 };
 
 /** "czterdzieści pięć" is one number. */
-const TENS = new Set([20, 30, 40, 50, 60, 90]);
+const TENS = new Set([20, 30, 40, 50, 60, 70, 80, 90]);
 
 /**
  * Folded words, with numbers as digits: "Plus trzydzieści sekund!" becomes
  * plus / 30 / sekund. Recognisers write "+30 s" as often as they spell it out.
  */
 export function words(transcript: string): string[] {
-  const raw = fold(transcript)
-    .replace(/\+/g, ' plus ')
-    .replace(/(\d)([a-z])/g, '$1 $2')
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w !== '');
+  const raw =
+    fold(transcript)
+      .replace(/\+/g, ' plus ')
+      .replace(/(\d)([a-z])/g, '$1 $2')
+      .replace(/(\d),(\d)/g, '$1.$2')
+      .match(/\d+(?:\.\d+)?|[a-z]+/g) ?? [];
   const out: string[] = [];
   for (const word of raw) {
     const value = NUMBER_WORDS[word];
@@ -236,13 +262,24 @@ const AMOUNT_WORDS = /^(\d+|sekund\w*|s|sek|minut\w*|min|pol|przerw\w*)$/;
  * actions is ambiguous.
  */
 export function matchCommand(transcript: string, available: readonly VoiceActionId[]): VoiceMatch {
+  if (/(?:^|\s)[-−]\s*\d/.test(transcript)) return { kind: 'unknown' };
   const ws = words(transcript);
   if (ws.length === 0 || ws.some((w) => NEGATIONS.has(w))) return { kind: 'unknown' };
 
+  const parameter = matchParameter(ws);
+  if (parameter) {
+    return available.includes(parameter.action)
+      ? { kind: 'command', command: parameter }
+      : { kind: 'unknown' };
+  }
+  // An incomplete edit must never turn into a save, skip or rest action.
+  if (isParameterUtterance(transcript)) return { kind: 'unknown' };
+
   const scored: { action: VoiceActionId; score: number; used: Set<number> }[] = [];
   for (const action of available) {
+    if (!(action in PHRASES)) continue;
     let best: { score: number; used: Set<number> } | null = null;
-    for (const phrase of PHRASES[action]) {
+    for (const phrase of PHRASES[action as keyof typeof PHRASES]) {
       const at = find(phrase.split(' '), ws);
       if (at && (!best || at.length > best.score)) best = { score: at.length, used: new Set(at) };
     }
@@ -265,7 +302,12 @@ export function matchCommand(transcript: string, available: readonly VoiceAction
     command:
       winner.action === 'rest_extend'
         ? { action: 'rest_extend', seconds: extendSeconds(ws) }
-        : { action: winner.action },
+        : {
+            action: winner.action as Exclude<
+              VoiceActionId,
+              'rest_extend' | ParameterCommand['action']
+            >,
+          },
   };
 }
 

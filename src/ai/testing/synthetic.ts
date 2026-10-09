@@ -10,7 +10,7 @@
 import exercisesJson from '@data/exercises.json';
 import templatesJson from '@data/templates.json';
 
-import type { MovementPattern, MuscleGroup, KneeProfile } from '@/domain/types';
+import type { MovementPattern, MuscleGroup, KneeProfile, ShortfallReason } from '@/domain/types';
 import { addDays } from '@/domain/time/trainingDate';
 
 import type {
@@ -42,6 +42,8 @@ export interface ScenarioSpec {
   highSoreness?: MuscleGroup[];
   notes?: { daysAgo: number; source: 'session' | 'daily'; text: string }[];
   knee?: KneeProfile | null;
+  /** Reported on the first set of the latest session, with fewer reps than the template target. */
+  shortfall?: ShortfallReason;
 }
 
 interface CatalogueEntry {
@@ -188,6 +190,17 @@ export function scenario(spec: ScenarioSpec = {}): CoachSource {
       notes: notes?.text ?? null,
     });
     sets.push(...setsOfSession(id, i, startedAt, progress));
+  }
+
+  if (spec.shortfall) {
+    const last = sets.find((s) => s.workoutId === `w-${sessionCount - 1}`);
+    if (last) {
+      last.shortfall = spec.shortfall;
+      last.reps = Math.max(
+        1,
+        templates[(sessionCount - 1) % templates.length]!.blocks[0]!.repMin! - 1,
+      );
+    }
   }
 
   const weights =

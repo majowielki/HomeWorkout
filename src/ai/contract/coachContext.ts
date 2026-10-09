@@ -12,6 +12,7 @@
  * see weeklySummary.ts.
  */
 import { z } from 'zod';
+import { SHORTFALL_REASONS } from '../../domain/types';
 
 import {
   CONSTRAINT_CODES,
@@ -43,6 +44,8 @@ export const setSchema = z.strictObject({
   reps: count.nullable(),
   timeSec: count.nullable(),
   rir: z.number().int().min(0).max(10).nullable(),
+  /** The user's reported reason; null means none was recorded, never an inferred cause. */
+  shortfall: z.enum(SHORTFALL_REASONS).nullable(),
   load: loadSchema,
 });
 

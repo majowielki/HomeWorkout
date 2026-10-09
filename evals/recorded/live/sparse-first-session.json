@@ -1,0 +1,27 @@
+{
+  "answer": {
+    "headline": "Aplikacja wciąż zbiera dane, ponieważ masz za sobą dopiero początek treningów.",
+    "highlights": [
+      "Ukończono 1 sesję treningową w tym oknie.",
+      "Wykonano łącznie 12 serii roboczych."
+    ],
+    "flags": [
+      {
+        "code": "SPARSE_HISTORY",
+        "comment": "Historia treningów jest jeszcze zbyt krótka, aby wyciągać długoterminowe wnioski."
+      }
+    ],
+    "questions": [
+      "Jak oceniasz swój pierwszy zrealizowany trening?",
+      "Czy ćwiczenia wykonywało się komfortowo?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 2189,
+    "outputTokens": 164
+  },
+  "latencyMs": 1373,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

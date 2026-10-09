@@ -68,6 +68,37 @@ Technicznie: rozpoznawanie ciągłe Androida 13+ z `requiresOnDeviceRecognition`
 
 Do sprawdzenia na telefonie: czy rozpoznawacz offline łapie „hej trener” w hałasie i przy muzyce, ile baterii zużywa godzina słuchania, czy telewizor wyzwala polecenia w trybie „cały czas”.
 
+## 6. Parametry bieżącej serii (2026-10-08)
+
+Polecenia zmieniają pola formularza bieżącej serii. Zapis jest osobny: „seria zrobiona”. Każda zmiana pokazuje ustawioną wartość i przycisk „Cofnij”, który przywraca tylko zmienione pole. Polecenia działają we wszystkich trzech trybach mikrofonu, tylko na ekranie serii, zgodnie z jej sprzętem i rodzajem ruchu.
+
+| Pole | Przykłady |
+|---|---|
+| Powtórzenia | „ustaw 12 powtórzeń”, „ustaw powtórzenia na dwanaście” |
+| Czas | „ustaw czas na 45 sekund”, „30 sekund” (tylko przy zatrzymanym stoperze) |
+| Ciężar | „ustaw ciężar na 8 kg”, „zmień wagę na osiem kilogramów” |
+| Guma | „ustaw gumę na czerwoną”, „czarna guma” |
+| Pozycja | „ustaw pozycję na P2”, „ustaw zaczep na dwa” |
+| Jak było? | „ustaw jak było na spokojnie”, „ustaw odczucie na ciężko”, „ustaw RIR na trzy” |
+
+Odczucia: „na maksa” = RIR 0, „bardzo ciężko” = 1, „ciężko” = 2, „spokojnie” = 3, „lekko” = 4. Każda **nowa** seria zaczyna od **„Ciężko” (RIR 2)**, niezależnie od celu planu i odczucia poprzedniej serii. Cofnięcie zapisanej serii zachowuje jej zapisane odczucie. Cel planu nadal pokazuje zalecane odczucie; domyślna ocena wykonania go nie zmienia.
+
+Parser wymaga pełnej frazy. Przeczenia, pytania, komentarze, nieznane kolory, kilka poleceń w jednym zdaniu i wartości poza zakresem nie wykonują edycji. Liczby słowne oraz zapis dziesiętny z przecinkiem/kropką są rozpoznawane. Ciężar musi dokładnie pasować do drabinki sprzętu dla tego ćwiczenia — aplikacja go nie zaokrągla. Powtórzenia: 1–999, czas: 1–3600 s (zakresy wpisu wykonanego wyniku, nie przepisu planu); pozycje P0–P3. Wartości są sprawdzane ponownie przy edycji formularza; podczas zapisu seria nie przyjmuje zmian głosowych.
+
+Komendy parametrów są lokalne: model nie dostaje nowych akcji i nie podaje liczb. Frazy rozpoznane jako próba edycji nie trafiają do zapasu AI, żeby nie zamienił ich w zapisanie serii lub pominięcie ćwiczenia. Sama obsługa parametrów działa już z Workerem v5. APK łączący ją z przekazywaniem powodów niedobicia (§7) wymaga Workera v6.
+
+Testy obejmują parser, dostępność pól, mikrofon → komendę, zapis wartości i kalibrowanego obciążenia gumy, cofanie, stałą wartość domyślną i zachowanie odczucia cofniętej serii. Do sprawdzenia na telefonie: powyższe frazy z rzeczywistym rozpoznawaczem pl-PL w trzech trybach mikrofonu.
+
+## 7. Powody niedobicia dla trenera — kontrakt v6 (2026-10-08)
+
+Zapisane powody `doms`, `short_rest`, `technique`, `pain` są teraz czytane z `set_logs.shortfall` do danych trenera. Podsumowanie tygodnia i `getExerciseHistory` przenoszą powód przy każdej serii; brak powodu jest jawnie `null`, także dla starych wpisów. `getRecentSessions` zawiera przy ćwiczeniu listę zgłoszonych powodów z policzoną na telefonie liczbą serii. Rozgrzewka nie trafia do tych danych.
+
+Aktualne instrukcje: `chat/v6` i `weekly-summary/v3`. Trener traktuje powód jako zgłoszenie użytkownika i opisuje go po polsku. Nie uznaje go za udowodnioną przyczynę wyniku, nie zmienia werdyktu silnika i nie wylicza nowego ciężaru, powtórzeń ani przerwy. Nie odtwarza celu serii z wyniku innej serii — narzędzia historyczne nie zawierają przepisanego celu. Zakwasy bez oceny nasilenia nie są powodem do automatycznego unikania mięśnia; „technika” nie wskazuje konkretnego błędu. Zgłoszony ból wymaga stałego zdania kierującego do specjalisty, bez diagnozowania i porad dotyczących dolegliwości. Worker zapewnia to zdanie w podsumowaniu i w zakończonej odpowiedzi czatu także wtedy, gdy model je pominie. Same reguły progresji pozostają bez zmian.
+
+Kontrakt **6** jest wspólny dla aplikacji i Workera. Stary klient v5 i nowy Worker (lub odwrotnie) zwracają `contract_mismatch`; nie należy mieszać wersji. Najpierw wdrożyć przygotowany Worker: w katalogu `worker` uruchomić `npx wrangler deploy`, następnie zainstalować nowe APK. Nowej migracji bazy nie potrzeba — kolumna istnieje od migracji 0009.
+
+Weryfikacja obejmuje SQLite → kontekst, rygorystyczny kontrakt, narzędzia czatu, niezmienność wyników silnika oraz wszystkie cztery powody w ewaluacjach wzorcowych. Raporty: `evals/reports/2026-10-08-chat-reference-v6-reference-chat-model.md` i `evals/reports/2026-10-08-weekly-summary-reference-v3-reference-responder.md`. Wzorzec sprawdza przepływ i scorery. Krótki test wdrożonego Workera na danych syntetycznych wykrył pominięty komunikat o bólu i odtworzony z wyników cel; poprawki zostały dodane do Workera i nowych wersji promptów. Pełna ewaluacja live nowych promptów pozostaje osobnym zadaniem.
+
 ## 4. Postęp
 
 - [x] V1: słownik + testy, mikrofon (pasek głosowy), uchwyty stopera i serii, pomijanie ćwiczenia, cofanie, karta w Ustawieniach, uprawnienie `RECORD_AUDIO` w lokalnym `android/`.
@@ -77,4 +108,7 @@ Do sprawdzenia na telefonie: czy rozpoznawacz offline łapie „hej trener” w 
 - [x] Wdrożenie Workera v5 + APK (użytkownik, 2026-10-08).
 - [ ] `npm run eval:live` z kluczem użytkownika: pierwsze wyniki i kroki w [DO-ZROBIENIA.md](DO-ZROBIENIA.md).
 - [x] §5: głos w rozgrzewce, tryby „hej trener” i „cały czas” (tylko z pakietem offline).
+- [x] §6: parametry serii głosem, „Ciężko” (RIR 2) domyślnie, cofanie zmian i testy.
+- [x] §7: powody niedobicia dla trenera, Worker kontraktu v6 wdrożony, APK ARM64 przygotowane; krótki test HTTPS na danych syntetycznych.
+- [ ] Telefon: instalacja `HomeWorkout-release-arm64-2026-10-08-voice-parameters-coach-v6.apk` i próba nowych parametrów głosowych.
 - [ ] Telefon: tryby bez dotykania w prawdziwym treningu.

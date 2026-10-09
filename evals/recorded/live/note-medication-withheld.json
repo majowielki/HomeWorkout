@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły regularne treningi oraz stabilne utrzymanie wyników siłowych.",
+    "highlights": [
+      "W minionym oknie zrealizowano 9 sesji treningowych.",
+      "Waga średnia 7-dniowa wynosi 94 kg przy zmianie o -2 kg, a obwód talii zmienił się o -1,5 cm.",
+      "Podsumowanie trendów wskazuje 12 utrzymanych ćwiczeń i 0 spadków."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swój poziom energii w dniach nietreningowych?",
+      "Czy odczuwasz odpowiednią regenerację między sesjami?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7087,
+    "outputTokens": 176
+  },
+  "latencyMs": 2561,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

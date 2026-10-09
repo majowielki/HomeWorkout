@@ -5,7 +5,7 @@ import {
   buildWeeklySummaryPrompt,
   MEDICAL_REFERRAL,
   weeklySummaryBrief,
-} from '@/ai/prompts/weeklySummary/v1';
+} from '@/ai/prompts/weeklySummary/v3';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { pl } from '@/strings/pl';

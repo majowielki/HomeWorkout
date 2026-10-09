@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne utrzymanie wyników siłowych przy regularnym treningu.",
+    "highlights": [
+      "W analizowanym okresie ukończono 9 sesji treningowych.",
+      "Wszystkich 12 ćwiczeń utrzymało swoje wyniki.",
+      "Średnia masa ciała wyniosła 94 kg, zmieniając się o -2 kg.",
+      "Obwód talii zmienił się o -1,5 cm."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swój poziom energii podczas ostatnich sesji?",
+      "Czy planowane są jakieś zmiany w harmonogramie treningowym na kolejny tydzień?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7120,
+    "outputTokens": 171
+  },
+  "latencyMs": 1406,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

@@ -9,6 +9,7 @@ import { Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { getLastSetForExercise } from '@/db/repositories/setLogs';
 import { BANDS } from '@/domain/inventory';
+import { DEFAULT_EFFORT_RIR, type ParameterCommand } from '@/domain/voice/parameters';
 import type { PlannedExercise } from '@/domain/plan/types';
 import type {
   AnchorPosition,
@@ -23,6 +24,7 @@ import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
 import { GlossaryButton } from '@/features/glossary/GlossaryButton';
 import { cn } from '@/lib/cn';
 import { pl } from '@/strings/pl';
+import type { VoiceFeedback } from '@/features/voice/useVoiceCommands';
 
 import {
   effortLabel,
@@ -34,6 +36,7 @@ import {
   type SetFieldValues,
   toSavedSet,
   usesBand,
+  usesDumbbell,
 } from './SetFields';
 import { Stopwatch, type StopwatchHandle } from './Stopwatch';
 
@@ -48,6 +51,8 @@ export interface SetLoggerHandle {
   stopStopwatch(): number | null;
   /** Takes the last stopwatch start or stop back. */
   revertStopwatch(): void;
+  /** Edits only fields offered by this exercise; undo belongs to this mounted set. */
+  setParameter(command: ParameterCommand): VoiceFeedback | null;
 }
 
 export interface PrefillData {
@@ -95,8 +100,9 @@ type Props = {
 
 /**
  * The first set of a planned exercise starts from the plan; every other
- * set starts from the last one logged for the exercise. A set taken back
- * starts from what was logged for it.
+ * set starts from the last one logged for the exercise. Felt effort starts
+ * at "Ciężko" each time, independent of the prescription or previous effort.
+ * A set taken back starts from what was logged for it, including its effort.
  */
 export function SetLogger(props: Props) {
   if (props.restore) return <SetLoggerFields {...props} prefill={props.restore} />;
@@ -166,6 +172,7 @@ function SetLoggerFields({
   stepOfBlock = setNumber - 1,
   stepsInBlock = totalSets,
   prefill,
+  restore,
   onSave,
   saving,
   calibrations,
@@ -178,7 +185,7 @@ function SetLoggerFields({
   const [values, setValues] = useState<SetFieldValues>(() => ({
     reps: prefill?.reps ?? block.repMin ?? 10,
     timeSec: prefill?.timeSec ?? block.timeSec ?? 30,
-    rir: prefill?.rir ?? block.targetRirMin,
+    rir: restore?.rir ?? DEFAULT_EFFORT_RIR,
     weightKg: prefill?.weightKg ?? ladderFor(exercise)[0]!,
     bandId: prefill?.bandId ?? BANDS[0]!.id,
     position: prefill?.anchorPosition ?? 1,
@@ -207,6 +214,63 @@ function SetLoggerFields({
     startStopwatch: () => stopwatch.current?.start() ?? false,
     stopStopwatch: () => stopwatch.current?.stop() ?? null,
     revertStopwatch: () => stopwatch.current?.revert(),
+    setParameter(command) {
+      if (saving) return null;
+      let patch: Partial<SetFieldValues>;
+      let text: string;
+      switch (command.action) {
+        case 'set_reps':
+          if (
+            isTimed(exercise) ||
+            !Number.isInteger(command.reps) ||
+            command.reps < 1 ||
+            command.reps > 999
+          )
+            return null;
+          patch = { reps: command.reps };
+          text = pl.voice.done.reps(command.reps);
+          break;
+        case 'set_time':
+          if (
+            !isTimed(exercise) ||
+            !Number.isInteger(command.seconds) ||
+            command.seconds < 1 ||
+            command.seconds > 3600 ||
+            stopwatch.current?.isRunning()
+          )
+            return null;
+          patch = { timeSec: command.seconds };
+          text = pl.voice.done.time(command.seconds);
+          break;
+        case 'set_weight':
+          if (!usesDumbbell(exercise) || !ladderFor(exercise).includes(command.kg)) return null;
+          patch = { weightKg: command.kg };
+          text = pl.voice.done.weight(command.kg);
+          break;
+        case 'set_band': {
+          const band = BANDS.find((b) => b.id === command.bandId);
+          if (!usesBand(exercise) || !band) return null;
+          patch = { bandId: band.id };
+          text = pl.voice.done.band(band.label);
+          break;
+        }
+        case 'set_position':
+          if (!usesBand(exercise) || ![0, 1, 2, 3].includes(command.position)) return null;
+          patch = { position: command.position };
+          text = pl.voice.done.position(command.position);
+          break;
+        case 'set_effort':
+          if (!Number.isInteger(command.rir) || command.rir < 0 || command.rir > 4) return null;
+          patch = { rir: command.rir };
+          text = pl.voice.done.effort(effortLabel(command.rir));
+          break;
+      }
+      const before = Object.fromEntries(
+        Object.keys(patch).map((key) => [key, values[key as keyof SetFieldValues]]),
+      );
+      setValues((v) => ({ ...v, ...patch }));
+      return { text, undo: () => setValues((v) => ({ ...v, ...before })) };
+    },
   }));
 
   const hasClip = ymoveMedia[exercise.id] !== undefined;

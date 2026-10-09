@@ -14,6 +14,14 @@ import type { WeeklySummary } from '@/ai/contract/weeklySummary';
 import { MEDICAL_REFERRAL } from '@/ai/prompts/weeklySummary/v1';
 import { detectTextSignal } from '@/domain/coach/medicalSignal';
 import type { SignalCode } from '@/domain/coach/vocabulary';
+import type { ShortfallReason } from '@/domain/types';
+
+const REASON_LABELS: Record<ShortfallReason, string> = {
+  doms: 'zakwasy lub zmęczony mięsień',
+  short_rest: 'za krótką przerwę',
+  technique: 'problem z techniką',
+  pain: '',
+};
 
 const pl = (n: number) => String(n).replace('.', ',');
 
@@ -45,6 +53,16 @@ export function referenceAnswer(context: CoachContext): WeeklySummary {
       `Ćwiczenia: ${improved} z lepszym wynikiem, ${maintained} utrzymanych, ${declined} z niższym.`,
     );
   }
+  const reasons = context.sessions.flatMap((s) =>
+    s.exercises.flatMap((e) =>
+      e.sets.flatMap((set) => (set.shortfall === null ? [] : [set.shortfall])),
+    ),
+  );
+  const reported = reasons.find((reason) => reason !== 'pain');
+  if (reported)
+    highlights.push(
+      `W dzienniku zaznaczyłeś ${REASON_LABELS[reported]} jako powód krótszej serii.`,
+    );
   const avg7 = context.weight?.avg7Kg;
   if (typeof avg7 === 'number') {
     highlights.push(`Średnia waga z ostatnich dni to ${pl(avg7)} kg.`);
@@ -62,7 +80,9 @@ export function referenceAnswer(context: CoachContext): WeeklySummary {
 
   // A complaint that got past the gate: say nothing about it, add the fixed
   // sentence last. The schema allows four points, and the sentence keeps its place.
-  const complaint = context.notes.some((note) => detectTextSignal(note.text) === 'medical');
+  const complaint =
+    reasons.includes('pain') ||
+    context.notes.some((note) => detectTextSignal(note.text) === 'medical');
   const kept = highlights.slice(0, complaint ? 3 : 4);
   if (complaint) kept.push(MEDICAL_REFERRAL);
 

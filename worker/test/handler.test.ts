@@ -44,6 +44,49 @@ const handlerWith = (model: MockLanguageModelV4 | null, extra = {}) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe('routing and authentication', () => {
+  it.each(['doms', 'short_rest', 'technique', 'pain'] as const)(
+    'accepts contract 6 and carries %s into the current summary prompt',
+    async (shortfall) => {
+      const model = mockModel(answer(GOOD));
+      const withSet = {
+        ...context,
+        sessionCount: 1,
+        sessions: [
+          {
+            date: '2026-10-01',
+            template: 'FBW',
+            durationMin: 30,
+            sessionRpe: 7,
+            workingSets: 1,
+            exercises: [
+              {
+                exerciseId: 'row',
+                name: 'Wiosłowanie',
+                sets: [
+                  {
+                    reps: 8,
+                    timeSec: null,
+                    rir: 2,
+                    shortfall,
+                    load: { kind: 'bodyweight' as const },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      const result = await call(
+        handlerWith(model),
+        post(requestBody(withSet), { 'x-app-secret': SECRET }),
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.promptVersion).toBe('weekly-summary/v3');
+      const prompt = JSON.stringify(model.doGenerateCalls[0]!.prompt);
+      expect(prompt).toContain('reported_shortfall');
+      expect(prompt).toContain(shortfall);
+    },
+  );
   it('answers 404 to anything but POST /v1/weekly-summary', async () => {
     const handler = handlerWith(mockModel(answer(GOOD)));
     const get = new Request('https://coach.test/v1/weekly-summary', { method: 'GET' });
@@ -189,7 +232,7 @@ describe('a good answer', () => {
     expect(result.body).toEqual({
       kind: 'ok',
       requestId: 'req-0001-abcdef',
-      promptVersion: 'weekly-summary/v1',
+      promptVersion: 'weekly-summary/v3',
       model: 'mock-coach',
       usage: { inputTokens: 1200, outputTokens: 150 },
       validationOutcome: 'ok',
@@ -277,7 +320,7 @@ describe('a bad answer', () => {
     expect(result.body).toEqual({
       kind: 'invalid_output',
       requestId: 'req-0001-abcdef',
-      promptVersion: 'weekly-summary/v1',
+      promptVersion: 'weekly-summary/v3',
       attempts: 2,
       usage: { inputTokens: 2000, outputTokens: 200 },
     });
@@ -444,7 +487,7 @@ describe('the log', () => {
       event: 'weekly_summary',
       requestId: 'req-0001-abcdef',
       contractVersion: CONTRACT_VERSION,
-      promptVersion: 'weekly-summary/v1',
+      promptVersion: 'weekly-summary/v3',
       provider: expect.any(String),
       model: 'mock-coach',
       tokensIn: 1200,

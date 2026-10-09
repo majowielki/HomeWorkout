@@ -1,5 +1,11 @@
 import type { DatedValue } from '@/domain/metrics/series';
-import type { DumbbellMode, KneeProfile, MovementPattern, MuscleGroup } from '@/domain/types';
+import type {
+  DumbbellMode,
+  KneeProfile,
+  MovementPattern,
+  MuscleGroup,
+  ShortfallReason,
+} from '@/domain/types';
 
 /*
  * Plain rows, in domain terms, that `buildCoachContext` turns into a
@@ -28,6 +34,8 @@ export interface SourceSet {
   reps: number | null;
   timeSec: number | null;
   rir: number | null;
+  /** Absent on older sources; normalized to null before crossing the AI contract. */
+  shortfall?: ShortfallReason | null;
   weightKg: number | null;
   dumbbellMode: DumbbellMode | null;
   bandId: string | null;

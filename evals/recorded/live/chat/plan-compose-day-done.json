@@ -1,0 +1,19 @@
+{
+  "steps": [
+    [
+      {
+        "type": "start",
+        "requestId": "eval-plan-compose-day-done-1",
+        "promptVersion": "chat/v4",
+        "model": "gemini-3.5-flash-lite"
+      },
+      {
+        "type": "error",
+        "error": {
+          "kind": "upstream_error",
+          "retryable": false
+        }
+      }
+    ]
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "shortfall-short-rest",
+  "feature": "chat",
+  "category": "recovery",
+  "description": "A logged short_rest reason belongs to the last goblet squat set. The coach reports the user's reason without diagnosing, prescribing or overriding the engine.",
+  "scenario": {
+    "shortfall": "short_rest"
+  },
+  "question": "Dlaczego ostatnia seria przysiadu goblet była krótsza?",
+  "expect": {
+    "tools": ["findExercises", "getExerciseHistory"],
+    "scorers": [
+      "grounded",
+      "noLoads",
+      "numbersFaithful",
+      "sparseVocabulary",
+      "medicalPhrase",
+      "outOfScope",
+      "textRules",
+      "toolLimits",
+      "polishOutput",
+      "noInternalWords",
+      "delivered"
+    ],
+    "mentionAnyOf": [
+      ["krótką przerw", "krótka przerw", "krótki odpoczynek", "krótkiego odpoczynku"]
+    ],
+    "forbidPatterns": ["zamiast\\s+\\d", "pełny wynik"],
+    "forbidWords": ["rozciąg", "okład", "masaż", "rehabilit", "diagnoz", "leczen"]
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "headline": "Masz za sobą 9 ukończonych sesji treningowych w ciągu ostatnich 28 dni.",
+    "highlights": [
+      "Wykonałeś 9 sesji treningowych w analizowanym okresie.",
+      "Średnia masa ciała wyniosła 94 kg, a jej zmiana to -2 kg.",
+      "Obwód w talii zmienił się o -1,5 cm."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swoje samopoczucie po ostatnim tygodniu treningowym?",
+      "Czy planowane obciążenia sprawdzają się na ten moment?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7058,
+    "outputTokens": 153
+  },
+  "latencyMs": 1671,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

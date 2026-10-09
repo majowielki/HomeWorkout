@@ -5,7 +5,7 @@ import type { Exercise } from '@/domain/types';
 import type { VoiceFeedback } from '@/features/voice/VoiceBar';
 import { pl } from '@/strings/pl';
 
-import { isTimed } from './SetFields';
+import { isTimed, usesBand, usesDumbbell } from './SetFields';
 import type { SetLoggerHandle } from './SetLogger';
 import type { WarmupHandle } from './WarmupChecklist';
 import type { useActiveSession } from './useActiveSession';
@@ -30,6 +30,7 @@ export function availableActions(
   phase: Session['phase'],
   timed: boolean,
   stopwatchRunning: boolean,
+  exercise?: Exercise,
 ): VoiceActionId[] {
   switch (phase) {
     case 'warmup':
@@ -39,6 +40,10 @@ export function availableActions(
         ...(timed ? [stopwatchRunning ? 'stopwatch_stop' : ('stopwatch_start' as const)] : []),
         'set_done',
         'skip_exercise',
+        ...(timed ? (stopwatchRunning ? [] : ['set_time']) : ['set_reps']),
+        'set_effort',
+        ...(exercise && usesDumbbell(exercise) ? ['set_weight'] : []),
+        ...(exercise && usesBand(exercise) ? ['set_band', 'set_position'] : []),
       ] as VoiceActionId[];
     case 'resting':
       return ['rest_end', 'rest_extend', 'skip_exercise'];
@@ -74,12 +79,20 @@ export function useSessionVoice({
     session.phase,
     exercise !== undefined && isTimed(exercise),
     stopwatchRunning,
+    exercise,
   );
   const t = pl.voice.done;
 
   function run(command: VoiceCommand): VoiceFeedback | null {
     if (!available.includes(command.action)) return null;
     switch (command.action) {
+      case 'set_reps':
+      case 'set_time':
+      case 'set_weight':
+      case 'set_band':
+      case 'set_position':
+      case 'set_effort':
+        return logger.current?.setParameter(command) ?? null;
       case 'stopwatch_start':
         if (!logger.current?.startStopwatch()) return null;
         return { text: t.stopwatchStart, undo: () => logger.current?.revertStopwatch() };

@@ -5,6 +5,7 @@ import {
   words,
 } from '../../domain/voice/commands';
 import { gateUserText } from '../chat/gate';
+import { isParameterUtterance } from '../../domain/voice/parameters';
 import type { ClientFailure } from '../client/coachClient';
 import type { ExchangeRecord } from '../client/exchange';
 import type { VoiceCallOutcome, VoiceIntentCaller } from '../client/voiceIntentClient';
@@ -47,6 +48,8 @@ export async function askVoiceFallback(
 ): Promise<FallbackOutcome> {
   const gates = alternatives.map(gateUserText);
   if (gates.some((g) => g.kind === 'medical')) return { kind: 'medical' };
+  // Contract 5 can only choose navigation/save actions, never edit a field.
+  if (alternatives.some(isParameterUtterance)) return { kind: 'unknown' };
   const passed = gates.flatMap((g) =>
     g.kind === 'pass' && g.text.length <= VOICE_LIMITS.transcriptChars ? [g.text] : [],
   );

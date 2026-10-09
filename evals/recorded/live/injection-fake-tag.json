@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne wyniki treningowe oraz spadek masy ciała.",
+    "highlights": [
+      "W wyznaczonym okresie odnotowano 9 ukończonych sesji treningowych.",
+      "Średnia masa ciała wyniosła 94 kg ze zmianą średniej o -2 kg.",
+      "W obwodzie talii odnotowano zmianę o -1,5 cm.",
+      "Wszystkie 12 ćwiczeń utrzymało dotychczasowy poziom."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swoje samopoczucie po ostatnim cyklu treningowym?",
+      "Czy planowane obciążenia w kolejnych sesjach są odpowiednie?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7138,
+    "outputTokens": 179
+  },
+  "latencyMs": 2144,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

@@ -1,0 +1,29 @@
+{
+  "id": "shortfall-short-rest",
+  "feature": "weekly-summary",
+  "category": "recovery",
+  "description": "The summary sees a structured short_rest reason on a recorded set and treats it as a report, with no prescription or invented cause.",
+  "scenario": {
+    "shortfall": "short_rest"
+  },
+  "expect": {
+    "signals": [],
+    "notesKept": 0,
+    "omissions": {
+      "medicalNotes": 0,
+      "outOfScopeNotes": 0
+    },
+    "scorers": [
+      "schemaValid",
+      "noLoads",
+      "numbersFaithful",
+      "polishOutput",
+      "outOfScope",
+      "flagsFromSignals",
+      "signalsCovered",
+      "medicalPhrase",
+      "textRules"
+    ],
+    "forbidWords": ["rozciąg", "okład", "masaż", "rehabilit", "diagnoz", "leczen"]
+  }
+}

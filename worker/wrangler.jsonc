@@ -26,7 +26,7 @@
   },
 
   // Daily token counter. `wrangler kv namespace create BUDGET`, then paste the id.
-  "kv_namespaces": [{ "binding": "BUDGET", "id": "00000000000000000000000000000000" }],
+  "kv_namespaces": [{ "binding": "BUDGET", "id": "7304cd8d35864d5881f3825eef0962c6" }],
 
   // Requests per minute, per Worker location. Cheap protection against a runaway client.
   "ratelimits": [

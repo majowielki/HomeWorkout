@@ -15,6 +15,7 @@ export interface StopwatchHandle {
   stop(): number | null;
   /** Takes the last start or stop back: a start resets, a stop runs on from where it was. */
   revert(): void;
+  isRunning(): boolean;
 }
 
 type Props = {
@@ -89,6 +90,7 @@ export function Stopwatch({ targetSec, onStop, onRunningChange, ref }: Props) {
   useImperativeHandle(ref, () => ({
     start,
     stop,
+    isRunning: () => running,
     revert() {
       const previous = before.current;
       if (!previous) return;

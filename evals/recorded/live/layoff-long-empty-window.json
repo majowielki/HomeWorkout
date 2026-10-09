@@ -1,0 +1,28 @@
+{
+  "answer": {
+    "headline": "Maksymalna przerwa w treningach dobiegła końca i czas na powrót do aktywności.",
+    "highlights": [
+      "Średnia masa ciała wyniosła 94 kg, zmieniając się o -2 kg.",
+      "Obwód talii zmienił się o -1,5 cm, osiągając 102,5 cm.",
+      "W wyznaczonym oknie czasowym odnotowano 0 ukończonych sesji."
+    ],
+    "flags": [
+      {
+        "code": "LAYOFF_LONG",
+        "comment": "Minęło 31 dni lub więcej od ostatniej sesji treningowej."
+      }
+    ],
+    "questions": [
+      "Jak się czujesz przed powrotem do treningów?",
+      "Czy wszystko gotowe do wznowienia ćwiczeń w domu?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 1618,
+    "outputTokens": 208
+  },
+  "latencyMs": 1375,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

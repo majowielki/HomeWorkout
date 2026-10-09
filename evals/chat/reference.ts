@@ -16,13 +16,28 @@
  */
 import type { ChatEvent, ChatMessage, ChatRequest, ToolCall, ToolResult } from '@/ai/contract/chat';
 import type { ToolName, ToolOutput } from '@/ai/contract/chatTools';
-import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v4';
+import { CHAT_PROMPT_VERSION } from '@/ai/prompts/chat/v6';
 import { fold } from '@/domain/coach/text';
 import type { SkipReason } from '@/domain/plan/reasons';
+import type { ShortfallReason } from '@/domain/types';
+import { MEDICAL_REFERRAL } from '@/ai/prompts/weeklySummary/v1';
 
 export const REFERENCE_CHAT_MODEL = 'reference-chat-model';
 
 const pl = (n: number) => String(n).replace('.', ',');
+
+function shortfallLine(reasons: readonly (ShortfallReason | null)[]): string {
+  if (reasons.includes('pain')) return ` ${MEDICAL_REFERRAL}`;
+  const labels = {
+    doms: 'zakwasy lub zmęczony mięsień',
+    short_rest: 'za krótką przerwę',
+    technique: 'problem z techniką',
+  };
+  const reason = reasons.find((r) => r !== null && r !== 'pain');
+  return reason
+    ? ` Zaznaczyłeś ${labels[reason]} jako powód krótszej serii. To Twoje zgłoszenie, bez ustalania przyczyny.`
+    : '';
+}
 
 // --- reading the conversation -------------------------------------------------
 
@@ -412,7 +427,7 @@ export function referenceChatStep(request: ChatRequest): ChatEvent[] {
       const verdict = sparse
         ? 'w dzienniku jest jeszcze mało sesji, więc zbieramy dopiero dane'
         : VERDICT[h.verdict];
-      return `${e.name[0]!.toUpperCase()}${e.name.slice(1)}: ${verdict}. Sesji z tym ćwiczeniem w ostatnich ${h.weeks} tygodniach: ${h.sessionCount}.`;
+      return `${e.name[0]!.toUpperCase()}${e.name.slice(1)}: ${verdict}. Sesji z tym ćwiczeniem w ostatnich ${h.weeks} tygodniach: ${h.sessionCount}.${shortfallLine(h.sessions.flatMap((s) => s.sets.map((set) => set.shortfall)))}`;
     });
     return says(request, lines.join(' '));
   }
@@ -458,7 +473,10 @@ export function referenceChatStep(request: ChatRequest): ChatEvent[] {
     const last = latest
       ? ` Ostatnia sesja: ${latest.workingSets} serii roboczych${latest.durationMin === null ? '' : `, ${latest.durationMin} minut`}.`
       : ' W ostatnim czasie nie ma zapisanej sesji. To zwykła przerwa, wracasz do treningu spokojnie.';
-    return says(request, `W dzienniku jest zapisanych sesji: ${recent.totalCompleted}.${last}`);
+    return says(
+      request,
+      `W dzienniku jest zapisanych sesji: ${recent.totalCompleted}.${last}${shortfallLine(latest?.exercises.flatMap((e) => e.shortfalls.map((s) => s.reason)) ?? [])}`,
+    );
   }
 
   return says(request, CAN_ANSWER);

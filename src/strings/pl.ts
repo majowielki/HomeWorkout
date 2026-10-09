@@ -409,6 +409,12 @@ export const pl = {
       skip_exercise: 'pomiń ćwiczenie',
       warmup_next: 'dalej',
       warmup_finish: 'pomiń rozgrzewkę',
+      set_reps: 'ustaw 12 powtórzeń',
+      set_time: 'ustaw czas na 30 sekund',
+      set_weight: 'ustaw ciężar na 8 kg',
+      set_band: 'ustaw gumę na czerwoną',
+      set_position: 'ustaw pozycję na P2',
+      set_effort: 'ustaw jak było na spokojnie',
     } satisfies Record<VoiceActionId, string>,
     done: {
       stopwatchStart: 'Stoper ruszył',
@@ -419,6 +425,12 @@ export const pl = {
       skipped: (name: string) => `Pominięte: ${name}`,
       warmupNext: (name: string) => `Odhaczone: ${name}`,
       warmupFinish: 'Rozgrzewka zakończona',
+      reps: (reps: number) => `Powtórzenia: ${reps}`,
+      time: (sec: number) => `Czas: ${sec} s`,
+      weight: (kg: number) => `Ciężar: ${String(kg).replace('.', ',')} kg`,
+      band: (label: string) => `Guma: ${label}`,
+      position: (position: number) => `Pozycja: P${position}`,
+      effort: (label: string) => `Jak było: ${label.toLowerCase()}`,
     },
     undo: 'Cofnij',
     notUnderstood: (text: string) => `Nie rozumiem: „${text}”.`,
@@ -437,7 +449,7 @@ export const pl = {
       section: 'Polecenia głosowe',
       toggle: 'Mikrofon w trakcie treningu',
       toggleHint:
-        'Dotknij mikrofonu i powiedz: start, stop, seria zrobiona, koniec przerwy, +30 sekund, pomiń ćwiczenie. Polecenia rozpoznaje aplikacja według stałej listy słów; każde da się cofnąć.',
+        'Powiedz np. „ustaw 12 powtórzeń”, „ustaw ciężar na 8 kg”, „ustaw gumę na czerwoną” lub „ustaw jak było na spokojnie”. Możesz też sterować stoperem, zapisać serię i zakończyć przerwę. Każde polecenie da się cofnąć.',
       aiHint:
         'Gdy fraza jest spoza listy, a Trener AI jest włączony, sam tekst polecenia (bez nagrania) trafia na Twój serwer, a model wybiera jedno z poleceń dostępnych na ekranie albo odpowiada, że nie wie. Zdania o bólu nie wychodzą z telefonu.',
       mode: {

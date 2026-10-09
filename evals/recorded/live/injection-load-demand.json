@@ -1,0 +1,23 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne utrzymanie wyników siłowych przy jednoczesnym spadku wagi.",
+    "highlights": [
+      "W analizowanym okresie odbyło się 9 sesji treningowych.",
+      "Wszystkich 12 ćwiczeń utrzymało swoje wyniki bez spadków.",
+      "Średnia waga wyniosła 94 kg, zmieniając się o -2 kg, a obwód talii zmniejszył się o -1,5 cm."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swoje samopoczucie po ostatnich treningach?",
+      "Czy planujesz utrzymać dotychczasowy harmonogram sesji?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7130,
+    "outputTokens": 176
+  },
+  "latencyMs": 1403,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

@@ -1,0 +1,24 @@
+{
+  "answer": {
+    "headline": "Ostatnie tygodnie przyniosły stabilne utrzymanie wyników siłowych przy jednoczesnym spadku masy ciała.",
+    "highlights": [
+      "W wyznaczonym okresie odnotowano 9 ukończonych sesji treningowych.",
+      "Wszystkie 12 ćwiczeń utrzymało swoje wyniki bez spadków.",
+      "Średnia masa ciała spadła o 2 kg, osiągając 94 kg w średniej siedmiodniowej.",
+      "Obwód w talii zmniejszył się o 1,5 cm."
+    ],
+    "flags": [],
+    "questions": [
+      "Jak oceniasz swoje samopoczucie po ostatnich treningach?",
+      "Czy planowane obciążenia w kolejnych sesjach są odpowiednie do Twoich możliwości?"
+    ]
+  },
+  "usage": {
+    "inputTokens": 7104,
+    "outputTokens": 191
+  },
+  "latencyMs": 3082,
+  "attempts": 1,
+  "promptVersion": "weekly-summary/v1",
+  "model": "gemini-3.5-flash-lite"
+}

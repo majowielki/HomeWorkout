@@ -259,7 +259,7 @@ describe('SetLogger', () => {
     await fireEvent.press(screen.getByText('Seria zrobiona'));
 
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ reps: 14, rir: 3, weightKg: 12, dumbbellMode: 'single' }),
+      expect.objectContaining({ reps: 14, rir: 2, weightKg: 12, dumbbellMode: 'single' }),
     );
   });
 
@@ -653,6 +653,193 @@ describe('SetLogger', () => {
     expect(mockedLastSet).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByText('Seria zrobiona'));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: 9, rir: 1, weightKg: 10 }));
+  });
+});
+
+describe('spoken edits of the set form', () => {
+  it('starts new sets at Ciężko regardless of planned or previous effort', async () => {
+    mockedLastSet.mockResolvedValue(lastSet({ reps: 14, rir: 0, weightKg: 12 }));
+    const onSave = jest.fn();
+    const { rerender } = await render(
+      <SetLogger
+        exercise={exercise({})}
+        block={{ ...block, targetRirMin: 4 }}
+        setNumber={2}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    await screen.findByText('12 kg');
+    expect(screen.getByRole('button', { name: /^Ciężko/ }).props.accessibilityState.selected).toBe(
+      true,
+    );
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ rir: 2, reps: 14 }));
+    const planned: PlannedExercise = {
+      ...block,
+      slotId: 'squat',
+      targetRirMin: 4,
+      targetRirMax: 4,
+      load: { kind: 'dumbbell', mode: 'single', kg: 8 },
+      unit: 'reps',
+      target: 13,
+      warmupSet: false,
+      reasons: ['FIRST_EXPOSURE'],
+      confidence: 'high',
+    };
+    await rerender(
+      <SetLogger
+        key="planned"
+        exercise={exercise({})}
+        block={planned}
+        planned={planned}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    expect(screen.getByText('odczucie: lekko')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Seria zrobiona'));
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rir: 2, reps: 13, weightKg: 8 }),
+    );
+  });
+
+  it('edits reps, load and felt effort without saving; undo changes only its field', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    const ref = createRef<SetLoggerHandle>();
+    await render(
+      <SetLogger
+        ref={ref}
+        exercise={exercise({})}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    await screen.findByText('2 kg');
+    let edit: ReturnType<SetLoggerHandle['setParameter']> = null;
+    await act(async () => {
+      edit = ref.current!.setParameter({ action: 'set_reps', reps: 12 });
+    });
+    expect(screen.getByText('12')).toBeTruthy();
+    await act(async () => {
+      ref.current!.setParameter({ action: 'set_weight', kg: 8 });
+    });
+    await act(async () => {
+      ref.current!.setParameter({ action: 'set_effort', rir: 3 });
+    });
+    expect(onSave).not.toHaveBeenCalled();
+    await act(async () => {
+      (edit as ReturnType<SetLoggerHandle['setParameter']>)?.undo?.();
+    });
+    expect(screen.getByText('10')).toBeTruthy();
+    expect(screen.getByText('8 kg')).toBeTruthy();
+    await act(async () => {
+      ref.current!.save();
+    });
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ reps: 10, weightKg: 8, rir: 3 }),
+    );
+    expect(ref.current!.setParameter({ action: 'set_weight', kg: 9 })).toBeNull();
+    expect(ref.current!.setParameter({ action: 'set_band', bandId: 'red' })).toBeNull();
+    expect(ref.current!.setParameter({ action: 'set_time', seconds: 20 })).toBeNull();
+    expect(ref.current!.setParameter({ action: 'set_reps', reps: 0 })).toBeNull();
+    expect(ref.current!.setParameter({ action: 'set_effort', rir: 5 })).toBeNull();
+  });
+
+  it('changes a band and position, then saves calibrated load and can undo both fields', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    const ref = createRef<SetLoggerHandle>();
+    await render(
+      <SetLogger
+        ref={ref}
+        exercise={exercise({
+          equipment: ['band'],
+          dumbbellMode: undefined,
+          movementPattern: 'Pull',
+        })}
+        block={block}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+        calibrations={{
+          black: {
+            restLengthCm: 100,
+            points: [],
+            fit: { type: 'linear', coeffs: [-20, 20] },
+            maxMeasuredKg: 20,
+          },
+        }}
+      />,
+    );
+    await screen.findByText('Seria zrobiona');
+    let bandEdit: ReturnType<SetLoggerHandle['setParameter']> = null;
+    let positionEdit: ReturnType<SetLoggerHandle['setParameter']> = null;
+    await act(async () => {
+      bandEdit = ref.current!.setParameter({ action: 'set_band', bandId: 'black' });
+    });
+    await act(async () => {
+      positionEdit = ref.current!.setParameter({ action: 'set_position', position: 0 });
+    });
+    await act(async () => {
+      ref.current!.save();
+    });
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        bandId: 'black',
+        anchorPosition: 0,
+        estimatedLoadKg: 10,
+        weightKg: null,
+      }),
+    );
+    await act(async () => {
+      (positionEdit as ReturnType<SetLoggerHandle['setParameter']>)?.undo?.();
+      (bandEdit as ReturnType<SetLoggerHandle['setParameter']>)?.undo?.();
+    });
+    await act(async () => {
+      ref.current!.save();
+    });
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ bandId: 'yellow', anchorPosition: 1 }),
+    );
+    expect(ref.current!.setParameter({ action: 'set_band', bandId: 'blue' })).toBeNull();
+  });
+
+  it('edits seconds on holds, preserving measured time while the stopwatch runs', async () => {
+    mockedLastSet.mockResolvedValue(null);
+    const onSave = jest.fn();
+    const ref = createRef<SetLoggerHandle>();
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    await render(
+      <SetLogger
+        ref={ref}
+        exercise={exercise({ equipment: ['bodyweight'], forceProfile: 'Isometric' })}
+        block={{ ...block, timeSec: 30 }}
+        setNumber={1}
+        totalSets={2}
+        onSave={onSave}
+      />,
+    );
+    await screen.findByText('Start');
+    await act(async () => {
+      ref.current!.setParameter({ action: 'set_time', seconds: 45 });
+    });
+    expect(screen.getByText('45 s')).toBeTruthy();
+    expect(ref.current!.setParameter({ action: 'set_reps', reps: 12 })).toBeNull();
+    await act(async () => {
+      ref.current!.startStopwatch();
+    });
+    expect(ref.current!.setParameter({ action: 'set_time', seconds: 20 })).toBeNull();
+    now.mockReturnValue(1_032_000);
+    await act(async () => {
+      ref.current!.save();
+    });
+    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ timeSec: 32, reps: null }));
+    now.mockRestore();
   });
 });
 

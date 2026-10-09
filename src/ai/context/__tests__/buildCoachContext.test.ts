@@ -101,6 +101,34 @@ describe('buildCoachContext — sessions and history', () => {
   });
 });
 
+describe('buildCoachContext — reported shortfalls', () => {
+  it.each(['doms', 'short_rest', 'technique', 'pain'] as const)(
+    'keeps %s attached to the recorded set, without changing engine verdicts or totals',
+    (reason) => {
+      const source = scenario({ sessions: 1 });
+      const base = buildCoachContext(source).context;
+      const withReason = buildCoachContext({
+        ...source,
+        sets: source.sets.map((s, i) => (i === 0 ? { ...s, shortfall: reason } : s)),
+      }).context;
+      expect(withReason.sessions[0]!.exercises[0]!.sets[0]!.shortfall).toBe(reason);
+      expect(withReason.sessions[0]!.exercises[0]!.sets[1]!.shortfall).toBeNull();
+      expect(withReason.trends).toEqual(base.trends);
+      expect(withReason.weeklyVolume).toEqual(base.weeklyVolume);
+      expect(withReason.signals).toEqual(base.signals);
+    },
+  );
+
+  it('normalizes missing and null reasons without inferring success or failure', () => {
+    const source = scenario({ sessions: 1 });
+    const context = buildCoachContext({
+      ...source,
+      sets: source.sets.map((s, i) => (i === 0 ? { ...s, shortfall: null } : s)),
+    }).context;
+    expect(context.sessions[0]!.exercises[0]!.sets.map((s) => s.shortfall)).toEqual([null, null]);
+  });
+});
+
 describe('buildCoachContext — loads', () => {
   const lone = (patch: Partial<SourceSet>): CoachSource => {
     const base = scenario({ sessions: 1, olderSessions: 0 });

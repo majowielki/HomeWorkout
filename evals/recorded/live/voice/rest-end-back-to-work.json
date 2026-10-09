@@ -1,0 +1,16 @@
+{
+  "requestId": "eval",
+  "latencyMs": 932,
+  "result": {
+    "kind": "ok",
+    "requestId": "eval",
+    "promptVersion": "voice-intent/v1",
+    "model": "gemini-3.5-flash-lite",
+    "usage": {
+      "inputTokens": 466,
+      "outputTokens": 8
+    },
+    "action": "rest_end",
+    "validationOutcome": "ok"
+  }
+}

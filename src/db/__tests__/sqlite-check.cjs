@@ -90,6 +90,8 @@ const diary = require('../repositories/dailyLogs.ts');
 const workoutRepo = require('../repositories/workouts.ts');
 const plannerSource = require('../repositories/plannerSource.ts');
 const setRepo = require('../repositories/setLogs.ts');
+const coachSource = require('../repositories/coachSource.ts');
+const { buildCoachContext } = require('../../ai/context/buildCoachContext.ts');
 
 const all = (sql, ...params) => current.native.prepare(sql).all(...params);
 const exec = (sql) => current.native.exec(sql);
@@ -685,6 +687,27 @@ const CASES = [
       assert.deepEqual(await range(), [{ id: inside, date: '2026-10-09' }]);
       await week.revokeConstraints([inside]);
       assert.deepEqual(await range(), []);
+    },
+  ],
+  [
+    'reported shortfalls travel from real SQLite to the strict coach context',
+    async () => {
+      await seeded();
+      const exerciseId = firstExerciseId();
+      completedSession(exerciseId);
+      exec("UPDATE set_logs SET shortfall = 'short_rest' WHERE id = 'inside-work'");
+      exec("UPDATE set_logs SET shortfall = 'pain' WHERE id = 'inside-warm'");
+      const source = await coachSource.loadCoachSource(new Date('2026-10-08T12:00:00Z'));
+      assert.equal(source.sets.find((s) => s.id === 'inside-work').shortfall, 'short_rest');
+      const context = buildCoachContext(source).context;
+      assert.equal(context.sessions[0].exercises[0].sets[0].shortfall, 'short_rest');
+      assert.equal(context.sessions[0].exercises[0].sets.length, 1);
+      exec("UPDATE set_logs SET shortfall = NULL WHERE id = 'inside-work'");
+      const legacy = await coachSource.loadCoachSource(new Date('2026-10-08T12:00:00Z'));
+      assert.equal(
+        buildCoachContext(legacy).context.sessions[0].exercises[0].sets[0].shortfall,
+        null,
+      );
     },
   ],
   [
