@@ -142,6 +142,64 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
     total: 1,
     exercises: [{ id: 'row', name: 'Wiosłowanie', primaryMuscles: ['back', 'lats'] }],
   },
+  getActiveSession: {
+    sessionId: 's1',
+    planRevision: 1,
+    trainingDate: '2026-10-01',
+    exposures: [
+      {
+        exposureId: 's1/r1/e1',
+        exercise: { id: 'row', name: 'Wiosłowanie' },
+        sets: { done: 1, pending: 2, skipped: 0 },
+        muscles: ['back'],
+      },
+    ],
+    musclesToday: [{ muscle: 'back', done: 1, remainingPlanned: 2, dayMax: 3 }],
+    timeRemainingSec: 900,
+  },
+  assessSessionChange: {
+    assessmentId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    verdict: 'not_recommended',
+    resolved: { kind: 'exercise', exercise: { id: 'row', name: 'Wiosłowanie' } },
+    checks: [
+      {
+        code: 'DAY_MAX_EXCEEDED',
+        class: 'advice',
+        status: 'fail',
+        data: { muscle: 'back', done: 3, after: 5, dayMax: 3 },
+      },
+    ],
+    recommendation: {
+      sets: { recommended: 0, allowed: null, advisable: [1, 10], reasons: ['DAY_ROOM', 'NO_ROOM'] },
+      placement: 'next',
+    },
+    prescription: {
+      exercise: { id: 'row', name: 'Wiosłowanie' },
+      sets: 2,
+      work: [{ sets: 2, massKg: 6, target: { kind: 'reps', min: 8, max: 15, perSide: false } }],
+    },
+    alternatives: [
+      {
+        exercise: { id: 'goblet', name: 'Goblet' },
+        why: ['same_slot'],
+        verdict: 'ok',
+        assessmentId: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        patchId: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+        sets: 1,
+      },
+    ],
+    feelOptions: null,
+    time: { remainingAfterSec: 1200, maxSec: 2400 },
+  },
+  proposeSessionChange: {
+    proposalId: 'session-p1',
+    kind: 'session_change',
+    requiresAcceptance: true,
+    verdict: 'not_recommended',
+    patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    acknowledge: ['DAY_MAX_EXCEEDED'],
+  },
   getPlanExplanation: {
     date: '2026-10-01',
     source: 'today',
@@ -183,6 +241,12 @@ const INPUTS: Record<ToolName, ToolCall['input']> = {
   getBodyTrend: { days: 28 },
   findExercises: { query: 'wios' },
   getPlanExplanation: { daysAgo: 0 },
+  getActiveSession: {},
+  assessSessionChange: { kind: 'add_sets', exposureId: 's1/r1/e1', sets: 1 },
+  proposeSessionChange: {
+    assessmentId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  },
 };
 
 const user = (text = 'Jak idzie wiosłowanie?'): ChatMessage => ({ role: 'user', text });

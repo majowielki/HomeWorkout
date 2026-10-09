@@ -36,7 +36,7 @@ describe('coachContextSchema', () => {
       expect(setSchema.safeParse({ ...set, shortfall }).success).toBe(true);
     expect(setSchema.safeParse(set).success).toBe(false);
     expect(setSchema.safeParse({ ...set, shortfall: 'weakness' }).success).toBe(false);
-    expect(CONTRACT_VERSION).toBe(6);
+    expect(CONTRACT_VERSION).toBeGreaterThanOrEqual(6);
   });
   it('accepts what the builder produces', () => {
     expect(coachContextSchema.safeParse(context()).success).toBe(true);

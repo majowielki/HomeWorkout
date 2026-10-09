@@ -212,6 +212,16 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   celowo poza zasięgiem: odczucie sesji wymaga „za”/„zbyt”.
 - Do sprawdzenia na telefonie po integracji: czy rozpoznawanie mowy zapisuje „zamień na coś z gumą” w postaci, którą słownik łapie (gum\w*), oraz czy odpowiedź „dodaj” / „tak” nie koliduje z istniejącymi komendami przerwy.
 
+### 2l. P5.6a — kontrakt 7 (2026-10-09)
+
+- Decyzja użytkownika: kod Workera i kontraktu zmieniam teraz, **wdrożenie Workera i nowego APK razem po zakończeniu implementacji silnika**, potem testy na działającej aplikacji. Do tego czasu
+  telefon i wdrożony Worker pozostają na kontrakcie 6; kontrakt 7 jest tylko w repozytorium (klient N/N−1 nie jest zapewniony — zob. P5.6b).
+- Spec. 11 §8 mówi o odpowiedzi „z liczbami z `checks.data`” i receptach z kilogramami, a obecny prompt zakazuje cytowania obciążeń planu. Rozstrzygnięcie: recepta z
+  `assessSessionChange` jest policzona przez silnik dla dokładnie tej zmiany i wolno ją cytować; reszta narzędzi planu nadal nie niesie obciążeń.
+- Pole `position` żądania zmiany nazwałem `placement`, bo test architektury (ADR 0001) zabrania w wejściu modelu pól o nazwach kojarzących się z obciążeniem (`position`, `target`, `rep…`).
+- Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie i podpięcie `createPhoneSessionTools` do `useCoachChat` czekają na etap UI (decyzja: UI bez zmian).
+- Przypadki ewaluacji dla narzędzi sesji (`evals/cases/chat`) wymagają syntetycznej sesji v2 w środowisku ewaluacji i nagrania na żywym modelu — do zrobienia przy testach na działającej aplikacji.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

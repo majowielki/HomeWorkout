@@ -67,6 +67,14 @@ export interface ToolEnvironment {
   proposeDay?(
     input: ToolInput<'proposeDayPlan'>,
   ): Promise<ToolOutput<'proposeDayPlan'> | ToolError>;
+  /** The workout under way, the engine's assessment of a change to it, and a card for the person (contract 7). */
+  activeSession?(): Promise<ToolOutput<'getActiveSession'> | ToolError>;
+  assessChange?(
+    input: ToolInput<'assessSessionChange'>,
+  ): Promise<ToolOutput<'assessSessionChange'> | ToolError>;
+  proposeSessionChange?(
+    input: ToolInput<'proposeSessionChange'>,
+  ): Promise<ToolOutput<'proposeSessionChange'> | ToolError>;
 }
 
 type Result<N extends ToolName> = ToolOutput<N> | ToolError;
@@ -107,6 +115,15 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
   async proposeDayPlan(input, env) {
     return env.proposeDay ? env.proposeDay(input) : { error: 'failed' };
+  },
+  async getActiveSession(_input, env) {
+    return env.activeSession ? env.activeSession() : { error: 'no_active_session' };
+  },
+  async assessSessionChange(input, env) {
+    return env.assessChange ? env.assessChange(input) : { error: 'no_active_session' };
+  },
+  async proposeSessionChange(input, env) {
+    return env.proposeSessionChange ? env.proposeSessionChange(input) : { error: 'failed' };
   },
   async getRecentSessions({ count }, env) {
     const source = await env.load(RECENT_WINDOW_DAYS);

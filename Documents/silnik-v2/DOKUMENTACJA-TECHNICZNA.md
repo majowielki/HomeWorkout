@@ -92,6 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `ai/contract/sessionTools.ts`, `ai/tools/{sessionSummary,sessionEnvironment}.ts`, `ai/prompts/chat/{v7,sessionRules}.ts`, `session/overview.ts`, `app-services/queries/sessionTools.ts` | 11 §8, 06 §4 | P5 | ☑ P5.6a; §4.26 |
 | `observations/entry.ts`, `voice/sessionIntent.ts`, `db/repositories/answers.ts`, migracja 0012 | 06 §1, §3, 13 §12 | P5 | ☑ P5.4; §4.25 |
 | `plan/weekV2.ts` (`planWeekV2`, `syncWeekV2`), `db/repositories/weekPlanV2.ts`, migracja 0011 | 04 §5, 06 §7 | P5 | ☑ P5.1–2; §4.24 |
 | `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
@@ -633,6 +634,27 @@ idempotentne, jedna odpowiedź na klucz i rodzaj (zmiana zdania nadpisuje), podn
 każdego kolejnego awansu, a pytanie o nieaktualną ekspozycję to `STALE_INPUT`. `variant_down` zapamiętuje tylko odroczenie („nie”, z datą);
 przyjęcie łatwiejszego wariantu jest zmianą wyboru slotu, nie odpowiedzią. `readPlanningInputs` dokłada `answers` do wejścia dnia i tygodnia, więc
 trafiają też do odcisku wejścia.
+
+### 4.26 Model konsultuje trwający trening (P5.6a, kontrakt 7)
+
+**Kontrakt** (`CONTRACT_VERSION = 7`). Trzy narzędzia, wszystkie w `CHAT_TOOLS` (źródło dla aplikacji i Workera): `getActiveSession` (ćwiczenia z liczbą serii zrobionych,
+oczekujących i pominiętych, partie, serie partii dziś wobec dziennego maksimum, sekundy do końca), `assessSessionChange` (wejście: rodzaj zmiany ze **słowami** ćwiczenia, bez
+pola na obciążenie ani powtórzenia — pilnuje tego `architecture.test.ts`; wyjście: skrót oceny silnika) i `proposeSessionChange` (karta do akceptacji na telefonie).
+Nowe błędy narzędzi: `no_active_session`, `stale_assessment`. Powody recepty w `getPlanExplanation` przyjmują też kody decyzji drugiego silnika (`PLAN_REASON_CODES`).
+
+**Skrót oceny** (`sessionSummary.ts`): werdykt, rozpoznanie ćwiczenia (id i nazwa z katalogu, kandydaci, najbliższe), do 5 kontroli z liczbami (słowa wpisane przez osobę —
+`query`, `message`, `path` — nie opuszczają telefonu; wartości ucięte do 80 znaków), zalecenie liczby serii, recepta jako liczby (serie, `massKg` albo null dla gumy,
+zakres powtórzeń/czasu, pogrupowane), do 3 alternatyw z własnym `assessmentId`/`patchId`, opcje `feel` i budżet czasu. Brak wolnego tekstu (I9).
+
+**Środowisko** (`sessionEnvironment.ts`): `createSessionToolHooks(source)` czyta świeży stan przy każdym wywołaniu; maksymalnie 2 oceny na turę (`newTurn()` zeruje licznik); pamięta
+zmianę stojącą za każdym `assessmentId` (także alternatyw i opcji feel). `proposeSessionChange` ocenia zmianę **jeszcze raz** na aktualnej sesji: inny `assessmentId` to
+`stale_assessment`, brak patcha albo inny `patchId` — `invalid_input`. Karta (`SessionProposal`) niesie zmianę, `patchId`, oczekiwane rewizje i listę rad do zaakceptowania; jej
+zatwierdzenie to istniejące `applySessionChange` z kanałem `ai_proposal` (ponowna ocena w transakcji, ACK_REQUIRED). Model niczego nie zapisuje (T72, T60).
+`app-services/queries/sessionTools.ts` wiąże to z bazą (`loadActiveSessionSource`); `session/overview.ts` wyodrębnia z oceny budżet czasu i sumę serii dnia.
+
+**Prompt** `chat/v7` (v6 pozostaje nietknięte): blok `<session_rules>` (kiedy konsultować, werdykty, odpowiedź do 80 słów z liczbami z kontroli, nieznane ćwiczenie = silnik go nie
+ocenia, karta dopiero po „tak”, nic nie jest zrobione przez model), `<session_guide>` (znaczenie kodów kontroli i opcji) i `<decision_codes>` (zdanie `decisionText` dla każdego z 42 kodów).
+Wyjątek od zakazu cytowania obciążeń dotyczy wyłącznie recepty z `assessSessionChange`. Worker deklaruje narzędzia z `CHAT_TOOLS` i używa `chat/v7`; nie wdrożono go.
 
 ## 5. Konwencje testów
 

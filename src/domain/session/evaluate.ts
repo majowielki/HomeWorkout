@@ -3,10 +3,10 @@ import { repCapOf } from '../catalog/attributes';
 import { resolveExerciseRef } from '../catalog/resolve';
 import { buildVariantGraph } from '../catalog/variants';
 import { fingerprint } from '../fingerprint';
-import { isPerformed, referenceResistance } from '../observations/qualify';
+import { isPerformed } from '../observations/qualify';
 import { auditPlan } from '../plan/audit';
 import { phaseOfV2 } from '../plan/blockV2';
-import { compileSession, compilePlannedSets } from '../plan/compile';
+import { compileSession } from '../plan/compile';
 import { isLighterDay } from '../plan/constraints';
 import { fillerSpec, hasLowReadiness, prescriptionSpec } from '../plan/dayV2';
 import { slotByExercise } from '../plan/eligibility';
@@ -14,14 +14,15 @@ import { logicalSetId, parseExposureId, plannedSetId } from '../plan/ids';
 import type { PlannedExposure, PlannedSet } from '../plan/planV2';
 import { modelFor, resistanceOf } from '../plan/resistanceOf';
 import { recommendSets } from '../plan/sets';
-import { BASE_POLICY, resolveDayPolicy } from '../policy/dayPolicy';
+
 import { finding, sortChecks, verdictOf, type AssessmentCheck } from '../policy/hardAdvice';
 import { layoffState } from '../progression/layoff';
 import { prescribeNext } from '../progression/next';
 import { unitOf } from '../progression/prescribe';
 import { DEFAULT_MODEL_CONTEXT } from '../resistance/registry';
-import { assessmentDay, changeEffects, remainingVolume } from './effects';
-import { revisePending, revisionBase, setOrder, settledSets, startedExposures } from './revision';
+import { changeEffects, remainingVolume } from './effects';
+import { sessionBudget } from './overview';
+import { revisePending, revisionBase, settledSets } from './revision';
 import type {
   ActiveSessionState,
   SessionChangeEvaluation,
@@ -101,41 +102,12 @@ export function evaluateSessionChange(
       patch: null,
     };
   }
-  const order = setOrder(plan).filter((id) => !settled.has(id));
-  const beforeSec = compilePlannedSets(
-    { ...base, bikeSec: 0, warmedExposureIds: startedExposures(session) },
-    plan.exposures,
-    order,
-  ).time.exerciseTotal;
-  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change');
-  const spent = new Set(
-    session.records.flatMap((r) =>
-      r.sets
-        .filter((s) => s.disposition === 'performed' || s.disposition === 'interrupted')
-        .map((s) => s.planned.id),
-    ),
+  const { beforeSec, maxSec, records, day, idx, previous, policy } = sessionBudget(
+    snap,
+    session,
+    base,
+    modelOf,
   );
-  const elapsedSec = compilePlannedSets(
-    { ...base, bikeSec: 0 },
-    plan.exposures,
-    setOrder(plan).filter((id) => spent.has(id)),
-  ).time.exerciseTotal;
-  const maxSec = Math.max(0, policy.planner.sessionMinutes.max * 60 - elapsedSec);
-  // The active state replaces any older copy of this session in the snapshot.
-  const records = [
-    ...snap.records.filter((r) => r.sessionId !== plan.sessionId && r.trainingDate <= snap.asOf),
-    ...session.records,
-  ];
-  const { day, idx, previous } = assessmentDay(snap, records, maxSec);
-  for (const [key, history] of previous.byKey) {
-    const last = history.at(-1)!;
-    const set = last.sets.find(isPerformed);
-    if (set === undefined) continue;
-    const model = modelOf(set.planned.resistance);
-    if (model === null) continue;
-    const at = referenceResistance(last, model);
-    if (at !== null) (day.lastResistance as Map<string, PlannedSet['resistance']>).set(key, at);
-  }
   const checks: AssessmentCheck[] = [];
   const ops: PatchOp[] = [];
   let subject: PlannedExposure | null = null;

@@ -73,3 +73,15 @@ export function loadSessionChangeSource(sessionId: string) {
     return readSessionChangeSource(tx, row.planV2);
   });
 }
+
+/** The workout under way, if it is a session of engine v2: the reading the session tools consult. */
+export function loadActiveSessionSource() {
+  return db.transaction((tx) => {
+    const row = tx
+      .select()
+      .from(workouts)
+      .where(and(eq(workouts.status, 'in_progress'), eq(workouts.planSchema, 2)))
+      .get();
+    return row?.planV2 ? readSessionChangeSource(tx, row.planV2) : null;
+  });
+}
