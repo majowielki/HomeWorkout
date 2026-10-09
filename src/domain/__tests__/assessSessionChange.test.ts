@@ -253,6 +253,57 @@ describe('pending revisions and immutable results', () => {
     expect(replacement.sets[0]!.comparisonGroupId).toBe(`${replacement.id}/work`);
     expect(sessionPlanSchema.safeParse(a.patch!.plan).success).toBe(true);
   });
+  it('raises only pending resistance by one step (calibration of the sets that remain)', () => {
+    const { snap, session } = world([recipe('db-floor-press', 3)]);
+    session.records = perform(session, 1);
+    const before = session.plan.exposures[0]!.sets[1]!.resistance.value as { massGrams: number };
+    const a = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId: session.plan.exposures[0]!.id,
+      harder: true,
+    });
+    expect(a.patch).not.toBeNull();
+    const replacement = a.patch!.plan.exposures.at(-1)!;
+    expect(replacement.id).toContain('harder');
+    expect(replacement.sets).toHaveLength(2);
+    expect(
+      (replacement.sets[0]!.resistance.value as { massGrams: number }).massGrams,
+    ).toBeGreaterThan(before.massGrams);
+    expect(replacement.trace.evidence.steppedUpFrom).toBeDefined();
+    expect(sessionPlanSchema.safeParse(a.patch!.plan).success).toBe(true);
+  });
+
+  it('a calibration step goes on as the evidence of the exercise, not as a supplement', () => {
+    const { snap, session } = world([recipe('db-floor-press', 3)]);
+    session.records = perform(session, 1);
+    const exposureId = session.plan.exposures[0]!.id;
+    const plain = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId,
+      harder: true,
+    });
+    const calibrated = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId,
+      harder: true,
+      calibrate: true,
+    });
+    expect(plain.patch!.plan.exposures.at(-1)!.progressionScope).toBe('supplemental');
+    const kept = calibrated.patch!.plan.exposures.at(-1)!;
+    expect(kept.progressionScope).toBe('primary');
+    expect(kept.trace.evidence.calibratedFrom).toBeDefined();
+    expect(kept.trace.evidence.steppedUpFrom).toBeUndefined();
+  });
+
+  it('cannot invent a heavier level for bodyweight', () => {
+    const { snap, session } = world([recipe('crunch')]);
+    const a = assessSessionChange(snap, session, {
+      kind: 'reduce_remaining',
+      exposureId: session.plan.exposures[0]!.id,
+      harder: true,
+    });
+    expect(codes(a)).toContain('RESISTANCE_UNREACHABLE');
+  });
 });
 
 describe('clarification, limits, state and audit agreement', () => {

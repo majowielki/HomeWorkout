@@ -19,6 +19,7 @@ import { SessionProgressSheet } from '@/features/workout/SessionProgressSheet';
 import { SubstituteModal } from '@/features/workout/SubstituteModal';
 import { useActiveSession } from '@/features/workout/useActiveSession';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
+import { CalibrationCard } from '@/features/workout/CalibrationCard';
 import { useSessionVoice } from '@/features/workout/useSessionVoice';
 import { WarmupChecklist, type WarmupHandle } from '@/features/workout/WarmupChecklist';
 import { useLandscapeAllowed } from '@/lib/useLandscapeAllowed';
@@ -124,7 +125,14 @@ export default function ActiveSessionScreen() {
 
       {phase === 'resting' && currentStep ? (
         // Scrolls when the clip makes the screen taller than a small phone.
-        <ScrollView contentContainerClassName="flex-grow justify-center p-4">
+        <ScrollView contentContainerClassName="flex-grow justify-center gap-4 p-4">
+          {session.calibration ? (
+            <CalibrationCard
+              offer={session.calibration}
+              onAccept={session.acceptCalibration}
+              onDecline={session.declineCalibration}
+            />
+          ) : null}
           <RestTimer
             nextLabel={upcoming?.label ?? null}
             nextExercise={upcoming?.exercise}

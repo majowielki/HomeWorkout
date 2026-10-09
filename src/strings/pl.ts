@@ -328,6 +328,18 @@ export const pl = {
       otherSideNext: 'Teraz druga strona',
       alternatingSides: 'Strony na zmianę w każdej serii.',
       groupDone: 'Ćwiczenie zrobione',
+      /** A new exercise, calibrated within the session: the sets that remain, one step up or down. */
+      calibration: {
+        upTitle: 'Poszło lekko',
+        downTitle: 'Poszło ciężko',
+        up: (sets: number, from: string, to: string) =>
+          `Pozostałe serie (${sets}) o stopień wyżej: ${from} → ${to}?`,
+        down: (sets: number, from: string, to: string) =>
+          `Pozostałe serie (${sets}) o stopień niżej: ${from} → ${to}?`,
+        accept: 'Tak, zmień',
+        decline: 'Zostaw jak jest',
+        error: 'Nie udało się zmienić ciężaru. Plan serii zostaje jak był.',
+      },
       /** How an exercise just done felt: the next prescription reads it. */
       feel: {
         tooHard: 'Za ciężko',

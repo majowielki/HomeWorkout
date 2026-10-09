@@ -11,6 +11,7 @@ import type { SetDisposition } from '@/domain/observations/types';
 
 import { db, type Executor } from '../client';
 import { feelReports, sessionPlanRevisions, setDispositions, setLogs, workouts } from '../schema';
+import { parseExposureId } from '@/domain/plan/ids';
 import type { SessionPlan } from '@/domain/plan/plan';
 
 /*
@@ -55,6 +56,32 @@ export function historyPlans(tx: Executor, sessions: readonly WorkoutRow[]): Ses
     });
 }
 
+/**
+ * The exposures the person shortened (D26): sets of it were replaced, or it is the lighter rest of
+ * another. A replacement that is the calibration of a new exercise (D24) shortens nothing: the
+ * exposure it continues is read together with it.
+ */
+function reducedExposures(
+  plan: SessionPlan,
+  skips: readonly { plannedSetId: string; reason: string | null }[],
+): string[] {
+  const calibrated = new Set(
+    plan.exposures.flatMap((e) =>
+      typeof e.trace.evidence.calibratedFrom === 'string' ? [e.trace.evidence.calibratedFrom] : [],
+    ),
+  );
+  return plan.exposures
+    .filter(
+      (e) =>
+        (!calibrated.has(parseExposureId(e.id)!.exposureKey) &&
+          e.sets.some((s) =>
+            skips.some((d) => d.plannedSetId === s.id && d.reason === 'replaced'),
+          )) ||
+        e.trace.evidence.reducedFrom !== undefined,
+    )
+    .map((e) => e.id);
+}
+
 /** Synchronous reads through the supplied transaction, also used during session change acceptance. */
 export function readNormalizedHistory(tx: Executor, sessions: WorkoutRow[]): LoadedHistory {
   const withPlans = sessions.filter((w) => w.planSchema === 2 && w.sessionPlan !== null);
@@ -93,17 +120,10 @@ export function readNormalizedHistory(tx: Executor, sessions: WorkoutRow[]): Loa
     trainingDate: w.trainingDate,
     status: w.status,
     deload: w.sessionPlan!.exposures.some((e) => e.trace.code === 'DELOAD'),
-    reducedExposures: plans
-      .find((p) => p.sessionId === w.id)!
-      .exposures.filter(
-        (e) =>
-          e.sets.some((s) =>
-            skipRows.some(
-              (d) => d.workoutId === w.id && d.plannedSetId === s.id && d.reason === 'replaced',
-            ),
-          ) || e.trace.evidence.reducedFrom !== undefined,
-      )
-      .map((e) => e.id),
+    reducedExposures: reducedExposures(
+      plans.find((p) => p.sessionId === w.id)!,
+      skipRows.filter((d) => d.workoutId === w.id),
+    ),
   }));
   return normalizeObservations({
     sessions: sessionMeta,

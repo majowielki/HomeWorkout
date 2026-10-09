@@ -644,6 +644,36 @@ const CASES = [
     },
   ],
   [
+    'a calibration step carries the new step into the history of the exercise (D24)',
+    async () => {
+      const first = {
+        schemaVersion: 1,
+        decision: 'start',
+        code: 'FIRST_COMPARABLE_EXPOSURE',
+        policy: { id: 'reps_then_resistance', version: '2' },
+        evidence: {},
+        estimate: null,
+      };
+      const source = await started([recipe('db-floor-press', 3, { trace: first })]);
+      logFirst(source);
+      const { cmd } = preview({
+        kind: 'reduce_remaining',
+        exposureId: source.session.plan.exposures[0].id,
+        harder: true,
+        calibrate: true,
+      });
+      assert.equal(applySessionChange(cmd, NOW).kind, 'committed');
+      const plan = loadSessionChangeSource('s1').session.plan;
+      const rest = plan.exposures.at(-1);
+      assert.equal(rest.progressionScope, 'primary');
+      assert.equal(rest.sets.length, 2);
+      const loaded = await history.loadWindow('2026-10-01');
+      assert.equal(loaded.problems.length, 0);
+      // The sets done at the starting step are not a reduction, and the rest is the evidence.
+      assert.ok(loaded.records.every((r) => !r.context.userReduced));
+    },
+  ],
+  [
     'appending sets preserves prior skips and the original prescriptions',
     async () => {
       const source = await started([recipe('crunch', 3)]);

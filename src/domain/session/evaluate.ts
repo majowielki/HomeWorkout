@@ -387,8 +387,9 @@ export function evaluateSessionChange(
       else if (change.kind === 'skip_remaining')
         ops.push({ kind: 'skipRemaining', exposureId: target.id, setIds: open.map((s) => s.id) });
       else {
-        const drop = change.dropSets ?? (change.easier ? 0 : 1);
-        if (drop === 0 && !change.easier) {
+        const stepped = change.easier ? 'easier' : change.harder ? 'harder' : null;
+        const drop = change.dropSets ?? (stepped ? 0 : 1);
+        if (drop === 0 && stepped === null) {
           checks.push(finding('PLAN_INVALID', 'fail', { reason: 'empty reduction' }));
         } else if (drop !== 0 && invalidCount(drop, 'drop sets')) {
           /* finding already recorded */
@@ -418,18 +419,21 @@ export function evaluateSessionChange(
                 exposureId: target.id,
                 setIds: removed.map((s) => s.id),
               });
-            if (change.easier) {
+            if (stepped !== null) {
               const kept = open.filter((s) => !ids.has(s.logicalSetId));
               const replacements: PlannedSet[] = [];
               const key = parseExposureId(target.id)!.exposureKey;
-              const newKey = `easier${base.planRevision}`;
+              const newKey = `${stepped}${base.planRevision}`;
               for (const s of kept) {
                 const model = modelOf(s.resistance);
-                const lower = model?.nextEasier(s.resistance.value);
+                const lower =
+                  stepped === 'easier'
+                    ? model?.nextEasier(s.resistance.value)
+                    : model?.nextHarder(s.resistance.value);
                 if (lower === null || lower === undefined) {
                   checks.push(
                     finding('RESISTANCE_UNREACHABLE', 'fail', {
-                      reason: 'no easier resistance',
+                      reason: `no ${stepped} resistance`,
                       plannedSetId: s.id,
                     }),
                   );
@@ -457,12 +461,20 @@ export function evaluateSessionChange(
                   ...target,
                   id: `${plan.sessionId}/r${base.planRevision}/${newKey}`,
                   sets: replacements,
-                  progressionScope: target.sets.some((s) => settled.has(s.id))
-                    ? 'supplemental'
-                    : target.progressionScope,
+                  progressionScope:
+                    !change.calibrate && target.sets.some((s) => settled.has(s.id))
+                      ? 'supplemental'
+                      : target.progressionScope,
                   trace: {
                     ...target.trace,
-                    evidence: { ...target.trace.evidence, reducedFrom: key },
+                    evidence: {
+                      ...target.trace.evidence,
+                      ...(change.calibrate
+                        ? { calibratedFrom: key }
+                        : stepped === 'easier'
+                          ? { reducedFrom: key }
+                          : { steppedUpFrom: key }),
+                    },
                   },
                 };
                 ops.push({

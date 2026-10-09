@@ -17,6 +17,7 @@ import {
   skipSets,
   undoSet,
 } from '@/db/repositories/sessions';
+import { applySessionChange } from '@/db/repositories/sessionChanges';
 import { type CommandResult, isDone } from '@/domain/commands/result';
 import type { SetObservation } from '@/domain/observations/types';
 import type { PlannedSet } from '@/domain/plan/plan';
@@ -38,6 +39,12 @@ import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
 import type { Feel, GroupDoneExercise } from './GroupDoneCard';
+import {
+  type CalibrationMemories,
+  type CalibrationOffer,
+  NO_MEMORY,
+  readCalibrationOffer,
+} from './calibration';
 import { takeUndone, type UndoneSet } from './undoneSet';
 
 export type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'groupDone' | 'notFound';
@@ -74,6 +81,9 @@ export interface ActiveSessionDeps {
   reopenSets: typeof reopenSets;
   undoSet: typeof undoSet;
   recordFeel: typeof recordFeel;
+  applySessionChange: typeof applySessionChange;
+  /** The offer to calibrate the sets that remain, after a set of an exercise new to the person. */
+  offerCalibration: typeof readCalibrationOffer;
   startRest: (seconds: number, notificationBody: string) => Promise<void>;
   /** Adds to the rest running now; a negative amount takes an extension back. */
   extendRest: (seconds: number, notificationBody: string) => Promise<void>;
@@ -95,6 +105,8 @@ const defaultDeps: ActiveSessionDeps = {
   reopenSets,
   undoSet: undoSet,
   recordFeel,
+  applySessionChange,
+  offerCalibration: readCalibrationOffer,
   startRest: (seconds, body) => useRestTimerStore.getState().start(seconds, body),
   extendRest: (seconds, body) => useRestTimerStore.getState().extend(seconds, body),
   stopRest: () => useRestTimerStore.getState().stop(),
@@ -123,6 +135,9 @@ export function useActiveSession(
   const [profile, setProfile] = useState<MedicalProfile>({ knee: null });
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  // The offer of one step up or down for the sets that remain of a new exercise, while the rest runs.
+  const [calibration, setCalibration] = useState<CalibrationOffer | null>(null);
+  const calibrated = useRef<CalibrationMemories>({});
   // What the person said about how each exercise felt, by exposure: the last word.
   const [feels, setFeels] = useState<Readonly<Record<string, Feel>>>({});
   // A set taken back with "Cofnij serię": its step shows the recorded numbers again.
@@ -360,10 +375,50 @@ export function useActiveSession(
       return;
     }
     await deps.startRest(rest, pl.workout.session.restNotificationBody);
+    try {
+      setCalibration(deps.offerCalibration(id, currentStep.set.id, calibrated.current));
+    } catch (error) {
+      // An offer is a convenience: reading it must never keep the person from resting and going on.
+      console.warn('could not read the calibration offer', error);
+      setCalibration(null);
+    }
     setPhase('resting');
   }
 
+  /** "Tak": the sets that remain go one step up or down, through the engine's own change of the session. */
+  function acceptCalibration() {
+    const offer = calibration;
+    if (!offer) return;
+    const result = deps.applySessionChange({ commandId: deps.newId(), ...offer.command });
+    setCalibration(null);
+    if (!isDone(result)) {
+      console.warn('could not calibrate the sets that remain', result);
+      deps.alert(pl.workout.session.calibration.error);
+      return;
+    }
+    const memory = calibrated.current[offer.comparisonKey] ?? NO_MEMORY;
+    calibrated.current[offer.comparisonKey] =
+      offer.direction === 'up'
+        ? { ...memory, stepsUp: memory.stepsUp + 1 }
+        : { ...memory, stepsDown: memory.stepsDown + 1 };
+    const fresh = reload();
+    if (fresh === null) return;
+    // The step of the rest stays where it was: the set just done.
+    const done = fresh.steps.findIndex((s) => s.set.id === offer.plannedSetId);
+    if (done >= 0) setCurrentIndex(done);
+  }
+
+  /** "Nie": not offered again for this exercise in this session, and not a failure. */
+  function declineCalibration() {
+    const offer = calibration;
+    setCalibration(null);
+    if (!offer) return;
+    const memory = calibrated.current[offer.comparisonKey] ?? NO_MEMORY;
+    calibrated.current[offer.comparisonKey] = { ...memory, declined: true };
+  }
+
   function restDone() {
+    setCalibration(null);
     // Synchronous first so RestTimer unmounts immediately and its own
     // interval stops, before the async store cleanup below resolves.
     setPhase('logging');
@@ -512,6 +567,7 @@ export function useActiveSession(
    */
   function undo(plannedSetId?: string) {
     if (!session || saving) return;
+    setCalibration(null);
     const last = latestResult(session.results.values());
     if (last === null) return;
     // "Cofnij" offered for a set that is no longer the last one would take back another set.
@@ -542,6 +598,7 @@ export function useActiveSession(
 
   /** From the progress sheet: straight to a step not done yet. */
   function jump(index: number) {
+    setCalibration(null);
     void deps.stopRest();
     const target = steps[index];
     // Going to a skipped exercise is changing one's mind about it.
@@ -568,6 +625,7 @@ export function useActiveSession(
 
   /** The plan changed under the session (a swap, an added exercise): read it again and open on what is next. */
   function planChanged() {
+    setCalibration(null);
     const fresh = reload();
     if (fresh === null) return;
     void deps.stopRest();
@@ -615,6 +673,9 @@ export function useActiveSession(
     skipExercise,
     unskip,
     reportFeel,
+    calibration,
+    acceptCalibration,
+    declineCalibration,
     undo,
     jump,
     finish,

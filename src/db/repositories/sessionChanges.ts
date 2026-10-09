@@ -45,6 +45,8 @@ const changeSchema = z.discriminatedUnion('kind', [
     exposureId: z.string().min(1),
     dropSets: z.number().optional(),
     easier: z.boolean().optional(),
+    harder: z.boolean().optional(),
+    calibrate: z.boolean().optional(),
   }),
   z.strictObject({ kind: z.literal('skip_remaining'), exposureId: z.string().min(1) }),
 ]);

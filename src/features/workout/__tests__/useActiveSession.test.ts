@@ -23,6 +23,8 @@ jest.mock('expo-crypto', () => ({ randomUUID: () => 'uuid' }));
 jest.mock('@/stores/restTimerStore', () => ({ useRestTimerStore: { getState: jest.fn() } }));
 jest.mock('@/db/repositories/profile', () => ({}));
 jest.mock('@/db/repositories/sessions', () => ({}));
+jest.mock('@/db/repositories/sessionChanges', () => ({}));
+jest.mock('@/db/repositories/sessionChangeSource', () => ({}));
 
 const exerciseMap = {
   'ex-a': exercise({ id: 'ex-a', name: 'Przysiad' }),
@@ -135,6 +137,8 @@ function setup(
       results.delete(plannedSetId);
       return committed({ observationId: cmd.observationId, plannedSetId });
     }),
+    applySessionChange: jest.fn(() => committed({ planRevision: 2 })),
+    offerCalibration: jest.fn(() => null),
     recordFeel: jest.fn((cmd) => committed({ id: `feel-${cmd.commandId}` })),
     startRest: jest.fn().mockResolvedValue(undefined),
     extendRest: jest.fn().mockResolvedValue(undefined),
@@ -218,6 +222,98 @@ it('rests between sets, shows the done card after a superset and finishes after 
   await act(async () => result.current.restDone());
   await act(async () => result.current.saveSet(logged));
   expect(mockReplace).toHaveBeenCalledWith(SUMMARY);
+});
+
+describe('the calibration offer of a new exercise', () => {
+  const offerFor = (plannedSetId: string) => ({
+    direction: 'up' as const,
+    comparisonKey: 'k',
+    plannedSetId,
+    exerciseId: 'ex-a',
+    remaining: 1,
+    from: { modelId: 'bodyweight' } as never,
+    to: { modelId: 'bodyweight' } as never,
+    command: {
+      sessionId: 'w',
+      patchId: 'a'.repeat(64),
+      change: { kind: 'reduce_remaining' as const, exposureId: 'e', harder: true },
+      expected: { planRevision: 1, historyRevision: 0 },
+      acknowledged: [],
+      channel: 'touch' as const,
+    },
+  });
+
+  it('is made during the rest, taken with one touch, and leaves the rest running', async () => {
+    const { deps } = setup();
+    jest.mocked(deps.offerCalibration).mockImplementation((_s, setId) => offerFor(setId));
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.saveSet(logged));
+    expect(result.current.phase).toBe('resting');
+    expect(result.current.calibration).not.toBeNull();
+    await act(async () => result.current.acceptCalibration());
+    expect(deps.applySessionChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'w',
+        change: expect.objectContaining({ harder: true }),
+      }),
+    );
+    expect(result.current.calibration).toBeNull();
+    expect(result.current.phase).toBe('resting');
+    expect(deps.stopRest).not.toHaveBeenCalled();
+  });
+
+  it('leaves the plan alone and does not come back after a no', async () => {
+    const { deps } = setup();
+    jest.mocked(deps.offerCalibration).mockImplementation((_s, setId) => offerFor(setId));
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.saveSet(logged));
+    await act(async () => result.current.declineCalibration());
+    expect(result.current.calibration).toBeNull();
+    expect(deps.applySessionChange).not.toHaveBeenCalled();
+    await act(async () => result.current.restDone());
+    await act(async () => result.current.saveSet(logged));
+    expect(jest.mocked(deps.offerCalibration).mock.calls.at(-1)![2]).toEqual({
+      k: { stepsUp: 0, stepsDown: 0, declined: true },
+    });
+  });
+
+  it('says so when the change cannot be made, and counts nothing', async () => {
+    const { deps } = setup();
+    jest.mocked(deps.offerCalibration).mockImplementation((_s, setId) => offerFor(setId));
+    jest.mocked(deps.applySessionChange).mockReturnValueOnce({
+      kind: 'conflict',
+      code: 'STALE_INPUT',
+      actualRevision: 2,
+    });
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.saveSet(logged));
+    await act(async () => result.current.acceptCalibration());
+    expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.calibration.error);
+    expect(result.current.calibration).toBeNull();
+  });
+
+  it('never keeps the person from resting when the offer cannot be read', async () => {
+    const { deps } = setup();
+    jest.mocked(deps.offerCalibration).mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.saveSet(logged));
+    expect(result.current.phase).toBe('resting');
+    expect(result.current.calibration).toBeNull();
+  });
+
+  it('does nothing without an offer', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.acceptCalibration());
+    await act(async () => result.current.declineCalibration());
+    expect(deps.applySessionChange).not.toHaveBeenCalled();
+  });
 });
 
 it('starts the next set from the result of the one before it in the same exercise', async () => {

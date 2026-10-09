@@ -108,7 +108,9 @@ const CHECK_TEXT: Record<RuleCode, CheckText> = {
   RESISTANCE_UNREACHABLE: (c) =>
     str(c.data, 'reason') === 'no easier resistance'
       ? 'Nie ma lżejszego obciążenia niż obecne.'
-      : 'Takiego obciążenia nie da się ustawić na dostępnym sprzęcie.',
+      : str(c.data, 'reason') === 'no harder resistance'
+        ? 'Nie ma cięższego obciążenia niż obecne.'
+        : 'Takiego obciążenia nie da się ustawić na dostępnym sprzęcie.',
   TECHNICAL_LIMIT: (c) => {
     const what = str(c.data, 'what');
     return what === 'sets' || what === 'added sets'

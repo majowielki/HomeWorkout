@@ -12,7 +12,19 @@ export type SessionPlanChange =
   | { kind: 'add_exercise'; exercise: ExerciseRef; sets?: number; position?: 'next' | 'end' }
   | { kind: 'add_sets'; exposureId: string; sets: number }
   | { kind: 'swap_remaining'; exposureId: string; exercise: ExerciseRef }
-  | { kind: 'reduce_remaining'; exposureId: string; dropSets?: number; easier?: boolean }
+  | {
+      kind: 'reduce_remaining';
+      exposureId: string;
+      dropSets?: number;
+      easier?: boolean;
+      /** The sets that remain one step up (calibration of a new exercise, D24): the phone offers it, the model cannot. */
+      harder?: boolean;
+      /**
+       * The step is the calibration of a new exercise (D24): the sets that remain go on as the exercise's
+       * evidence, and the sets that were done at the starting step are not a reduction.
+       */
+      calibrate?: boolean;
+    }
   | { kind: 'skip_remaining'; exposureId: string };
 
 export interface FeelChange {
