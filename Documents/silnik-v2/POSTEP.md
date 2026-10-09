@@ -28,7 +28,7 @@ opisany inny dowód) i commit.
 | P0 | Baza pomiarowa i poprawki bez zmiany strategii | ☑ 2026-10-09 | `refactor/engine-p0-baseline` | — |
 | P1 | Kontrakty v2, model oporu, katalog (aliasy, graf wariantów, screenery), preferencje | ☑ 2026-10-09 | `refactor/engine-p1-contracts` | P0 |
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
-| P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☐ | | P1, P2 |
+| P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ◐ rdzeń 2026-10-09 (zostaje: rotacja z ciągłością, deload reaktywny, dźwignia objętości) | `refactor/engine-p3-progression` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☐ | | P1, P2 |
 | P4b | Konsultacja zmian w sesji (domena) | ☐ | | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
@@ -86,7 +86,26 @@ Decyzja użytkownika 2026-10-09: „Start” dla P2. **Zakres wykonany to cała 
 | P2.8 | Kopia zapasowa 7: pełny round trip danych v2; archiwizacja → sprawdzenie → reset (D21); import archiwum jako historia do wglądu | T52, T53 (SQLite) | ☑ (reset wyłączony) | `9834c53`, `9a44a3c` |
 | P2.9 | Migracja aktywnej sesji, restart sesji v2 | P5 (potrzebuje UI) | ☐ | |
 
-## P3–P9
+## P3 — kwalifikacja i progresja
+
+Czysta domena: nic w aplikacji tego jeszcze nie woła (pipeline wchodzi do planowania w P5, aktywacja w P6), więc golden baseline jest bez zmian. Zadania ze specyfikacji (07 §6) plus to, co jej v1.1–v1.3 dołożyły do P3 (13 §5–8, 16, 20, 12 §5).
+
+| Zadanie | Zakres | Dowód | Status | Commit |
+|---|---|---|---|---|
+| P3.1–P3.2 | Kwalifikacja ekspozycji: pokrycie stron, porównywalność oporu per seria, jakość (wysiłek z pochodzeniem), wynik względem zakresu planu (`top_met` z `dropOffAllowance`), opór odniesienia | T10–T11, T22–T28, T31, T97; `qualify.test.ts` | ☑ | `3181260` |
+| P3.5 | Zamknięty rejestr kodów decyzji (40) i polityka z liczbami | `pipeline.test.ts` (T105 na wszystkich planach); **teksty PL i payload: P5** | ◐ | `3181260` |
+| P3.8 | Pamięć nieudanego szczebla (wyprowadzana z historii), oczyszczanie rozszerzonym zakresem albo dodatkową serią, wygasanie 42 dni | T81–T84; `failedRungs.test.ts` | ☑ | `77bbb98` |
+| P3.8b | Osie pośrednie: wydłużenie zakresu (limit powtórzeń z kolana), dodatkowa seria | `axes.test.ts` | ☑ | `77bbb98` |
+| P3.9 | Próba szczebla: `shouldProbe`, `probeVerdict`, `probeCooldown`, `rirBias` | T88–T92; `probe.test.ts` | ☑ | `77bbb98` |
+| P3.10 | Budowanie do zakresu i karta łatwiejszego wariantu | T101–T103; `buildUp.test.ts` | ☑ | `77bbb98` |
+| P3.12 | `recommendSets`: compound 3 / akcesoria 2 / core 2, deload, miejsce dnia, tygodnia i czasu | T76–T80; `sets.test.ts` | ☑ | `475599d` |
+| P3.3–P3.4 | Pipeline reguł `prescribeNext` (priorytety 03 §4, dwa zegary przerw, deload, rekalibracja, dowód, porażka, sukces, powtórzenia w zakresie), ślad zgodny ze schematem planu | T22–T25, T27–T34, T56, T86, T88–T90, T101–T103, T105; `pipeline.test.ts`, `pipelineEdges.test.ts` | ☑ | `f5c3500` |
+| P3.7 | Interfejs estymatora: tylko ślad, domyślnie wyłączony | `pipeline.test.ts` („the shadow estimator”) | ☑ | `f5c3500` |
+| P3.11 | Kalibracja pierwszej ekspozycji w sesji (krok w górę/w dół jako propozycja) | T87, T104; `firstExposure.test.ts` | ☑ (reducer sesji: P4b/P5) | |
+| P3.6 | Shadow starej i nowej kwalifikacji | — | — nie dotyczy: start od zera (D21), nie ma adaptera v1 | |
+| P3.13 | Rotacja z ciągłością (`chooseBlockVariant`, rozdział zegarów w rotacji), `reactiveDeloadTrigger`, `volumeRecommendation`, wagi mięśni w raporcie, `failedRungs` w indeksie historii | T35, T73–T75, T93–T96 | ☐ | |
+
+## P4–P9
 
 Zadania rozpisane w specyfikacji ([07](../../../architektura-silnika-2026-10-08/07-PLAN-WDROZENIA.md)). Tutaj trafiają dopiero z chwilą
 rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany.
@@ -95,6 +114,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P3 (rdzeń) w domenie**: kwalifikacja dowodu, pipeline `prescribeNext` (14 reguł), pamięć nieudanego szczebla, próba szczebla, budowanie do zakresu, `recommendSets`, kalibracja w sesji jako propozycje. 40 kodów decyzji. `npm run verify` zielone: 3387 testów, pokrycie domeny 100%. Zostaje rotacja z ciągłością, deload reaktywny, dźwignia objętości; pytania Q-6, Q-7 | |
 | 2026-10-09 | Przeczytany pakiet architektury (v1.3). Założona gałąź `docs/engine-v2-tracking`; trzy dokumenty w `Documents/silnik-v2/`. Stan wyjściowy: `main` @ `33d0f1e` + niezatwierdzone zmiany użytkownika (głos/trener v6, 40 plików) — patrz UWAGI §1 | |
 | 2026-10-09 | Zatwierdzone niezatwierdzone zmiany użytkownika (`51237d0`, Q-1). Przełącznik „Uwzględniaj ograniczenia kolana” i „Ostrożny zakres powtórzeń” w Ustawieniach (`e3d511d`, Q-3). Krawędzie wariantów zmieniające jednostkę, jawnie (`a340051`, Q-4). **P2 (warstwa danych) zamknięty**: normalizator, indeks historii, schemat i migracja 0010, polecenia sesji v2, kopia zapasowa 7, archiwizacja/reset (wyłączony). `npm run verify`: 3138 testów, pokrycie domeny 100% | |
 | 2026-10-09 | **P1 zamknięty** (10 zadań, ok. 370 nowych testów, `npm run verify` zielone: 3047 testów, pokrycie domeny 100%). Czysta domena: kontrakty planu i wyników, modele oporu, graf wariantów, screenery, reguły hard/advice, preferencje, sprzęt. Aplikacja bez zmian zachowania (golden baseline identyczny) | |

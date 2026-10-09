@@ -85,7 +85,7 @@ const TOP4: Step[] = [
   [2, 4, [12, 12]],
 ];
 
-describe('1 eligibility', () => {
+describe('03 §4 rule 1: eligibility', () => {
   it('nothing is prescribed for what may not be planned', () => {
     const { draft, trace } = plan(H(...TOP4), { eligible: false });
     expect(draft).toMatchObject({
@@ -107,7 +107,7 @@ describe('1 eligibility', () => {
   });
 });
 
-describe('T14 3 the first exposure', () => {
+describe('03 §4 rule 3: the first exposure', () => {
   it('starts at the start of the slot, at the bottom of the range, easy', () => {
     const { draft, trace } = plan([]);
     expect(draft).toMatchObject({
@@ -144,7 +144,7 @@ describe('T14 3 the first exposure', () => {
   });
 });
 
-describe('2 pain', () => {
+describe('03 §4 rule 2: pain', () => {
   it('stops everything: no step in either direction (T31)', () => {
     const { draft } = plan(H(...TOP4, [4, 4, [12, { amount: 12, shortfall: 'pain' }]]));
     expect(draft).toMatchObject({ resistance: kg(4), decision: 'hold', codes: ['PAIN_REPORTED'] });
@@ -405,7 +405,7 @@ describe('T22-T25 holding where the evidence does not allow a step', () => {
   });
 });
 
-describe('T97-T99 the feeling the person reported', () => {
+describe('13 §15: the feeling the person reported', () => {
   it('too hard at the top: no step yet', () => {
     const { draft } = plan(H(...TOP4, [4, 4, [12, 12], { context: { feel: 'too_hard' } }]));
     expect(draft).toMatchObject({ resistance: kg(4), targets: [12, 12], codes: ['FEEL_TOO_HARD'] });
@@ -646,7 +646,7 @@ describe('T101-T103 building up where nothing is easier', () => {
   });
 });
 
-describe('T22 inside the range', () => {
+describe('03 §5: inside the range', () => {
   it('each set a step further, the weaker one first', () => {
     const { draft } = plan(H([0, 4, [12, 10]], [2, 4, [12, 10]]));
     expect(draft).toMatchObject({
@@ -724,7 +724,7 @@ describe('T33, T34 coming back', () => {
   });
 });
 
-describe('T32 the phase', () => {
+describe('T32 the phase and the break', () => {
   it('a deload week repeats the last recipe, easy, and does not go up', () => {
     const { draft } = plan(H(...TOP4), { phase: 'deload', sets: { ...SETS, recommended: 1 } });
     expect(draft).toMatchObject({
@@ -769,7 +769,7 @@ describe('T32 the phase', () => {
   });
 });
 
-describe('T87 the sets of the next exposure', () => {
+describe('12 §5: the sets of the next exposure', () => {
   it('are the policy’s unless an axis asked for another number', () => {
     expect(plan(H(...TOP4), { sets: { ...SETS, recommended: 3 } }).draft.sets).toBe(2);
     expect(

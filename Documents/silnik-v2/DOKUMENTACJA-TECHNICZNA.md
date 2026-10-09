@@ -77,16 +77,17 @@ Docelowa mapa plików to 13 §0. Status:
 | `policy/hardAdvice.ts` (klasy reguł, werdykt), `policy/registry.ts` (polityki, zdolności) | 12 §2, 13 §5 | P1 | ☑ |
 | `observations/{types,exposure}.ts` | 13 §3 | P1 | ☑ |
 | `observations/{normalize,outcome,project}.ts`, `commands/result.ts`, `history/index.ts` | 13 §3, §13, 10 §1 | P2 | ☑ |
-| `observations/qualify.ts` | 13 §4 | P3 | ☐ |
+| `observations/{qualify,effort}.ts` | 13 §4 | P3 | ☑ |
 | `db/repositories/{sessionsV2,historyV2,ledger,engineMigration}.ts` | 13 §14, 02 §5–§8a | P2 | ☑ |
 | `resistance/{types,ladderModel,models,registry,legacy,compare}.ts` | 05 §5–§8 | P1 | ☑ |
 | `equipment/types.ts` | 05 §4 | P1 | ☑ |
 | `plan/{planV2,ids}.ts`, `fingerprint/*` | 02 §1–2, 01 §4 | P1 | ☑ |
-| `progression/{next,failedRungs,axes,calibration,probe,buildUp}.ts` | 13 §5–8, 16, 20 | P3 | ☐ |
+| `progression/{next,rules,draft,assessed,failedRungs,axes,probe,buildUp,firstExposure,levels,policy,codes}.ts` | 13 §5–8, 16, 20 | P3 | ☑ (plik `calibration.ts` zostaje przy gumach) |
 | `catalog/{attributes,variants,validate}.ts`, `medical/screeners.ts` | 13 §9–10, 05 §13–14 | P1 | ☑ |
 | `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☐ |
 | `preferences/preferences.ts` (model, `preferenceScore`, `nearEquivalent`) | 12 §3–4 | P1 | ☑ |
-| `chooseBlockVariant`, `plan/sets.ts` (`recommendSets`) | 12 §4.2, §5 | P3 | ☐ |
+| `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
+| `chooseBlockVariant` (wybór wariantu bloku z preferencją i ciągłością) | 12 §4.2 | P3 | ☐ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
 | `session/{assess,effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/{weights,lever}.ts` | 13 §17–19 | P3 | ☐ |
@@ -219,6 +220,49 @@ Wspólny zestaw testów kontraktu (`__tests__/resistanceContract.ts`) działa na
 **Przejście na silnik v2** (`engineMigration.ts`, D21): `migrateToEngineV2(sink)` – archiwum (pełna kopia 7 jako `homeworkout-v1-archive-<data>.json`) → odczyt z powrotem i parsowanie → dopiero wtedy w jednej transakcji kasuje sesje, serie, bloki, tydzień, prośby, rowery i księgę poleceń oraz ustawia `app_state.engine_generation = 2`. Zostają: profil (kolano, granica dnia, lista „nie proponuj”), gumy z kalibracją i zużyciem, dziennik poranny, waga, pomiary, szablony, diagnostyka AI, preferencje. Błąd na dowolnym kroku przed ostatnim zostawia dane nietknięte (zapis, odczyt, zgodność pliku, sama transakcja — każdy sprawdzony). `importLegacySessions` wkłada zakończone sesje z archiwum do `legacy_sessions` (do wglądu; idempotentnie). `src/lib/engineMigration.ts` opakowuje to plikiem w katalogu dokumentów aplikacji i stałą **`ENGINE_V2_RESET_ENABLED = false`**.
 
 **Harness SQLite:** `src/db/__tests__/sqlite-harness.cjs` (wspólny), `sqlite-check.cjs` (19 przypadków pierwszego silnika), `sqlite-check-v2.cjs` (27 przypadków v2); `storage.test.ts` zamienia każdy w osobny test Jesta.
+
+### 4.12 Kwalifikacja dowodu i progresja (P3)
+
+Czysta domena, bez bazy i bez zegara. **Żadna ścieżka aplikacji jeszcze tego nie woła** (to P5/P6), więc zachowanie aplikacji się nie zmienia. Wejście: kolejne ekspozycje primary jednego ćwiczenia na jednym kluczu porównywalności (`ExposureRecord` z normalizatora P2); wyjście: `Draft` — co robić i dlaczego. Zamiana szkicu na serie z identyfikatorami, czasami i krokami to praca kompilatora (P4).
+
+**Kwalifikacja** (`observations/qualify.ts`). `qualifyExposure(rec, policy, model, {context?})` → `EvidenceAssessment`: pokrycie (`complete`/`partial`/`none` względem serii wymaganych, każda strona osobno), porównywalność (opór wykonany a zaplanowany *per seria*; inny opór albo ustawienie = `changed`, brak zapisu oporu = `unknown`), jakość (`invalid` → `unconfirmed` → `missing_rir` → `sufficient`; wysiłek zapisany bez pokazania = brak), kontekst (`abandoned`/`deload`; `intro`/`recalibration` podaje historia), wynik względem zakresu **zaplanowanego w tej serii** (`top_met`: pierwsza seria logiczna na górze, pozostałe o co najwyżej `dropOffAllowance` = 1 niżej; `below_range`; `within_range`; `not_evaluable`, dopóki coś jest niepełne, nieporównywalne, bez wysiłku, skrócone na prośbę albo w tygodniu deloadu). Do tego `effortMet` (czy każda wymagana seria miała wysiłek, o jaki plan prosił), `shortfalls` (to, co osoba zgłosiła jako powód niedobicia — bez gubienia informacji po drodze do kodu) i `reasons` (kody). `isFailure` = kompletna, porównywalna, zwykła i poniżej zakresu, bez bólu, krótkiej przerwy i DOMS. `referenceResistance` = opór, na którym stoi następna recepta: ten, na którym faktycznie zrobiono serie; po kalibracji w sesji najcięższy szczebel, na którym serie mieściły się w zakresie z wysiłkiem, jakiego plan prosił, a gdy żaden — najlżejszy użyty.
+
+**Jak reguły czytają historię** (`progression/assessed.ts`): `assess` robi z rekordów `Assessed` = rekord + kwalifikacja + opór odniesienia + identyfikator szczebla modelu + zakres planu. `usable` to ekspozycje, w których coś zrobiono; ekspozycja bez niczego nie przesuwa osoby między szczeblami, ale **przerywa** serię porażek. Tydzień deloadu nie jest czytany (decyduje ekspozycja przed nim) i nie przerywa budowania do zakresu, a przerywa serię „kolejnych” porażek.
+
+**Pipeline** (`progression/next.ts`, `rules.ts`, `draft.ts`). `prescribeNext(input, pipeline = PIPELINE_V2)` → `{ draft, trace }`. Reguły w kolejności priorytetów 03 §4:
+
+| # | Reguła | Co robi |
+|---|---|---|
+| 1 | `eligibility` | `NOT_PRESCRIBED` / `MODEL_NOT_APPLICABLE`, koniec |
+| 2 | `pain` | ból w ostatniej ekspozycji → powtórz receptę, bez kroku w żadną stronę (`PAIN_REPORTED`) |
+| 3 | `first_exposure` | nic nie zrobiono → start slotu, dół zakresu, RIR 4 (`FIRST_COMPARABLE_EXPOSURE`) |
+| 4 | `return` | przerwa liczona od **ostatniej faktycznej** ekspozycji: ćwiczenie nieobecne ≥ 31 dni → `RE_EXPOSURE`; globalna krótka → `LAYOFF_REPEAT`; średnia → `LAYOFF_STEP_DOWN` (albo `LAYOFF_REPEAT`, gdy nie ma lżejszego). Dwa zegary: ślad mówi, który zadziałał (`clock`) |
+| 5 | `phase` (zawsze) | deload: ostatnia recepta, RIR 4–5, bez awansu; rekalibracja po długiej przerwie i dwie pierwsze ekspozycje: RIR 4; rekalibracja zakazuje awansu |
+| 5b | `probe_outcome` | próba udana → cała ekspozycja na nowym szczeblu (`PROBE_PASSED`); nieudana → `PROBE_FAILED` i dalej zwykła ocena (próba nie jest porażką) |
+| 6 | `evidence` | niepełne / inny opór / brak wysiłku / niepotwierdzone / konfundery (krótka przerwa, DOMS) / skrócone na prośbę → utrzymaj z kodem, co brakuje |
+| 7 | `failure` | dwie kolejne porażki **na jednym szczeblu i w jednym zakresie** → `nextEasier`, `LOAD_STEP_DOWN` |
+| 7a | `build_up` | brak lżejszego oporu i seria poniżej dołu zakresu → cel = wynik + krok (≤ dół), `AT_MINIMUM` + `BUILDUP_BELOW_RANGE`; karta łatwiejszego wariantu (`VARIANT_DOWN_SUGGESTED`) przy ≤ połowie dołu zakresu albo po dwóch ekspozycjach bez poprawy; bez łatwiejszego wariantu `NO_EASIER_VARIANT` |
+| 8 | `success` | `top_met`: wysiłek za mały → `RIR_TOO_LOW`; „za ciężko” → `FEEL_TOO_HARD`; szczyt drabinki → `LOAD_CEILING` + wydłużanie zakresu do limitu, potem `REP_CAP_REACHED` i wariant trudniejszy; szczebel niedawno nieudany → `RUNG_RECENTLY_FAILED`; dwie ekspozycje z samych niezmienionych podpowiedzi → pytanie `CONFIRM_STEP_UP` (odpowiedzi: awans / `USER_DEFERRED`); skok ≥ 15% albo nieznany → seria próbna (`PROBE_PLANNED`), po nieudanej próbie `PROBE_COOLDOWN`; mniejszy skok → `LOAD_STEP_UP` |
+| 9 | `rep_progression` | wewnątrz zakresu albo pojedyncza porażka: ten sam opór, cel każdej serii = wynik + krok (dwa kroki po „za łatwo”), seria zrobiona „do oporu” nie rośnie |
+| 10 | `estimator_shadow` (zawsze) | model siły (domyślnie wyłączony) pisze do śladu, nic nie zmienia |
+| 11 | `sets` (zawsze) | liczba serii: rekomendacja albo to, o co poprosiła oś; próba zabiera jedną z serii |
+| 12 | `normalize` (zawsze) | opór musi być szczeblem modelu, cele w granicach (limit powtórzeń), RIR domyślny; dopisuje `notes` fazy (`DELOAD`, `RECALIBRATION`, `INTRO_EXPOSURE`) **po** kodzie decyzji |
+
+`final` zatrzymuje kolejne reguły z wyjątkiem tych oznaczonych `always`. Dzięki temu pierwszy kod w śladzie (`trace.code`) jest zawsze przyczyną decyzji. Ślad (`DecisionTrace` planu v2) niesie: decyzję, kod, politykę, dowody (id ekspozycji, szczebel, lista reguł, które coś zmieniły) i `estimate: null`.
+
+**Pamięć nieudanego szczebla** (`failedRungs.ts`), wyprowadzana z historii przy każdym planowaniu: zdarzenie to awans na szczebel X (cięższy niż poprzedni), po nim seria ekspozycji na X zakończona kompletną porażką, a potem zejście do lżejszego (zrobione przez regres albo przez osobę, choćby plan mówił X). Wpis znika po 42 dniach bez ekspozycji na X lub Y (liczone w kolejnych odstępach, nie tylko od ostatniej). Oczyszczenie: kompletna ekspozycja na Y z wszystkimi wymaganymi seriami na **rozszerzonej górze** zakresu (`extendedTop`: góra + 5 powt. albo + 15 s, w limicie powtórzeń) przy wysiłku, o jaki plan prosił; gdy zakresu nie można wydłużyć — kompletna `top_met` z serią więcej niż miała nieudana ekspozycja. Oś pośrednia (`axes.ts`): najpierw wydłużenie zakresu o krok (dwa po „za łatwo”), potem dodatkowa seria, potem utrzymanie. Zakres wydłużony jest zapisany w planie (`max` celu), więc kolejna ekspozycja ocenia się względem niego.
+
+**Próba szczebla** (`probe.ts`): `shouldProbe(relativeStep)` (skok ≥ 15% albo `null` = nieznany: guma bez kalibracji, masa ciała); `probeVerdict` (udana: ≥ dół zakresu przy wysiłku, jakiego plan prosił; nieudana: poniżej dołu albo „do oporu”; brak werdyktu: bez wysiłku, inny opór, nie zrobiona); `probeCooldown` (ile ekspozycji `top_met` brakuje do kolejnej próby, z historii); `rirBias` (mediana różnic, tylko informacja, ≥ 5 par).
+
+**Budowanie do zakresu** (`buildUp.ts`): `buildUpState` (aktywne, ile ekspozycji bez poprawy najlepszej sumy, najlepsza seria; `since` = dzień odrzucenia karty wariantu), `buildUpTargets`, `shouldSuggestVariantDown`. Reguła zależy od braku `nextEasier` oporu, nie od rodzaju sprzętu (masa ciała, czas, najlżejsze hantle i guma budują tak samo).
+
+**Kalibracja w sesji** (`firstExposure.ts`): `calibrationProposal` — po serii nie ostatniej: krok w górę (RIR ≥ 3 i góra zakresu, maks. 2), w dół (RIR ≤ 1 i poniżej dołu, maks. 1): lżejszy szczebel, a jeśli go nie ma — łatwiejszy wariant, a jeśli i tego nie ma — cel pozostałych serii = wynik tej. Same propozycje; przyjęcie to zmiana planu w sesji (P4b/P5).
+
+**Liczba serii** (`plan/sets.ts`): `recommendSets` — compound 3, akcesoria/core/filler 2 (`SETS_CONFIG`), deload ×0,5 (min 1), lżejszy dzień 1, w granicach miejsca dnia, tygodnia i czasu; `allowed` (bez pytań) i `advisable` (z potwierdzeniem, do 10).
+
+**Kody** (`progression/codes.ts`): zamknięty rejestr `DECISION_CODES` (40), `STEP_DOWN_CODES` i `STEP_UP_CODES`. Test sprawdza na wszystkich planach z testów, że kod „lżej” pojawia się tylko, gdy opór faktycznie spadł (T105), że żaden plan nie jest cięższy od ostatniej ekspozycji bez kodu awansu i że kolejność rekordów nie zmienia wyniku (T56). Teksty polskie i schemat payloadu kodów dochodzą z UI/AI w P5 (kontrakt AI wylicza kody przez `z.enum`, więc to zmiana kontraktu i wspólne wdrożenie Workera).
+
+**Parametry** (`config/training.ts`): `PROGRESSION_V2_CONFIG` (próg próby 15%, góra +5/+15 s, pamięć 42 dni, połowa dołu zakresu, kalibracja 2/1, `dropOffAllowance`), `SETS_CONFIG`; `progression/policy.ts` składa z nich `ProgressionPolicy` razem z krokami i progami przerw z pierwszego silnika.
 
 ## 5. Konwencje testów
 
