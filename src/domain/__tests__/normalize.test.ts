@@ -201,7 +201,7 @@ describe('results that are not for a planned set', () => {
     const ghost = result(SET_IDS[0]!, { id: 'ghost', plannedSetId: 's1/r1/e1/9' });
     const { records, problems } = run([ghost]);
     expect(problems).toEqual([
-      { code: 'UNKNOWN_PLANNED_SET', recordId: 'ghost', detail: 's1/r1/e1/9' },
+      { code: 'UNKNOWN_PLANNED_SET', recordId: 'ghost', detail: 's1/r1/e1/9', sessionId: 's1' },
     ]);
     expect(records[0]!.extra.map((o) => o.id)).toEqual(['ghost']);
     expect(records[0]!.sets.every((s) => s.observation === null)).toBe(true);
@@ -215,7 +215,9 @@ describe('results that are not for a planned set', () => {
 
   it('reports a result of a session nobody knows', () => {
     const { problems, records } = run([result(SET_IDS[0]!, { id: 'lost', sessionId: 'nope' })]);
-    expect(problems).toEqual([{ code: 'UNKNOWN_SESSION', recordId: 'lost', detail: 'nope' }]);
+    expect(problems).toEqual([
+      { code: 'UNKNOWN_SESSION', recordId: 'lost', detail: 'nope', sessionId: 'nope' },
+    ]);
     expect(records[0]!.sets[0]!.observation).toBeNull();
   });
 
@@ -230,6 +232,7 @@ describe('results that are not for a planned set', () => {
         code: 'UNIT_MISMATCH',
         recordId: 'wrong-unit',
         detail: 'duration recorded for a reps target',
+        sessionId: 's1',
       },
     ]);
     expect(records[0]!.sets[0]!.observation).toBeNull();
@@ -250,7 +253,12 @@ describe('results that are not for a planned set', () => {
     const b = result(SET_IDS[0]!, { id: 'b', recordedAt: '2026-10-09T08:01:00.000Z' });
     const { records, problems } = run([a, b]);
     expect(problems).toEqual([
-      { code: 'DUPLICATE_OBSERVATION', recordId: 'a', detail: `${SET_IDS[0]} also has b` },
+      {
+        code: 'DUPLICATE_OBSERVATION',
+        recordId: 'a',
+        detail: `${SET_IDS[0]} also has b`,
+        sessionId: 's1',
+      },
     ]);
     expect(records[0]!.sets[0]!.observation!.id).toBe('b');
     expect(records[0]!.extra.map((o) => o.id)).toEqual(['a']);
@@ -259,14 +267,24 @@ describe('results that are not for a planned set', () => {
   it('reports a skip for a set that is not planned', () => {
     const { problems } = run([], { dispositions: [skip('s1/r1/e1/9')] });
     expect(problems).toEqual([
-      { code: 'UNKNOWN_PLANNED_SET', recordId: 's1/r1/e1/9', detail: 'skip-s1/r1/e1/9' },
+      {
+        code: 'UNKNOWN_PLANNED_SET',
+        recordId: 's1/r1/e1/9',
+        detail: 'skip-s1/r1/e1/9',
+        sessionId: null,
+      },
     ]);
   });
 
   it('reports a plan whose session is not known', () => {
     const { problems, records } = run([], { sessions: [] });
     expect(problems).toEqual([
-      { code: 'UNKNOWN_SESSION', recordId: 's1', detail: 'plan without a session' },
+      {
+        code: 'UNKNOWN_SESSION',
+        recordId: 's1',
+        detail: 'plan without a session',
+        sessionId: 's1',
+      },
     ]);
     expect(records).toEqual([]);
   });
