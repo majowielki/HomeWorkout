@@ -19,6 +19,9 @@ const plannerSource = require('../repositories/plannerSource.ts');
 const setRepo = require('../repositories/setLogs.ts');
 const coachSource = require('../repositories/coachSource.ts');
 const calendar = require('../repositories/calendar.ts');
+const migration = require('../repositories/engineMigration.ts');
+const week = require('../repositories/weekPlan.ts');
+const blocks = require('../repositories/trainingBlocks.ts');
 const { parseBackup } = require('../backup/parse.ts');
 const {
   legalObservation,
@@ -80,6 +83,120 @@ async function started(plan = legalPlan()) {
   );
   assert.equal(result.kind, 'committed');
   return result;
+}
+
+/** What a person who used the first engine for a while has: sessions, sets, a week, requests, a ride, and the rest. */
+async function firstEngineHistory() {
+  await seeded();
+  const exerciseId = all('SELECT id FROM exercises ORDER BY id')[0].id;
+  current.db
+    .insert(schema.workouts)
+    .values([
+      {
+        id: 'old-1',
+        trainingDate: '2026-09-20',
+        startedAt: '2026-09-20T17:00:00Z',
+        finishedAt: '2026-09-20T17:40:00Z',
+        status: 'completed',
+        sessionRpe: 7,
+      },
+      {
+        id: 'old-2',
+        trainingDate: '2026-09-22',
+        startedAt: '2026-09-22T17:00:00Z',
+        status: 'in_progress',
+      },
+    ])
+    .run();
+  current.db
+    .insert(schema.setLogs)
+    .values([
+      {
+        id: 'os-1',
+        workoutId: 'old-1',
+        exerciseId,
+        exerciseOrder: 0,
+        setIndex: 1,
+        reps: 10,
+        rir: 2,
+        weightKg: 6,
+        dumbbellMode: 'paired',
+        loggedAt: '2026-09-20T17:05:00Z',
+      },
+      {
+        id: 'os-2',
+        workoutId: 'old-2',
+        exerciseId,
+        exerciseOrder: 0,
+        setIndex: 1,
+        reps: 8,
+        rir: 1,
+        loggedAt: '2026-09-22T17:05:00Z',
+      },
+    ])
+    .run();
+  current.db
+    .insert(schema.cardioLogs)
+    .values({
+      id: 'ride',
+      workoutId: 'old-1',
+      trainingDate: '2026-09-20',
+      purpose: 'warmup',
+      minutes: 10,
+      loggedAt: 'x',
+    })
+    .run();
+  current.db
+    .insert(schema.dailyLogs)
+    .values({ date: '2026-09-20', sleepHours: 7, updatedAt: 'x' })
+    .run();
+  current.db
+    .insert(schema.bodyMetrics)
+    .values({ id: 'w1', date: '2026-09-20', weightKg: 80, source: 'manual', loggedAt: 'x' })
+    .run();
+  await blocks.saveBlockAdvance(
+    null,
+    {
+      block: {
+        index: 1,
+        startedOn: '2026-09-01',
+        deloadFrom: null,
+        deloadReason: null,
+        selections: {},
+      },
+      events: [],
+    },
+    '2026-09-20',
+  );
+  await week.addConstraint({
+    kind: 'rest_day',
+    muscles: [],
+    from: '2026-10-01',
+    until: '2026-10-01',
+    reason: 'busy',
+    source: 'user',
+    note: null,
+  });
+  exec("UPDATE bands SET cycle_count = 40, calibrated_at = 'then' WHERE id = 'red'");
+  exec('UPDATE user_profile SET excluded_exercise_ids = \'["band-row"]\'');
+}
+
+/** An archive sink that keeps files in memory. */
+function memorySink(options = {}) {
+  const files = new Map();
+  return {
+    files,
+    async write(text, fileName) {
+      if (options.failWrite) throw new Error('disk full');
+      files.set(fileName, options.corrupt ? text.slice(0, text.length - 5) : text);
+      return `memory://${fileName}`;
+    },
+    async read(location) {
+      const name = location.replace('memory://', '');
+      if (options.failRead) throw new Error('cannot read');
+      return files.get(name);
+    },
+  };
 }
 
 const rows = (table, where = '') => all(`SELECT * FROM ${table} ${where}`);
@@ -799,6 +916,113 @@ const CASES = [
         [1, null, null, null, null, null],
       );
       assert.equal(rows('set_logs')[0].reps, 8);
+    },
+  ],
+  [
+    'D21 the move to engine v2 writes the archive, checks it, and only then clears the training data',
+    async () => {
+      await firstEngineHistory();
+      const before = await backup.dumpAll(NOW);
+      assert.equal(await migration.engineGeneration(), 1);
+      const sink = memorySink();
+      const result = await migration.migrateToEngineV2(sink, NOW);
+      assert.equal(result.kind, 'migrated');
+      assert.equal(result.archive.fileName, 'homeworkout-v1-archive-2026-10-09.json');
+      assert.equal(result.removed.sessions, 2);
+      assert.equal(await migration.engineGeneration(), 2);
+
+      // The archive is the whole state before, in a format the app reads.
+      const parsed = parseBackup(sink.files.get(result.archive.fileName));
+      assert.equal(parsed.ok, true);
+      assert.deepEqual(parsed.data, before);
+
+      // Gone: sessions and their sets, blocks, the week, the requests, the rides.
+      for (const table of [
+        'workouts',
+        'set_logs',
+        'cardio_logs',
+        'training_blocks',
+        'planned_days',
+        'plan_constraints',
+        'command_ledger',
+      ]) {
+        assert.equal(rows(table).length, 0, table);
+      }
+      // Kept: the profile with the exclusion list, the bands with their wear and calibration, diaries, body, templates.
+      assert.equal(rows('user_profile').length, 1);
+      assert.equal(rows('user_profile')[0].excluded_exercise_ids, '["band-row"]');
+      assert.equal(rows('bands', "WHERE id = 'red'")[0].cycle_count, 40);
+      assert.equal(rows('daily_logs').length, 1);
+      assert.equal(rows('body_metrics').length, 1);
+      assert.ok(rows('exercises').length > 100);
+
+      assert.deepEqual(await migration.migrateToEngineV2(sink, at(5)), {
+        kind: 'already_migrated',
+      });
+      assert.equal(sink.files.size, 1);
+    },
+  ],
+  [
+    'D21 an archive that cannot be written, or read back, or is not the file that was written, deletes nothing',
+    async () => {
+      await firstEngineHistory();
+      const before = await backup.dumpAll(NOW);
+      const attempts = [
+        [memorySink({ failWrite: true }), 'archive'],
+        [memorySink({ failRead: true }), 'verify'],
+        [memorySink({ corrupt: true }), 'verify'],
+      ];
+      for (const [sink, stage] of attempts) {
+        const result = await migration.migrateToEngineV2(sink, NOW);
+        assert.equal(result.kind, 'failed');
+        assert.equal(result.stage, stage);
+        assert.deepEqual(await backup.dumpAll(NOW), before);
+        assert.equal(await migration.engineGeneration(), 1);
+      }
+    },
+  ],
+  [
+    'D21 a clearing that fails halfway leaves the data and the generation as they were, and can be run again',
+    async () => {
+      await firstEngineHistory();
+      const before = await backup.dumpAll(NOW);
+      const drop = failInsert('fail_state', 'app_state');
+      const result = await migration.migrateToEngineV2(memorySink(), NOW);
+      assert.equal(result.kind, 'failed');
+      assert.equal(result.stage, 'reset');
+      assert.deepEqual(await backup.dumpAll(NOW), before);
+      assert.equal(await migration.engineGeneration(), 1);
+      drop();
+      assert.equal((await migration.migrateToEngineV2(memorySink(), at(1))).kind, 'migrated');
+      assert.equal(rows('workouts').length, 0);
+    },
+  ],
+  [
+    'D21 the archive can be brought back as history to look at, once, and it feeds neither the engine nor the volume',
+    async () => {
+      await firstEngineHistory();
+      const sink = memorySink();
+      const done = await migration.migrateToEngineV2(sink, NOW);
+      const parsed = parseBackup(sink.files.get(done.archive.fileName));
+      assert.deepEqual(await migration.importLegacySessions(parsed.data, at(1)), { imported: 1 });
+      assert.deepEqual(await migration.importLegacySessions(parsed.data, at(2)), { imported: 0 });
+      const kept = rows('legacy_sessions');
+      assert.equal(kept.length, 1);
+      assert.deepEqual(
+        [kept[0].id, kept[0].status, kept[0].session_rpe],
+        ['old-1', 'completed', 7],
+      );
+      assert.equal(JSON.parse(kept[0].sets)[0].reps, 10);
+      // Nothing the planner reads has them.
+      const source = await plannerSource.loadPlannerSource(new Date('2026-10-10T12:00:00'));
+      assert.equal(source.sessions.length, 0);
+      assert.equal(source.lastSessionDate, null);
+      assert.equal(rows('workouts').length, 0);
+      // The in-progress session of the archive is not history to look at.
+      assert.equal(
+        kept.some((r) => r.id === 'old-2'),
+        false,
+      );
     },
   ],
   [

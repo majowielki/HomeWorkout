@@ -306,6 +306,13 @@ export const preferences = sqliteTable('preferences', {
   updatedAt: text('updated_at').notNull(),
 });
 
+/** Facts about this installation, not about the person: which generation of the engine the data belongs to (D21). */
+export const appState = sqliteTable('app_state', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
 /**
  * Sessions of the first engine, kept to be looked at and nothing else (D21):
  * they are not read by the progression or by the volume. Filled from the
