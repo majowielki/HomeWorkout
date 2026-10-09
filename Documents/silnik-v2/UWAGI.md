@@ -288,3 +288,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | Nowe pola katalogu (`progressions` …) trafiają do aplikacji dopiero po podniesieniu `version` w `data/exercises.json` (dziś 5): seed zapisuje ćwiczenia do bazy per wersja, a planer czyta je z bazy | P3 (podnieść w pierwszym etapie, który je czyta) | bez wpływu na dzisiejsze plany: silnik ich nie czyta |
 | 18 ostrzeżeń `NO_EASIER_VARIANT` w `validate:data` (ćwiczenia core bez łatwiejszego wariantu) | P3/P5 (uzupełnianie katalogu) | część to najłatwiejsze ćwiczenia swoich łańcuchów |
 | Zapis serii generuje nowe UUID przy każdym wywołaniu (brak idempotencji) | P2 | |
+
+### P6 — testy loggera (2026-10-09)
+
+Usunięte założenie starych testów „zawsze Ciężko” nie opisuje już aplikacji: pierwszy wynik zaczyna od `defaultEffort(previous, targetRir)`, kolejne serie zachowują wysiłek poprzedniej obserwacji. Pochodzenie sugestii i zmian sprawdza nowy kontrakt testów. Karta zamiennika nie ma osobnego „Wróć do ćwiczenia z planu”; powrót odbywa się przez ponowną zamianę z oceną silnika. `GroupDoneCard` nie potrzebował zmiany API.

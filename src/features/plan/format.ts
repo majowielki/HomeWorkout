@@ -17,7 +17,7 @@ const MINI_BAND_IDS = new Set(
 );
 
 /** "Nogi + pchanie" from the day's regions, most sets first; a day without hard work is a light day. */
-export function dayTitle(regions: readonly SlotRegion[], kind: SessionPlanV2['kind']): string {
+export function dayTitle(regions: readonly SlotRegion[], kind?: SessionPlanV2['kind']): string {
   const names = regions.slice(0, 2).map((r) => pl.plan.region[r]);
   if (names.length === 0) return pl.plan.lightDayTitle;
   const text = names.join(' + ');

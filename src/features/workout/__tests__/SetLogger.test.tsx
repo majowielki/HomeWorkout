@@ -1,870 +1,270 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { createRef } from 'react';
-
-import { getLastSetForExercise } from '@/db/repositories/setLogs';
-import type { PlannedExercise } from '@/domain/plan/types';
-import type { Exercise, TemplateBlock } from '@/domain/types';
-
+import { exercise } from '@/domain/__tests__/fixtures';
+import { legalObservation } from '@/domain/__tests__/planV2Fixtures';
+import { body, kg } from '@/domain/__tests__/progressionFixtures';
+import { specFromLoad } from '@/domain/resistance/legacy';
+import { suggestedValues } from '@/domain/session/setEntry';
+import { pl } from '@/strings/pl';
 import { SetLogger, type SetLoggerHandle } from '../SetLogger';
+import { loggerStep } from './loggerFixtures';
 
 jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => undefined),
   NotificationFeedbackType: { Success: 'success' },
 }));
-
-jest.mock('@/db/repositories/setLogs', () => ({
-  getLastSetForExercise: jest.fn(),
-}));
-
-const mockedLastSet = jest.mocked(getLastSetForExercise);
-
-function exercise(overrides: Partial<Exercise>): Exercise {
-  return {
-    id: 'goblet-squat',
-    name: 'Przysiad goblet',
-    movementPattern: 'Squat',
-    planesOfMotion: ['Sagittal'],
-    isClosedKineticChain: true,
-    stanceMechanics: 'Bilateral',
-    forceProfile: 'ConcentricEccentric',
-    loadsKnee: true,
-    provokesValgusVarus: false,
-    highAnteriorTibialShear: false,
-    primaryMuscles: ['quads'],
-    secondaryMuscles: [],
-    equipment: ['dumbbell'],
-    dumbbellMode: 'single',
-    bandSuitability: 'excellent',
-    substituteIds: [],
-    media: null,
-    cues: ['cue'],
-    kneeCue: 'Kolano nad stopą.',
-    ...overrides,
-  };
-}
-
-const block: TemplateBlock = {
-  label: 'A1',
-  exerciseId: 'goblet-squat',
-  sets: 2,
-  repMin: 10,
-  repMax: 20,
-  targetRirMin: 2,
-  targetRirMax: 3,
-  restSec: 120,
-};
-
-/** Minimal set_logs row shape — only the columns SetLogger reads. */
-function lastSet(overrides: Partial<Awaited<ReturnType<typeof getLastSetForExercise>>>) {
-  return {
-    id: 'log-1',
-    workoutId: 'w',
-    exerciseId: 'goblet-squat',
-    exerciseOrder: 0,
-    setIndex: 1,
-    isWarmup: false,
-    reps: null,
-    timeSec: null,
-    rir: null,
-    weightKg: null,
-    dumbbellMode: null,
-    bandId: null,
-    anchorPosition: null,
-    estimatedLoadKg: null,
-    loggedAt: '2026-09-10T10:00:00.000Z',
-    ...overrides,
-  } as NonNullable<Awaited<ReturnType<typeof getLastSetForExercise>>>;
-}
+jest.mock('@/assets/ymove-media', () => ({ ymoveMedia: {} }));
+const dumbbell = exercise({ equipment: ['dumbbell'], dumbbellMode: 'paired' });
+const hold = exercise({ equipment: ['bodyweight'], forceProfile: 'Isometric' });
+const band = exercise({ equipment: ['band'] });
+const timedStep = () =>
+  loggerStep({ unit: 'duration' }, { lo: 20, target: 30, hi: 40, resistance: body });
 
 describe('SetLogger', () => {
-  beforeEach(() => {
-    mockedLastSet.mockReset();
-  });
-
-  it('logs mini-band mobility without long-band colours, anchors or kilograms', async () => {
-    mockedLastSet.mockResolvedValue(null);
+  it('submits the prescribed values as confirmed suggestions through touch', async () => {
     const onSave = jest.fn();
     await render(
       <SetLogger
-        exercise={exercise({
-          id: 'mini-band-overhead-raise',
-          equipment: ['mini-band'],
-          dumbbellMode: undefined,
-          movementPattern: 'Mobility',
-          loadsKnee: false,
-        })}
-        block={block}
-        setNumber={1}
-        totalSets={2}
+        exercise={dumbbell}
+        step={loggerStep({}, { resistance: kg(6) })}
         onSave={onSave}
       />,
     );
-    expect(await screen.findByText(/Mini band: używaj tego samego lekkiego oporu/)).toBeTruthy();
-    expect(screen.queryByText('żółta')).toBeNull();
-    expect(screen.queryByText('P1')).toBeNull();
-    expect(screen.queryByText('2 kg')).toBeNull();
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ reps: 10, weightKg: null, bandId: null, anchorPosition: null }),
-    );
-  });
-
-  it('falls back to the block targets and the lightest rung on a first-ever set', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-
-    expect(await screen.findByText('2 kg')).toBeTruthy(); // LADDER_SINGLE[0]
-    expect(screen.getByText('10')).toBeTruthy(); // block.repMin
-
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-
+    expect(screen.getByText('6 kg')).toBeTruthy();
+    expect(screen.getByText('10')).toBeTruthy();
+    expect(screen.getByText('cel: 8–12')).toBeTruthy();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
     expect(onSave).toHaveBeenCalledWith({
-      reps: 10,
-      timeSec: null,
-      rir: 2, // block.targetRirMin
-      weightKg: 2,
-      dumbbellMode: 'single',
-      bandId: null,
-      anchorPosition: null,
-      estimatedLoadKg: null,
-      shortfall: null,
-    });
-  });
-
-  it('records the felt effort as RIR', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-    expect(await screen.findByText('odczucie: ciężko–spokojnie')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Bardzo ciężko'));
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ rir: 1 }));
-  });
-
-  it('asks why a set fell short, and keeps the reason only while it is short', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-    expect(await screen.findByText('10')).toBeTruthy();
-    expect(screen.queryByText('Mniej niż cel — dlaczego?')).toBeNull();
-
-    await fireEvent.press(screen.getByLabelText('Zmniejsz: Powtórzenia'));
-    await fireEvent.press(screen.getByText('Za krótka przerwa'));
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({ reps: 9, shortfall: 'short_rest' }),
-    );
-
-    await fireEvent.press(screen.getByLabelText('Zwiększ: Powtórzenia'));
-    expect(screen.queryByText('Mniej niż cel — dlaczego?')).toBeNull();
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ reps: 10, shortfall: null }));
-  });
-
-  it('says what to do about pain', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={jest.fn()}
-      />,
-    );
-    await fireEvent.press(await screen.findByLabelText('Zmniejsz: Powtórzenia'));
-    await fireEvent.press(screen.getByText('Ból'));
-    expect(screen.getByText(/przerwij ćwiczenie/)).toBeTruthy();
-  });
-
-  it('has no warm-up set toggle (SPEC v1.3)', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={jest.fn()}
-      />,
-    );
-    await screen.findByText('2 kg');
-    expect(screen.queryByText('Seria rozgrzewkowa')).toBeNull();
-  });
-
-  it('asks to pre-stretch a band before its first set only', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const band = exercise({ equipment: ['band'], dumbbellMode: undefined });
-    const { rerender } = await render(
-      <SetLogger exercise={band} block={block} setNumber={1} totalSets={2} onSave={jest.fn()} />,
-    );
-    expect(await screen.findByText(/rozciągnij gumę 5–10 razy/)).toBeTruthy();
-    await rerender(
-      <SetLogger
-        key="2"
-        exercise={band}
-        block={block}
-        setNumber={2}
-        totalSets={2}
-        onSave={jest.fn()}
-      />,
-    );
-    await screen.findByText('Seria zrobiona');
-    expect(screen.queryByText(/rozciągnij gumę/)).toBeNull();
-  });
-
-  it('prefills from the previous log so a repeat set is one tap', async () => {
-    mockedLastSet.mockResolvedValue(lastSet({ reps: 14, rir: 3, weightKg: 12 }));
-    const onSave = jest.fn();
-
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={2}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-
-    expect(await screen.findByText('12 kg')).toBeTruthy();
-    expect(screen.getByText('14')).toBeTruthy();
-
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ reps: 14, rir: 2, weightKg: 12, dumbbellMode: 'single' }),
-    );
-  });
-
-  it('steps weight along the discrete ladder, not by arbitrary kilograms', async () => {
-    mockedLastSet.mockResolvedValue(lastSet({ weightKg: 16 }));
-
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={jest.fn()}
-      />,
-    );
-    await screen.findByText('16 kg');
-
-    await fireEvent.press(screen.getByLabelText('Zwiększ: Hantel (jeden gryf)'));
-    expect(screen.getByText('18 kg')).toBeTruthy();
-
-    // 18 kg is the single-dumbbell ceiling; one more tap must not invent 20 kg.
-    await fireEvent.press(screen.getByLabelText('Zwiększ: Hantel (jeden gryf)'));
-    expect(screen.getByText('18 kg')).toBeTruthy();
-  });
-
-  it('shows band + anchor position controls instead of a weight for band work', async () => {
-    mockedLastSet.mockResolvedValue(lastSet({ bandId: 'black', anchorPosition: 2 }));
-    const onSave = jest.fn();
-
-    await render(
-      <SetLogger
-        exercise={exercise({ id: 'band-row', equipment: ['band'], dumbbellMode: undefined })}
-        block={{ ...block, exerciseId: 'band-row' }}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-
-    expect(await screen.findByText('czarna')).toBeTruthy();
-    expect(screen.queryByText(/kg$/)).toBeNull();
-
-    await fireEvent.press(screen.getByText('P3'));
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({
-        weightKg: null,
-        bandId: 'black',
-        anchorPosition: 3,
-        estimatedLoadKg: null,
+      channel: 'touch',
+      shown: { amount: 'visible', resistance: 'visible', rir: 'visible' },
+      entry: expect.objectContaining({
+        amount: { value: { kind: 'reps', reps: 10 }, edited: false },
+        resistance: { value: kg(6), edited: false },
+        rir: { value: 2, edited: false },
       }),
-    );
+    });
   });
-
-  it('shows a calibrated band as a range, never past the measured maximum', async () => {
-    mockedLastSet.mockResolvedValue(lastSet({ bandId: 'black', anchorPosition: 1 }));
-    const onSave = jest.fn();
-    // F(λ) = 20(λ − 1) on a 100 cm band, measured up to 12 kg. A 'Pull'
-    // exercise travels 50 cm: P1 spans 130→180 cm, i.e. 6→16 kg — past 12.
-    const calibrations = {
-      black: {
-        restLengthCm: 100,
-        points: [],
-        fit: { type: 'linear' as const, coeffs: [-20, 20] },
-        maxMeasuredKg: 12,
-      },
+  it('uses the previous result for load and effort, preserving this set target', async () => {
+    const result = legalObservation();
+    const previous = {
+      ...result,
+      resistance: { ...result.resistance, value: kg(8) },
+      rir: { ...result.rir, value: 1 },
     };
-
-    await render(
-      <SetLogger
-        exercise={exercise({
-          id: 'band-row',
-          equipment: ['band'],
-          dumbbellMode: undefined,
-          movementPattern: 'Pull',
-        })}
-        block={{ ...block, exerciseId: 'band-row' }}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-        calibrations={calibrations}
-      />,
-    );
-
-    expect(await screen.findByText('> 12 kg')).toBeTruthy();
-
-    // P0 spans 100→150 cm: 0→10 kg, inside the calibrated range.
-    await fireEvent.press(screen.getByText('P0'));
-    expect(screen.getByText('≈ 0–10 kg')).toBeTruthy();
-
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ bandId: 'black', anchorPosition: 0, estimatedLoadKg: 10 }),
-    );
-  });
-
-  it('logs seconds, not reps, for an isometric hold', async () => {
-    mockedLastSet.mockResolvedValue(null);
     const onSave = jest.fn();
-
+    await render(
+      <SetLogger exercise={dumbbell} step={loggerStep()} previous={previous} onSave={onSave} />,
+    );
+    expect(screen.getByText('8 kg')).toBeTruthy();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry).toMatchObject({
+      amount: { value: { reps: 10 } },
+      rir: { value: 1 },
+    });
+  });
+  it('restores a taken-back set instead of the suggestion', async () => {
+    const step = loggerStep();
+    const restore = {
+      ...suggestedValues(dumbbell, step.set, null),
+      reps: 7,
+      weightKg: 8,
+      rir: 1,
+      shortfall: 'pain' as const,
+    };
+    const onSave = jest.fn();
+    await render(<SetLogger exercise={dumbbell} step={step} restore={restore} onSave={onSave} />);
+    expect(screen.getByText('7')).toBeTruthy();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry).toMatchObject({
+      amount: { edited: true, value: { reps: 7 } },
+      shortfall: 'pain',
+    });
+  });
+  it('edits effort and steps weight along the inventory ladder', async () => {
+    const onSave = jest.fn();
+    await render(<SetLogger exercise={dumbbell} step={loggerStep()} onSave={onSave} />);
+    await fireEvent.press(screen.getByLabelText('Zwiększ: Hantle (para)'));
+    expect(screen.getByText('6 kg')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Lekko'));
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry).toMatchObject({
+      resistance: { value: kg(6), edited: true },
+      rir: { value: 4, edited: true },
+    });
+  });
+  it('asks why the amount fell short and drops the reason when the target is met', async () => {
+    const onSave = jest.fn();
+    await render(
+      <SetLogger exercise={dumbbell} step={loggerStep({}, { lo: 10 })} onSave={onSave} />,
+    );
+    await fireEvent.press(screen.getByLabelText('Zmniejsz: Powtórzenia'));
+    await fireEvent.press(screen.getByText(pl.workout.session.shortfall.reason.pain));
+    expect(screen.getByText(pl.workout.session.shortfall.painNote)).toBeTruthy();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry.shortfall).toBe('pain');
+    await fireEvent.press(screen.getByLabelText('Zwiększ: Powtórzenia'));
+    expect(screen.queryByText(pl.workout.session.shortfall.title)).toBeNull();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[1][0].entry.shortfall).toBeNull();
+  });
+  it('shows band controls and the compiler warm-up cue', async () => {
+    const onSave = jest.fn();
+    const resistance = specFromLoad({ kind: 'band', bandId: 'black', position: 2 });
     await render(
       <SetLogger
-        exercise={exercise({
-          id: 'plank',
-          forceProfile: 'Isometric',
-          equipment: ['mat', 'bodyweight'],
-          dumbbellMode: undefined,
-          loadsKnee: false,
-          kneeCue: undefined,
-        })}
-        block={{ ...block, exerciseId: 'plank', repMin: undefined, repMax: undefined, timeSec: 45 }}
-        setNumber={1}
-        totalSets={2}
+        exercise={band}
+        step={loggerStep({ bandWarmup: true }, { resistance })}
         onSave={onSave}
       />,
     );
-
-    expect(await screen.findByText('45 s')).toBeTruthy();
+    expect(screen.getByText(pl.workout.session.bandPrestretch)).toBeTruthy();
+    expect(screen.queryByLabelText('Zwiększ: Hantle (para)')).toBeNull();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry.resistance).toEqual({ value: resistance, edited: false });
+  });
+  it('records mini-band mobility without long-band colours or kilograms', async () => {
+    const mini = exercise({ equipment: ['mini-band'], movementPattern: 'Mobility' });
+    const onSave = jest.fn();
+    await render(
+      <SetLogger exercise={mini} step={loggerStep({}, { resistance: body })} onSave={onSave} />,
+    );
+    expect(screen.getByText(pl.workout.session.miniBandNote)).toBeTruthy();
+    expect(screen.queryByText('P2')).toBeNull();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry.resistance.value).toEqual(body);
+  });
+  it('logs seconds for a hold and has no reps control', async () => {
+    const onSave = jest.fn();
+    await render(<SetLogger exercise={hold} step={timedStep()} onSave={onSave} />);
     await fireEvent.press(screen.getByLabelText('Zwiększ: Czas'));
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ reps: null, timeSec: 50, weightKg: null, bandId: null }),
-    );
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry.amount).toEqual({
+      value: { kind: 'duration', seconds: 35 },
+      edited: true,
+    });
+    expect(screen.queryByLabelText('Zwiększ: Powtórzenia')).toBeNull();
   });
-
-  it('times a hold with the stopwatch and logs what was held', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
-
-    await render(
-      <SetLogger
-        exercise={exercise({
-          id: 'plank',
-          forceProfile: 'Isometric',
-          equipment: ['mat', 'bodyweight'],
-          dumbbellMode: undefined,
-          loadsKnee: false,
-          kneeCue: undefined,
-        })}
-        block={{ ...block, exerciseId: 'plank', repMin: undefined, repMax: undefined, timeSec: 45 }}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-
-    await fireEvent.press(await screen.findByText('Start'));
-    now.mockReturnValue(1_000_000 + 38_400);
-    await fireEvent.press(screen.getByText('Stop'));
-    expect(screen.getByText('38 s')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: null, timeSec: 38 }));
-    now.mockRestore();
-  });
-
-  it('is driven by voice: start, stop taken back, and "seria zrobiona" saves the running time', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-    const onStopwatchChange = jest.fn();
-    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+  it('reads a voice save back and marks voice confirmations', async () => {
     const ref = createRef<SetLoggerHandle>();
-
-    await render(
-      <SetLogger
-        ref={ref}
-        exercise={exercise({
-          id: 'plank',
-          forceProfile: 'Isometric',
-          equipment: ['mat', 'bodyweight'],
-          dumbbellMode: undefined,
-          loadsKnee: false,
-          kneeCue: undefined,
-        })}
-        block={{ ...block, exerciseId: 'plank', repMin: undefined, repMax: undefined, timeSec: 45 }}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-        onStopwatchChange={onStopwatchChange}
-      />,
-    );
-    await screen.findByText('Start');
-
-    await act(async () => expect(ref.current!.startStopwatch()).toBe(true));
-    expect(ref.current!.startStopwatch()).toBe(false);
-    expect(onStopwatchChange).toHaveBeenLastCalledWith(true);
-
-    now.mockReturnValue(1_000_000 + 20_000);
-    await act(async () => expect(ref.current!.stopStopwatch()).toBe(20));
-    expect(onStopwatchChange).toHaveBeenLastCalledWith(false);
-    expect(ref.current!.stopStopwatch()).toBeNull();
-    // "Cofnij": the clock runs on from the first start.
-    await act(async () => ref.current!.revertStopwatch());
-    expect(onStopwatchChange).toHaveBeenLastCalledWith(true);
-
-    now.mockReturnValue(1_000_000 + 41_200);
-    await act(async () => expect(ref.current!.save()).toBe(true));
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: null, timeSec: 41 }));
-    now.mockRestore();
-  });
-
-  it('a voice "seria zrobiona" does nothing while a save is under way', async () => {
-    mockedLastSet.mockResolvedValue(null);
     const onSave = jest.fn();
+    await render(<SetLogger ref={ref} exercise={dumbbell} step={loggerStep()} onSave={onSave} />);
+    let text: string | null = null;
+    await act(() => {
+      text = ref.current!.save();
+    });
+    expect(text).toContain('10');
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      channel: 'voice',
+      shown: { amount: 'read_back', rir: 'read_back' },
+    });
+  });
+  it('edits voice parameters with independent undo and rejects unavailable fields', async () => {
     const ref = createRef<SetLoggerHandle>();
-    await render(
-      <SetLogger
-        ref={ref}
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-        saving
-      />,
-    );
-    await screen.findByText('Seria zrobiona');
-    expect(ref.current!.save()).toBe(false);
-    expect(ref.current!.stopStopwatch()).toBeNull();
-    expect(onSave).not.toHaveBeenCalled();
-  });
-
-  it('has no stopwatch for a rep-based exercise', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={jest.fn()}
-      />,
-    );
-    expect(await screen.findByText('Seria zrobiona')).toBeTruthy();
-    expect(screen.queryByText('Start')).toBeNull();
-  });
-
-  it('names the other half of a superset', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={jest.fn()}
-        supersetWith="Wiosłowanie gumą"
-      />,
-    );
-    expect(await screen.findByText(/Superseria z: Wiosłowanie gumą/)).toBeTruthy();
-  });
-
-  it('shows the knee cue for knee-loading exercises', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={jest.fn()}
-      />,
-    );
-    expect(await screen.findByText('Kolano nad stopą.')).toBeTruthy();
-  });
-
-  describe('a session from the engine plan', () => {
-    const planned: PlannedExercise = {
-      ...block,
-      slotId: 'squat',
-      load: { kind: 'dumbbell', mode: 'single', kg: 8 },
-      unit: 'reps',
-      target: 13,
-      warmupSet: false,
-      reasons: ['REP_PROGRESSION'],
-      confidence: 'high',
-    };
-
-    it('starts the first set from the plan, without reading the last log', async () => {
-      const onSave = jest.fn();
-      await render(
-        <SetLogger
-          exercise={exercise({})}
-          block={planned}
-          planned={planned}
-          setNumber={1}
-          totalSets={2}
-          onSave={onSave}
-        />,
-      );
-      expect(await screen.findByText('8 kg')).toBeTruthy();
-      expect(screen.getByText('13')).toBeTruthy();
-      expect(mockedLastSet).not.toHaveBeenCalled();
-
-      await fireEvent.press(screen.getByText('Seria zrobiona'));
-      expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ reps: 13, weightKg: 8, rir: 2 }),
-      );
-    });
-
-    it('reads the last log for later sets and for a substitute', async () => {
-      mockedLastSet.mockResolvedValue(lastSet({ weightKg: 10, reps: 12 }));
-      await render(
-        <SetLogger
-          exercise={exercise({})}
-          block={planned}
-          planned={planned}
-          setNumber={2}
-          totalSets={2}
-          onSave={jest.fn()}
-        />,
-      );
-      expect(await screen.findByText('10 kg')).toBeTruthy();
-
-      mockedLastSet.mockResolvedValue(null);
-      await render(
-        <SetLogger
-          exercise={exercise({ id: 'box-squat' })}
-          block={planned}
-          planned={planned}
-          setNumber={1}
-          totalSets={2}
-          onSave={jest.fn()}
-        />,
-      );
-      expect(await screen.findByText('2 kg')).toBeTruthy();
-    });
-
-    it('prefills a band and a hold from the plan', async () => {
-      const hold: PlannedExercise = {
-        ...planned,
-        repMin: undefined,
-        repMax: undefined,
-        timeSec: 30,
-        unit: 'sec',
-        target: 30,
-        load: { kind: 'band', bandId: 'red', position: 2 },
-        warmupSet: false,
-      };
-      const onSave = jest.fn();
-      await render(
-        <SetLogger
-          exercise={exercise({
-            equipment: ['band'],
-            dumbbellMode: undefined,
-            forceProfile: 'Isometric',
-          })}
-          block={hold}
-          planned={hold}
-          setNumber={1}
-          totalSets={2}
-          onSave={onSave}
-        />,
-      );
-      expect(await screen.findByText('30 s')).toBeTruthy();
-      await fireEvent.press(screen.getByText('Seria zrobiona'));
-      expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ timeSec: 30, bandId: 'red', anchorPosition: 2 }),
-      );
-    });
-  });
-
-  it('shows a set taken back with its logged numbers, not the previous log', async () => {
-    mockedLastSet.mockClear();
-    mockedLastSet.mockResolvedValue(lastSet({ reps: 14, rir: 3, weightKg: 12 }));
     const onSave = jest.fn();
-
-    await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={2}
-        totalSets={2}
-        onSave={onSave}
-        restore={{
-          reps: 9,
-          timeSec: null,
-          rir: 1,
-          weightKg: 10,
-          bandId: null,
-          anchorPosition: null,
-        }}
-      />,
-    );
-
-    expect(screen.getByText('10 kg')).toBeTruthy();
-    expect(screen.getByText('9')).toBeTruthy();
-    expect(mockedLastSet).not.toHaveBeenCalled();
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ reps: 9, rir: 1, weightKg: 10 }));
-  });
-});
-
-describe('spoken edits of the set form', () => {
-  it('starts new sets at Ciężko regardless of planned or previous effort', async () => {
-    mockedLastSet.mockResolvedValue(lastSet({ reps: 14, rir: 0, weightKg: 12 }));
-    const onSave = jest.fn();
-    const { rerender } = await render(
-      <SetLogger
-        exercise={exercise({})}
-        block={{ ...block, targetRirMin: 4 }}
-        setNumber={2}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-    await screen.findByText('12 kg');
-    expect(screen.getByRole('button', { name: /^Ciężko/ }).props.accessibilityState.selected).toBe(
-      true,
-    );
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ rir: 2, reps: 14 }));
-    const planned: PlannedExercise = {
-      ...block,
-      slotId: 'squat',
-      targetRirMin: 4,
-      targetRirMax: 4,
-      load: { kind: 'dumbbell', mode: 'single', kg: 8 },
-      unit: 'reps',
-      target: 13,
-      warmupSet: false,
-      reasons: ['FIRST_EXPOSURE'],
-      confidence: 'high',
-    };
-    await rerender(
-      <SetLogger
-        key="planned"
-        exercise={exercise({})}
-        block={planned}
-        planned={planned}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-    expect(screen.getByText('odczucie: lekko')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({ rir: 2, reps: 13, weightKg: 8 }),
-    );
-  });
-
-  it('edits reps, load and felt effort without saving; undo changes only its field', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
-    const ref = createRef<SetLoggerHandle>();
-    await render(
-      <SetLogger
-        ref={ref}
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
-    );
-    await screen.findByText('2 kg');
-    let edit: ReturnType<SetLoggerHandle['setParameter']> = null;
-    await act(async () => {
-      edit = ref.current!.setParameter({ action: 'set_reps', reps: 12 });
+    await render(<SetLogger ref={ref} exercise={dumbbell} step={loggerStep()} onSave={onSave} />);
+    let undo: (() => void) | undefined;
+    await act(() => {
+      undo = ref.current!.setParameter({ action: 'set_reps', reps: 12 })?.undo;
     });
-    expect(screen.getByText('12')).toBeTruthy();
-    await act(async () => {
+    await act(() => {
       ref.current!.setParameter({ action: 'set_weight', kg: 8 });
     });
-    await act(async () => {
-      ref.current!.setParameter({ action: 'set_effort', rir: 3 });
-    });
-    expect(onSave).not.toHaveBeenCalled();
-    await act(async () => {
-      (edit as ReturnType<SetLoggerHandle['setParameter']>)?.undo?.();
+    await act(() => {
+      undo?.();
     });
     expect(screen.getByText('10')).toBeTruthy();
     expect(screen.getByText('8 kg')).toBeTruthy();
-    await act(async () => {
-      ref.current!.save();
-    });
-    expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({ reps: 10, weightKg: 8, rir: 3 }),
-    );
-    expect(ref.current!.setParameter({ action: 'set_weight', kg: 9 })).toBeNull();
-    expect(ref.current!.setParameter({ action: 'set_band', bandId: 'red' })).toBeNull();
-    expect(ref.current!.setParameter({ action: 'set_time', seconds: 20 })).toBeNull();
+    expect(ref.current!.setParameter({ action: 'set_time', seconds: 40 })).toBeNull();
+    expect(ref.current!.setParameter({ action: 'set_weight', kg: 7 })).toBeNull();
     expect(ref.current!.setParameter({ action: 'set_reps', reps: 0 })).toBeNull();
     expect(ref.current!.setParameter({ action: 'set_effort', rir: 5 })).toBeNull();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave.mock.calls[0][0].entry).toMatchObject({
+      amount: { edited: false },
+      resistance: { edited: true },
+    });
   });
-
-  it('changes a band and position, then saves calibrated load and can undo both fields', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
+  it('edits a band and position by voice', async () => {
     const ref = createRef<SetLoggerHandle>();
+    const onSave = jest.fn();
     await render(
       <SetLogger
         ref={ref}
-        exercise={exercise({
-          equipment: ['band'],
-          dumbbellMode: undefined,
-          movementPattern: 'Pull',
-        })}
-        block={block}
-        setNumber={1}
-        totalSets={2}
+        exercise={band}
+        step={loggerStep(
+          {},
+          { resistance: specFromLoad({ kind: 'band', bandId: 'yellow', position: 1 }) },
+        )}
         onSave={onSave}
-        calibrations={{
-          black: {
-            restLengthCm: 100,
-            points: [],
-            fit: { type: 'linear', coeffs: [-20, 20] },
-            maxMeasuredKg: 20,
-          },
-        }}
       />,
     );
-    await screen.findByText('Seria zrobiona');
-    let bandEdit: ReturnType<SetLoggerHandle['setParameter']> = null;
-    let positionEdit: ReturnType<SetLoggerHandle['setParameter']> = null;
-    await act(async () => {
-      bandEdit = ref.current!.setParameter({ action: 'set_band', bandId: 'black' });
+    await act(() => {
+      ref.current!.setParameter({ action: 'set_band', bandId: 'black' });
     });
-    await act(async () => {
-      positionEdit = ref.current!.setParameter({ action: 'set_position', position: 0 });
+    await act(() => {
+      ref.current!.setParameter({ action: 'set_position', position: 3 });
     });
-    await act(async () => {
+    await act(() => {
       ref.current!.save();
     });
-    expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        bandId: 'black',
-        anchorPosition: 0,
-        estimatedLoadKg: 10,
-        weightKg: null,
-      }),
-    );
-    await act(async () => {
-      (positionEdit as ReturnType<SetLoggerHandle['setParameter']>)?.undo?.();
-      (bandEdit as ReturnType<SetLoggerHandle['setParameter']>)?.undo?.();
+    expect(onSave.mock.calls[0][0].entry.resistance).toEqual({
+      value: specFromLoad({ kind: 'band', bandId: 'black', position: 3 }),
+      edited: true,
     });
-    await act(async () => {
-      ref.current!.save();
-    });
-    expect(onSave).toHaveBeenLastCalledWith(
-      expect.objectContaining({ bandId: 'yellow', anchorPosition: 1 }),
-    );
-    expect(ref.current!.setParameter({ action: 'set_band', bandId: 'blue' })).toBeNull();
   });
-
-  it('edits seconds on holds, preserving measured time while the stopwatch runs', async () => {
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
+  it('stops a running stopwatch on voice save and stores the measured duration', async () => {
+    jest.useFakeTimers();
+    try {
+      const ref = createRef<SetLoggerHandle>();
+      const onSave = jest.fn();
+      const onStopwatchChange = jest.fn();
+      await render(
+        <SetLogger
+          ref={ref}
+          exercise={hold}
+          step={timedStep()}
+          onSave={onSave}
+          onStopwatchChange={onStopwatchChange}
+        />,
+      );
+      await act(() => {
+        ref.current!.startStopwatch();
+      });
+      await act(() => {
+        jest.advanceTimersByTime(38_000);
+      });
+      expect(ref.current!.setParameter({ action: 'set_time', seconds: 50 })).toBeNull();
+      await act(() => {
+        ref.current!.save();
+      });
+      expect(onSave.mock.calls[0][0].entry.amount.value).toEqual({ kind: 'duration', seconds: 38 });
+      expect(onStopwatchChange).toHaveBeenLastCalledWith(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+  it('blocks touch and voice while saving', async () => {
     const ref = createRef<SetLoggerHandle>();
-    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const onSave = jest.fn();
     await render(
-      <SetLogger
-        ref={ref}
-        exercise={exercise({ equipment: ['bodyweight'], forceProfile: 'Isometric' })}
-        block={{ ...block, timeSec: 30 }}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
-      />,
+      <SetLogger ref={ref} exercise={dumbbell} step={loggerStep()} onSave={onSave} saving />,
     );
-    await screen.findByText('Start');
-    await act(async () => {
-      ref.current!.setParameter({ action: 'set_time', seconds: 45 });
-    });
-    expect(screen.getByText('45 s')).toBeTruthy();
+    expect(ref.current!.save()).toBeNull();
     expect(ref.current!.setParameter({ action: 'set_reps', reps: 12 })).toBeNull();
-    await act(async () => {
-      ref.current!.startStopwatch();
-    });
-    expect(ref.current!.setParameter({ action: 'set_time', seconds: 20 })).toBeNull();
-    now.mockReturnValue(1_032_000);
-    await act(async () => {
-      ref.current!.save();
-    });
-    expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ timeSec: 32, reps: null }));
-    now.mockRestore();
+    await fireEvent.press(screen.getByText(pl.workout.session.saveSet));
+    expect(onSave).not.toHaveBeenCalled();
   });
-});
-
-describe('SetLogger on its side', () => {
-  it('keeps every control in the landscape layout', async () => {
-    const dims = jest
-      .spyOn(
-        jest.requireActual<typeof import('react-native')>('react-native'),
-        'useWindowDimensions',
-      )
-      .mockReturnValue({ width: 900, height: 400, scale: 1, fontScale: 1 });
-    mockedLastSet.mockResolvedValue(null);
-    const onSave = jest.fn();
+  it('shows side, supersets and knee cues from the active step', async () => {
     await render(
       <SetLogger
-        exercise={exercise({})}
-        block={block}
-        setNumber={1}
-        totalSets={2}
-        onSave={onSave}
+        exercise={exercise({ kneeCue: 'Kolano nad stopą.' })}
+        step={loggerStep({ sideMode: 'per_set' })}
+        supersetWith="Wiosłowanie"
+        onSave={jest.fn()}
       />,
     );
-    expect(await screen.findByText('Przysiad goblet')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Seria zrobiona'));
-    expect(onSave).toHaveBeenCalledTimes(1);
-    dims.mockRestore();
+    expect(screen.getByText(pl.workout.session.side.left)).toBeTruthy();
+    expect(screen.getByText(pl.workout.session.supersetWith('Wiosłowanie'))).toBeTruthy();
+    expect(screen.getByText('Kolano nad stopą.')).toBeTruthy();
   });
 });

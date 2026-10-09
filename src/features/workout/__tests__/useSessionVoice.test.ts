@@ -19,7 +19,12 @@ function fakeSession(overrides: Partial<Session>): Session {
     endRest: jest.fn(() => ({ phase: 'resting', index: 0, remainingMs: 40_000 })),
     resumeRest: jest.fn(),
     extendRest: jest.fn(() => true),
-    skipExercise: jest.fn(() => ({ kind: 'skipped', blockIndex: 1, name: 'Wiosłowanie' })),
+    skipExercise: jest.fn(() => ({
+      kind: 'skipped',
+      exposureIndex: 1,
+      plannedSetIds: ['s1'],
+      name: 'Wiosłowanie',
+    })),
     unskip: jest.fn(),
     warmupDone: jest.fn(),
     backToWarmup: jest.fn(),
@@ -29,7 +34,7 @@ function fakeSession(overrides: Partial<Session>): Session {
 
 function fakeLogger(): SetLoggerHandle {
   return {
-    save: jest.fn(() => true),
+    save: jest.fn(() => 'Zapisano: 10 powtórzeń, RIR 2.'),
     startStopwatch: jest.fn(() => true),
     stopStopwatch: jest.fn(() => 38),
     revertStopwatch: jest.fn(),
@@ -119,7 +124,7 @@ describe('useSessionVoice', () => {
     const { voice: v, logger } = await voice(session);
     const done = v.run({ action: 'set_done' });
     expect(logger.save).toHaveBeenCalled();
-    expect(done?.text).toBe(pl.voice.done.setDone);
+    expect(done?.text).toBe('Zapisano: 10 powtórzeń, RIR 2.');
     done?.undo?.();
     expect(session.undo).toHaveBeenCalled();
   });
@@ -166,7 +171,7 @@ describe('useSessionVoice', () => {
     const skipped = v.run({ action: 'skip_exercise' });
     expect(skipped?.text).toBe(pl.voice.done.skipped('Wiosłowanie'));
     skipped?.undo?.();
-    expect(session.unskip).toHaveBeenCalledWith(1);
+    expect(session.unskip).toHaveBeenCalledWith(session.skipExercise());
 
     const last = fakeSession({ skipExercise: jest.fn(() => ({ kind: 'last' as const })) });
     const { voice: lastVoice, confirmFinish } = await voice(last);
@@ -193,7 +198,7 @@ describe('useSessionVoice', () => {
 
     const { voice: timed, logger } = await voice(fakeSession({}), { timed: true, running: true });
     (logger.stopStopwatch as jest.Mock).mockReturnValue(null);
-    (logger.save as jest.Mock).mockReturnValue(false);
+    (logger.save as jest.Mock).mockReturnValue(null);
     expect(timed.run({ action: 'stopwatch_stop' })).toBeNull();
     expect(timed.run({ action: 'set_done' })).toBeNull();
 

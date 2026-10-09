@@ -695,3 +695,7 @@ Trwający trening blokuje każdą propozycję (`in_progress`). Blok nie jest zap
 - `npm run verify` = lint + format:check + routes:types + typecheck + validate:data + test:coverage. Przed zamknięciem etapu zielony.
 - Golden baseline silnika: `src/domain/__tests__/engineBaseline.test.ts` (§4.4). Zmiana wyniku wymaga świadomej regeneracji
   skrótu i wpisu w UWAGI.
+
+### P6 — odbiór testów biegnącej sesji (2026-10-09)
+
+Testy komponentów loggera korzystają z `SessionStep` skompilowanego z recepty. Sprawdzają `LoggedEntry`, w tym kanał i potwierdzenia pól, zamiast dawnych wierszy `set_logs`. `alternatives.test.ts` używa rzeczywistego rankera z fixture domeny i mockuje granicę bazy: sprawdza rewizje, akceptację patcha i zapis wyboru na blok wyłącznie po udanej zmianie sesji. Testy karty zamiennika sprawdzają osobny podgląd i jawny przycisk akceptacji. `useSessionVoice` przekazuje odczyt loggera; cofnięcie pominięcia otrzymuje całe polecenie z identyfikatorami serii.

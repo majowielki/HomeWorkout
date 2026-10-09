@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import type { SessionState } from '@/db/repositories/sessionsV2';
-import { compileInput, exposure, set } from '@/domain/__tests__/compileFixtures';
+import { compileInput, exposure, set, stamp } from '@/domain/__tests__/compileFixtures';
 import { exercise } from '@/domain/__tests__/fixtures';
 import { legalObservation } from '@/domain/__tests__/planV2Fixtures';
 import { kg } from '@/domain/__tests__/progressionFixtures';
@@ -32,12 +32,14 @@ const exerciseMap = {
 
 /** A superset of a (2 sets) and b (1 set), then a lone c (1 set): steps a1 b1 a2 c1. */
 const plan = () =>
-  compileSession(
-    compileInput([
-      exposure('a', { group: 'A', sets: [set({ restAfterSec: 90 }), set({ restAfterSec: 90 })] }),
-      exposure('b', { group: 'A', sets: [set({ restAfterSec: 90 })] }),
-      exposure('c', { sets: [set({ restAfterSec: 60 })] }),
-    ]),
+  stamp(
+    compileSession(
+      compileInput([
+        exposure('a', { group: 'A', sets: [set({ restAfterSec: 90 }), set({ restAfterSec: 90 })] }),
+        exposure('b', { group: 'A', sets: [set({ restAfterSec: 90 })] }),
+        exposure('c', { sets: [set({ restAfterSec: 60 })] }),
+      ]),
+    ),
   );
 
 const entry: SetEntry = {
