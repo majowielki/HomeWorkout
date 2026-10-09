@@ -196,6 +196,21 @@ export const PROGRESSION_V2_CONFIG = {
   rirBias: { minPairs: 5, maxEffort: 1 },
 } as const;
 
+/**
+ * Sets of an exposure (engine v2, 12 §5): fewer, longer exposures of the same weekly volume give each
+ * a fuller body of evidence and leave room for the `add_set` axis. The first engine plans 2 everywhere
+ * (`PLANNER_CONFIG.setsPerExercise`); this takes its place when the second engine is switched on.
+ */
+export const SETS_CONFIG = {
+  byKind: { compound: 3, accessory: 2, core: 2, filler: 2 },
+  /** In a deload week an exposure keeps this share of its sets, but never fewer than one. */
+  deloadFactor: 0.5,
+  /** What the engine plans itself; a request goes beyond it with advice, up to `technicalMax`. */
+  plannerMax: 6,
+  /** What the data can hold: a hard limit, not a training one. */
+  technicalMax: 10,
+} as const;
+
 /** Overload signals, SPEC §6.1. */
 export const AUTOREGULATION_CONFIG = {
   /** Only sessions this recent can raise FATIGUE_HIGH or PERFORMANCE_DROP. */
