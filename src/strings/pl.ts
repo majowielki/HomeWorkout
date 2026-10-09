@@ -328,6 +328,12 @@ export const pl = {
       otherSideNext: 'Teraz druga strona',
       alternatingSides: 'Strony na zmianę w każdej serii.',
       groupDone: 'Ćwiczenie zrobione',
+      /** How an exercise just done felt: the next prescription reads it. */
+      feel: {
+        tooHard: 'Za ciężko',
+        tooEasy: 'Za łatwo',
+        error: 'Nie udało się zapisać odczucia. Spróbuj ponownie.',
+      },
       supersetDone: 'Superseria zrobiona',
       nextExercise: 'Następne ćwiczenie',
       undoSet: 'Cofnij serię',

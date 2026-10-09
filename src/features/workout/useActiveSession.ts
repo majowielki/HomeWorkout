@@ -11,6 +11,7 @@ import {
 import {
   logSet,
   readSessionState,
+  recordFeel,
   reopenSets,
   type SessionState,
   skipSets,
@@ -36,7 +37,7 @@ import { planTitle } from '@/features/plan/format';
 import { useRestTimerStore } from '@/stores/restTimerStore';
 import { pl } from '@/strings/pl';
 
-import type { GroupDoneExercise } from './GroupDoneCard';
+import type { Feel, GroupDoneExercise } from './GroupDoneCard';
 import { takeUndone, type UndoneSet } from './undoneSet';
 
 export type Phase = 'loading' | 'warmup' | 'logging' | 'resting' | 'groupDone' | 'notFound';
@@ -72,6 +73,7 @@ export interface ActiveSessionDeps {
   skipSets: typeof skipSets;
   reopenSets: typeof reopenSets;
   undoSet: typeof undoSet;
+  recordFeel: typeof recordFeel;
   startRest: (seconds: number, notificationBody: string) => Promise<void>;
   /** Adds to the rest running now; a negative amount takes an extension back. */
   extendRest: (seconds: number, notificationBody: string) => Promise<void>;
@@ -92,6 +94,7 @@ const defaultDeps: ActiveSessionDeps = {
   skipSets: skipSets,
   reopenSets,
   undoSet: undoSet,
+  recordFeel,
   startRest: (seconds, body) => useRestTimerStore.getState().start(seconds, body),
   extendRest: (seconds, body) => useRestTimerStore.getState().extend(seconds, body),
   stopRest: () => useRestTimerStore.getState().stop(),
@@ -120,6 +123,8 @@ export function useActiveSession(
   const [profile, setProfile] = useState<MedicalProfile>({ knee: null });
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  // What the person said about how each exercise felt, by exposure: the last word.
+  const [feels, setFeels] = useState<Readonly<Record<string, Feel>>>({});
   // A set taken back with "Cofnij serię": its step shows the recorded numbers again.
   const [restored, setRestored] = useState<UndoneSet | null>(null);
   // The revision every command is checked against: what the last read of the session said.
@@ -248,6 +253,8 @@ export function useActiveSession(
         });
       return {
         name: exerciseMap[exposure.exercise.id]?.name ?? exposure.exercise.displayName,
+        exposureId: exposure.id,
+        ...(feels[exposure.id] === undefined ? {} : { feel: feels[exposure.id] }),
         sets,
       };
     });
@@ -459,6 +466,23 @@ export function useActiveSession(
     return { kind: 'skipped', exposureIndex, name, plannedSetIds: skipped.map((s) => s.set.id) };
   }
 
+  /** "Za ciężko" / "Za łatwo" for an exercise just done. It changes no plan; the next prescription reads it. */
+  function reportFeel(exposureId: string, feel: Feel) {
+    const result = deps.recordFeel({
+      commandId: deps.newId(),
+      sessionId: id,
+      exposureId,
+      feel,
+      channel: 'touch',
+    });
+    if (!isDone(result)) {
+      console.warn('could not record how it felt', result);
+      deps.alert(pl.workout.session.feel.error);
+      return;
+    }
+    setFeels((prev) => ({ ...prev, [exposureId]: feel }));
+  }
+
   /** Takes a skip back: the exercise opens again on its first set still to do. */
   function unskip(outcome: Extract<SkipOutcome, { kind: 'skipped' }>) {
     const commandId = deps.newId();
@@ -590,6 +614,7 @@ export function useActiveSession(
     extendRest,
     skipExercise,
     unskip,
+    reportFeel,
     undo,
     jump,
     finish,

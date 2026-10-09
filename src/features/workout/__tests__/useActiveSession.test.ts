@@ -135,6 +135,7 @@ function setup(
       results.delete(plannedSetId);
       return committed({ observationId: cmd.observationId, plannedSetId });
     }),
+    recordFeel: jest.fn((cmd) => committed({ id: `feel-${cmd.commandId}` })),
     startRest: jest.fn().mockResolvedValue(undefined),
     extendRest: jest.fn().mockResolvedValue(undefined),
     stopRest: jest.fn().mockResolvedValue(undefined),
@@ -329,6 +330,23 @@ it('takes back the set it was asked to, and says so when another one is last by 
   expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.undoStale);
   await act(async () => result.current.undo(result.current.steps[1]!.set.id));
   expect(deps.undoSet).toHaveBeenCalledWith(expect.objectContaining({ observationId: 'obs-1' }));
+});
+
+it('records how an exercise felt, keeps the last word, and says so when it cannot', async () => {
+  const { deps } = setup({ done: [0, 1] });
+  const { result } = await open(deps);
+  const exposureId = result.current.session!.plan.exposures[0]!.id;
+  await act(async () => result.current.reportFeel(exposureId, 'too_hard'));
+  expect(deps.recordFeel).toHaveBeenCalledWith(
+    expect.objectContaining({ sessionId: 'w', exposureId, feel: 'too_hard', channel: 'touch' }),
+  );
+  jest.mocked(deps.recordFeel).mockReturnValueOnce({
+    kind: 'rejected',
+    code: 'SESSION_NOT_ACTIVE',
+    detail: 'closed',
+  });
+  await act(async () => result.current.reportFeel(exposureId, 'too_easy'));
+  expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.feel.error);
 });
 
 it('opens on the set that was taken back on the summary screen', async () => {

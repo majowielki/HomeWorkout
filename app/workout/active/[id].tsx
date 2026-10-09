@@ -142,6 +142,7 @@ export default function ActiveSessionScreen() {
             nextLabel={upcoming.label}
             onNext={session.restDone}
             onUndo={() => session.undo()}
+            onFeel={session.reportFeel}
           />
         </ScrollView>
       ) : null}
