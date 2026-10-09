@@ -240,6 +240,14 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   czego osoba nie widziała.
 - Pierwszy silnik (`proposals.ts`) i jego testy pozostają bez zmian do P6. Test architektury (ADR 0001/0006) obejmuje teraz `saveCoachWeekV2` i `acceptDay`: wolno je wołać tylko z orkiestratorów.
 
+### 2o. Co zostaje do ekranów i P6 (2026-10-09)
+
+- Ekrany, które czytają `workouts.plan` (JSON pierwszego silnika) — podgląd planu sesji, wznowienie, historia „plan vs wykonane” — dla sesji v2 mają `plan = null` i `plan_v2`; trzeba je przestawić na `plan_v2` przy pracy nad UI.
+  Liczby i serie historii są w kolumnach starego formatu (`legacyColumns`), więc listy, wykresy i kontekst trenera działają bez zmian.
+- Wywołania do wpięcia w P6: `syncWeek` na wejściu do ekranów i po zamknięciu sesji; `previewDay`/`acceptDay` zamiast `computeToday`/`startPlannedWorkout`; `createPhoneSessionTools`, `createPhonePlanTools`, kontroler
+  `createProposalControllerV2` i `createSimulationHook(loadSimulationBase)` w środowisku narzędzi czatu (`useCoachChat`); `matchSessionIntent` obok `matchCommand`; `buildObservation` w loggerze; `answerPrescription` pod pytaniem o awans.
+- Kontrakt 7 jest w repozytorium, wdrożony Worker ma 6: APK zbudowany z `main` po scaleniu P5 wymaga wdrożenia Workera (i odwrotnie). Czat nie zadziała z niezgodnym Workerem (czytelny błąd „zaktualizuj aplikację”).
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

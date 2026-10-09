@@ -5,6 +5,7 @@ const { assert, current, all, exec, seeded, failInsert } = require('./sqlite-har
 const week = require('../repositories/weekPlanV2.ts');
 const { addConstraint } = require('../repositories/weekPlan.ts');
 const { previewDay, acceptDay } = require('../repositories/planningV2.ts');
+const backup = require('../repositories/backup.ts');
 const { doTheSession } = require('./sqlite-day-helpers.cjs');
 
 const at = (day, hour = 9) => new Date(2026, 9, day, hour, 0, 0);
@@ -204,6 +205,23 @@ const CASES = [
       assert.throws(() => week.syncWeek({}, NOW), /no_week/);
       undo();
       assert.deepEqual(snapshot(), before);
+      assert.equal(week.syncWeek({}, NOW).result.rows.length, 7);
+    },
+  ],
+  [
+    'restoring a backup plans the week again: the stored week and the answers follow the history that was replaced',
+    async () => {
+      await seeded();
+      const saved = await backup.dumpAll(NOW);
+      week.syncWeek({}, NOW);
+      exec(
+        "INSERT INTO prescription_answers (comparison_key, kind, answer, after_exposure_id, answered_on, command_id, answered_at) VALUES ('k', 'step_up', 'yes', 'e', '2026-10-05', 'c', '2026-10-05T08:00:00Z')",
+      );
+      assert.equal(all('SELECT * FROM planned_days_v2').length, 7);
+      await backup.restoreAll(saved);
+      assert.equal(all('SELECT * FROM planned_days_v2').length, 0);
+      assert.equal(all('SELECT * FROM plan_generations_v2').length, 0);
+      assert.equal(all('SELECT * FROM prescription_answers').length, 0);
       assert.equal(week.syncWeek({}, NOW).result.rows.length, 7);
     },
   ],

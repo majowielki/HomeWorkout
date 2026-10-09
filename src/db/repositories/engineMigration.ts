@@ -11,6 +11,9 @@ import {
   planConstraints,
   plannedDays,
   planGenerations,
+  planGenerationsV2,
+  plannedDaysV2,
+  prescriptionAnswers,
   trainingBlocks,
   workouts,
 } from '../schema';
@@ -96,6 +99,9 @@ export async function migrateToEngineV2(
       tx.delete(trainingBlocks).run();
       tx.delete(plannedDays).run();
       tx.delete(planGenerations).run();
+      tx.delete(plannedDaysV2).run();
+      tx.delete(planGenerationsV2).run();
+      tx.delete(prescriptionAnswers).run();
       tx.delete(planConstraints).run();
       tx.delete(commandLedger).run();
       for (const domain of ['history', 'block', 'requests'] as const) bumpRevision(tx, domain);
