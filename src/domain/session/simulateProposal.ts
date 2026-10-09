@@ -10,13 +10,13 @@
  * the reps drift by what the last four weeks showed they usually do over or under the target.
  */
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
-import { TRAINING_CONFIG } from '../config/training';
 import type { ExposureRecord } from '../observations/exposure';
 import { isPerformed } from '../observations/qualify';
 import type { PlanConstraint } from '../plan/constraints';
 import type { PlannedSet } from '../plan/plan';
 import { type Athlete, FOLLOWS_THE_PLAN } from '../plan/simulate';
 import { type WeekInput, type WeekPlan, planWeek } from '../plan/week';
+import { volumeTargets } from '../policy/dayPolicy';
 import { finding, type AssessmentCheck } from '../policy/hardAdvice';
 import type { TrainingPreferences } from '../preferences/preferences';
 import { STEP_UP_CODES } from '../progression/codes';
@@ -112,9 +112,9 @@ export function observedAthlete(records: readonly ExposureRecord[], asOf: string
   };
 }
 
-function summarize(week: WeekPlan): SimulationSummary {
-  const { min, max } = TRAINING_CONFIG.weeklyWorkingSetsPerMuscle;
-  const maxOf = (m: MuscleGroup) => TRAINING_CONFIG.maxDirectSetsOverride[m] ?? max;
+function summarize(week: WeekPlan, preferences: TrainingPreferences): SimulationSummary {
+  const { weekly, maxOf } = volumeTargets(preferences);
+  const { min } = weekly;
   const exposures = week.days.flatMap((d) => d.forecast?.exposures ?? []);
   return {
     musclesWeek: Object.fromEntries(
@@ -234,8 +234,8 @@ export function simulateProposal(
   }
   const before = plan(baselineInput);
   const after = plan(withInput);
-  const a = summarize(before);
-  const b = summarize(after);
+  const a = summarize(before, baselineInput.preferences ?? base.preferences);
+  const b = summarize(after, withInput.preferences ?? base.preferences);
   return {
     baseline: a,
     withProposal: b,

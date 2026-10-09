@@ -8,7 +8,7 @@ import { RefreshCw } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { traceText } from '@/domain/progression/decisionText';
 import { labelsOf } from '@/domain/session/progress';
-import { TRAINING_CONFIG } from '@/domain/config/training';
+import { volumeTargets } from '@/domain/policy/dayPolicy';
 import { planTitle, prescriptionText } from '@/features/plan/format';
 import { SLOT_BY_ID } from '@/features/plan/slots';
 import { usePlanToday } from '@/features/plan/usePlanToday';
@@ -74,6 +74,7 @@ export default function PlanScreen() {
   }
   const events = isToday ? state.events : [];
   const { volume } = state;
+  const targets = volumeTargets(state.preview.input.preferences);
   const summary = isToday
     ? state.summary
     : state.week.find((d) => d.date === plan.trainingDate)?.summary;
@@ -168,9 +169,9 @@ export default function PlanScreen() {
       <Card className="gap-3">
         <CardTitle>{pl.plan.sections.volume}</CardTitle>
         <Text variant="muted" className="text-sm">
-          {pl.plan.sections.volumeHint(TRAINING_CONFIG.weeklyWorkingSetsPerMuscle.min)}
+          {pl.plan.sections.volumeHint(targets.weekly.min)}
         </Text>
-        <VolumeMeter volume={volume} />
+        <VolumeMeter volume={volume} targets={targets} />
       </Card>
       <RecalculateButton today={today} />
     </ScrollView>

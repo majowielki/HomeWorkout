@@ -239,7 +239,12 @@ function planDayCore(
   keep: readonly KeptItem[] | null,
 ): Omit<DayOutput, 'kept' | 'keptViolations'> {
   const { asOf, catalog, slots, block, eligibility } = input;
-  const policy = resolveDayPolicy(BASE_POLICY, input.week, input.intent ?? 'auto_day');
+  const policy = resolveDayPolicy(
+    BASE_POLICY,
+    input.week,
+    input.intent ?? 'auto_day',
+    input.preferences,
+  );
   const cfg = policy.planner;
   const training = policy.training;
   const dayMax = DAY_CONFIG.maxDirectSetsPerMuscleDay;

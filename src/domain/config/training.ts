@@ -69,7 +69,24 @@ export const BAND_CONFIG: BandConfig = {
  * tuning parameter. SPEC-silnik-regul.md §4.1 lists more keys — they join
  * this object with the modules that read them (M7).
  */
-export const TRAINING_CONFIG = {
+export interface WeeklySets {
+  min: number;
+  target: number;
+  max: number;
+}
+
+export interface TrainingConfig {
+  weeklyWorkingSetsPerMuscle: WeeklySets;
+  workingSetMaxRir: number;
+  secondaryMuscleWeight: number;
+  maxDirectSetsOverride: Partial<Record<MuscleGroup, number>>;
+  volumeExcludedPatterns: readonly MovementPattern[];
+}
+
+/** The weekly volume profiles the person can choose (12 §5.4): `standard` is the config's own. */
+export const HIGHER_VOLUME: WeeklySets = { min: 4, target: 6, max: 10 };
+
+export const TRAINING_CONFIG: TrainingConfig = {
   weeklyWorkingSetsPerMuscle: { min: 3, target: 4, max: 6 },
   /** A set counts as "working" up to and including this RIR. SPEC §4.2. */
   workingSetMaxRir: 4,
@@ -84,10 +101,10 @@ export const TRAINING_CONFIG = {
    * of each pair below its minimum on most days. The upper bound is the
    * tunable one (SPEC §4.1).
    */
-  maxDirectSetsOverride: { glutes: 8, back: 8 } as Partial<Record<MuscleGroup, number>>,
+  maxDirectSetsOverride: { glutes: 8, back: 8 },
   /** Never hard sets for a muscle, whatever the catalogue lists as primary. SPEC §4.2 v1.2. */
-  volumeExcludedPatterns: ['Mobility', 'Cardio'] as readonly MovementPattern[],
-} as const;
+  volumeExcludedPatterns: ['Mobility', 'Cardio'],
+};
 
 /**
  * Ranking of a replacement exercise, SPEC §3.4. The weights favour what

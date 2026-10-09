@@ -43,7 +43,7 @@ export function assessmentDay(
   records: readonly ExposureRecord[],
   maxSec: number,
 ): { day: AuditDay; idx: HistoryIndex; previous: HistoryIndex } {
-  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change');
+  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change', snap.preferences);
   const idx = buildHistoryIndex(records, snap.catalog, {
     muscleWeights: snap.preferences.muscleWeights,
   });
@@ -175,7 +175,7 @@ export function changeEffects(
     progressionScope: subject?.progressionScope ?? 'none',
     tomorrow: tomorrowEffect(snap, records, session.plan, plan, settled),
   };
-  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change');
+  const policy = resolveDayPolicy(BASE_POLICY, snap.week, 'session_change', snap.preferences);
   const today = snap.daily.find((d) => d.date === snap.asOf);
   const before = remainingVolume(session.plan, settled, snap);
   for (const m of MUSCLE_GROUPS) {

@@ -9,7 +9,7 @@ import type { PlanVersions } from './plan';
 
 export const ENGINE_VERSIONS = {
   engine: '2.0.0',
-  policies: 'policy-2.0',
+  policies: 'policy-2.1',
   compiler: 'compiler-1',
   traceSchema: 1,
 } as const;
