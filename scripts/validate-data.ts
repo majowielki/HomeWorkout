@@ -14,6 +14,7 @@ import slotCatalogue from '../data/slots.json';
 import { slotCatalogueSchema } from '../data/slots.schema';
 import templateCatalogue from '../data/templates.json';
 import { templateCatalogueSchema } from '../data/templates.schema';
+import { catalogueProblems } from '../src/domain/catalog/validate';
 import { BANDS } from '../src/domain/inventory';
 import { slotCatalogProblems } from '../src/domain/plan/slotCatalog';
 
@@ -143,6 +144,16 @@ function main(): void {
     process.exit(1);
   }
 
+  // The v2 fields (05 §13-§14): variant edges, aliases, weights, groups. Errors stop the build;
+  // warnings and info are printed, since a gap in the data is not yet a broken engine.
+  const v2 = catalogueProblems(exercises, parsedSlots.data.slots);
+  if (v2.errors.length > 0) {
+    console.error('exercises.json has problems in its variant graph, aliases or weights:\n');
+    for (const error of v2.errors) console.error(`  ${error}`);
+    process.exit(1);
+  }
+  for (const warning of v2.warnings) console.warn(`  warning: ${warning}`);
+
   const kneeLoading = exercises.filter((e) => e.loadsKnee).length;
   console.log(
     `exercises.json OK — ${exercises.length} exercises (v${parsed.data.version}), ` +
@@ -151,6 +162,10 @@ function main(): void {
   console.log(
     `templates.json OK — ${parsedTemplates.data.templates.length} templates, ` +
       `all exerciseIds resolve`,
+  );
+  console.log(
+    `variants OK — ${exercises.filter((e) => e.progressions).length} exercises with authored edges, ` +
+      `${v2.warnings.length} warnings, ${v2.info.length} at their ceiling`,
   );
   console.log(
     `slots.json OK — ${parsedSlots.data.slots.length} slots, every exercise in exactly one`,

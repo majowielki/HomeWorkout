@@ -75,7 +75,13 @@
         "Tak głęboko, jak pozwala kontrola — nie głębiej.",
         "Dobre do rozgrzewki i do nauki toru ruchu."
       ],
-      "kneeCue": "Obserwuj prawe kolano w lustrze — ma jechać po torze stopy, bez odchylenia w bok."
+      "kneeCue": "Obserwuj prawe kolano w lustrze — ma jechać po torze stopy, bez odchylenia w bok.",
+      "progressions": [
+        {
+          "to": "goblet-squat",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "box-squat",
@@ -101,7 +107,13 @@
         "Wstajesz przez pięty, biodra idą do przodu.",
         "Dobry wybór na dni, gdy kolano jest niepewne."
       ],
-      "kneeCue": "Stała głębokość chroni przed zapadnięciem kolana na dole — to ćwiczenie regresyjne właśnie po to."
+      "kneeCue": "Stała głębokość chroni przed zapadnięciem kolana na dole — to ćwiczenie regresyjne właśnie po to.",
+      "progressions": [
+        {
+          "to": "bodyweight-squat",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "dumbbell-squat",
@@ -369,7 +381,13 @@
         "Schodzisz do odczucia napięcia z tyłu ud, nie niżej.",
         "Plecy płaskie — bez zaokrąglania."
       ],
-      "kneeCue": "Kolana zostają miękkie, ale nieruchome — cały ruch pochodzi z bioder."
+      "kneeCue": "Kolana zostają miękkie, ale nieruchome — cały ruch pochodzi z bioder.",
+      "progressions": [
+        {
+          "to": "single-leg-rdl",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "band-pull-through",
@@ -471,7 +489,17 @@
         "Na górze linia prosta bark–biodro–kolano; zatrzymanie 1–2 s.",
         "Guma nad kolanami dodaje pracy odwodzicieli — bezpiecznie, bo w leżeniu."
       ],
-      "kneeCue": "Kolana nad stopami przez cały ruch — zapadanie do środka na górze mostka to częsty błąd."
+      "kneeCue": "Kolana nad stopami przez cały ruch — zapadanie do środka na górze mostka to częsty błąd.",
+      "progressions": [
+        {
+          "to": "glute-bridge-march",
+          "kind": "harder"
+        },
+        {
+          "to": "db-glute-bridge",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "hip-thrust",
@@ -522,7 +550,13 @@
         "Schodzisz, aż poczujesz napięcie z tyłu ud — nie niżej.",
         "Wstajesz, dociskając pięty i ściskając pośladki."
       ],
-      "kneeCue": "Kolana miękkie i nieruchome — cały ruch pochodzi z bioder."
+      "kneeCue": "Kolana miękkie i nieruchome — cały ruch pochodzi z bioder.",
+      "progressions": [
+        {
+          "to": "db-romanian-deadlift",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "db-good-morning",
@@ -625,7 +659,13 @@
         "Na górze linia od barków do kolan; żebra nie wypychają się do przodu.",
         "Wdech na górze, wydech przy zwijaniu w dół, segment po segmencie."
       ],
-      "kneeCue": "Kolana nad stopami na szerokość bioder, bez zapadania do środka."
+      "kneeCue": "Kolana nad stopami na szerokość bioder, bez zapadania do środka.",
+      "progressions": [
+        {
+          "to": "glute-bridge",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "glute-bridge-march",
@@ -651,7 +691,13 @@
         "Wolno, bez pośpiechu w marszu."
       ],
       "kneeCue": "Biodra poziomo — unoszone kolano nie pociąga miednicy w bok.",
-      "sides": "alternating"
+      "sides": "alternating",
+      "progressions": [
+        {
+          "to": "single-leg-glute-bridge-straight-leg",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "db-glute-bridge",
@@ -678,7 +724,13 @@
         "Na górze linia prosta bark–kolano; zatrzymanie 1–2 s."
       ],
       "kneeCue": "Kolana nad stopami przez cały ruch — bez zapadania do środka na górze.",
-      "hideClip": true
+      "hideClip": true,
+      "progressions": [
+        {
+          "to": "hip-thrust",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "shoulder-bridge",
@@ -779,6 +831,16 @@
         "Ciało w jednej linii — deska w ruchu.",
         "Klatka do podłogi, łokcie pod kątem ~45°.",
         "Za łatwo → guma na plecach; za trudno → dłonie na krześle."
+      ],
+      "progressions": [
+        {
+          "to": "deadstop-push-up",
+          "kind": "harder"
+        },
+        {
+          "to": "band-push-up",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -803,6 +865,12 @@
         "Im wyżej ręce, tym lżej — to skala regresji pompki.",
         "Ciało proste, biodra nie opadają.",
         "Gdy zrobisz 3×15, obniż podparcie."
+      ],
+      "progressions": [
+        {
+          "to": "push-up",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1450,6 +1518,12 @@
         "Noga ugięta w kolanie 90°, unosisz ją podeszwą do sufitu.",
         "Na górze ściskasz pośladek; biodra stoją prosto, bez skrętu.",
         "Opuszczasz wolno, bez dotykania podłogi."
+      ],
+      "progressions": [
+        {
+          "to": "band-hip-extension",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1599,6 +1673,12 @@
         "Lędźwie dociśnięte do podłogi przez cały czas — to jest całe ćwiczenie.",
         "Opuszczasz przeciwległą rękę i nogę, tylko tak nisko, jak lędźwie zostają na podłodze.",
         "Wydech przy opuszczaniu."
+      ],
+      "progressions": [
+        {
+          "to": "db-dead-bug",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1624,7 +1704,13 @@
         "Miednica nie rotuje — wyobraź sobie szklankę wody na krzyżu.",
         "Zatrzymanie 2 s, powolna zmiana strony."
       ],
-      "sides": "alternating"
+      "sides": "alternating",
+      "progressions": [
+        {
+          "to": "swimmers",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "reverse-crunch",
@@ -1648,6 +1734,12 @@
         "Podwijasz miednicę i unosisz biodra z podłogi — ruch mały, kontrolowany.",
         "Bez rozpędu z nóg.",
         "Wolne opuszczanie, 3 s."
+      ],
+      "progressions": [
+        {
+          "to": "reverse-crunch-pulse",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1744,6 +1836,12 @@
         "Unosisz tylko głowę i barki — kilka centymetrów, to nie jest brzuszek.",
         "Przytrzymanie ok. 10 s przy spokojnym oddechu.",
         "W połowie serii zmieniasz nogę."
+      ],
+      "progressions": [
+        {
+          "to": "crunch",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1768,6 +1866,16 @@
         "Zwijasz górną część pleców, łopatki odrywają się od podłogi.",
         "Nie ciągniesz za szyję — pracuje brzuch; broda lekko schowana.",
         "Wolne opuszczanie, lędźwie cały czas na podłodze."
+      ],
+      "progressions": [
+        {
+          "to": "bicycle-crunch",
+          "kind": "harder"
+        },
+        {
+          "to": "pilates-roll-up",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1817,6 +1925,12 @@
         "Zwijasz biodra z maty, kolana do klatki.",
         "Na górze mały puls — biodra o centymetr wyżej.",
         "Opuszczanie z kontrolą, bez rozpędu."
+      ],
+      "progressions": [
+        {
+          "to": "leg-raise",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1841,6 +1955,12 @@
         "Lędźwie dociśnięte do podłogi — to jest granica zakresu.",
         "Unosisz nogi do pionu, opuszczasz wolno, kilka cm nad podłogę.",
         "Za trudno: ugnij kolana."
+      ],
+      "progressions": [
+        {
+          "to": "toes-to-sky",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1865,6 +1985,12 @@
         "Dolnym brzuchem unosisz biodra, palce stóp ku sufitowi.",
         "Zatrzymanie na górze, opuszczanie wolno, bez bujania nogami.",
         "Szyja i barki rozluźnione na macie."
+      ],
+      "progressions": [
+        {
+          "to": "v-up",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1913,6 +2039,12 @@
         "Krzyżujesz nogi naprzemiennie, jak nożyce.",
         "Lędźwie na macie, tempo stałe i kontrolowane.",
         "Nie wstrzymujesz oddechu; ćwiczenie na czas."
+      ],
+      "progressions": [
+        {
+          "to": "flutter-kicks",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1937,6 +2069,12 @@
         "Nogi pod kątem 45° (łatwiej: kolana ugięte), lędźwie na macie.",
         "Pompujesz prostymi rękami: 5 wdechów i 5 wydechów po 5 pompowań.",
         "Szyja męczy się pierwsza — wtedy opuść głowę."
+      ],
+      "progressions": [
+        {
+          "to": "boat-hold",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -1961,6 +2099,12 @@
         "Unosisz stopy, podudzia równolegle do podłogi.",
         "Balans na kościach kulszowych, plecy proste, nie zaokrąglone.",
         "Za trudno: dłonie za udami; trudniej: ręce i nogi proste."
+      ],
+      "progressions": [
+        {
+          "to": "hollow-hold",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -2909,7 +3053,13 @@
         "Barki uniesione przez całą serię.",
         "Unieś prostowaną nogę wyżej, jeśli plecy się wyginają."
       ],
-      "sides": "alternating"
+      "sides": "alternating",
+      "progressions": [
+        {
+          "to": "double-leg-stretch",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "pilates-roll-up",
@@ -2932,6 +3082,12 @@
         "Ruch powolny, bez zamachu i szarpania.",
         "Pięty pozostają przy macie.",
         "Lekko ugnij kolana, jeśli nie potrafisz płynnie się podnieść."
+      ],
+      "progressions": [
+        {
+          "to": "teaser",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -2955,6 +3111,12 @@
         "Zwijaj kręgosłup stopniowo, bez podnoszenia całego tułowia naraz.",
         "Barki rozluźnione, daleko od uszu.",
         "Dla ułatwienia ugnij kolana."
+      ],
+      "progressions": [
+        {
+          "to": "v-up",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -3002,7 +3164,13 @@
         "Napnij pośladki, aby nie wyginać lędźwi.",
         "Oddychaj spokojnie, bez wstrzymywania oddechu."
       ],
-      "kneeCue": "Pod kolanami miękka mata; przy dyskomforcie wybierz martwego robaka w leżeniu."
+      "kneeCue": "Pod kolanami miękka mata; przy dyskomforcie wybierz martwego robaka w leżeniu.",
+      "progressions": [
+        {
+          "to": "plank",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "v-up",
@@ -3049,6 +3217,12 @@
         "Napnij brzuch, wydłuż kręgosłup i nie zaokrąglaj pleców.",
         "Obracaj tułów, zamiast machać samymi ramionami.",
         "Stopy pozostają stabilnie na podłodze."
+      ],
+      "progressions": [
+        {
+          "to": "db-russian-twist",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -3072,6 +3246,12 @@
         "Lędźwie przy macie przez cały ruch.",
         "Poruszaj nogami powoli, bez wyginania kręgosłupa.",
         "Wydech przy prostowaniu, oddech spokojny."
+      ],
+      "progressions": [
+        {
+          "to": "dead-bug",
+          "kind": "harder"
+        }
       ]
     },
     {
@@ -3379,7 +3559,13 @@
         "Miednica nieruchoma, otwierasz górną nogę w biodrze.",
         "Przerwij przy ostrym bólu biodra."
       ],
-      "sides": "perSet"
+      "sides": "perSet",
+      "progressions": [
+        {
+          "to": "side-lying-leg-lifts",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "side-lying-leg-lifts",
@@ -3428,7 +3614,13 @@
         "Odpychaj się piętą nogi pracującej, nie palcami.",
         "Pracuj powoli, bez skręcania i opadania bioder."
       ],
-      "kneeCue": "Kolano nogi podporowej nad stopą, miednica poziomo; przy utracie kontroli wybierz mostek obunóż."
+      "kneeCue": "Kolano nogi podporowej nad stopą, miednica poziomo; przy utracie kontroli wybierz mostek obunóż.",
+      "progressions": [
+        {
+          "to": "single-leg-dumbbell-hip-thrust",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "standing-calf-stretch",
@@ -3630,7 +3822,13 @@
         "Zacznij od mniejszej liczby powtórzeń i stopniowo ją zwiększaj.",
         "W razie potrzeby podłóż ręcznik pod kolana."
       ],
-      "kneeCue": "Kolana na miękkiej macie; przy bolesnym ucisku wybierz pompkę z rękami na podwyższeniu."
+      "kneeCue": "Kolana na miękkiej macie; przy bolesnym ucisku wybierz pompkę z rękami na podwyższeniu.",
+      "progressions": [
+        {
+          "to": "push-up",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "diamond-push-ups-knee-assisted",
@@ -3655,7 +3853,13 @@
         "Łokcie blisko tułowia.",
         "Kontroluj opuszczanie, bez rozchylania łokci."
       ],
-      "kneeCue": "Kolana na miękkiej macie; przy dyskomforcie wybierz wyprost tricepsa z hantlem."
+      "kneeCue": "Kolana na miękkiej macie; przy dyskomforcie wybierz wyprost tricepsa z hantlem.",
+      "progressions": [
+        {
+          "to": "close-grip-push-up",
+          "kind": "harder"
+        }
+      ]
     },
     {
       "id": "pilates-push-up",
@@ -3703,6 +3907,12 @@
         "Skup się na kontroli zamiast szybkości.",
         "Jeśli tracisz technikę, wykonuj wersję na kolanach.",
         "Wdech przy opuszczaniu, wydech przy odepchnięciu."
+      ],
+      "progressions": [
+        {
+          "to": "archer-push-up",
+          "kind": "harder"
+        }
       ]
     },
     {

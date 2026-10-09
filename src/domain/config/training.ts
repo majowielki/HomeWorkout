@@ -105,6 +105,19 @@ export const SUBSTITUTE_CONFIG = {
 } as const;
 
 /**
+ * What a preference of the person may decide (engine v2, 12 §3-§4). It breaks
+ * ties between near-equivalent options; it never breaks a rule.
+ */
+export const PREFERENCE_CONFIG = {
+  /** Two exercises of one slot are near-equivalent when each is at least this good a substitute for the other (of 115). */
+  nearEquivalentScore: 70,
+  /** The weight of a preference in choosing a day's slots, against 2 for a volume deficit. */
+  scoreWeight: 0.25,
+  /** A variant the person would rather avoid is not chosen if another was not used in the last this many blocks. */
+  avoidedLookbackBlocks: 2,
+} as const;
+
+/**
  * Days since the last session at which each layoff tier starts, SPEC §6.3.
  * One table for the engine and for the AI signals, so "a short layoff"
  * means the same in a plan and in a weekly summary.
@@ -138,6 +151,12 @@ export const PROGRESSION_CONFIG = {
   requireBandWarmup: false as boolean,
   /** Above this jump in estimated force, a new band starts at P0, not P1. SPEC §5.4. */
   bandMacroMaxJump: 0.15,
+  /**
+   * The most repetitions a set may be pushed to before the next step is a harder variant, not more
+   * repetitions (engine v2, D34). Lower where the knee is loaded: a long set at a high rep count is a
+   * different kind of stress than the rep range was chosen for; to be confirmed with the physiotherapist.
+   */
+  repCap: { default: 25, kneeLoading: 20 },
   /** Used only when a slot lacks the range a candidate needs (the data check prevents it). */
   fallbackRepRange: [8, 15] as [number, number],
   fallbackTimeRange: [20, 60] as [number, number],
