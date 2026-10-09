@@ -693,14 +693,50 @@ export interface FeelCommand {
   channel: 'touch' | 'voice' | 'ai_proposal';
 }
 
+export const feelCommandSchema = z.strictObject({
+  commandId: z.string().min(1),
+  sessionId: z.string().min(1),
+  exposureId: z.string().min(1).nullable(),
+  feel: z.enum(['too_hard', 'too_easy']),
+  channel: z.enum(['touch', 'voice', 'ai_proposal']),
+});
+
+/** Shared write inside the caller's transaction; a feel report is a history input. */
+export function persistFeelReport(tx: Tx, cmd: FeelCommand, now: Date): string {
+  const id = `feel-${cmd.commandId}`;
+  tx.insert(feelReports)
+    .values({
+      id,
+      workoutId: cmd.sessionId,
+      exposureId: cmd.exposureId,
+      feel: cmd.feel,
+      channel: cmd.channel,
+      commandId: cmd.commandId,
+      at: now.toISOString(),
+    })
+    .run();
+  touch(tx, cmd.sessionId);
+  return id;
+}
+
 /** "Too hard" / "too easy", said during a session: context for the next prescription; it changes no plan (11 §7). */
 export function recordFeelV2(
   cmd: FeelCommand,
   now: Date = new Date(),
 ): CommandResult<{ id: string }> {
   return transact(cmd.commandId, (tx) => {
+    const known = findCommand(tx, cmd.commandId);
+    if (known !== null && (known.kind !== 'feel' || known.workoutId !== cmd.sessionId))
+      return {
+        kind: 'rejected',
+        code: 'INVALID_COMMAND',
+        detail: 'command id belongs to another operation',
+      };
     const again = replay<{ id: string }>(tx, cmd.commandId);
     if (again) return again;
+    const parsed = feelCommandSchema.safeParse(cmd);
+    if (!parsed.success)
+      return { kind: 'rejected', code: 'INVALID_COMMAND', detail: z.prettifyError(parsed.error) };
     const found = sessionFor(tx, cmd.sessionId, true);
     if (!found.ok) return found.result;
     if (cmd.exposureId !== null && !found.plan.exposures.some((e) => e.id === cmd.exposureId)) {
@@ -710,19 +746,7 @@ export function recordFeelV2(
         detail: `${cmd.exposureId} is not an exposure of ${cmd.sessionId}`,
       } as const;
     }
-    const id = `feel-${cmd.commandId}`;
-    tx.insert(feelReports)
-      .values({
-        id,
-        workoutId: cmd.sessionId,
-        exposureId: cmd.exposureId,
-        feel: cmd.feel,
-        channel: cmd.channel,
-        commandId: cmd.commandId,
-        at: now.toISOString(),
-      })
-      .run();
-    raiseSession(tx, cmd.sessionId);
+    const id = persistFeelReport(tx, cmd, now);
     return commit(
       tx,
       { commandId: cmd.commandId, kind: 'feel', workoutId: cmd.sessionId },

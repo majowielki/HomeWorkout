@@ -2,6 +2,7 @@
 import { slotByExercise } from '../plan/eligibility';
 import { rankAlternatives } from './alternatives';
 import { evaluateSessionChange } from './evaluate';
+import { assessFeel } from './effort';
 import type {
   ActiveSessionState,
   AssessmentContext,
@@ -19,6 +20,8 @@ export function assessSessionChange(
   opts: Pick<AssessmentContext, 'maxAlternatives' | 'equipmentFamily'> = {},
 ): ChangeAssessment {
   const assessment = evaluateSessionChange(snap, session, change);
+  if (change.kind === 'feel')
+    return { ...assessment, alternatives: [], feel: assessFeel(snap, session, change, assessment) };
   if (!('exercise' in change) || assessment.resolved.kind === 'ambiguous')
     return { ...assessment, alternatives: [] };
   const resolved = assessment.resolved;

@@ -62,6 +62,8 @@ export function rankAlternatives(
   const ranked: { alternative: RankedAlternative; key: number[] }[] = [];
   // Audit the complete pool before truncation: a lower biomechanical score can have the best verdict.
   for (const [id, reasons] of candidates) {
+    if (ctx.variantDirection !== undefined && !reasons.includes(`variant_${ctx.variantDirection}`))
+      continue;
     const e = snap.catalog[id]!;
     if (ctx.equipmentFamily !== undefined && equipmentFamilyOf(e) !== ctx.equipmentFamily) continue;
     const intent = { ...change, exercise: { id } };

@@ -141,6 +141,26 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   Override przechowuje wyłącznie advice-faile rzeczywiście obecne w tej ocenie. Zbędny/hard ACK nie
   daje dodatkowych uprawnień. Zmiana wykonalnego patcha lub fingerprintu daje `STALE_INPUT`.
 
+### 2g. P4b.5 — kontrakt opcji feel i zapis obserwacji (2026-10-09)
+
+- Spec. 11 §7 nie określa pól opcji na `ChangeAssessment`. Dodaję opcjonalne `feel` z `options`
+  i `recommendedOptionIds`. Każda opcja zawiera zamiar i pełną ocenę liścia (jak P4b.3), a opcja
+  „następnym razem trudniej” ma null zamiar/patch. Nie dodaje się rekurencyjnych alternatyw.
+- Przy null ekspozycji nie zgaduję bieżącego ćwiczenia: raport dotyczy sesji, opcje i rekomendacje
+  są osobne dla każdej ekspozycji pending. Każda z tych alternatyw obowiązuje na bieżącej rewizji;
+  akceptacja jednej wymaga odświeżenia pozostałych. Po wykonaniu całości zostaje flaga `too_easy`.
+- Czysta domena nie zapisuje odczucia. Nowe `reportSessionFeel` w app-services zapisuje je wraz
+  z wynikiem oceny w jednej transakcji. Oczekiwane rewizje zapobiegają ocenie zmienionej sesji;
+  wynik opcji powstaje po zapisie raportu i podniesieniu historii, więc nie jest od razu stale.
+  Osobna późniejsza akceptacja używa dotychczasowego `applySessionChange` i ACK.
+- `recordFeelV2` z P2 pozostaje dostępne jako sam zapis. Wspólny writer podnosi teraz history
+  revision (wcześniej tylko session revision), bo odczucie zmienia wejście progresji i konsultacji.
+  Nie jest wymagana migracja; istniejące `feel_reports` i ledger wystarczają.
+- Ranking opcji redukcji wariantu filtruje graf do `easier` przed truncation; preferowany twardszy
+  zamiennik nie może wyprzeć łatwiejszego. Zamiana na łatwiejszy wariant zapisuje `reducedFrom`
+  na nowej recepturze; historia oznacza USER_REDUCED także po stronie zastępującej.
+- Polski tekst opcji/kontroli pozostaje P4b.6. UI/runner/AI nie są jeszcze podłączone (P5).
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

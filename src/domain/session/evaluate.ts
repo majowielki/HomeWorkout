@@ -1,6 +1,7 @@
 /** P4b.2: read-only, offline assessment of an explicit change, using the shared resume audit. */
 import { repCapOf } from '../catalog/attributes';
 import { resolveExerciseRef } from '../catalog/resolve';
+import { buildVariantGraph } from '../catalog/variants';
 import { fingerprint } from '../fingerprint';
 import { isPerformed, referenceResistance } from '../observations/qualify';
 import { auditPlan } from '../plan/audit';
@@ -143,7 +144,7 @@ export function evaluateSessionChange(
   const position = change.kind === 'add_exercise' ? (change.position ?? 'next') : 'next';
   const target =
     'exposureId' in change ? plan.exposures.find((e) => e.id === change.exposureId) : undefined;
-  if ('exposureId' in change && target === undefined)
+  if ('exposureId' in change && change.exposureId !== null && target === undefined)
     checks.push(
       finding('PLAN_INVALID', 'fail', {
         exposureId: change.exposureId,
@@ -339,6 +340,17 @@ export function evaluateSessionChange(
           checks.push(finding('PLAN_INVALID', 'fail', { reason: 'no pending sets' }));
         else if (!invalidCount(n, 'sets')) {
           subject = make(n);
+          if (
+            swapping &&
+            buildVariantGraph(Object.values(snap.catalog))
+              .easier.get(target!.exercise.id)
+              ?.includes(exercise.id)
+          ) {
+            subject.trace = {
+              ...subject.trace,
+              evidence: { ...subject.trace.evidence, reducedFrom: target!.id },
+            };
+          }
           ops.push(
             swapping
               ? {
@@ -397,7 +409,7 @@ export function evaluateSessionChange(
           checks.push(finding('SUPPLEMENTAL_ONLY', 'pass', { exerciseId: target.exercise.id }));
         }
       }
-    } else {
+    } else if (change.kind !== 'feel') {
       if (open.length === 0)
         checks.push(finding('PLAN_INVALID', 'fail', { reason: 'no pending sets' }));
       else if (change.kind === 'skip_remaining')
@@ -526,7 +538,7 @@ export function evaluateSessionChange(
   const sorted = sortChecks(checks);
   const verdict = verdictOf(sorted, { ambiguous: resolved.kind === 'ambiguous' });
   const patch =
-    verdict === 'blocked' || verdict === 'needs_clarification'
+    change.kind === 'feel' || verdict === 'blocked' || verdict === 'needs_clarification'
       ? null
       : {
           patchId: fingerprint({ assessmentId, ops, plan: changed.plan }),

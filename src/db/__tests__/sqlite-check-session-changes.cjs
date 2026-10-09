@@ -1,6 +1,8 @@
 /* P4b.4 T68/T69: real SQLite, production transaction/ledger and fresh domain re-assessment. */
 const { assert, current, all, exec, seeded, failInsert } = require('./sqlite-harness.cjs');
 const application = require('../../app-services/commands/applySessionChange.ts');
+const feelApplication = require('../../app-services/commands/reportSessionFeel.ts');
+const { reportSessionFeel } = require('../repositories/sessionFeel.ts');
 const { applySessionChange } = require('../repositories/sessionChanges.ts');
 const { loadSessionChangeSource } = application;
 const sessions = require('../repositories/sessionsV2.ts');
@@ -59,6 +61,7 @@ function snapshot() {
       'command_ledger',
       'planning_revisions',
       'exposure_outcomes',
+      'feel_reports',
     ].map((table) => [table, all(`SELECT * FROM ${table}`)]),
   );
 }
@@ -85,7 +88,286 @@ function logFirst(source, ordinal = 0) {
   assert.equal(r.kind, 'committed');
 }
 
+function feelCommand(feel = 'too_hard', commandId = 'report', exposureId) {
+  const source = loadSessionChangeSource('s1');
+  return {
+    commandId,
+    sessionId: 's1',
+    exposureId: exposureId === undefined ? source.session.plan.exposures[0].id : exposureId,
+    feel,
+    channel: 'voice',
+    expected: {
+      planRevision: source.session.plan.planRevision,
+      historyRevision: source.snap.historyRevision,
+    },
+  };
+}
+
+function acceptFeelOption(
+  option,
+  basedOn,
+  commandId = 'choice',
+  acknowledged = adviceToAcknowledge(option.assessment.checks),
+) {
+  return applySessionChange(
+    {
+      commandId,
+      sessionId: 's1',
+      change: option.change,
+      patchId: option.assessment.patch.patchId,
+      expected: { planRevision: basedOn.planRevision, historyRevision: basedOn.historyRevision },
+      acknowledged,
+      channel: 'voice',
+    },
+    NOW,
+  );
+}
+
 const CASES = [
+  [
+    'P4b.5 T72 touch, voice and AI return the identical offline ChangeAssessment',
+    async () => {
+      let reference;
+      for (const channel of ['touch', 'voice', 'ai_proposal']) {
+        const source = await started([recipe('db-floor-press', 3)]);
+        logFirst(source);
+        const r = reportSessionFeel({ ...feelCommand(), channel }, NOW);
+        assert.equal(r.kind, 'committed');
+        if (reference) assert.deepEqual(r.result.assessment, reference);
+        else reference = r.result.assessment;
+      }
+    },
+  ],
+  [
+    'P4b.5 report writes FeelReport and returns assessed options without revising the plan',
+    async () => {
+      await started([recipe('db-floor-press', 3)]);
+      const cmd = feelCommand();
+      const before = snapshot();
+      const promised = feelApplication.reportSessionFeel(cmd, NOW);
+      assert(promised instanceof Promise);
+      const result = await promised;
+      assert.equal(result.kind, 'committed');
+      assert.equal(result.result.assessment.patch, null);
+      assert.equal(result.result.assessment.feel.options.length, 3);
+      const source = loadSessionChangeSource('s1');
+      assert.equal(source.session.records[0].context.feel, 'too_hard');
+      assert.equal(source.snap.historyRevision, cmd.expected.historyRevision + 1);
+      assert.equal(result.result.assessment.basedOn.historyRevision, source.snap.historyRevision);
+      assert.deepEqual(source.session.plan, JSON.parse(before.workouts[0].plan_v2));
+      assert.deepEqual(all('SELECT * FROM session_plan_revisions'), before.session_plan_revisions);
+      assert.equal(all('SELECT * FROM set_logs').length, 0);
+      assert.equal(all('SELECT * FROM set_dispositions').length, 0);
+      const saved = all('SELECT * FROM feel_reports')[0];
+      assert.equal(saved.channel, 'voice');
+      assert.equal(saved.at, NOW.toISOString());
+      const committed = snapshot();
+      assert.deepEqual(reportSessionFeel(cmd, NOW), { ...result, kind: 'already_committed' });
+      assert.deepEqual(snapshot(), committed);
+    },
+  ],
+  ...['touch', 'voice', 'ai_proposal'].map((channel) => [
+    `P4b.5 ${channel}: T71 lighter option accepts unchanged after the report and preserves progression evidence`,
+    async () => {
+      const source = await started([recipe('db-floor-press', 3)]);
+      logFirst(source);
+      const cmd = { ...feelCommand(), channel };
+      const r = reportSessionFeel(cmd, NOW);
+      assert.equal(r.kind, 'committed');
+      const a = r.result.assessment;
+      const choice = a.feel.options.find((o) => a.feel.recommendedOptionIds.includes(o.id));
+      assert.equal(choice.why, 'easier_resistance');
+      const actual = all('SELECT * FROM set_logs');
+      assert.equal(acceptFeelOption(choice, a.basedOn).kind, 'committed');
+      assert.deepEqual(all('SELECT * FROM set_logs'), actual);
+      const loaded = await history.loadWindow('2026-10-01');
+      assert.equal(loaded.problems.length, 0);
+      assert(loaded.records.every((record) => record.context.userReduced));
+      const original = loaded.records.find((record) => record.exposureId === cmd.exposureId);
+      const evidence = qualifyExposure(
+        original,
+        { dropOffAllowance: 2 },
+        modelFor(original.sets[0].planned.resistance),
+      );
+      assert(evidence.reasons.includes('USER_REDUCED'));
+      assert.equal(evidence.performance, 'not_evaluable');
+      const { prescribeNext } = require('../../domain/progression/next.ts');
+      const { draft } = prescribeNext({
+        exerciseId: original.exerciseId,
+        unit: 'reps',
+        model: modelFor(original.sets[0].planned.resistance),
+        start: original.sets[0].planned.resistance,
+        range: { lo: 8, hi: 15 },
+        targetRir: { min: 2, max: 3 },
+        repCap: 25,
+        history: [original],
+        asOf: '2026-10-07',
+        layoff: { tier: 'none', gapDays: 2, recalibrating: false },
+        phase: 'work',
+        eligible: true,
+        sets: { recommended: 3, allowed: [1, 3], advisable: [1, 10], reasons: [] },
+      });
+      assert(draft.codes.includes('USER_REDUCED'));
+      assert(!draft.codes.includes('LOAD_STEP_UP'));
+      assert(!draft.codes.includes('LOAD_STEP_DOWN'));
+    },
+  ]),
+  [
+    'P4b.5 T105 easier variant marks both the retired and replacement exposures USER_REDUCED',
+    async () => {
+      const source = await started([recipe('push-up', 3)]);
+      logFirst(source);
+      const r = reportSessionFeel(feelCommand(), NOW);
+      assert.equal(r.kind, 'committed');
+      const a = r.result.assessment;
+      const choice = a.feel.options.find((o) => a.feel.recommendedOptionIds.includes(o.id));
+      assert.equal(choice.why, 'variant_easier');
+      assert.equal(acceptFeelOption(choice, a.basedOn).kind, 'committed');
+      const loaded = await history.loadWindow('2026-10-01');
+      assert.equal(loaded.records.length, 2);
+      assert(loaded.records.every((r) => r.context.userReduced));
+      assert.equal(loaded.records[0].context.feel, 'too_hard');
+      assert.equal(loaded.records[0].sets.length, 3);
+    },
+  ],
+  [
+    'P4b.5 T72 too easy keeps extra work supplemental; advice requires explicit ACK',
+    async () => {
+      await started([recipe('crunch', 3)]);
+      const r = reportSessionFeel(feelCommand('too_easy'), NOW);
+      const a = r.result.assessment;
+      assert.deepEqual(a.feel.recommendedOptionIds, ['next_prescription']);
+      const choice = a.feel.options.find((o) => o.why === 'add_set');
+      const before = snapshot();
+      assert.equal(acceptFeelOption(choice, a.basedOn, 'choice', []).code, 'ACK_REQUIRED');
+      assert.deepEqual(snapshot(), before);
+      assert.equal(acceptFeelOption(choice, a.basedOn).kind, 'committed');
+      const record = (await history.loadWindow('2026-10-01')).records[0];
+      assert.equal(record.context.feel, 'too_easy');
+      assert.equal(record.context.userReduced, false);
+      assert.equal(record.sets.at(-1).planned.requiredForProgression, false);
+      assert(record.sets.slice(0, 3).every((s) => s.planned.requiredForProgression));
+    },
+  ],
+  [
+    'P4b.5 reports use the latest specific feel, session-wide fallback and invalidate older choices',
+    async () => {
+      await started([recipe('crunch', 2), recipe('standing-calf-raise', 2)]);
+      const first = reportSessionFeel(feelCommand('too_easy', 'f1'), NOW);
+      const a = first.result.assessment;
+      const choice = a.feel.options.find((o) => o.why === 'add_set');
+      reportSessionFeel(feelCommand('too_hard', 'f2', null), new Date(NOW.getTime() + 1000));
+      const after = await history.loadWindow('2026-10-01');
+      assert.equal(after.records[0].context.feel, 'too_easy');
+      assert.equal(after.records[1].context.feel, 'too_hard');
+      const before = snapshot();
+      assert.equal(acceptFeelOption(choice, a.basedOn).code, 'STALE_INPUT');
+      assert.deepEqual(snapshot(), before);
+      reportSessionFeel(feelCommand('too_hard', 'f3'), new Date(NOW.getTime() + 2000));
+      assert.equal((await history.loadWindow('2026-10-01')).records[0].context.feel, 'too_hard');
+    },
+  ],
+  [
+    'P4b.5 replay survives session close and command ids cannot cross operations or sessions',
+    async () => {
+      await started([recipe('crunch')]);
+      const cmd = feelCommand();
+      const result = reportSessionFeel(cmd, NOW);
+      sessions.closeSessionV2({ commandId: 'close', sessionId: 's1', how: 'completed' }, NOW);
+      const before = snapshot();
+      assert.deepEqual(reportSessionFeel(cmd, NOW), { ...result, kind: 'already_committed' });
+      assert.equal(
+        reportSessionFeel({ ...cmd, commandId: 'fresh' }, NOW).code,
+        'SESSION_NOT_ACTIVE',
+      );
+      assert.equal(reportSessionFeel({ ...cmd, sessionId: 'other' }, NOW).code, 'INVALID_COMMAND');
+      assert.equal(reportSessionFeel({ ...cmd, commandId: 'start' }, NOW).code, 'INVALID_COMMAND');
+      assert.equal(
+        sessions.recordFeelV2({ ...cmd, expected: undefined }, NOW).code,
+        'INVALID_COMMAND',
+      );
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  [
+    'P4b.5 malformed data, unknown sessions/exposures and stale revisions write nothing',
+    async () => {
+      await started([recipe('crunch')]);
+      const cmd = feelCommand();
+      for (const [patch, code] of [
+        [{ feel: 'ok' }, 'INVALID_COMMAND'],
+        [{ channel: 'invalid' }, 'INVALID_COMMAND'],
+        [{ exposureId: 'missing' }, 'INVALID_COMMAND'],
+        [{ sessionId: 'missing' }, 'UNKNOWN_SESSION'],
+        [{ expected: { ...cmd.expected, planRevision: 2 } }, 'STALE_INPUT'],
+        [{ expected: { ...cmd.expected, historyRevision: 0 } }, 'STALE_INPUT'],
+      ]) {
+        const before = snapshot();
+        assert.equal(reportSessionFeel({ ...cmd, ...patch }, NOW).code, code);
+        assert.deepEqual(snapshot(), before);
+      }
+      const plan = JSON.parse(all('SELECT plan_v2 FROM workouts')[0].plan_v2);
+      plan.planRevision++;
+      current.native.prepare('UPDATE workouts SET plan_v2 = ?').run(JSON.stringify(plan));
+      const before = snapshot();
+      assert.equal(reportSessionFeel(cmd, NOW).code, 'INVALID_PLAN');
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
+  ...['feel_reports', 'exposure_outcomes', 'command_ledger'].map((table) => [
+    `P4b.5 failure writing ${table} rolls back report, counters, outcomes and ledger`,
+    async () => {
+      await started([recipe('crunch')]);
+      const cmd = feelCommand();
+      const restore = failInsert('feel_fail', table);
+      const before = snapshot();
+      assert.equal(reportSessionFeel(cmd, NOW).kind, 'storage_error');
+      assert.deepEqual(snapshot(), before);
+      restore();
+      assert.equal(reportSessionFeel(cmd, NOW).kind, 'committed');
+    },
+  ]),
+  [
+    'P4b.5 legacy recordFeelV2 raises history and validates data and ledger identity',
+    async () => {
+      await started([recipe('crunch')]);
+      const { expected, ...cmd } = feelCommand();
+      const first = reportSessionFeel({ ...cmd, expected }, NOW);
+      assert.equal(first.kind, 'committed');
+      const before = snapshot();
+      assert.equal(sessions.recordFeelV2(cmd, NOW).code, 'INVALID_COMMAND');
+      assert.equal(
+        sessions.recordFeelV2({ ...cmd, commandId: 'invalid', feel: 'invalid' }, NOW).code,
+        'INVALID_COMMAND',
+      );
+      assert.deepEqual(snapshot(), before);
+      const historyBefore = loadSessionChangeSource('s1').snap.historyRevision;
+      const legacy = { ...cmd, commandId: 'legacy' };
+      assert.equal(sessions.recordFeelV2(legacy, NOW).kind, 'committed');
+      assert.equal(loadSessionChangeSource('s1').snap.historyRevision, historyBefore + 1);
+      assert.equal(sessions.recordFeelV2(legacy, NOW).kind, 'already_committed');
+      assert.equal(
+        sessions.recordFeelV2({ ...legacy, sessionId: 'other' }, NOW).code,
+        'INVALID_COMMAND',
+      );
+    },
+  ],
+  [
+    'P4b.5 a feel intent has no plan patch and cannot be accepted as a plan-changing command',
+    async () => {
+      await started([recipe('crunch')]);
+      const { cmd } = preview();
+      const before = snapshot();
+      assert.equal(
+        applySessionChange(
+          { ...cmd, change: { kind: 'feel', exposureId: null, feel: 'too_hard' } },
+          NOW,
+        ).code,
+        'INVALID_COMMAND',
+      );
+      assert.deepEqual(snapshot(), before);
+    },
+  ],
   [
     'the application entry point returns the promised committed result',
     async () => {

@@ -8,13 +8,40 @@ import type { DaySelection, ViolationCode } from '../plan/types';
 import type { AssessmentCheck, Verdict } from '../policy/hardAdvice';
 import type { MuscleGroup } from '../types';
 
-/** Feel options join in P4b.5. */
-export type SessionChange =
+export type SessionPlanChange =
   | { kind: 'add_exercise'; exercise: ExerciseRef; sets?: number; position?: 'next' | 'end' }
   | { kind: 'add_sets'; exposureId: string; sets: number }
   | { kind: 'swap_remaining'; exposureId: string; exercise: ExerciseRef }
   | { kind: 'reduce_remaining'; exposureId: string; dropSets?: number; easier?: boolean }
   | { kind: 'skip_remaining'; exposureId: string };
+
+export interface FeelChange {
+  kind: 'feel';
+  exposureId: string | null;
+  feel: 'too_hard' | 'too_easy';
+}
+
+export type SessionChange = SessionPlanChange | FeelChange;
+
+export interface FeelOption {
+  id: string;
+  /** Null means keep today's plan and use the report in the next prescription. */
+  change: SessionPlanChange | null;
+  why:
+    | 'easier_resistance'
+    | 'variant_easier'
+    | 'drop_set'
+    | 'skip_remaining'
+    | 'add_set'
+    | 'next_prescription';
+  assessment: SessionChangeEvaluation;
+}
+
+export interface FeelConsultation {
+  options: FeelOption[];
+  /** One recommendation per affected exposure; a session-wide report can have several. */
+  recommendedOptionIds: string[];
+}
 
 /** Plain domain inputs; no database, UI, channel, or network dependency. */
 export interface SessionChangeSnapshot extends DayInputV2 {
@@ -119,6 +146,7 @@ export interface AssessmentContext {
   change: AlternativeChange;
   maxAlternatives?: number;
   equipmentFamily?: EquipmentFamily;
+  variantDirection?: 'easier' | 'harder';
 }
 
 export interface AlternativesTarget {
@@ -129,4 +157,6 @@ export interface AlternativesTarget {
 
 export interface ChangeAssessment extends SessionChangeEvaluation {
   alternatives: RankedAlternative[];
+  /** Present only for an observation-only feel consultation. */
+  feel?: FeelConsultation;
 }

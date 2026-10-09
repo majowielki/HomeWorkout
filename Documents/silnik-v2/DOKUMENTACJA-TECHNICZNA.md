@@ -89,8 +89,9 @@ Docelowa mapa plików to 13 §0. Status:
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
 | `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
-| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 (feel/tekst: kolejne zadania) |
-| `session/{effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
+| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 (tekst: kolejne zadanie) |
+| `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
+| `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
 
@@ -485,6 +486,45 @@ Dowody: `sqlite-check-session-changes.cjs`, uruchamiane jako 32 osobne przypadki
 T68/T69, pełny i niepełny ACK, retry, kanały, aktualność faktów, własny patch alternatywy,
 wykonana część/historia po redukcji/zamianie, rezerwacja oraz rollback błędów czterech tabel.
 Podłączenie do runnera, UI i AI pozostaje etapem P5.
+
+### 4.20 Sygnały odczucia i ocenione opcje (P4b.5)
+
+`SessionChange` obejmuje `FeelChange {kind:'feel', exposureId:string|null, feel:'too_hard'|'too_easy'}`.
+`assessSessionChange` zwraca obserwacyjną ocenę bez patcha, z niezmienionymi efektami planu oraz
+`feel: {options, recommendedOptionIds}`. Każda `FeelOption` niesie jawny zamiar `SessionPlanChange`,
+`why` i pełną ocenę liścia (jak alternatywy, bez rekurencyjnych opcji). Niewykonalna opcja ma hard fail
+i null patch; UI może wyjaśnić, dlaczego np. brak lżejszego oporu. `next_prescription` ma null zamiar
+i null patch: zapisany raport wystarcza polityce progresji, akceptacja tej opcji niczego nie zapisuje.
+
+`effort.ts` ocenia −1 serię, lżejszy opór i skip dla `too_hard`. Poleca szczebel niżej, jeśli pozostały
+co najmniej dwie serie logiczne. Jeśli oporu nie da się obniżyć, ranking ocenia wyłącznie krawędzie
+`easier` (także odwrotności `harder`), przed ograniczeniem wyników do trzech. Polecany jest najlepszy
+dostępny wariant; przy braku wariantu −1 seria. Gdy pozostała tylko niewykonana strona wykonanej serii,
+dropping całej pary jest blocked i fallback to skip. Wszystkie opcje korzystają ze wspólnego audytu.
+`too_easy` ocenia +1 serię i poleca ją tylko przy `ok`; przy ostrzeżeniu/advice/hard poleca flagę na
+następną receptę. Dodatkowe serie mają `requiredForProgression:false`, oryginalne zachowują swoje role.
+
+Null `exposureId` zapisuje odczucie całej sesji i ocenia opcje osobno dla każdej ekspozycji z pending.
+Rekomendacje są alternatywami na tej samej rewizji, nie zbiorczym patchem: każda akceptacja wymaga
+aktualnej oceny. Po wykonaniu całości pozostaje tylko flaga `too_easy`; jawny ID kompletnej ekspozycji
+nadal pozwala ocenić dodatkową serię. Uszkodzona integralność/schemat, obca ekspozycja, zła data lub
+nieobsługiwane wykonanie nie produkują opcji. Ból blokuje dalszą pracę, a usunięcie pending może być
+wykonalne; samo `too_hard` nie jest zgłoszeniem bólu.
+
+`reportSessionFeel` ma Promise w app-services, synchroniczną transakcję w `sessionFeel.ts`, `commandId`,
+oczekiwane rewizje planu/historii i kanał. Waliduje ledger/aktywną sesję/schemat/rewizje/ID ekspozycji
+oraz normalizację, zapisuje `FeelReport`, podnosi history/session revision i zwraca ocenę już z nowej
+historii. Dlatego patch wybranej opcji jest zgodny z następnym `applySessionChange`; raport nie wymaga
+nowej rewizji planu. Kolejny raport unieważnia starsze opcje. Retry zwraca zapisany wynik także po
+zamknięciu; ID innego polecenia/sesji jest odrzucane. Błąd raportu/outcomes/ledger cofa całą transakcję.
+Dotychczasowy `recordFeelV2` współdzieli zapis, waliduje payload i też podnosi history revision.
+
+Akceptacja redukcji przechodzi przez P4b.4 i zachowuje wymagane stare recepty oraz dyspozycje.
+Zamiana na łatwiejszy wariant dodaje `trace.evidence.reducedFrom` także do nowej ekspozycji, więc
+obie strony zmiany mają `USER_REDUCED`. Kwalifikacja nie daje awansu ani porażki/licznika regresu.
+Samo odczucie bez przyjętej redukcji pozostaje wyłącznie sygnałem dla istniejących reguł P3.
+Dowody: `feel.test.ts` (T71/T72/T105) i dodatkowe przypadki `sqlite-check-session-changes.cjs`.
+Teksty PL pozostają P4b.6, podłączenie UI/głosu/AI — P5.
 
 ## 5. Konwencje testów
 
