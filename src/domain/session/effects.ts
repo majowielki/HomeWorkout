@@ -6,7 +6,7 @@ import { isPerformed } from '../observations/qualify';
 import { avoidedOn, isTrainingDay, TRAIN_DAILY } from '../plan/constraints';
 import { DAY_V2_CONFIG, painToday, weekWork } from '../plan/dayV2';
 import type { AuditDay } from '../plan/audit';
-import { checkSelection } from '../plan/dayPlanner';
+import { checkSelection } from '../plan/selectionGuard';
 import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
 import { phaseOfV2 } from '../plan/blockV2';
 import { BASE_POLICY, resolveDayPolicy } from '../policy/dayPolicy';
@@ -125,8 +125,8 @@ function tomorrowEffect(
   const check = (plan: SessionPlanV2) =>
     checkSelection(
       stored,
-      { ...snap, asOf: stored.date, sessions: [] },
-      policy.planner,
+      { ...snap, asOf: stored.date },
+      { ...policy.planner, maxDirectSetsPerMuscleDay: DAY_V2_CONFIG.maxDirectSetsPerMuscleDay },
       policy.training,
       facts(plan),
     );

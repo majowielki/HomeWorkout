@@ -1,128 +1,97 @@
-import exercisesJson from '@data/exercises.json';
-import slotsJson from '@data/slots.json';
-import { slotCatalogueSchema } from '@data/slots.schema';
 import type { CoachSource } from '@/ai/context/source';
 import type { ToolEnvironment } from '@/ai/tools/implementations';
-import { planToday } from '@/domain/plan/today';
-import { planCustom, slotsForFocus } from '@/domain/plan/extra';
-import { syncWeek } from '@/domain/plan/weekSync';
-import type { HistorySession } from '@/domain/progression/history';
-import { loadOfSet } from '@/domain/progression/load';
-import type { Exercise } from '@/domain/types';
-import { addDays } from '@/domain/time/trainingDate';
+import { syntheticWeekContext } from '@/ai/testing/plan';
 import {
+  describeWeek,
   describeDayOptions,
   previewPlanChange,
   proposeDayPreview,
-  summarizePlan,
+  summarizeDay,
   validateExtraQuestion,
   validatePlanIntent,
-} from '@/features/plan/coachPreview';
-import type { PlanningSnapshot } from '@/features/plan/planningSnapshot';
+  type WeekContext,
+} from '@/ai/tools/planPreviewV2';
+import { advanceBlockV2 } from '@/domain/plan/blockV2';
+import { blockContextV2 } from '@/domain/plan/blockContext';
+import { isTrainingDay, TRAIN_DAILY } from '@/domain/plan/constraints';
+import { planDayV2 } from '@/domain/plan/dayV2';
+import { summaryOf } from '@/domain/plan/weekV2';
+import { DEFAULT_MODEL_CONTEXT } from '@/domain/resistance/registry';
 
-/** Same engine and preview functions as the phone, against synthetic rows. No write capability. */
+/** Same planner and previews as the phone, with no write capability. */
 export function syntheticPlanningTools(
   source: CoachSource,
   question: string,
 ): Pick<ToolEnvironment, 'week' | 'proposeChange' | 'proposeExtra' | 'dayOptions' | 'proposeDay'> {
-  const catalog: Record<string, Exercise> = Object.fromEntries(
-    (exercisesJson.exercises as Exercise[]).map((e) => [
-      e.id,
-      { ...e, name: source.exercises.find((row) => row.id === e.id)?.name ?? e.name },
-    ]),
-  );
-  const slots = slotCatalogueSchema.parse(slotsJson).slots;
-  const sessions: HistorySession[] = source.completedWorkouts
-    .filter((w) => w.trainingDate <= source.asOf)
-    .sort((a, b) => a.trainingDate.localeCompare(b.trainingDate))
-    .map((w) => ({
-      date: w.trainingDate,
-      sets: source.sets
-        .filter((set) => set.workoutId === w.id)
-        .map((set) => ({
-          exerciseId: set.exerciseId,
-          isWarmup: set.isWarmup,
-          reps: set.reps,
-          timeSec: set.timeSec,
-          rir: set.rir,
-          load: loadOfSet(set),
-        })),
-    }));
-  const plannerSource: PlanningSnapshot['source'] = {
-    asOf: source.asOf,
-    catalog,
-    profile: { knee: source.knee },
-    excludedIds: [],
-    sessions,
-    lastSessionDate: sessions.at(-1)?.date ?? null,
-    rides: [],
-    daily: [...source.dailyLogs],
-    calibrations: {},
-  };
-  const input = {
-    ...plannerSource,
-    slots,
-    eligibility: { profile: plannerSource.profile, excludedIds: new Set<string>() },
-    block: null,
-  };
-  const { advance } = planToday(input);
-  const s: PlanningSnapshot = {
-    source: plannerSource,
-    current: null,
-    advance,
-    input: {
-      ...input,
-      block: advance.block,
-      stored: [],
-      trainedDates: new Set(sessions.map((session) => session.date)),
-      week: { restWeekdays: [] },
-      constraints: [],
-    },
-  };
-  s.input.stored = syncWeek(s.input).rows;
-  const planner = { ...s.input, block: advance.block };
+  let cached: WeekContext | undefined;
+  const contextOf = () => (cached ??= syntheticWeekContext(source));
   return {
     async week() {
-      const sync = syncWeek(s.input);
-      return {
-        asOf: source.asOf,
-        days: Array.from({ length: 7 }, (_, i) => {
-          const date = addDays(source.asOf, i);
-          const row = sync.rows.find((d) => d.date === date);
-          return summarizePlan(
-            s,
-            date,
-            row?.forecast ?? null,
-            s.input.trainedDates.has(date) ? 'done' : 'planned',
-            !s.input.trainedDates.has(date) && !row?.forecast,
-          );
-        }),
-      };
+      return describeWeek(contextOf(), null);
     },
     async proposeChange(intent) {
-      const invalid = validatePlanIntent(intent, question);
-      return invalid ?? previewPlanChange(s, intent, 'eval-plan-proposal').summary;
+      return (
+        validatePlanIntent(intent, question) ??
+        previewPlanChange(contextOf(), intent, 'eval-plan-proposal').summary
+      );
     },
     async proposeExtra({ focusMuscles }) {
       const invalid = validateExtraQuestion(question);
       if (invalid) return invalid;
-      if (!s.input.trainedDates.has(source.asOf)) return { error: 'finish_first' };
-      const plan = planCustom(planner, slotsForFocus(planner, focusMuscles));
-      return plan.exercises.length
-        ? {
-            kind: 'extra',
-            requiresAcceptance: true,
-            proposalId: 'eval-extra-proposal',
-            focusMuscles,
-            day: summarizePlan(s, source.asOf, plan),
-          }
-        : { error: 'no_plan' };
+      const context = contextOf();
+      if (!context.trainedDates.has(context.asOf)) return { error: 'finish_first' };
+      if (!isTrainingDay(context.asOf, context.week ?? TRAIN_DAILY, context.constraints ?? []))
+        return { error: 'rest_day' };
+      const advance = advanceBlockV2(
+        context.block,
+        blockContextV2({
+          ...context,
+          models: context.models ?? DEFAULT_MODEL_CONTEXT,
+          recentBlocks: [],
+          deloadRequested: false,
+        }),
+      );
+      const only = context.slots
+        .filter(
+          (s) =>
+            s.kind !== 'filler' &&
+            context.catalog[advance.block.selections[s.id]!]?.primaryMuscles.some((m) =>
+              focusMuscles.includes(m),
+            ),
+        )
+        .map((s) => ({ slotId: s.id }));
+      const output = planDayV2({
+        ...context,
+        block: advance.block,
+        only,
+        session: {
+          sessionId: 'eval-extra',
+          planRevision: 1,
+          kind: 'extra',
+          versions: context.versions,
+          snapshotFingerprint: context.snapshotFingerprint,
+          inputFingerprint: context.snapshotFingerprint,
+        },
+      });
+      if (!('plan' in output.result) || output.result.plan.exposures.length === 0)
+        return { error: 'no_plan' };
+      const plan = output.result.plan;
+      return {
+        kind: 'extra',
+        requiresAcceptance: true,
+        proposalId: 'eval-extra-proposal',
+        focusMuscles,
+        day: summarizeDay(context, context.asOf, {
+          forecast: plan,
+          summary: summaryOf(output, plan, false, advance.block.index),
+        }),
+      };
     },
     async dayOptions({ daysAhead }) {
-      return describeDayOptions(s, daysAhead);
+      return describeDayOptions(contextOf(), daysAhead);
     },
     async proposeDay(intent) {
-      const result = proposeDayPreview(s, intent, question, 'eval-day-proposal');
+      const result = proposeDayPreview(contextOf(), intent, question, 'eval-day-proposal');
       return 'error' in result ? result.error : result.preview.summary;
     },
   };

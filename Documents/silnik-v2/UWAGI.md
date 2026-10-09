@@ -300,3 +300,10 @@ Usunięte założenie starych testów „zawsze Ciężko” nie opisuje już apl
 - Karta zmiany sesji jest akceptowana kanałem `ai_proposal` (kanał zapisany w istniejącym kontrakcie), wyłącznie po przycisku użytkownika. Nowe pytanie, inna rewizja lub zmiana sesji uniemożliwia zastosowanie dawnej karty. Spóźnione narzędzie nie może odtworzyć karty po rozpoczęciu nowej rozmowy.
 - Cztery nieaktualne przypadki SQLite wywoływały usunięte API loggera albo oczekiwały tygodnia v1 w kalendarzu. Zastąpione dowodami aktualnych odczytów i zachowania backupu historycznej serii; usunięte metody nie zostały przywrócone.
 - Bez resetu i bez wdrożenia. Pełne sprzątanie starego silnika, migracja nazw/tabel i test urządzenia są następnym fragmentem P6. Worker i APK nadal mają być wdrożone razem dopiero po jego zamknięciu.
+### P6 — porządki w punktach integracji planowania (2026-10-09)
+
+Syntetyczne dzienniki ewaluacji nie zawierają zamrożonych recept. Są więc pracą supplemental (objętość/regeneracja), a nie pierwotnymi ekspozycjami dla progresji. Adapter nie wymyśla planowanych celów na podstawie wyniku. Przy usuwaniu pozostałych typów starego planu trzeba zachować minimalne dane dawnych sesji i kopii zapasowych.
+
+Ocena jutra nie korzysta już z `dayPlanner`. Przeniesiony strażnik używa fazy bloku bieżącego silnika i jego limitu 3 serii na mięsień w dniu, zamiast dawnego limitu 2. Testy sprawdzają kwalifikację, zmianę wyboru/fazy/żądania, zakwasy, projekcję regeneracji, pracę lekką i mobilność oraz oba budżety.
+
+Usunięte prompty `chat/v1`–`chat/v6` nie mają już odbiorców w produkcji; obecny prompt to `chat/v7`. Historyczne metadane wymian (np. wpisane wersje promptów w zapisanych rekordach) nadal mogą opisywać wcześniejsze odpowiedzi i nie wymagają plików dawnych promptów.

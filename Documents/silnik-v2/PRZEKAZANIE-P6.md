@@ -35,7 +35,7 @@ Gałąź: **`refactor/engine-p6-activation`**, nadal niescalona. Kontynuacja 202
 - Kalendarz czyta `planned_days_v2`; dawne sesje mają tytuł z minimalnych danych planu albo nazwę zastępczą. Szablony nie są już ładowane do ekranu „Dziś” ani kalendarza. Zakwasy odświeżają tydzień przez `weekPlanV2.syncWeek`.
 - Sesja dodatkowa: opcje z `planDayV2` na wspólnym bilansie dnia, podgląd przez `previewDay({kind:'extra', only})`, start przez `acceptDay`. Sprawdzane ukończenie dnia, dzień wolny, zmiana daty i konflikt recepty; błąd podglądu daje ponowny odczyt.
 - Czat korzysta wyłącznie z kontrolera `app-services/coach/proposalsV2`. Narzędzia sesji i symulacji podłączone do telefonu. Karta sesji ma polskie zdania `assessmentText`, stosuje oceniony patch w transakcji i wygasa po nowym poleceniu/pytaniu. Spóźniony wynik narzędzia nie tworzy karty dla nowej rozmowy. Odczyt jutra w `sessionChangeSource` korzysta z nowego tygodnia.
-- `closeSessionV2` oznacza główny dzień w nowym tygodniu; zamknięcie sesji dodatkowej nie zmienia tego statusu. Licznik historii pomija wyniki cofnięte. Usunięte: `computeToday`, dawny kontroler czatu i ich nieaktualne testy. `planningSnapshot` / `coachPreview` nadal są używane przez ewaluacje i czekają na ich migrację.
+- `closeSessionV2` oznacza główny dzień w nowym tygodniu; zamknięcie sesji dodatkowej nie zmienia tego statusu. Licznik historii pomija wyniki cofnięte. Usunięte: `computeToday`, dawny kontroler czatu i ich nieaktualne testy. `planningSnapshot` / `coachPreview` zostały również usunięte po migracji ewaluacji.
 ### Zrobione w P6 (commity `dc5038d`, `f6e673a`)
 
 Domena (100% pokrycia, testy zielone):
@@ -71,13 +71,14 @@ Testy sesji zostały przepisane i odebrane w `01c2b67`; `GroupDoneCard` zachowa�
 
 Punkty 1–4 poprzedniej listy (testy sesji oraz konsumenci UI/czatu) wykonane — szczegóły powyżej.
 
-Przed usuwaniem domeny trzeba jeszcze przepisać **ewaluacje i syntetyczny planner** (`evals/chat/planning.ts`, `src/ai/testing/plan.ts`) na obecny silnik oraz usunąć fallback v1 z `ai/tools/implementations.ts`. `session/effects.ts` nadal używa `dayPlanner.checkSelection` do oceny jutra; źródło danych jest już nowe, ale ten wspólny strażnik wymaga przeniesienia/przepisania przed usunięciem starego plannera. Część skryptów SQLite wciąż testuje dawne repozytoria: zachować dowody odczytu i backupu starych danych, usunąć testy tworzenia sesji/tygodnia v1 wraz z martwym API. Obsługę dawnych sesji `in_progress` przy aktywacji należy sprawdzić przy sprzątaniu i migracji (bez kasowania historii).
+Ewaluacje i syntetyczny planner (`evals/chat/planning.ts`, `src/ai/testing/plan.ts`) korzystają już z obecnego silnika. Fallback v1 w `ai/tools/implementations.ts` jest usunięty, razem z `PlanLookup` i dawnym polem środowiska `plan`. Strażnik jutra jest w `domain/plan/selectionGuard.ts`; `session/effects.ts` nie importuje już `dayPlanner`. Strażnik i adapter syntetyczny mają 100% pokrycia. Dawne prompty `chat/v1–v6` i ich testy usunięte; telefon i Worker korzystają z `chat/v7`. Graf osiągalności został odtworzony skryptem `D:/Projekty/HomeWorkout/p6-reachability.cjs` (w korzeniach są również ewaluacje, aby nie przeoczyć ich zależności).
+Część skryptów SQLite wciąż testuje dawne repozytoria: zachować dowody odczytu i backupu starych danych, usunąć testy tworzenia sesji/tygodnia v1 wraz z martwym API. Obsługę dawnych sesji `in_progress` przy aktywacji należy sprawdzić przy sprzątaniu i migracji (bez kasowania historii).
 5. **Usunięcie starego silnika** (po przepięciu wszystkich konsumentów; do znalezienia martwego kodu użyć skryptu
    osiągalności od `app/**`, `worker/src/**`, `scripts/validate-data.ts` — graf importów jest w scratchpadzie sesji,
    łatwo napisać od nowa): `domain/plan/{dayPlanner,week,weekSync,block,blockVariant,compose,validatePlan,simulate,today,
    reactiveDeload,sets(v1?),…}`, `domain/progression/*` używane tylko przez v1, `domain/session/steps.ts`, repozytoria
    `weekPlan.ts`, `plannerSource.ts`, `templates.ts`, `workouts.ts` (start*/complete*/abandonWorkout/find*), `engineMigration.ts`
-   + `lib/engineMigration.ts` (reset niepotrzebny), prompty `ai/prompts/chat/v1–v6` i ich testy, słowniki v1 w `strings/pl.ts`
+   + `lib/engineMigration.ts` (reset niepotrzebny), słowniki v1 w `strings/pl.ts`
    (`progression`, `skip`, `day`, `bike`, `signal`, `blockEvent`, `validation`, `targetEffort` jeśli nieużywane…),
    `scripts/{simulate-plan,engine-baseline,engine-bench}.ts`, golden baseline (`Documents/silnik-v2/baseline`),
    `DEFAULT_EFFORT_RIR` w `voice/parameters.ts` (już nieużywane), `estimatedPeakKg` itp.
@@ -123,3 +124,5 @@ npx jest src/domain/__tests__/progress.test.ts src/domain/__tests__/setEntry.tes
 
 
 Odbiór kontynuacji: `npm run verify` — 187 zestawów / 4129 testów / 9 snapshotów, pokrycie domeny i AI 100%; Worker 5 zestawów / 143 testy. Test emulatora i wdrożenie pozostają po sprzątaniu P6.
+
+Aktualny odbiór po odłączeniu ewaluacji/strażnika i usunięciu dawnych promptów: `npm run verify` — **183 zestawy, 4018 testów, 9 snapshotów, domena/AI 100%**; Worker **143 testy**. Stan w głównym opisie powyżej jest aktualny; wcześniejsze liczby opisują wcześniejszy checkpoint.

@@ -138,13 +138,13 @@ describe('simulateProposal, the phone side', () => {
           ],
         }),
       },
-      { load: undefined as never, plan: undefined as never, simulate },
+      { load: undefined as never, simulate },
     );
     expect(result.output).toMatchObject({ horizonDays: 7, athlete: 'follows_plan' });
     // Without a phone side the tool says it failed, like the others.
     const missing = await executeTool(
       { id: 'c2', name: 'simulateProposal', input: ask({ kind: 'policy_change' }) },
-      { load: undefined as never, plan: undefined as never },
+      { load: undefined as never },
     );
     expect(missing.output).toEqual({ error: 'failed' });
   });

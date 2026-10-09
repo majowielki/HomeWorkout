@@ -51,6 +51,7 @@ export async function runChatCase(
   if ('error' in stepper) return failed(stepper.error);
 
   const { source, facts } = prepareChatCase(evalCase);
+  const planning = syntheticPlanningTools(source, evalCase.question);
   let requests = 0;
   let ids = 0;
   const deps: TurnDeps = {
@@ -65,9 +66,9 @@ export async function runChatCase(
     },
     executeTool: (call) =>
       executeTool(call, {
-        ...syntheticPlanningTools(source, evalCase.question),
+        ...planning,
         load: async () => source,
-        plan: async (daysAgo) => syntheticPlan(source, daysAgo),
+        explainPlan: async ({ daysAgo }) => syntheticPlan(source, daysAgo),
       }),
     newRequestId: () => `eval-${evalCase.id}-${(ids += 1)}`.slice(0, 64).padEnd(8, '0'),
     now,
