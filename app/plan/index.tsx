@@ -12,6 +12,7 @@ import { volumeTargets } from '@/domain/policy/dayPolicy';
 import { planTitle, prescriptionText } from '@/features/plan/format';
 import { SLOT_BY_ID } from '@/features/plan/slots';
 import { usePlanToday } from '@/features/plan/usePlanToday';
+import { VolumeCards } from '@/features/plan/VolumeCards';
 import { VolumeMeter } from '@/features/plan/VolumeMeter';
 import { PlanningFeedback } from '@/features/plan/PlanningFeedback';
 import { useExerciseMap } from '@/features/workout/useExerciseMap';
@@ -172,6 +173,7 @@ export default function PlanScreen() {
           {pl.plan.sections.volumeHint(targets.weekly.min)}
         </Text>
         <VolumeMeter volume={volume} targets={targets} />
+        <VolumeCards onChanged={() => void today.reload()} />
       </Card>
       <RecalculateButton today={today} />
     </ScrollView>

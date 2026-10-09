@@ -433,6 +433,71 @@ const CASES = [
       assert.equal(accept('compose-start', day).kind, 'committed');
     },
   ],
+  [
+    'the volume lever offers a new weekly maximum and takes it only when it is still the one on offer (D32)',
+    async () => {
+      await seeded();
+      const { readToday } = require('../../features/plan/today.ts');
+      const { readVolumeCards, acceptVolumeCard } = require('../repositories/volumeLever.ts');
+      // A first day of training two days before: the muscles have been trained for more than a day.
+      const earlier = new Date(2026, 9, 3, 9, 0, 0);
+      const first = previewDay(request('lever-first'), earlier);
+      assert.equal(
+        acceptDay(
+          {
+            commandId: 'lever-first',
+            request: first.request,
+            expectedPlanHash: first.planHash,
+            timeZone: 'Europe/Warsaw',
+          },
+          earlier,
+        ).kind,
+        'committed',
+      );
+      doTheSession(ready(first), earlier);
+      const today = readToday(undefined, NOW);
+      assert.equal(
+        acceptDay(
+          {
+            commandId: 'lever-start',
+            request: today.preview.request,
+            expectedPlanHash: today.preview.planHash,
+            timeZone: 'Europe/Warsaw',
+          },
+          NOW,
+        ).kind,
+        'committed',
+      );
+      doTheSession(today.plan, NOW);
+      assert.deepEqual(readVolumeCards(LATER), []);
+      // Three nights of poor sleep, in the middle of training: recovery is low, and less is offered.
+      for (const date of ['2026-10-03', '2026-10-04', '2026-10-05']) {
+        current.native
+          .prepare(
+            'INSERT INTO daily_logs (date, sleep_hours, energy, updated_at) VALUES (?, 4, 2, ?)',
+          )
+          .run(date, LATER.toISOString());
+      }
+      const cards = readVolumeCards(LATER);
+      const card = cards.find((c) => c.change === 'decrease');
+      assert.ok(card, JSON.stringify(cards));
+      const before = Object.fromEntries(
+        all('SELECT domain, revision FROM planning_revisions').map((r) => [r.domain, r.revision]),
+      );
+      assert.equal(acceptVolumeCard({ muscle: card.muscle, toMax: card.toMax + 1 }, LATER), false);
+      assert.equal(all('SELECT * FROM preferences').length, 0);
+      assert.equal(acceptVolumeCard(card, LATER), true);
+      const saved = JSON.parse(all('SELECT data FROM preferences')[0].data);
+      assert.equal(saved.volumeOverrides[card.muscle], card.toMax);
+      const after = Object.fromEntries(
+        all('SELECT domain, revision FROM planning_revisions').map((r) => [r.domain, r.revision]),
+      );
+      assert.ok(after.preferences > (before.preferences ?? 0));
+      // The new maximum is where the next reading starts from.
+      const again = readVolumeCards(LATER).find((c) => c.muscle === card.muscle);
+      assert.ok(!again || again.fromMax === card.toMax);
+    },
+  ],
 ];
 
 async function main() {

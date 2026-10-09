@@ -625,6 +625,22 @@ export const pl = {
         `Serie, w których partia pracuje jako główna. Norma: od ${min} do maksimum partii.`,
       changes: 'Poprawki bezpieczeństwa',
     },
+    /** The volume lever (D32): a new weekly maximum of sets for a muscle, offered and never imposed. */
+    volumeLever: {
+      moreTitle: (muscle: string) => `${muscle}: więcej serii w tygodniu?`,
+      lessTitle: (muscle: string) => `${muscle}: mniej serii w tygodniu?`,
+      reason: {
+        STALLED_WELL_RECOVERED:
+          'Kluczowe ćwiczenia tej partii od kilku treningów stoją w miejscu, a regeneracja jest dobra.',
+        RECOVERY_LOW: 'Regeneracja jest ostatnio słaba.',
+        FREQUENT_SORENESS: 'Ta partia często mocno boli po treningu.',
+      },
+      change: (from: number, to: number) => `Tygodniowe maksimum: ${from} → ${to} serii.`,
+      raise: 'Zwiększ',
+      lower: 'Zmniejsz',
+      notNow: 'Nie teraz',
+      error: 'Nie udało się zmienić maksimum. Spróbuj ponownie.',
+    },
     region: {
       lower: 'nogi',
       push: 'pchanie',
