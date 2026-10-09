@@ -222,6 +222,14 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Karta propozycji (`SessionProposal`) istnieje jako dane; ekran karty w czacie i podpięcie `createPhoneSessionTools` do `useCoachChat` czekają na etap UI (decyzja: UI bez zmian).
 - Przypadki ewaluacji dla narzędzi sesji (`evals/cases/chat`) wymagają syntetycznej sesji v2 w środowisku ewaluacji i nagrania na żywym modelu — do zrobienia przy testach na działającej aplikacji.
 
+### 2m. P5.6b — symulacja i adnotacje (2026-10-09)
+
+- Spec. 11 §13 każe Workerowi odrzucać wywołanie narzędzia propozycji bez `proposalId`. Obecne narzędzia propozycji nie przyjmują `proposalId` od modelu (powstaje po stronie telefonu, a powtórka daje tę samą
+  kartę), więc adnotacje są deklaracją i testem kształtu, nie egzekwowaną regułą Workera. Egzekwowanie wymaga zmiany protokołu (wspólne wdrożenie, razem z kontraktem 7).
+- Ostrzeżenia symulacji obejmują przekroczenie tygodniowego maksimum (z uwzględnieniem wyższego limitu pośladków i pleców). Brak „poniżej minimum” w rejestrze kodów: model czyta je z liczb (`musclesWeek` vs `min`).
+  Przekroczenia czasu dnia nie raportuję, bo prognoza z konstrukcji mieści się w budżecie dnia.
+- Symulacja używa `observed_trend` tylko do powtórzeń; wysiłek (RIR) zostaje na dole celu. Wystarczy na rekomendację „czy dodanie X zmieni tydzień”, nie na przewidywanie siły.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

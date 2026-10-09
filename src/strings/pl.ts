@@ -1004,6 +1004,7 @@ export const pl = {
         getActiveSession: 'Sprawdzam trwający trening…',
         assessSessionChange: 'Silnik ocenia zmianę w treningu…',
         proposeSessionChange: 'Przygotowuję propozycję zmiany…',
+        simulateProposal: 'Sprawdzam skutki zmiany w kolejnych dniach…',
       } satisfies Record<ToolName, string>,
       proposal: {
         plan: 'Propozycja zmiany planu',

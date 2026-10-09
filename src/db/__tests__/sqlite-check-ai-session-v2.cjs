@@ -8,6 +8,8 @@ const { loadActiveSessionSource } = require('../repositories/sessionChangeSource
 const { createSessionToolHooks } = require('../../ai/tools/sessionEnvironment.ts');
 const { executeTool } = require('../../ai/tools/execute.ts');
 const { doTheSession } = require('./sqlite-day-helpers.cjs');
+const { loadSimulationBase } = require('../repositories/weekPlanV2.ts');
+const { createSimulationHook } = require('../../ai/tools/simulationEnvironment.ts');
 
 const at = (h, m = 0) => new Date(2026, 9, 5, h, m, 0);
 
@@ -179,7 +181,54 @@ const CASES = [
       assert.equal(refused.code, 'ACK_REQUIRED');
     },
   ],
+  [
+    'the model checks a rest day against the week as it stands, and nothing is written',
+    async () => {
+      await seeded();
+      const before = tables();
+      const out = await simulation()({
+        proposal: {
+          kind: 'week_change',
+          constraints: [
+            { kind: 'rest_day', muscles: [], fromDaysAhead: 2, days: 1, reason: 'busy' },
+          ],
+        },
+        horizonDays: 7,
+        athlete: 'follows_plan',
+      });
+      assert.equal(out.baseline.minutesPerDay.length, 7);
+      assert.ok(out.baseline.minutesPerDay[2] > 0);
+      assert.equal(out.withProposal.minutesPerDay[2], 0);
+      assert.ok(out.diff.daysChanged.includes('2026-10-07'));
+      assert.equal(tables(), before);
+      assert.equal(all('SELECT * FROM planned_days_v2').length, 0, 'a forecast is not stored');
+    },
+  ],
+  [
+    'the model checks a change to the workout under way against the days after it',
+    async () => {
+      const plan = await running();
+      const out = await simulation()({
+        proposal: {
+          kind: 'session_change',
+          change: { kind: 'skip_remaining', exposureId: plan.exposures[0].id },
+        },
+        horizonDays: 7,
+        athlete: 'observed_trend',
+      });
+      assert.ok(['ok', 'ok_with_changes'].includes(out.verdict), JSON.stringify(out));
+      assert.equal(out.baseline.minutesPerDay.length, 7);
+      // Today is taken by the workout under way: the horizon starts tomorrow.
+      assert.ok(out.diff.daysChanged.length > 0 || out.diff.musclesWeek.length > 0);
+    },
+  ],
 ];
+
+const simulation = () => {
+  const simulate = createSimulationHook(() => loadSimulationBase(at(9, 30)));
+  return (input) =>
+    executeTool({ id: 'sim', name: 'simulateProposal', input }, { simulate }).then((r) => r.output);
+};
 
 /** Does one set of the first exposure, so that the workout is under way with some work done. */
 function doTheSessionPart(plan) {

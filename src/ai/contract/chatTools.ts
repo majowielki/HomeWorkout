@@ -44,6 +44,7 @@ import {
   sessionChangeInputSchema,
   sessionProposalSummarySchema,
 } from './sessionTools';
+import { simulateInputSchema, simulateOutputSchema } from './simulationTools';
 
 export const TOOL_NAMES = [
   'getRecentSessions',
@@ -60,6 +61,7 @@ export const TOOL_NAMES = [
   'getActiveSession',
   'assessSessionChange',
   'proposeSessionChange',
+  'simulateProposal',
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -476,7 +478,39 @@ export const CHAT_TOOLS = {
     }),
     output: sessionProposalSummarySchema,
   },
+  simulateProposal: {
+    description:
+      "Check what a proposal would do to the coming days, with the same planner that makes the plan, before suggesting it: a week change (rest day, lighter day, a muscle left out), a change of the person's sets per exercise or volume profile, or a change to the workout under way. It returns the plan as it stands and the plan with the proposal side by side (sets per muscle against its minimum and maximum, minutes per day, expected steps up in resistance, expected trial sets, whether a deload comes) and their difference, and the engine's warnings. It is a forecast that assumes the person does what is planned (follows_plan) or what the last four weeks suggest (observed_trend). Nothing is saved. Before a week or policy proposal, call it and quote one or two figures from the difference; never present the forecast as a promise.",
+    input: simulateInputSchema,
+    output: simulateOutputSchema,
+  },
 } as const satisfies Record<ToolName, { description: string; input: z.ZodType; output: z.ZodType }>;
+
+/**
+ * What a tool does to the world (11 §13): the ones that only look, and the ones that put a proposal in
+ * front of the person. No tool of the chat changes anything on its own; a proposal needs the person's
+ * acceptance on the phone, and asking again after a timeout gives the same card.
+ */
+export const TOOL_ANNOTATIONS: Record<
+  ToolName,
+  { readOnly: boolean; proposal: boolean; idempotent: boolean }
+> = {
+  getRecentSessions: { readOnly: true, proposal: false, idempotent: true },
+  getExerciseHistory: { readOnly: true, proposal: false, idempotent: true },
+  getWeeklyVolume: { readOnly: true, proposal: false, idempotent: true },
+  getBodyTrend: { readOnly: true, proposal: false, idempotent: true },
+  findExercises: { readOnly: true, proposal: false, idempotent: true },
+  getPlanExplanation: { readOnly: true, proposal: false, idempotent: true },
+  getWeekPlan: { readOnly: true, proposal: false, idempotent: true },
+  getDayOptions: { readOnly: true, proposal: false, idempotent: true },
+  getActiveSession: { readOnly: true, proposal: false, idempotent: true },
+  assessSessionChange: { readOnly: true, proposal: false, idempotent: true },
+  simulateProposal: { readOnly: true, proposal: false, idempotent: true },
+  proposePlanChange: { readOnly: false, proposal: true, idempotent: true },
+  proposeExtraSession: { readOnly: false, proposal: true, idempotent: true },
+  proposeDayPlan: { readOnly: false, proposal: true, idempotent: true },
+  proposeSessionChange: { readOnly: false, proposal: true, idempotent: true },
+};
 
 export type ToolInput<N extends ToolName> = z.infer<(typeof CHAT_TOOLS)[N]['input']>;
 export type ToolOutput<N extends ToolName> = z.infer<(typeof CHAT_TOOLS)[N]['output']>;

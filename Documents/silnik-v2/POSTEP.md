@@ -233,7 +233,8 @@ dostępny jako serwisy aplikacji sprawdzone na prawdziwym SQLite. Dzięki temu k
 | P5.4c | Odpowiedzi na pytania recepty (`CONFIRM_STEP_UP`, wariant łatwiejszy): tabela `prescription_answers` (migracja 0012), `answerPrescription`, odczyt do planowania | T86: `sqlite-check-answers-v2.cjs` (7 przypadków) | ☑ |
 | P5.4d | Podłączenie loggera/głosu do ekranów (P2.4/P2.9 UI) | — | ⏸ po zakończeniu silnika (decyzja: UI bez zmian) |
 | P5.6a | Kontrakt 7: narzędzia `getActiveSession`, `assessSessionChange`, `proposeSessionChange`, błędy `no_active_session` / `stale_assessment`, kody decyzji w powodach recepty; prompt `chat/v7` (reguły sesji, słownik kodów generowany z rejestrów); implementacje i środowisko telefonu; Worker na `chat/v7` | `sessionTools.test.ts` (100%), `chatV7.test.ts`, `sqlite-check-ai-session-v2.cjs` (6 przypadków: model → karta → `applySessionChange`), testy Workera 143 ✔ | ☑ (kod; **wdrożenie Workera razem z APK po zakończeniu silnika**) |
-| P5.6b | `simulateProposal` (11 §13) i adnotacje narzędzi; narzędzia v2 dla planu/tygodnia/wyjaśnień (`getPlanExplanation`, `getWeekPlan` czytają v2); przypadki ewaluacji; zgodność klient N/N−1 | | ☐ |
+| P5.6b | `simulateProposal` (11 §13): domena (`session/simulateProposal.ts`: zmiana tygodnia, polityki albo trwającego treningu, baseline vs z propozycją, trend z 4 tygodni), narzędzie kontraktu 7 z adnotacjami (`TOOL_ANNOTATIONS`), środowisko telefonu, `loadSimulationBase`, reguły w `chat/v7` | `simulateProposal.test.ts` (12), `simulationTools.test.ts`, 2 przypadki SQLite | ☑ |
+| P5.6c | Narzędzia planu/tygodnia/wyjaśnień czytają v2 (`getPlanExplanation`, `getWeekPlan`, `getDayOptions`, `proposePlanChange`…); przypadki ewaluacji; zgodność klient N/N−1 | | ☐ |
 | P5.7 | Ekrany historii i kopia zapasowa czytają v2; ustawienia → Preferencje; „Zamienniki”, „Dodaj ćwiczenie” w sesji | T52–T55 + przepływ na telefonie | ☐ |
 
 ## P6–P9
@@ -245,6 +246,7 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P5.6b gotowe**: `simulateProposal` (domena, narzędzie, SQLite), adnotacje narzędzi. `verify`: 4094 testy, 183 zestawy, domena i AI 100%; Worker 143 ✔ | |
 | 2026-10-09 | **P5.6a gotowe** (kontrakt 7 i prompt `chat/v7`, bez wdrożenia): model czyta trwający trening, pyta silnik o zmianę i kładzie kartę; akceptacja przez `applySessionChange`. `verify`: 4068 testów, 181 zestawów, domena i AI 100% | |
 | 2026-10-09 | **P5.4a–c, P5.5b gotowe**: obserwacje z pochodzeniem (dotyk = głos), intencje głosowe sesji, odpowiedzi na pytania recepty zapisane i czytane przez planowanie dnia i tygodnia, sesja dodatkowa ze wspólnym bilansem. `verify`: 4003 testy, 179 zestawów, domena 100% | |
 | 2026-10-09 | **P5.1–P5.2 gotowe** (tydzień na v2, decyzja: przenieść): `planWeekV2`/`syncWeekV2`, wybór dnia trzymany (`DayInputV2.kept`), tabele tygodnia v2 (migracja 0011), serwis `weekPlanV2` na SQLite. UI bez zmian (decyzja: dopiero po zakończeniu implementacji silnika). `verify`: 3939 testów, domena 100% | |

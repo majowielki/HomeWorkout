@@ -30,7 +30,7 @@ describe('chat/v7', () => {
    * use it is a draft, and re-pinning this hash is how a change is made visible in review.
    */
   it('is pinned, so any change shows in review', () => {
-    expect(sha(chatInstructions())).toBe('b0e49657d3e760d2');
+    expect(sha(chatInstructions())).toBe('c43ee1b31fa916bc');
   });
 
   it('carries its version', () => {
@@ -137,6 +137,15 @@ describe('chat/v7', () => {
       expect(text).toContain('stale_assessment');
       expect(text).toContain('no_active_session');
       expect(text).toMatch(/never put a load or a number of repetitions in the request/);
+    });
+
+    it('checks a proposal with the simulation before suggesting it, and promises nothing', () => {
+      expect(text).toContain('<simulation_rules>');
+      expect(text).toMatch(
+        /call simulateProposal and quote one or two figures from its difference/,
+      );
+      expect(text).toMatch(/It is a forecast/);
+      expect(text).toMatch(/never promise a result/);
     });
 
     it('lets the model quote the prescription of an assessment and nothing else of the plan', () => {

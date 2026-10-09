@@ -129,7 +129,7 @@ function checkData(data: Record<string, number | string | boolean | null>) {
   );
 }
 
-const trimmedChecks = (checks: SessionChangeEvaluation['checks']) =>
+export const trimmedChecks = (checks: SessionChangeEvaluation['checks']) =>
   checks.slice(0, SESSION_LIMITS.checksShown).map((c) => ({
     code: c.code,
     class: c.class,

@@ -1,5 +1,6 @@
 import {
   CHAT_TOOLS,
+  TOOL_ANNOTATIONS,
   TOOL_ERRORS,
   TOOL_LIMITS,
   TOOL_NAMES,
@@ -200,6 +201,34 @@ const OUTPUTS: Record<ToolName, ToolResult['output']> = {
     patchId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
     acknowledge: ['DAY_MAX_EXCEEDED'],
   },
+  simulateProposal: {
+    horizonDays: 7,
+    athlete: 'follows_plan',
+    baseline: {
+      musclesWeek: [{ muscle: 'glutes', sets: 6, min: 3, max: 8 }],
+      minutesPerDay: [40, 0, 35],
+      expectedLoadSteps: 1,
+      expectedProbes: 0,
+      deloadTriggered: false,
+    },
+    withProposal: {
+      musclesWeek: [{ muscle: 'glutes', sets: 4, min: 3, max: 8 }],
+      minutesPerDay: [40, 0, 0],
+      expectedLoadSteps: 1,
+      expectedProbes: 0,
+      deloadTriggered: false,
+    },
+    diff: {
+      musclesWeek: [{ muscle: 'glutes', sets: -2 }],
+      minutesPerDay: [0, 0, -35],
+      expectedLoadSteps: 0,
+      expectedProbes: 0,
+      deloadTriggered: false,
+      daysChanged: ['2026-10-03'],
+    },
+    warnings: [],
+    verdict: null,
+  },
   getPlanExplanation: {
     date: '2026-10-01',
     source: 'today',
@@ -241,6 +270,14 @@ const INPUTS: Record<ToolName, ToolCall['input']> = {
   getBodyTrend: { days: 28 },
   findExercises: { query: 'wios' },
   getPlanExplanation: { daysAgo: 0 },
+  simulateProposal: {
+    proposal: {
+      kind: 'week_change',
+      constraints: [{ kind: 'rest_day', muscles: [], fromDaysAhead: 2, days: 1, reason: 'busy' }],
+    },
+    horizonDays: 7,
+    athlete: 'follows_plan',
+  },
   getActiveSession: {},
   assessSessionChange: { kind: 'add_sets', exposureId: 's1/r1/e1', sets: 1 },
   proposeSessionChange: {
@@ -315,6 +352,25 @@ describe('tool definitions', () => {
       CHAT_TOOLS.findExercises.input.safeParse({ query: 'a'.repeat(TOOL_LIMITS.queryChars + 1) })
         .success,
     ).toBe(false);
+  });
+
+  it('annotate every tool: the ones that look, and the ones that propose, none of which acts alone', () => {
+    expect(Object.keys(TOOL_ANNOTATIONS).sort()).toEqual([...TOOL_NAMES].sort());
+    const proposals = TOOL_NAMES.filter((n) => TOOL_ANNOTATIONS[n].proposal).sort();
+    expect(proposals).toEqual([
+      'proposeDayPlan',
+      'proposeExtraSession',
+      'proposePlanChange',
+      'proposeSessionChange',
+    ]);
+    for (const name of TOOL_NAMES) {
+      const a = TOOL_ANNOTATIONS[name];
+      expect(a.readOnly).toBe(!a.proposal);
+      expect(a.idempotent).toBe(true);
+    }
+    // Everything that reads the plan or the session, and the simulation, is read-only.
+    for (const name of ['getActiveSession', 'assessSessionChange', 'simulateProposal'] as const)
+      expect(TOOL_ANNOTATIONS[name].readOnly).toBe(true);
   });
 
   it('describe every tool to the model', () => {

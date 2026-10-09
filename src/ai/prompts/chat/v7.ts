@@ -28,7 +28,7 @@ import type { BuiltPrompt } from '../weeklySummary/v1';
 import { MEDICAL_REFERRAL } from '../weeklySummary/v1';
 import { serializeForPrompt } from '../serialize';
 import { SHORTFALL_GUIDE } from '../shortfallGuideV2';
-import { DECISION_GUIDE, SESSION_GUIDE, SESSION_RULES } from './sessionRules';
+import { DECISION_GUIDE, SESSION_GUIDE, SESSION_RULES, SIMULATION_RULES } from './sessionRules';
 
 export const CHAT_PROMPT_VERSION = 'chat/v7';
 
@@ -114,6 +114,7 @@ export function chatInstructions(): string {
     SPARSE_DATA_RULES,
     TOOL_RULES,
     SESSION_RULES,
+    SIMULATION_RULES,
     LOAD_RULES,
     DATA_GUIDE,
     SESSION_GUIDE,

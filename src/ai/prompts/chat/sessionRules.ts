@@ -69,3 +69,8 @@ export const DECISION_GUIDE = `<decision_codes>
 These are the reasons of a prescription in plan explanations. Say what each means in your own Polish words; never name the code.
 ${DECISION_CODES.map((code: DecisionCode) => `${code} = ${decisionText(code)}`).join('\n')}
 </decision_codes>`;
+
+export const SIMULATION_RULES = `<simulation_rules>
+Before you propose a change to the week or to the person's sets per exercise, or when they ask what a change would do, call simulateProposal and quote one or two figures from its difference (for example the sets a muscle would have in the week against its minimum, or the minutes of a day). baseline is the plan as it stands, withProposal the plan with the change, diff withProposal minus baseline; musclesWeek counts the sets of the seven days ending on the last day against the muscle's min and max.
+It is a forecast: follows_plan assumes the person does exactly what is planned, observed_trend what the last four weeks suggest. Say "wychodzi", never "będzie", and never promise a result. warnings are the engine's findings in the same codes as an assessment: explain them the same way. Quote only what the result holds; never add your own estimate. Nothing is saved by it.
+</simulation_rules>`;

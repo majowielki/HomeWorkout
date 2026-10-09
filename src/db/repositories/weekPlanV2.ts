@@ -23,6 +23,8 @@ import { addDays, trainingDate } from '@/domain/time/trainingDate';
 import { db, type Tx } from '../client';
 import { plannedDaysV2, planGenerationsV2, workouts } from '../schema';
 import { readDayBoundaryHour, readPlanningInputs } from './planningInputs';
+import { readSessionChangeSource } from './sessionChangeSource';
+import type { SimulationBase } from '@/domain/session/simulateProposal';
 import { readBlocks } from './trainingBlocks';
 
 export interface WeekSyncRequest {
@@ -51,17 +53,14 @@ function storedDays(tx: Tx, from: string, to: string): StoredDayV2[] {
     }));
 }
 
-/** Plans the week inside a transaction already open; writes nothing. */
-export function planWeekIn(tx: Tx, req: WeekSyncRequest, now: Date): WeekSyncOutcome {
+/**
+ * Everything the week is planned from, read in the caller's transaction: the days and the history,
+ * the block, the requests, the answers and the session of today when one is under way.
+ */
+export function readWeekBase(tx: Tx, now: Date, request: WeekSyncRequest['request'] = undefined) {
   const asOf = trainingDate(now, readDayBoundaryHour(tx));
   const { common, catalogVersion } = readPlanningInputs(tx, asOf);
   const { current, ended } = readBlocks(tx);
-  const back = addDays(asOf, -WEEK_CONFIG.lookBackDays);
-  const trained = tx
-    .select({ date: workouts.trainingDate })
-    .from(workouts)
-    .where(and(eq(workouts.status, 'completed'), gte(workouts.trainingDate, back)))
-    .all();
   const live = tx
     .select({ plan: workouts.planV2, planSchema: workouts.planSchema })
     .from(workouts)
@@ -69,33 +68,72 @@ export function planWeekIn(tx: Tx, req: WeekSyncRequest, now: Date): WeekSyncOut
     .get();
   const snapshot = fingerprint({
     ...common,
-    request: req.request ?? null,
+    request: request ?? null,
     block: current?.state ?? null,
   });
-  const result = syncWeekV2({
+  return {
     asOf,
-    catalog: common.catalog,
-    slots: common.slots,
-    eligibility: common.eligibility,
-    block: current?.state ?? null,
-    endedBlocks: ended,
-    records: common.records,
-    rides: common.rides,
-    daily: common.daily,
-    preferences: common.preferences,
-    models: common.models,
-    answers: common.answers,
-    constraints: common.constraints,
-    week: common.week,
-    running: live?.planSchema === 2 ? live.plan : null,
-    versions: planVersions(catalogVersion),
-    snapshotFingerprint: snapshot,
+    base: {
+      catalog: common.catalog,
+      slots: common.slots,
+      eligibility: common.eligibility,
+      block: current?.state ?? null,
+      endedBlocks: ended,
+      records: common.records,
+      rides: common.rides,
+      daily: common.daily,
+      preferences: common.preferences,
+      models: common.models,
+      answers: common.answers,
+      constraints: common.constraints,
+      week: common.week,
+      running: live?.planSchema === 2 ? live.plan : null,
+      versions: planVersions(catalogVersion),
+      snapshotFingerprint: snapshot,
+    },
+  };
+}
+
+/** Plans the week inside a transaction already open; writes nothing. */
+export function planWeekIn(tx: Tx, req: WeekSyncRequest, now: Date): WeekSyncOutcome {
+  const { asOf, base } = readWeekBase(tx, now, req.request);
+  const back = addDays(asOf, -WEEK_CONFIG.lookBackDays);
+  const trained = tx
+    .select({ date: workouts.trainingDate })
+    .from(workouts)
+    .where(and(eq(workouts.status, 'completed'), gte(workouts.trainingDate, back)))
+    .all();
+  const result = syncWeekV2({
+    ...base,
+    asOf,
     stored: storedDays(tx, back, addDays(asOf, WEEK_CONFIG.lookAheadDays)),
     trainedDates: new Set(trained.map((t) => t.date)),
     request: req.request,
     horizonDays: req.horizonDays,
   });
   return { result, asOf };
+}
+
+/**
+ * The base of a simulation (11 §13): the week as it stands, read fresh, with the stored days that
+ * still hold and, when a workout of engine v2 is under way, that workout.
+ */
+export function loadSimulationBase(now: Date = new Date()): SimulationBase {
+  return db.transaction((tx) => {
+    const { asOf, base } = readWeekBase(tx, now);
+    const kept = Object.fromEntries(
+      storedDays(tx, asOf, addDays(asOf, WEEK_CONFIG.lookAheadDays)).flatMap((d) =>
+        d.selection === null ? [] : [[d.date, d.selection]],
+      ),
+    );
+    const live = base.running === null ? null : readSessionChangeSource(tx, base.running);
+    return {
+      ...base,
+      asOf,
+      kept,
+      ...(live === null ? {} : { session: { snap: live.snap, state: live.session } }),
+    };
+  });
 }
 
 function writeWeek(

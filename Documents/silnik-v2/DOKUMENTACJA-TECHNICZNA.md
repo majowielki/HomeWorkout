@@ -92,12 +92,12 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `session/simulateProposal.ts`, `ai/contract/simulationTools.ts`, `ai/tools/simulationEnvironment.ts`, `weekPlanV2.loadSimulationBase` | 11 §13 | P5 | ☑ P5.6b; §4.27 |
 | `ai/contract/sessionTools.ts`, `ai/tools/{sessionSummary,sessionEnvironment}.ts`, `ai/prompts/chat/{v7,sessionRules}.ts`, `session/overview.ts`, `app-services/queries/sessionTools.ts` | 11 §8, 06 §4 | P5 | ☑ P5.6a; §4.26 |
 | `observations/entry.ts`, `voice/sessionIntent.ts`, `db/repositories/answers.ts`, migracja 0012 | 06 §1, §3, 13 §12 | P5 | ☑ P5.4; §4.25 |
 | `plan/weekV2.ts` (`planWeekV2`, `syncWeekV2`), `db/repositories/weekPlanV2.ts`, migracja 0011 | 04 §5, 06 §7 | P5 | ☑ P5.1–2; §4.24 |
 | `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
 | `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
-| `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
 
@@ -655,6 +655,19 @@ zatwierdzenie to istniejące `applySessionChange` z kanałem `ai_proposal` (pono
 **Prompt** `chat/v7` (v6 pozostaje nietknięte): blok `<session_rules>` (kiedy konsultować, werdykty, odpowiedź do 80 słów z liczbami z kontroli, nieznane ćwiczenie = silnik go nie
 ocenia, karta dopiero po „tak”, nic nie jest zrobione przez model), `<session_guide>` (znaczenie kodów kontroli i opcji) i `<decision_codes>` (zdanie `decisionText` dla każdego z 42 kodów).
 Wyjątek od zakazu cytowania obciążeń dotyczy wyłącznie recepty z `assessSessionChange`. Worker deklaruje narzędzia z `CHAT_TOOLS` i używa `chat/v7`; nie wdrożono go.
+
+### 4.27 Symulacja propozycji (P5.6b)
+
+`simulateProposal(base, input, {horizonDays, athlete})` uruchamia ten sam `planWeekV2`, który układa plan, dwa razy: raz jak jest i raz z propozycją. Propozycja to zmiana
+tygodnia (prośby: dzień wolny, lżejszy, partia pominięta), zmiana polityki (własna liczba serii na rodzaj ćwiczenia, profil objętości) albo zmiana trwającego treningu (ocena silnika +
+plan po łatce: wykonane serie zostają, reszta liczy się jak zrobiona zgodnie z planem). Wynik: `baseline`, `withProposal`, `diff` (serie partii w ostatnim tygodniu horyzontu wobec min/max,
+minuty dni, oczekiwane awanse i serie próbne, czy przyjdzie deload, dni ze zmienionym wyborem) i `warnings` w kodach rejestru (`WEEK_MAX_EXCEEDED`, a przy zmianie treningu także kontrole oceny).
+Prognoza żyje w `planWeekV2` i nigdzie się nie zapisuje (test: tabela `planned_days_v2` pusta po symulacji). `athlete`: `follows_plan` (dokładnie jak w planie) albo `observed_trend`
+(powtórzenia przesunięte o średnią różnicę wynik−cel z 28 dni, w granicach ±2).
+
+Narzędzie `simulateProposal` (kontrakt 7) przyjmuje te same względne daty i rodzaje próśb co `proposePlanChange`, bez pola na obciążenie. `TOOL_ANNOTATIONS` (readOnly / proposal / idempotent) odpowiada tabeli
+z 11 §13: narzędzia odczytu i symulacja są tylko do odczytu; cztery narzędzia propozycji nic nie zmieniają bez akceptacji na telefonie. `loadSimulationBase` czyta bazę świeżo (tydzień, historia, blok,
+odpowiedzi, trwający trening v2).
 
 ## 5. Konwencje testów
 

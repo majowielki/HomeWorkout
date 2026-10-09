@@ -75,6 +75,10 @@ export interface ToolEnvironment {
   proposeSessionChange?(
     input: ToolInput<'proposeSessionChange'>,
   ): Promise<ToolOutput<'proposeSessionChange'> | ToolError>;
+  /** The plan with and without a proposal, from the engine's own planner (11 §13). */
+  simulate?(
+    input: ToolInput<'simulateProposal'>,
+  ): Promise<ToolOutput<'simulateProposal'> | ToolError>;
 }
 
 type Result<N extends ToolName> = ToolOutput<N> | ToolError;
@@ -121,6 +125,9 @@ export const TOOL_IMPLEMENTATIONS: { [N in ToolName]: Implementation<N> } = {
   },
   async assessSessionChange(input, env) {
     return env.assessChange ? env.assessChange(input) : { error: 'no_active_session' };
+  },
+  async simulateProposal(input, env) {
+    return env.simulate ? env.simulate(input) : { error: 'failed' };
   },
   async proposeSessionChange(input, env) {
     return env.proposeSessionChange ? env.proposeSessionChange(input) : { error: 'failed' };
