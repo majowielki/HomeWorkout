@@ -89,7 +89,8 @@ Docelowa mapa plików to 13 §0. Status:
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
 | `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
-| `session/{assess,effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
+| `session/{assess,effects,revision,types}.ts` | 11 §2–4, 13 §12 | P4b | ☑ P4b.2; §4.17 (ranking/feel/tekst: kolejne zadania) |
+| `session/{effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
 | `app-services/commands/*` | 13 §14, 11 §6 | P2, P4b | ☐ |
 
@@ -362,6 +363,51 @@ ID, biomechanika, graf wariantów, sprzęt i recepty nie zmieniły się. Wersja 
 aplikacji, w tym wcześniej dodanych pól P1, bez resetu historii. Testy sprawdzają każdą nazwę/alias rzeczywistego
 katalogu, odmiany, literówki, niejednoznaczność, próg score, brak dopasowania i permutację wejścia.
 Resolver pozostaje poza ścieżkami aplikacji do integracji w P4b/P5.
+
+### 4.17 Ocena zmian niewykonanej części sesji (P4b.2)
+
+`assessSessionChange(snapshot, activeSession, change)` jest czystą funkcją w `session/assess.ts`.
+Wejścia z `session/types.ts` są zwykłymi danymi: `SessionChangeSnapshot` rozszerza `DayInputV2` o rewizje
+historii/preferencji, słownik i zapisany wybór jutra; `ActiveSessionState` zawiera plan v2 i aktualne
+znormalizowane rekordy/dyspozycje. Rekordy aktywnej sesji zastępują jej starszą kopię w snapshotcie, więc
+wykonana praca nie jest liczona dwukrotnie. Data musi odpowiadać zamrożonej dacie sesji. Uszkodzony hash lub
+schemat jest blokowany przed budowaniem rewizji; wykonywanie celów `distance` pozostaje niewspierane.
+
+Obsługiwane zmiany: `add_exercise`, `add_sets`, `swap_remaining`, `reduce_remaining`, `skip_remaining`.
+Resolver zwraca również niejednoznaczność (`needs_clarification`) i brak ćwiczenia (`blocked`). Recepta
+pochodzi z `prescribeNext` + współdzielonego `prescriptionSpec` i `hasLowReadiness`; mobilność używa `fillerSpec` ze scope `none`.
+Jawna liczba serii nie jest ograniczana do `recommendSets`: recommendation opisuje zalecany zakres, a
+patche zawierają prośbę. Próba szczebla mieści się w żądanej łącznej liczbie serii. Przy braku miejsca i braku
+jawnej liczby proponowana jest dawka domyślna polityki z oceną advice, obok uczciwej rekomendacji 0.
+
+`revision.ts` zachowuje istniejące ID/recepty i historyczne kroki. Dopisywane serie mają nową rewizję i dalsze
+ordinale; są nieobowiązkowe dla progresji. Redukcja liczby usuwa całe pending pary, zachowuje pozostałą stronę
+rozpoczętej pary i odrzuca żądanie usunięcia strony już wykonanej. `easier` obniża opór tylko pending do
+osiągalnego `nextEasier`; brak lżejszego szczebla jest jawnym hard fail (opcje wariantów: P4b.5).
+`compilePlannedSets` współdzieli kompilację kroków/czasu z `compileSession`, ale zachowuje ID i jawny porządek.
+Nie powtarza rozgrzewki gumy rozpoczętej ekspozycji. Wykonane, przerwane i pominięte serie są settled;
+pominięte nie zużywają szacowanego budżetu czasu. Rower jest oddzielny od czasu ćwiczeń.
+
+Hipotetyczna rewizja przechodzi `auditPlan` w trybie `resume_session`, bez `planWithRepair`, bez akceptacji
+advice. Audyt uwzględnia pending czas, ból mięśni głównych i pomocniczych oraz `RESOURCE_CONFLICT`:
+przezbrojenie obecne w krokach daje `warn` z `setupSec`, brak koniecznego przezbrojenia nadal daje `fail`.
+Do checków audytu dochodzą nakładanie ze zrobioną dziś pracą, pokrycie minimum i wpływ na jutro. Werdykt
+pochodzi wyłącznie z `verdictOf`; `not_recommended` ma patch, `blocked` i `needs_clarification` go nie mają.
+
+`effects.ts` liczy pewną/niepewną objętość dnia i tygodnia (jedna strona = pół serii), regenerację z historii
+sprzed dziś, DOMS, nakładanie, czas oraz scope. Jutro sprawdza istniejący `checkSelection` z opcjonalnymi
+faktami objętości/regeneracji wyprowadzonymi z actual i `ProjectedExposure`. Prognoza nigdy nie tworzy
+obserwacji ani `ExposureRecord`; nie zależy od konwersji oporu do v1. Raportowane są tylko nowe naruszenia
+względem pierwotnego pending planu, a nie problemy istniejące wcześniej.
+
+`assessmentId` wiąże rewizje, fingerprint snapshotu, plan, actual/dyspozycje i zmianę. `patchId` wiąże tę ocenę
+z operacjami i konkretnym planem nowej rewizji. `SessionPlanPatch` zawiera pięć typów operacji i `plan`, aby
+wynik był gotowy do pokazania i ponownego audytu w transakcji P4b.4. Sam stamp nie oznacza zatwierdzenia:
+`overrides` jest puste, advice wymaga świadomego ACK w poleceniu zapisu.
+
+Dowody: `assessSessionChange.test.ts` — T61–T66 i granice (84 testy), pełne pokrycie nowych funkcji i regresja
+dotychczasowego silnika. Funkcja pozostaje poza aplikacją do P5. `rankAlternatives`, `feel`, zapisy i
+deterministyczne teksty PL są kolejnymi zadaniami P4b.
 
 ## 5. Konwencje testów
 

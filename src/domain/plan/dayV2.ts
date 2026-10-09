@@ -25,7 +25,7 @@ import { repCapOf } from '../catalog/attributes';
 import { buildVariantGraph, nextVariant } from '../catalog/variants';
 import { MUSCLE_GROUPS } from '../coach/vocabulary';
 import { fatigueSignalsV2 } from '../autoregulation/signalsV2';
-import { PREFERENCE_CONFIG, SETS_CONFIG } from '../config/training';
+import { PREFERENCE_CONFIG, SETS_CONFIG, type PlannerConfig } from '../config/training';
 import { buildHistoryIndex, type HistoryIndex } from '../history';
 import type { IsoDate } from '../observations/date';
 import type { ExposureRecord } from '../observations/exposure';
@@ -148,6 +148,17 @@ const sideModeOf = (e: Exercise): SideMode =>
 
 const unitFor = (e: Exercise) => (unitOf(e) === 'sec' ? ('duration' as const) : ('reps' as const));
 
+export function hasLowReadiness(
+  today: DailyReadiness | undefined,
+  cfg: Pick<PlannerConfig, 'lowReadiness'>,
+): boolean {
+  return (
+    today !== undefined &&
+    ((today.sleepHours !== null && today.sleepHours < cfg.lowReadiness.sleepHours) ||
+      (today.energy !== null && today.energy <= cfg.lowReadiness.energy))
+  );
+}
+
 const rangeOf = (p: Pick<Prepared, 'exercise' | 'slot'>) => {
   const r = (unitFor(p.exercise) === 'duration' ? p.slot.timeRange : p.slot.repRange) ?? [8, 15];
   return { lo: r[0], hi: r[1] };
@@ -179,10 +190,7 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
   });
   const phase = phaseOfV2(block, asOf);
   const today = input.daily.find((d) => d.date === asOf);
-  const lowReadiness =
-    today !== undefined &&
-    ((today.sleepHours !== null && today.sleepHours < cfg.lowReadiness.sleepHours) ||
-      (today.energy !== null && today.energy <= cfg.lowReadiness.energy));
+  const lowReadiness = hasLowReadiness(today, cfg);
   const lighter = isLighterDay(constraints, asOf);
   const avoided = avoidedOn(constraints, asOf);
   const sore = (e: Exercise) => e.primaryMuscles.some((m) => (today?.soreness?.[m] ?? 0) >= 4);
@@ -282,7 +290,14 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
     });
     const out = {
       draft,
-      spec: specOf(p, draft, trace, lowReadiness, eligibility.profile, input.session.versions),
+      spec: prescriptionSpec(
+        p,
+        draft,
+        trace,
+        lowReadiness,
+        eligibility.profile,
+        input.session.versions,
+      ),
     };
     memo.set(key, out);
     return out;
@@ -557,7 +572,7 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
 }
 
 /** The work of each muscle in the seven days ending on `asOf`: what is known to be hard, and what nobody said. */
-function weekWork(idx: HistoryIndex, asOf: string) {
+export function weekWork(idx: HistoryIndex, asOf: string) {
   const out = Object.fromEntries(
     MUSCLE_GROUPS.map((m) => [m, { certain: 0, uncertain: 0 }]),
   ) as Record<MuscleGroup, { certain: number; uncertain: number }>;
@@ -573,7 +588,7 @@ function weekWork(idx: HistoryIndex, asOf: string) {
 }
 
 /** The muscles a set done today was cut short by pain in. */
-function painToday(
+export function painToday(
   records: readonly ExposureRecord[],
   asOf: string,
   catalog: Readonly<Record<string, Exercise>>,
@@ -584,7 +599,9 @@ function painToday(
     const hurt =
       r.sets.some((s) => s.observation?.shortfall === 'pain') ||
       r.extra.some((o) => o.shortfall === 'pain');
-    if (hurt) for (const m of catalog[r.exerciseId]?.primaryMuscles ?? []) out.add(m);
+    const exercise = catalog[r.exerciseId];
+    if (hurt && exercise !== undefined)
+      for (const m of [...exercise.primaryMuscles, ...exercise.secondaryMuscles]) out.add(m);
   }
   return out;
 }
@@ -658,8 +675,8 @@ function templateSpec(
 }
 
 /** The recipe of the draft as the compiler takes it: a probe first, then the working sets. */
-function specOf(
-  p: Prepared,
+export function prescriptionSpec(
+  p: Pick<Prepared, 'exercise' | 'slot' | 'res' | 'scope'>,
   draft: Draft,
   trace: DecisionTrace,
   lowReadiness: boolean,
@@ -700,7 +717,7 @@ function specOf(
 }
 
 /** Light practice or mobility that fills a short day: not a working set, never judged by the progression. */
-function fillerSpec(
+export function fillerSpec(
   exercise: Exercise,
   slot: Slot,
   res: ExerciseResistance,

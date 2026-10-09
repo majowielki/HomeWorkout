@@ -84,6 +84,25 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
   poza wersją zmieniono tylko aliasy. Historia nie jest resetowana. Katalog może być dalej rozszerzany o
   sprawdzone potoczne nazwy; equivalenceGroup i secondaryWeights zachowują dotychczasowe wartości domyślne.
 
+### 2d. P4b.2 — kontrakt oceny i granice integracji (2026-10-09)
+
+- Snapshot domeny jest rozszerzeniem `DayInputV2`, a nie importem obecnego snapshotu funkcji UI (który
+  nadal czyta historię v1). Adapter bazy i podłączenie do aplikacji należą do P5.
+- Patch ma oprócz `ops` konkretny `plan` nowej rewizji. Jest wynikiem oceny do podglądu; stamp resume i pusty
+  `overrides` nie zastępują ponownego audytu/ACK w transakcji P4b.4.
+- Gdy `recommendSets` daje 0 i nie podano liczby, ocena przedstawia dawkę domyślną polityki oraz advice,
+  zamiast pustego patcha. Jawnej liczby nigdy nie przycina. Liczba obejmuje także ewentualny probe.
+- `reduce_remaining.easier` ocenia lżejszy osiągalny opór. Przejście na łatwiejszy wariant przy minimum oraz
+  `feel` są ocenianymi opcjami P4b.5; ranking wszystkich alternatyw jest P4b.3.
+- Operacje usuwające/zastępujące pending zachowują listę usuniętych ID. Polecenie P4b.4 musi zachować stare
+  rewizje/dyspozycje i zapisać redukcję (`USER_REDUCED`), żeby skrócenie nie stało się dowodem kompletnej
+  pierwotnej ekspozycji. Ocena nie zapisuje wyników ani nie oznacza jeszcze FeelReport.
+- Czas jest szacunkiem kompilatora; wykonane/przerwane kroki pomniejszają budżet, pominięte nie. Pomiar
+  p95 na telefonie pozostaje odbiorem integracji; wynik desktopowy nie zastępuje pomiaru urządzenia.
+- Jutro używa tego samego `checkSelection`, z faktami v2 i wyraźnym `ProjectedExposure`, bez tworzenia
+  pozornych actual lub wymyślania oporu v1 dla przyszłego sprzętu. Dotychczasowi konsumenci funkcji zachowują
+  swoje zachowanie (golden baseline bez zmian).
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon
