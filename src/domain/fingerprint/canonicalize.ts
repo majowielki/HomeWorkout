@@ -52,7 +52,7 @@ function write(value: unknown, path: string): string {
 }
 
 /** Code-point order (what `Array#sort` on strings does, spelled out so it is not a locale's choice). */
-function compareCodePoints(a: string, b: string): number {
+export function compareCodePoints(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
