@@ -92,6 +92,7 @@ Docelowa mapa plików to 13 §0. Status:
 | `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
 | `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
 | `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `plan/weekV2.ts` (`planWeekV2`, `syncWeekV2`), `db/repositories/weekPlanV2.ts`, migracja 0011 | 04 §5, 06 §7 | P5 | ☑ P5.1–2; §4.24 |
 | `progression/decisionText.ts` (`decisionText`, `traceText`) | 03 §10, P3.5 | P5 | ☑ P5.3a; §4.23 |
 | `plan/{blockContext,versions}.ts`, `db/repositories/{planningInputs,planningV2}.ts` | 01 §3–4, 06 | P5 | ☑ P5.5a; §4.22 |
 | `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
@@ -584,6 +585,31 @@ jedna rzecz go do tego skłoniła; liczby (`gapDays`, `failures`) bierze z dowod
 „lżej/wyżej” mają tylko kody, które ten krok robią (D39 e) — pilnuje tego test. `traceText(trace)` zwraca zdania rozstrzygającego
 kodu i pozostałych zapisanych w śladzie (`evidence.codes`), każde raz; kod, którego ten silnik nie zna (plan z nowszej wersji),
 jest pomijany, a nie pokazywany jako surowy identyfikator. Używają tego: karta „Dlaczego?” (P5.3b) i prompty AI (P5.6).
+
+### 4.24 Tydzień na silniku v2 (P5.1–P5.2)
+
+**Wybór dnia, nie obciążenie.** `KeptItem {slotId, exerciseId, sets}`; `DayInputV2.kept` mówi `planDayV2`, co wybrano wcześniej.
+Dzień jest planowany tylko z tych slotów i z tą liczbą serii (przez te same reguły: kwalifikacja, regeneracja, limity, czas, audyt).
+Jeśli każdy element się mieści — `kept: 'held'`; jeśli któryś nie (inny ćwiczenie w slocie po rotacji bloku, brak miejsca w objętości,
+prośba o pominięcie partii, DOMS) — dzień jest wybrany od nowa, `kept: 'changed'`, a `keptViolations` niesie powód z `SkipReason`.
+Pominięte jest tu kryterium „warto robić”, więc dzień nie zmienia się tylko dlatego, że cel tygodniowy został osiągnięty. Dzień
+zapisany bez ćwiczeń roboczych (tylko lekka praca) jest utrzymany, dopóki nadal takiego nie ma. Wybrane ćwiczenie roboczego dnia to
+`selectionOf(plan)`.
+
+**`planWeekV2`** idzie dzień po dniu jak `simulateV2`: blok (`advanceBlockV2` z `blockContextV2`), dzień odpoczynku (wzór tygodnia albo
+prośba), dzień złożony z trenerem (`compose_day` → `only`), w innym razie `planDayV2` z `kept`. Prognoza kolejnych dni czyta plan poprzednich
+jako zrobiony zgodnie z planem (`recordsOf`), ale **te rekordy żyją tylko wewnątrz funkcji**: wynik nie zawiera `ExposureRecord`, wejście nie
+jest zmieniane, a dzień pierwszy widzi wyłącznie prawdziwą historię (T21). Prognozowane sesje mają id `forecast-<data>`. Trwająca sesja dnia
+(`running`): jej niewykonane serie liczą się w prognozach po niej jako zrobione (`completedAsPlanned`), a wykonane zostają, jak były (T19).
+
+**`syncWeekV2`** to odpowiednik `syncWeek` pierwszego silnika: dni minione oznaczone `done`/`missed`, horyzont 7 dni od dziś (dziś odpada, gdy ma
+sesję zakończoną albo trwającą), dzień chybiony albo jawna prośba planuje od nowa, wynik niesie `trigger`, wiersze do zapisu i `changes` (regiony
+przed i po, powody) dla banera.
+
+**Zapis.** Migracja 0011: `planned_days_v2` (data, `selection`, `forecast` = plan v2, status, generacja) i `plan_generations_v2`. Osobne tabele,
+żeby tydzień pierwszego silnika nie zmienił się do P6. `weekPlanV2.syncWeek` w jednej transakcji czyta, planuje i zapisuje: bez zmian wyboru zapisuje
+tylko statusy i odświeżoną prognozę (obciążenia idą za historią), przy zmianie nową generację (urodzoną jako zobaczoną, jeśli nic się nie zmieniło).
+Blok nie jest tu zapisywany — przesuwa go dopiero start sesji dnia (`acceptDay`). `previewWeek` niczego nie zapisuje.
 
 ## 5. Konwencje testów
 

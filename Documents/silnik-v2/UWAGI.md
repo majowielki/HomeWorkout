@@ -187,6 +187,20 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - `ENGINE_VERSIONS` (2.0.0 / policy-2.0 / compiler-1 / trace 1) to wartości z symulacji; zmiana któregokolwiek składnika
   planu wymaga podniesienia odpowiedniej wersji w `plan/versions.ts` razem z opisem tutaj.
 
+### 2j. P5.1–P5.2 — tydzień na v2 (2026-10-09)
+
+- Decyzja użytkownika: tydzień przechodzi na model v2 (zamiast planowania samego dnia). UI nie jest zmieniane do końca implementacji silnika (decyzja
+  tego samego dnia), więc ekrany kalendarza i „Dziś” nadal czytają `planned_days` pierwszego silnika.
+- Spec. 04 §5 każe przechowywać „wybory ruchów/slotów”. Przechowywany jest `KeptItem` (slot, ćwiczenie, liczba serii) i prognoza planu v2 (do pokazania
+  dnia). Prognoza nie jest źródłem prawdy o obciążeniu: start sesji planuje dzień od nowa z prawdziwej historii (`acceptDay`).
+- Stabilizacja jest „twarda w obrębie reguł”, nie miękka premia w score: dzień trzymany jest planowany tylko ze zapisanych slotów i albo mieści się w całości,
+  albo jest wybrany od nowa. Dzięki temu zmiana zawsze ma wymieniony powód.
+- Obserwacja (D22 jak w P4): przy 3 seriach compound maksima pośladków i pleców wyczerpują się w 4–5 dniu, więc dni 6–7 prognozy mają tylko lekką pracę
+  i mobilność. Gdy użytkownik doda dzień odpoczynku, te puste dni dostają prawdziwy trening i pojawiają się w banerze jako zmiana (bez powodu reguły —
+  to wolna pojemność, nie naruszenie). Limity nie zostały zmienione; do rozstrzygnięcia przy benchmarku P8.
+- Brak jeszcze źródła prośby o deload w bazie (`deloadRequests`), sesji dodatkowych (`seq > 1`) w tygodniu v2 i unieważniania prognozy poza wejściem do ekranu
+  (P5.1b). Tydzień nie zapisuje bloku.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon

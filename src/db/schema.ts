@@ -14,6 +14,8 @@ import type { SetObservation } from '@/domain/observations/types';
 import type { SessionPlanV2 } from '@/domain/plan/planV2';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';
+import type { KeptItem } from '@/domain/plan/dayV2';
+import type { StoredDayChangeV2 } from '@/domain/plan/weekV2';
 import type { ReminderSettings } from '@/domain/reminders/schedule';
 import {
   type AnchorPosition,
@@ -505,3 +507,36 @@ export const planConstraints = sqliteTable('plan_constraints', {
   /** For `compose_day`: the movements and sets composed with the coach (ADR 0006). Null otherwise. */
   items: text('items', { mode: 'json' }).$type<ComposedItem[] | null>(),
 });
+
+/**
+ * The week of engine v2: the choice of each day ahead (never a load) and the forecast it was
+ * made with. Separate from `planned_days` so the first engine's week is untouched until the
+ * switch (P6).
+ */
+export const plannedDaysV2 = sqliteTable('planned_days_v2', {
+  date: text('date').primaryKey(),
+  /** The working exercises of the day; null on a rest day. */
+  selection: text('selection', { mode: 'json' }).$type<KeptItem[] | null>(),
+  forecast: text('forecast', { mode: 'json' }).$type<SessionPlanV2 | null>(),
+  /** planned: still ahead or today; done: trained (or a rest day gone by); missed: planned, not trained. */
+  status: text('status', { enum: ['planned', 'done', 'missed'] }).notNull(),
+  generationId: text('generation_id').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+/** Every time the week of engine v2 was planned again, and what changed. */
+export const planGenerationsV2 = sqliteTable(
+  'plan_generations_v2',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull(),
+    trigger: text('trigger', {
+      enum: ['horizon', 'missed_day', 'unsafe', 'manual', 'constraint', 'coach'],
+    }).notNull(),
+    fromDate: text('from_date').notNull(),
+    changes: text('changes', { mode: 'json' }).$type<StoredDayChangeV2[]>().notNull(),
+    /** When the person closed the banner; null while it shows. */
+    seenAt: text('seen_at'),
+  },
+  (t) => [index('plan_generations_v2_created_idx').on(t.createdAt)],
+);
