@@ -43,7 +43,7 @@ import { sideOrder } from '../session/sides';
 import { daysBetween } from '../time/trainingDate';
 import type { Exercise, MuscleGroup } from '../types';
 import type { AuditContext, AuditDay } from './audit';
-import { phaseOf } from './block';
+import { phaseOfV2 } from './blockV2';
 import {
   compileSession,
   type CompileInput,
@@ -177,7 +177,7 @@ export function planDayV2(input: DayInputV2): DayOutputV2 {
     daily: input.daily,
     modelOf,
   });
-  const phase = phaseOf(block, asOf);
+  const phase = phaseOfV2(block, asOf);
   const today = input.daily.find((d) => d.date === asOf);
   const lowReadiness =
     today !== undefined &&

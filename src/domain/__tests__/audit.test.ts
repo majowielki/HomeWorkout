@@ -278,6 +278,20 @@ describe('T62-T64 the day', () => {
     expect(codes(auditPlan(planOf(), recovering))).toEqual(['RECOVERING']);
   });
 
+  it('light practice and mobility are not kept out by a muscle that is still recovering; mobility is not by soreness', () => {
+    const recovering = context({ day: day({ isRecovering: () => true, isSore: () => true }) });
+    const practice = exposure('e1', {
+      scope: 'none',
+      sets: [set({ role: 'practice', required: false, targetRir: { min: 5, max: 5 } })],
+    });
+    const mobility = exposure('e1', {
+      scope: 'none',
+      sets: [set({ role: 'mobility', required: false, targetRir: null })],
+    });
+    expect(codes(auditPlan(planOf([practice]), recovering))).toEqual(['DOMS_HIGH']);
+    expect(auditPlan(planOf([mobility]), recovering).kind).toBe('valid');
+  });
+
   it('pain and a request are hard; being sore or recovering is advice that can be acknowledged (D19)', () => {
     const sore = context({ day: day({ isSore: () => true }) });
     const result = auditPlan(planOf(), sore, ['DOMS_HIGH']);
@@ -327,6 +341,18 @@ describe('T62-T64 the day', () => {
     expect(codes(auditPlan(planOf([light]), context({ day: day({ dayMax: 1 }) })))).toEqual([
       'DAY_MAX_EXCEEDED',
     ]);
+  });
+
+  it('a muscle already over its maximum is no reason against a plan that adds nothing to it', () => {
+    const over = context({
+      day: day({ week: { quads: { certain: 9, uncertain: 0 } }, weekMax: () => 6 }),
+    });
+    const practice = exposure('e1', {
+      scope: 'none',
+      sets: [set({ role: 'practice', required: false, targetRir: { min: 5, max: 5 } })],
+    });
+    expect(auditPlan(planOf([practice]), over).kind).toBe('valid');
+    expect(codes(auditPlan(planOf(), over))).toEqual(['WEEK_MAX_EXCEEDED']);
   });
 
   it('mobility is no hard work for a muscle', () => {

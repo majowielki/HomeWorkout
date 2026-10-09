@@ -14,9 +14,11 @@
  */
 
 import { AUTOREGULATION_CONFIG } from '../config/training';
+import { compareCodePoints } from '../fingerprint';
 import { effortOf } from '../observations/effort';
 import type { ExposureRecord } from '../observations/exposure';
-import { amountOf, isPerformed, requiredSets } from '../observations/qualify';
+import { isPerformed, referenceResistance, requiredSets } from '../observations/qualify';
+import { logicalAmounts } from '../progression/assessed';
 import type { FatigueSignal } from '../plan/reasons';
 import type { DailyReadiness, Slot } from '../plan/types';
 import { compareSpecs } from '../resistance/compare';
@@ -62,7 +64,7 @@ function grindingCompounds(
     const toTheLimit = hard.some((s) => effortOf(s.observation!) === 0);
     days.set(rec.trainingDate, (days.get(rec.trainingDate) ?? false) || toTheLimit);
   }
-  const lastTwo = [...days.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).slice(-2);
+  const lastTwo = [...days.entries()].sort(([a], [b]) => compareCodePoints(a, b)).slice(-2);
   return lastTwo.length === 2 && lastTwo.every(([, limit]) => limit);
 }
 
@@ -78,25 +80,14 @@ function performanceDrop(
   for (const list of byKey.values()) {
     const last3 = list
       .filter((r) => requiredSets(r).some(isPerformed))
-      .sort((a, b) => (a.trainingDate < b.trainingDate ? -1 : 1))
+      .sort((a, b) => compareCodePoints(a.trainingDate, b.trainingDate))
       .slice(-3);
     if (last3.length < 3) continue;
-    const steps = last3.map((r) => requiredSets(r).find(isPerformed)!.observation.resistance.value);
-    const first = steps[0];
-    const model = first === null || first === undefined ? null : modelOf(first);
-    if (
-      model === null ||
-      !steps.every((s) => s !== null && compareSpecs(s, first!, model) === 'equal')
-    ) {
-      continue;
-    }
-    const best = last3.map((r) =>
-      Math.max(
-        ...requiredSets(r)
-          .filter(isPerformed)
-          .map((s) => amountOf(s.observation) ?? 0),
-      ),
-    );
+    const model = modelOf(requiredSets(last3[0]!)[0]!.planned.resistance);
+    if (model === null) continue;
+    const at = last3.map((r) => referenceResistance(r, model)!);
+    if (!at.every((spec) => compareSpecs(spec, at[0]!, model) === 'equal')) continue;
+    const best = last3.map((r) => Math.max(...logicalAmounts(r)));
     if (best[0]! > best[1]! && best[1]! > best[2]!) return true;
   }
   return false;

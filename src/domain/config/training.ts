@@ -234,6 +234,8 @@ export const DELOAD_V2_CONFIG = {
  * the policy version; these are placeholders, not research results.
  */
 export const ROTATION_CONFIG = {
+  /** A block lasts this many days (D31): the unit of rotation, with or without a deload inside it. */
+  blockDays: 35,
   /** Fewer qualified exposures in the block than this say nothing about whether the variant works. */
   minQualifiedExposures: 3,
   /** Progress is looked for among this many of the latest qualified exposures of the block. */

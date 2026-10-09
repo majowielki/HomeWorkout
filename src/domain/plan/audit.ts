@@ -328,8 +328,10 @@ export function auditPlan(
         );
       }
       const exercise = ctx.catalog[e.exercise.id];
-      if (exercise !== undefined && countsAsVolume(exercise)) {
-        const sets = directSets(e, settled, TRAINING_CONFIG.workingSetMaxRir);
+      const sets = directSets(e, settled, TRAINING_CONFIG.workingSetMaxRir);
+      // Only work that adds to a muscle is held against its limits: a muscle already over its maximum
+      // from what was done is not a reason against a plan that adds nothing to it.
+      if (exercise !== undefined && countsAsVolume(exercise) && sets > 0) {
         for (const muscle of exercise.primaryMuscles)
           load.set(muscle, (load.get(muscle) ?? 0) + sets);
       }
@@ -384,10 +386,12 @@ function dayFindings(
     if (exercise.primaryMuscles.some((m) => day.painMuscles.has(m))) {
       out.push(issue(finding('PAIN_TODAY', 'fail', { exerciseId: e.exercise.id }), scope, drop));
     }
-    if (day.isSore(exercise)) {
+    // Soreness keeps out everything but mobility; a muscle still recovering keeps out hard work only.
+    const hard = directSets(e, ctx.settled ?? new Set(), TRAINING_CONFIG.workingSetMaxRir) > 0;
+    if (day.isSore(exercise) && e.sets.some((s) => s.role !== 'mobility')) {
       out.push(issue(finding('DOMS_HIGH', 'fail', { exerciseId: e.exercise.id }), scope, drop));
     }
-    if (day.isRecovering(exercise)) {
+    if (hard && day.isRecovering(exercise)) {
       out.push(issue(finding('RECOVERING', 'fail', { exerciseId: e.exercise.id }), scope, drop));
     }
   }
