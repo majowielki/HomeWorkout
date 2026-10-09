@@ -74,11 +74,17 @@ Docelowa mapa plików to 13 §0. Status:
 |---|---|---|---|
 | `time/trainingDate.ts` — `trainingDateOf` | 13 §1 | P0.3 | ☑ |
 | `policy/dayPolicy.ts` — `resolveDayPolicy` | 13 §2 | P0.4 | ◐ (warstwy: baza, tydzień, intencja) |
-| `policy/hardAdvice.ts`, `policy/registry.ts` | 12 §2, 13 §5 | P1 | ☐ |
-| `observations/{types,normalize,qualify}.ts` | 13 §3–4 | P1 (typy), P3 | ☐ |
+| `policy/hardAdvice.ts` (klasy reguł, werdykt), `policy/registry.ts` (polityki, zdolności) | 12 §2, 13 §5 | P1 | ☑ |
+| `observations/{types,exposure}.ts` | 13 §3 | P1 | ☑ |
+| `observations/{normalize,qualify}.ts` | 13 §3–4 | P3 | ☐ |
+| `resistance/{types,ladderModel,models,registry,legacy,compare}.ts` | 05 §5–§8 | P1 | ☑ |
+| `equipment/types.ts` | 05 §4 | P1 | ☑ |
+| `plan/{planV2,ids}.ts`, `fingerprint/*` | 02 §1–2, 01 §4 | P1 | ☑ |
 | `progression/{next,failedRungs,axes,calibration,probe,buildUp}.ts` | 13 §5–8, 16, 20 | P3 | ☐ |
-| `catalog/{variants,resolve}.ts`, `medical/screeners.ts` | 13 §9–11 | P1, P4b | ☐ |
-| `preferences/preferences.ts`, `plan/sets.ts` | 12 §3–5 | P1, P3 | ☐ |
+| `catalog/{attributes,variants,validate}.ts`, `medical/screeners.ts` | 13 §9–10, 05 §13–14 | P1 | ☑ |
+| `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☐ |
+| `preferences/preferences.ts` (model, `preferenceScore`, `nearEquivalent`) | 12 §3–4 | P1 | ☑ |
+| `chooseBlockVariant`, `plan/sets.ts` (`recommendSets`) | 12 §4.2, §5 | P3 | ☐ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
 | `session/{assess,effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/{weights,lever}.ts` | 13 §17–19 | P3 | ☐ |
@@ -137,6 +143,54 @@ Kolejne warstwy z 13 §2 (profil objętości `higher`, preferencja liczby serii,
 | 3 lata (1095 sesji, 12928 serii) | 16,7 / 17,8 | 127,1 / 129,1 | 2,2 / 2,6 | 17,9 / 18,9 |
 
   Koszt rośnie liniowo z liczbą sesji, a okno 120 dni, które aplikacja czyta dziś, trzyma go na ok. 2 ms (dzień) i 18 ms (tydzień). Wniosek dla P2: odczyt „ostatnia porównywalna ekspozycja per klucz” spoza okna (02 §7) trzeba robić osobnym zapytaniem, a nie poszerzaniem okna, bo cała historia za trzy lata to 130 ms na tydzień w node.
+
+### 4.5 Odcisk wejścia (P1.2)
+
+`src/domain/fingerprint/` — `canonicalize(value)` daje jeden tekst dla tych samych danych: klucze obiektów w porządku kodowym, tablice w zadanej kolejności, `Set` posortowany, brak jako jawne `null`, liczby skończone (`-0` → `0`). Odmawia (`CanonicalizationError` ze ścieżką do miejsca): `undefined`, `NaN`, `Infinity`, funkcji, `Date`, instancji klas, `bigint`, `symbol`, klucza `$set` w zwykłym obiekcie. `sha256Hex` to własna implementacja FIPS 180-4 (domena nie importuje `crypto`), sprawdzona na wektorach testowych i na losowych tekstach względem Node. `fingerprint(value)` = SHA-256 tekstu kanonicznego; `fingerprintWithout(obj, …pola)` pomija własne pole skrótu planu (01 §4).
+
+### 4.6 Modele oporu (P1.4–P1.6)
+
+`src/domain/resistance/`
+
+- `types.ts`: `ResistanceValue` (zod, 5 rodzajów: `external_mass` w gramach z konwencją `total`/`per_hand`, liczbą przyrządów i opcjonalnym `display` dla lb; `band_position`; `machine_setting`; `bodyweight` z masą dodaną i **wspomaganiem** (więcej = łatwiej); `ordinal`), `ResistanceSpec`, interfejs `ResistanceModel` (`validate`, `levels`, `compare`, `nextHarder`, `nextEasier`, `resourceDemand`, `comparisonSignature`, `relativeStep`, `capabilities`).
+- `ladderModel.ts`: `createLadderModel` — wspólna budowa modelu dla sprzętu o stałych krokach; kierunek trudności daje funkcja `effort` (dla wspomagania odwrotna do liczby na tarczy).
+- `models.ts`: `dumbbell.paired`, `dumbbell.single`, `band.long`, `bodyweight` zbudowane **na** drabinkach v1 (`dumbbellLadder`, `bandLoadLadder`), więc nie mogą się z nimi rozjechać; test przechodzi po wszystkich szczeblach obu.
+- `registry.ts`: statyczny rejestr (`createResistanceRegistry`, `defineModel`); nieznany identyfikator = `unknown_model`, a nie zastępczy model. Nowy sprzęt = jeden wpis, bez zmian w doborze dnia (test: sztanga dodana tylko przez rejestr).
+- `legacy.ts`: `specFromLoad` / `loadFromSpec`; sprzęt, którego v1 nie wyrazi (sztanga, stos, wspomaganie, kamizelka, inna geometria gumy), daje `null`, nigdy „0 kg”.
+- `compare.ts`: `resistanceComparisonKey` i `compareSpecs` — inna maszyna, przełożenie wyciągu (`configurationKey`), geometria gumy albo konwencja hantli dają `incomparable` mimo tej samej liczby (T49).
+- `relativeStep(from, to)`: ułamek, o jaki `to` jest cięższe (hantle: stosunek mas; guma: stosunek szczytowych sił, **null** bez kalibracji; masa ciała, wspomaganie, stos: null). Podstawa próby szczebla (P3).
+
+Wspólny zestaw testów kontraktu (`__tests__/resistanceContract.ts`) działa na 12 modelach: produkcyjnych (guma dwa razy: bez kalibracji i skalibrowana) i atrapach sprzętu z `resistanceFixtures.ts`: sztanga w kg i w lb (talerze w parach, najmniej talerzy na stronę), kettlebell pojedynczy i para, stos 10/15/22,5/30, wspomaganie 40…0 kg, kamizelka.
+
+### 4.7 Plan i wynik v2 (P1.1–P1.3)
+
+`src/domain/plan/planV2.ts`, `ids.ts`, `src/domain/observations/`
+
+- Identyfikatory: `s1/r1/e1` (ekspozycja), `s1/r1/e1/2` (seria logiczna), `s1/r1/e1/2L` (jedna strona). Rewizja w identyfikatorze to rewizja, w której element **powstał**; późniejsza rewizja może dodać serię do ekspozycji (identyfikator serii nowszy niż ekspozycji, nigdy starszy).
+- `sessionPlanV2Schema` sprawdza spójność wewnętrzną: unikalne identyfikatory, serie należą do sesji i ekspozycji, żadna z przyszłej rewizji, strona w id = strona serii, role (tylko seria `work` bywa `requiredForProgression`: rozgrzewka, `backoff`, praktyka, mobilność i próba nie zastępują serii roboczej), **każda zaplanowana seria jest wykonywana dokładnie raz** w krokach, czas: części sumują się do `exerciseTotal`, a `overall` = ćwiczenia + rower (niezmiennik 12). Czy plan jest *dozwolony* (sprzęt, limity, profil), rozstrzyga audyt (P4), nie schemat.
+- `observed(...)`: wartość z pochodzeniem. Reguły sprzeczności: pomiar tylko z czujnika; niezmieniona podpowiedź (`presentedDefault`) jest *potwierdzeniem*, nie zgłoszeniem; `edited` = zgłoszone przez osobę i nie jest podpowiedzią; `legacy_unknown` tylko z danych starych lub zaimportowanych. Seria `performed` ma coś w sobie — próba z zerem to `interrupted`. `rir.value = null` to „nie podano”, osobny fakt od zera.
+- `ExposureRecord` i `ExposureOutcome` to na razie tylko typy (normalizator: P3).
+
+### 4.8 Katalog v2 (P1.8)
+
+`src/domain/catalog/`, `data/exercises.json`, `data/exercises.schema.ts`
+
+- Pola opcjonalne w ćwiczeniu: `aliases`, `equivalenceGroup`, `progressions` (krawędzie `harder`/`easier`, zapisywane w jedną stronę — graf dodaje odwrotną), `jointLoading`, `secondaryWeights`. `equipmentFamily` i obciążenie kolana są *wyliczane* (`equipmentFamilyOf`, `loadsJoint`), nie przechowywane.
+- `loadsJoint`: kolano wg `loadsKnee`, każdy inny staw `'unknown'` dopóki ktoś nie powie — nieznane to nie „nie”. `repCapOf`: 25, a 20 przy kolanie (`PROGRESSION_CONFIG.repCap`). `secondaryWeightOf`: osoba → katalog → 0,5.
+- `buildVariantGraph`, `nextVariant` (tylko warianty, które przeszłyby kwalifikację planu: kolano, „nie proponuj”, archiwum, sprzęt; potem wynik preferencji, potem kolejność katalogu).
+- `catalogueProblems` (`npm run validate:data`): **błędy**: krawędź donikąd, do siebie, zdublowana, sprzeczna, cykl w `harder`, różne jednostki (powt. vs sekundy), brak wspólnego mięśnia głównego, alias znaczący już coś innego, waga dla mięśnia niebędącego pomocniczym; **ostrzeżenia**: krawędź między slotami, ćwiczenie core bez łatwiejszego wariantu (`NO_EASIER_VARIANT`), grupa równoważności jednoosobowa lub między slotami; **informacje**: ćwiczenia z masą ciała na sufitie (bez `harder`).
+- Dane: 36 krawędzi `harder` dla 33 ćwiczeń (core, pompki, mostki, zawias, przysiad). Stan: 18 ostrzeżeń `NO_EASIER_VARIANT` (część to najłatwiejsze w swoich łańcuchach, np. `dead-bug-legs-only`, `kneeling-plank-on-elbows`), 23 ćwiczenia na suficie.
+
+### 4.9 Screenery per staw (P1.9)
+
+`src/domain/medical/screeners.ts` — `Screener` (staw, pola wymagane, `loads`, `screen`), `SCREENERS = [kneeScreener]` (to samo co `screenExercise`, sprawdzone na 151 ćwiczeniach × 3 profilach), `screenAll`. Ćwiczenie obciążające staw opisany w profilu (albo o nieznanym obciążeniu), bez wymaganych faktów, dostaje `MISSING_CLASSIFICATION` i nie jest dopuszczone.
+
+### 4.10 Reguły, preferencje, zdolności, sprzęt (P1.7, P1.10)
+
+- `policy/hardAdvice.ts`: `RULE_CLASS` — jedna tabela klas (`hard`/`advice`/`info`) dla planera, audytu, oceny w sesji i AI; `finding(code, status, data)` nadaje klasę z tabeli (wywołujący nie wybiera); `verdictOf` (11 §3: niejednoznaczne → `needs_clarification`, błąd twardy → `blocked`, błąd rady → `not_recommended`, ostrzeżenie lub zmiana prośby → `ok_with_changes`); `adviceToAcknowledge` / `unacknowledged` — co użytkownik musi zobaczyć i potwierdzić (D19).
+- `preferences/preferences.ts`: `TrainingPreferences` (zod), `defaultPreferences`, `preferenceScore` (ćwiczenie ±2 przed sprzętem ±1), `nearEquivalent` (grupa jawna albo ten sam slot, ta sama jednostka i mięśnie główne, `substituteScore` ≥ 70 w obie strony; `PREFERENCE_CONFIG`).
+- `policy/registry.ts`: `PROGRESSION_POLICIES` (`reps_then_resistance` v2) i `canPlanAutomatically` — przecięcie zdolności modelu, polityki, runnera i loggera; zwraca *które* brakuje (`UNKNOWN_MODEL`, `LOGGER_MODEL` …). `CURRENT_RUNNER` i `CURRENT_LOGGER` opisują stan aplikacji i **zmienia się je razem z loggerem**, nigdy przed nim.
+- `equipment/types.ts`: `EquipmentInstance`, `EquipmentRequirement` (zdolność z ilością i ustawieniami, konkretna instancja, jedno z kilku) i `requirementsMet` — rzecz liczy się tylko do jednego wymagania, tylko dostępna i tylko w miejscu sesji, z nawrotami przy alternatywach.
 
 ## 5. Konwencje testów
 
