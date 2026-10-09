@@ -124,6 +124,8 @@ export interface Exercise {
   aliases?: string[];
   /** A named group of near-equivalent variants of one slot; the preference breaks ties inside it (12 §4.1). */
   equivalenceGroup?: string;
+  /** Analytical family for finding alternatives; never transfers resistance or progression history. */
+  comparisonFamily?: string | null;
   /**
    * Directed edges to variants of the same movement (05 §13). Authored in one direction; the graph adds the
    * inverse, so `A harder -> B` also makes `B easier -> A`.

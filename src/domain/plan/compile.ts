@@ -103,6 +103,8 @@ export interface CompileInput {
   /** The model of a resistance, for the equipment each set needs; null if it is not known. */
   modelOf: (spec: ResistanceSpec) => ResistanceModel | null;
   timing?: Timing;
+  /** Resume: a band already warmed in this exposure needs no second warm-up cue. */
+  warmedExposureIds?: ReadonlySet<string>;
 }
 
 /** A plan before it has been audited: everything but the stamp that says it was. */
@@ -233,6 +235,67 @@ export function compileSession(input: CompileInput): PlanDraftV2 {
   });
 
   const sequence = ordered(units);
+  return compileSequence(input, exposures, sequence, timing);
+}
+
+/** Compile an explicit order of existing sets without assigning new ids or changing recipes. */
+export function compilePlannedSets(
+  input: Omit<CompileInput, 'exposures'>,
+  exposures: readonly PlannedExposure[],
+  order: readonly string[],
+): PlanDraftV2 {
+  const units = new Map<string, Unit>();
+  exposures.forEach((e, exposureIndex) => {
+    for (const s of e.sets) {
+      if (s.target.kind === 'distance') throw new Error('Distance execution is not supported');
+      const duration = s.target.kind === 'duration';
+      const spec: SetSpec = {
+        role: s.role,
+        resistance: s.resistance,
+        lo: s.target.kind === 'duration' ? s.target.minSec : s.target.min,
+        target: s.target.kind === 'duration' ? s.target.targetSec : s.target.target,
+        hi: s.target.kind === 'duration' ? s.target.maxSec : s.target.max,
+        targetRir: s.targetRir,
+        restAfterSec: s.restAfterSec,
+        required: s.requiredForProgression,
+      };
+      units.set(s.id, {
+        exposureIndex,
+        set: s,
+        spec,
+        exposure: {
+          key: e.id,
+          slotId: e.slotId,
+          exercise: e.exercise,
+          comparisonKey: e.comparisonKey,
+          scope: e.progressionScope,
+          policy: e.prescriptionPolicy,
+          unit: duration ? 'duration' : 'reps',
+          sideMode:
+            s.target.kind === 'reps' && s.target.count === 'per_side' ? 'both' : 'bilateral',
+          sets: [],
+          group: null,
+          bandWarmup:
+            s.resistance.value.kind === 'band_position' && !input.warmedExposureIds?.has(e.id),
+          trace: e.trace,
+        },
+      });
+    }
+  });
+  const sequence = order.map((id) => {
+    const unit = units.get(id);
+    if (unit === undefined) throw new Error(`Unknown planned set: ${id}`);
+    return unit;
+  });
+  return compileSequence(input, [...exposures], sequence, input.timing ?? DEFAULT_TIMING);
+}
+
+function compileSequence(
+  input: Omit<CompileInput, 'exposures'>,
+  exposures: PlannedExposure[],
+  sequence: readonly Unit[],
+  timing: Timing,
+): PlanDraftV2 {
   const steps: ExecutionStep[] = [];
   const time = {
     hardWork: 0,

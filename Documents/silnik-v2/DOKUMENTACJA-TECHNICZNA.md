@@ -84,14 +84,17 @@ Docelowa mapa plików to 13 §0. Status:
 | `plan/{planV2,ids}.ts`, `fingerprint/*` | 02 §1–2, 01 §4 | P1 | ☑ |
 | `progression/{next,rules,draft,assessed,failedRungs,axes,probe,buildUp,firstExposure,levels,policy,codes}.ts` | 13 §5–8, 16, 20 | P3 | ☑ (plik `calibration.ts` zostaje przy gumach) |
 | `catalog/{attributes,variants,validate}.ts`, `medical/screeners.ts` | 13 §9–10, 05 §13–14 | P1 | ☑ |
-| `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☐ |
+| `catalog/resolve.ts` (`resolveExerciseRef`) | 13 §11 | P4b | ☑ P4b.1; §4.16 |
 | `preferences/preferences.ts` (model, `preferenceScore`, `nearEquivalent`) | 12 §3–4 | P1 | ☑ |
 | `plan/sets.ts` (`recommendSets`) | 12 §5 | P3 | ☑ |
 | `plan/blockVariant.ts` (`chooseBlockVariant`, `chooseBlockSelections`), `progression/stall.ts` | 12 §4.2, 03 §9 | P3 | ☑ |
 | `history/index.ts` | 13 §13 | P2/P3 | ☐ |
-| `session/{assess,effort,simulateProposal}.ts` | 11, 13 §12 | P4b, P5 | ☐ |
+| `session/{assess,evaluate,alternatives,effects,revision,types}.ts` | 11 §2–5, 13 §12 | P4b | ☑ P4b.2–3; §4.17–4.18 |
+| `session/effort.ts`, `app-services/commands/reportSessionFeel.ts`, `db/repositories/sessionFeel.ts` | 11 §7 | P4b | ☑ P4b.5; §4.20 |
+| `session/assessmentText.ts` (`assessmentText`, `checkText`) | 11 §8 | P4b | ☑ P4b.6; §4.21 |
+| `session/simulateProposal.ts` | 11 §13 | P5 | ☐ |
 | `plan/reactiveDeload.ts`, `volume/lever.ts`, waga mięśni pomocniczych w `volume/weekly.ts` | 13 §17–19 | P3 | ☑ |
-| `app-services/commands/*` | 13 §14, 11 §6 | P2, P4b | ☐ |
+| `app-services/commands/applySessionChange.ts`, `db/repositories/{sessionChanges,sessionChangeSource}.ts` | 11 §6 | P4b | ☑ P4b.4; §4.19 |
 
 ## 4. Zaimplementowane
 
@@ -333,6 +336,218 @@ kontrolują dzienne/tygodniowe maksima, czas, rotację, deload, unikalność ID 
 **Dowody P4:** `compile.test.ts`, `audit.test.ts`, `repair.test.ts`, `dayV2.test.ts`, `dayV2Worlds.test.ts`,
 `dayV2Edges.test.ts`, `blockV2.test.ts`, `signalsV2.test.ts`, `resistanceOf.test.ts`, `simulateV2.test.ts`,
 `simulateV2Edges.test.ts`. Scenariusze dawniej wyłączone są aktywne. Znane ograniczenia i różnice: UWAGI §2b.
+
+### 4.16 Rozpoznawanie ćwiczeń (P4b.1)
+
+`catalog/resolve.ts` udostępnia `resolveExerciseRef(ref, catalog, lexicon)` oraz
+`createExerciseResolver(catalog, lexicon)` do wielokrotnego rozpoznawania z jednym przygotowanym katalogiem.
+Słownik jest jawnym wejściem, bo domena nie importuje plików danych. `data/movement-terms.json` v1 przechowuje
+odmiany/synonimy, frazy, słowa puste, grupy określeń wymagających zachowania i wskazówki ruchowe z mięśniami.
+`movement-terms.schema.ts` oraz `validate:data` sprawdzają format, sprzeczne znaczenia form (także kanonicznych),
+duplikaty i referencje do nieznanych tokenów. Są to wskazówki do rankingu, nie nowa klasyfikacja medyczna.
+
+Kolejność: jawne ID → dokładna znormalizowana nazwa → alias → zgodność zbiorów tokenów z jawnymi odmianami
+→ Jaccard zbioru nazwy i aliasów, z bonusem wzorca ruchu. `normalizeExerciseName` składa Unicode NFC, stosuje
+istniejący `fold`, zamienia interpunkcję/białe znaki na spacje. Frazy są rozpoznawane przed słowami pustymi,
+najdłuższa pierwsza. Typo to jedno dodanie/usunięcie/zastąpienie znaku, wyłącznie dla słów ≥ 6 znaków i gdy
+korekta prowadzi do jednego kanonicznego tokenu ze słownika albo nazw/aliasów katalogu. Nie używa stemmerów
+ani przybliżonej podmiany całych nazw.
+
+Progi w `EXERCISE_RESOLVER_CONFIG`: score ≥ 0,6, przewaga ≥ 0,15, bonus ruchu 0,2, najwyżej 3 najbliższe nazwy.
+Podana pozycja/kierunek/sprzęt/strona musi występować także u kandydata do automatycznego dopasowania.
+„Wyciskanie hantli zza głowy” pozostaje not_found z push-vertical; nie staje się wyciskaniem nad głowę ani
+wyprostem na triceps. Przy remisie zwracane jest ambiguous w kolejności ID, niezależnie od kolejności katalogu.
+Not_found zachowuje oryginalne zapytanie i `movement: {id, muscles} | null`. Zerowe podobieństwo nie daje
+arbitralnej listy najbliższych. Archived jest pomijane także dla ID i podpowiedzi.
+
+`data/exercises.json` v6 ma 109 aliasów w 63 ćwiczeniach. Zmiana danych obejmuje wyłącznie aliasy i wersję;
+ID, biomechanika, graf wariantów, sprzęt i recepty nie zmieniły się. Wersja powoduje reseed w zainstalowanej
+aplikacji, w tym wcześniej dodanych pól P1, bez resetu historii. Testy sprawdzają każdą nazwę/alias rzeczywistego
+katalogu, odmiany, literówki, niejednoznaczność, próg score, brak dopasowania i permutację wejścia.
+Resolver pozostaje poza ścieżkami aplikacji do integracji w P4b/P5.
+
+### 4.17 Ocena zmian niewykonanej części sesji (P4b.2)
+
+`assessSessionChange(snapshot, activeSession, change, opts?)` jest czystą funkcją w `session/assess.ts`.
+Ocena pojedynczego wariantu znajduje się w `session/evaluate.ts`; publiczna funkcja dołącza ranking (§4.18).
+Wejścia z `session/types.ts` są zwykłymi danymi: `SessionChangeSnapshot` rozszerza `DayInputV2` o rewizje
+historii/preferencji, słownik i zapisany wybór jutra; `ActiveSessionState` zawiera plan v2 i aktualne
+znormalizowane rekordy/dyspozycje. Rekordy aktywnej sesji zastępują jej starszą kopię w snapshotcie, więc
+wykonana praca nie jest liczona dwukrotnie. Data musi odpowiadać zamrożonej dacie sesji. Uszkodzony hash lub
+schemat jest blokowany przed budowaniem rewizji; wykonywanie celów `distance` pozostaje niewspierane.
+
+Obsługiwane zmiany: `add_exercise`, `add_sets`, `swap_remaining`, `reduce_remaining`, `skip_remaining`.
+Resolver zwraca również niejednoznaczność (`needs_clarification`) i brak ćwiczenia (`blocked`). Recepta
+pochodzi z `prescribeNext` + współdzielonego `prescriptionSpec` i `hasLowReadiness`; mobilność używa `fillerSpec` ze scope `none`.
+Jawna liczba serii nie jest ograniczana do `recommendSets`: recommendation opisuje zalecany zakres, a
+patche zawierają prośbę. Próba szczebla mieści się w żądanej łącznej liczbie serii. Przy braku miejsca i braku
+jawnej liczby proponowana jest dawka domyślna polityki z oceną advice, obok uczciwej rekomendacji 0.
+
+`revision.ts` zachowuje istniejące ID/recepty i historyczne kroki. Dopisywane serie mają nową rewizję i dalsze
+ordinale; są nieobowiązkowe dla progresji. Redukcja liczby usuwa całe pending pary, zachowuje pozostałą stronę
+rozpoczętej pary i odrzuca żądanie usunięcia strony już wykonanej. `easier` obniża opór tylko pending do
+osiągalnego `nextEasier`; brak lżejszego szczebla jest jawnym hard fail (opcje wariantów: P4b.5).
+`compilePlannedSets` współdzieli kompilację kroków/czasu z `compileSession`, ale zachowuje ID i jawny porządek.
+Nie powtarza rozgrzewki gumy rozpoczętej ekspozycji. Wykonane, przerwane i pominięte serie są settled;
+pominięte nie zużywają szacowanego budżetu czasu. Rower jest oddzielny od czasu ćwiczeń.
+
+Hipotetyczna rewizja przechodzi `auditPlan` w trybie `resume_session`, bez `planWithRepair`, bez akceptacji
+advice. Audyt uwzględnia pending czas, ból mięśni głównych i pomocniczych oraz `RESOURCE_CONFLICT`:
+przezbrojenie obecne w krokach daje `warn` z `setupSec`, brak koniecznego przezbrojenia nadal daje `fail`.
+Do checków audytu dochodzą nakładanie ze zrobioną dziś pracą, pokrycie minimum i wpływ na jutro. Werdykt
+pochodzi wyłącznie z `verdictOf`; `not_recommended` ma patch, `blocked` i `needs_clarification` go nie mają.
+
+`effects.ts` liczy pewną/niepewną objętość dnia i tygodnia (jedna strona = pół serii), regenerację z historii
+sprzed dziś, DOMS, nakładanie, czas oraz scope. Jutro sprawdza istniejący `checkSelection` z opcjonalnymi
+faktami objętości/regeneracji wyprowadzonymi z actual i `ProjectedExposure`. Prognoza nigdy nie tworzy
+obserwacji ani `ExposureRecord`; nie zależy od konwersji oporu do v1. Raportowane są tylko nowe naruszenia
+względem pierwotnego pending planu, a nie problemy istniejące wcześniej.
+
+`assessmentId` wiąże rewizje, fingerprint snapshotu, plan, actual/dyspozycje i zmianę. `patchId` wiąże tę ocenę
+z operacjami i konkretnym planem nowej rewizji. `SessionPlanPatch` zawiera pięć typów operacji i `plan`, aby
+wynik był gotowy do pokazania i ponownego audytu w transakcji P4b.4. Sam stamp nie oznacza zatwierdzenia:
+`overrides` jest puste, advice wymaga świadomego ACK w poleceniu zapisu.
+
+Dowody: `assessSessionChange.test.ts` — T61–T66 i granice (84 testy), pełne pokrycie nowych funkcji i regresja
+dotychczasowego silnika. Funkcja pozostaje poza aplikacją do P5. `feel`, zapisy i
+deterministyczne teksty PL są kolejnymi zadaniami P4b.
+
+### 4.18 Ranking alternatyw w sesji (P4b.3)
+
+`rankAlternatives(target, ctx)` jest eksportowane z `session/assess.ts`, a implementowane w
+`session/alternatives.ts`. Target podaje opcjonalne ID ćwiczenia/slotu i mięśnie; kontekst zawiera snapshot,
+aktywną sesję i jawny zamiar `add_exercise` albo `swap_remaining`. Alternatywa zastępuje wyłącznie ID
+ćwiczenia w tym zamiarze: zachowuje liczbę serii, pozycję lub ID ekspozycji do zamiany. Recepta pochodzi
+z własnej historii kandydata, bez transferu oporu z oryginału.
+
+Pula łączy warianty łatwiejsze/trudniejsze (także odwrotne krawędzie), jawne zamienniki, rodzeństwo slotu
+i jawne `comparisonFamily`. To nowe opcjonalne pole domeny/schematu katalogu: brak/null nie tworzy grupy.
+Przy nierozpoznanym ćwiczeniu pula obejmuje aktywne ćwiczenia ze wspólnym mięśniem głównym z podpowiedzią
+słownika ruchów. Brak podpowiedzi daje pustą listę; niejednoznaczność wymaga doprecyzowania. Archiwalne,
+nieistniejące i oryginalne ID są pomijane, powody pochodzenia łączone bez duplikatów.
+
+Każdy kandydat przechodzi tę samą `evaluateSessionChange` co prośba. Hard fail oznacza brak patcha
+i usuwa kandydata; advice zachowuje go z `not_recommended`. Klucz porządku to kolejno: grupa werdyktu
+(`ok`/`ok_with_changes` przed `not_recommended`), `biomechSimilarity` (dotychczasowy `substituteScore` / 115),
+`preferenceScore`, rzeczywiście pokryty deficyt do minimum tygodnia, liczba nakładających się ćwiczeń,
+liczba kontroli regeneracji/DOMS, pozycja w slocie i ID porównane po punktach kodowych. Bez oryginału
+podobieństwo oznacza udział pokrytych mięśni zapytania; sam target slotu bez mięśni daje 0.
+`avoid` obniża preferencję, a twarde „nie proponuj” usuwa kandydata w audycie.
+
+Wynik ma maksymalnie trzy pozycje z `why`, werdyktem, receptą i własnym `patchId`; dodatkowo przechowuje
+`change` i pełną ocenę bez dalszych alternatyw, potrzebne karcie i ponownej ocenie przed zapisem.
+`maxAlternatives` ogranicza wynik do 1–3, 0 wyłącza ranking; wartości niepoprawne dają pustą listę.
+Opcjonalny filtr `equipmentFamily` zawęża pulę niezależnie od preferencji. Oceny redukcji, dodania serii
+i pominięcia nie dołączają zamienników.
+
+Pula jest oceniana przed obcięciem wyniku, aby niżej podobny, ale bez advice-faili kandydat nie zniknął.
+Nie ma rekurencji; wydajność pełnej puli i pomiar p95 na telefonie pozostają do odbioru integracji
+(odstępstwo od oszacowania „1 + 3 oceny” opisane w UWAGI §2e).
+Dowody: `rankAlternatives.test.ts` — T67/T75, permutacje katalogu/slotów/krawędzi, własne patche,
+filtrowanie hard-faili, świadomie wykonalne advice, preferencje i zachowanie wykonanych serii.
+
+### 4.19 Transakcyjne zatwierdzenie zmiany sesji (P4b.4)
+
+`app-services/commands/applySessionChange.ts` udostępnia kontrakt Promise z `CommandResult<{planRevision}>`.
+Repozytorium `sessionChanges.ts` wykonuje jedną synchroniczną transakcję Expo/Drizzle, korzystając
+ze wspólnej granicy `sessionCommandStore` istniejących poleceń P2. Żaden await nie rozdziela odczytu i zapisu.
+Polecenie zawiera `commandId`, `sessionId`, `patchId`, jawne `change`, oczekiwane rewizje planu/historii,
+`acknowledged` i kanał. Klient nie przesyła planu ani operacji patcha. `change` jest potrzebne, ponieważ
+hash patcha nie pozwala odtworzyć zamiaru; tę różnicę względem skróconego kontraktu 11 §6 opisuje UWAGI §2f.
+
+Kolejność: ledger (retry zwraca dawny wynik nawet po kolejnej zmianie/zamknięciu sesji), walidacja polecenia,
+aktywna sesja v2 i poprawny schemat planu, rewizje, świeży snapshot w transakcji, ponowne
+`assessSessionChange(..., {maxAlternatives: 0})`, porównanie `patchId`, komplet ACK dla advice-faili.
+Zmiana rewizji lub treści snapshotu/patcha daje `conflict: STALE_INPUT`. Hard fail/niejednoznaczność
+zwraca `CHANGE_BLOCKED`; brak wszystkich potwierdzeń daje `ACK_REQUIRED` z brakującymi kodami.
+Ledger nie przechowuje odrzuceń, więc to samo ID może później zatwierdzić pełny ACK. ID innego typu
+polecenia lub innej sesji nie może udawać powtórzenia tej zmiany. Override obejmuje tylko bieżące advice-faile,
+bez uprawnień wynikających z przesłanych obcych lub hard kodów.
+
+`sessionChangeSource.ts` czyta przez ten sam executor katalog, profil i wykluczenia, preferencje,
+kalibracje i definicje gum, blok, ograniczenia, wybór jutra, dzienniki/rower oraz znormalizowaną historię.
+Snapshot obejmuje również liczniki wejść. Fingerprint wiąże fakty, a nie same liczniki, więc zmiana profilu,
+katalogu, gotowości lub inwentarza bez podniesienia licznika także unieważnia preview. Data pochodzi
+z zamrożonego dnia aktywnej sesji. Przy braku bloku używane są wybory aktywnego planu; adapter nie obraca
+ani nie zapisuje bloku. `loadSessionChangeSource` udostępnia spójny, tylko do odczytu snapshot do preview.
+
+Po autoryzacji zapisuje się nowa `session_plan_revisions` (`user_change`, kanał, overrides), aktualny plan
+i numer rewizji w workout, dyspozycje usuniętych pending ID, odbudowane outcomes, liczniki sesji/historii
+i ledger. Błąd któregokolwiek zapisu cofa całość. Pending recepty aktualnego planu są rezerwacją objętości
+czytaną przez następną ocenę; po ACK serie nadal liczą się normalnie. Nie są tworzone obserwacje wykonania.
+
+`historyV2.historyPlans` scala recepty ze wszystkich rewizji według ID ekspozycji i serii, wyłącznie
+do normalizacji historii/outcomes. Runner nadal dostaje bieżący wykonywalny plan. Usunięte serie zachowują
+receptę i dyspozycję `skipped/replaced`; licznik expected obejmuje pierwotnie wymagane serie. Skrócone
+ekspozycje oraz nowe recepty obniżonego oporu mają kontekst `userReduced`, więc kwalifikacja zwraca
+`USER_REDUCED` zamiast dowodu pełnego wykonania lub porażki siłowej. Logowanie, korekta, undo i zamknięcie
+sesji również odbudowują outcomes na tych samych zachowanych receptach.
+
+Dowody: `sqlite-check-session-changes.cjs`, uruchamiane jako 32 osobne przypadki w `storage.test.ts`:
+T68/T69, pełny i niepełny ACK, retry, kanały, aktualność faktów, własny patch alternatywy,
+wykonana część/historia po redukcji/zamianie, rezerwacja oraz rollback błędów czterech tabel.
+Podłączenie do runnera, UI i AI pozostaje etapem P5.
+
+### 4.20 Sygnały odczucia i ocenione opcje (P4b.5)
+
+`SessionChange` obejmuje `FeelChange {kind:'feel', exposureId:string|null, feel:'too_hard'|'too_easy'}`.
+`assessSessionChange` zwraca obserwacyjną ocenę bez patcha, z niezmienionymi efektami planu oraz
+`feel: {options, recommendedOptionIds}`. Każda `FeelOption` niesie jawny zamiar `SessionPlanChange`,
+`why` i pełną ocenę liścia (jak alternatywy, bez rekurencyjnych opcji). Niewykonalna opcja ma hard fail
+i null patch; UI może wyjaśnić, dlaczego np. brak lżejszego oporu. `next_prescription` ma null zamiar
+i null patch: zapisany raport wystarcza polityce progresji, akceptacja tej opcji niczego nie zapisuje.
+
+`effort.ts` ocenia −1 serię, lżejszy opór i skip dla `too_hard`. Poleca szczebel niżej, jeśli pozostały
+co najmniej dwie serie logiczne. Jeśli oporu nie da się obniżyć, ranking ocenia wyłącznie krawędzie
+`easier` (także odwrotności `harder`), przed ograniczeniem wyników do trzech. Polecany jest najlepszy
+dostępny wariant; przy braku wariantu −1 seria. Gdy pozostała tylko niewykonana strona wykonanej serii,
+dropping całej pary jest blocked i fallback to skip. Wszystkie opcje korzystają ze wspólnego audytu.
+`too_easy` ocenia +1 serię i poleca ją tylko przy `ok`; przy ostrzeżeniu/advice/hard poleca flagę na
+następną receptę. Dodatkowe serie mają `requiredForProgression:false`, oryginalne zachowują swoje role.
+
+Null `exposureId` zapisuje odczucie całej sesji i ocenia opcje osobno dla każdej ekspozycji z pending.
+Rekomendacje są alternatywami na tej samej rewizji, nie zbiorczym patchem: każda akceptacja wymaga
+aktualnej oceny. Po wykonaniu całości pozostaje tylko flaga `too_easy`; jawny ID kompletnej ekspozycji
+nadal pozwala ocenić dodatkową serię. Uszkodzona integralność/schemat, obca ekspozycja, zła data lub
+nieobsługiwane wykonanie nie produkują opcji. Ból blokuje dalszą pracę, a usunięcie pending może być
+wykonalne; samo `too_hard` nie jest zgłoszeniem bólu.
+
+`reportSessionFeel` ma Promise w app-services, synchroniczną transakcję w `sessionFeel.ts`, `commandId`,
+oczekiwane rewizje planu/historii i kanał. Waliduje ledger/aktywną sesję/schemat/rewizje/ID ekspozycji
+oraz normalizację, zapisuje `FeelReport`, podnosi history/session revision i zwraca ocenę już z nowej
+historii. Dlatego patch wybranej opcji jest zgodny z następnym `applySessionChange`; raport nie wymaga
+nowej rewizji planu. Kolejny raport unieważnia starsze opcje. Retry zwraca zapisany wynik także po
+zamknięciu; ID innego polecenia/sesji jest odrzucane. Błąd raportu/outcomes/ledger cofa całą transakcję.
+Dotychczasowy `recordFeelV2` współdzieli zapis, waliduje payload i też podnosi history revision.
+
+Akceptacja redukcji przechodzi przez P4b.4 i zachowuje wymagane stare recepty oraz dyspozycje.
+Zamiana na łatwiejszy wariant dodaje `trace.evidence.reducedFrom` także do nowej ekspozycji, więc
+obie strony zmiany mają `USER_REDUCED`. Kwalifikacja nie daje awansu ani porażki/licznika regresu.
+Samo odczucie bez przyjętej redukcji pozostaje wyłącznie sygnałem dla istniejących reguł P3.
+Dowody: `feel.test.ts` (T71/T72/T105) i dodatkowe przypadki `sqlite-check-session-changes.cjs`.
+Podłączenie UI/głosu/AI — P5. Teksty: §4.21.
+
+### 4.21 Polskie teksty oceny (P4b.6)
+
+`assessmentText(assessment, {exerciseName?, maxAlternatives?}): string[]` składa kartę oceny offline, bez LLM
+i bez żadnych danych spoza oceny. Kolejność (głos czyta pierwsze dwa zdania): werdykt (`Można.`, `Można, z poprawkami.`,
+`Odradzam.`, `Tego nie zrobię.`, `Nie wiem, o które ćwiczenie chodzi.`) → kontrole posortowane przez `sortChecks`
+(twarde, rady, ostrzeżenia, informacje; zwykłe `pass` pomijane) → zalecenie serii (`Zalecam 2 serie jako następne
+(mieści się do 3).`, albo brak miejsca z powodami limit dnia/tygodnia/czas) → recepta (`Recepta: 2 serie, 6 kg,
+8–15 powtórzeń.`) → do dwóch alternatyw z oceną (`odradzane` przy `not_recommended`). Przy `needs_clarification`
+tylko werdykt i lista kandydatów. Przy `blocked` bez recepty.
+
+`CHECK_TEXT` to `Record<RuleCode, …>`: kompilator wymusza zdanie dla każdego kodu rejestru twardych/rad/informacji.
+Zdanie nie wymyśla liczb — brak liczby w `data` daje zdanie ogólne (testowane dla każdego kodu z danymi i bez, we
+wszystkich statusach). `checkText(check, name?)` jest eksportowane dla karty i dla AI jako zdanie awaryjne.
+Odmiana: `plural` (1 seria, 2–4 serie, 5+ serii, 12–14 serii), dopełniacz „do 13 serii”, biernik „zalecam 1 serię”.
+Imiona ćwiczeń przez `exerciseName(id)`; bez niego pokazywane jest id. Nazwy mięśni z własnej tabeli w domenie
+(domena nie importuje `@/strings`), spójnej z `pl.labels.muscle`.
+
+Dla `feel`: `Przyjęto: za ciężko/za lekko.`, `Polecam: …`, `Inne możliwości: …`, a przy redukcji uwaga, że skrócenie
+na prośbę nie liczy się jako porażka siłowa (zgodne z USER_REDUCED). Dowód: `assessmentText.test.ts` — snapshot
+zdania każdego kodu, scenariusze na realnym silniku (dodanie, ponad limit dnia, nieznane ćwiczenie, niejednoznaczne,
+feel), determinizm i niezmienność wejścia.
 
 ## 5. Konwencje testów
 

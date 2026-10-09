@@ -447,14 +447,21 @@ export function buildDay(
  * the logs as they are now (SPEC §11). An empty list keeps the day as
  * planned; anything else makes the week plan it again.
  */
+/** Volume/recovery facts also accept an explicitly projected v2 history, without fake actual sets. */
+export interface SelectionHistoryFacts {
+  volume: Record<MuscleGroup, number>;
+  lastPrimary: Partial<Record<MuscleGroup, string>>;
+}
+
 export function checkSelection(
   selection: DaySelection,
   input: PlannerInput,
   cfg: PlannerConfig = PLANNER_CONFIG,
   training = TRAINING_CONFIG,
+  facts?: SelectionHistoryFacts,
 ): SelectionViolation[] {
   const { catalog, block } = input;
-  const ctx = dayContext(input, cfg, training);
+  const ctx = { ...dayContext(input, cfg, training), ...facts };
   const out: SelectionViolation[] = [];
   if (selection.blockIndex !== block.index || selection.phase !== ctx.phase) {
     out.push({ slotId: null, code: 'BLOCK_CHANGED' });

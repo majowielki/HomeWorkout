@@ -423,3 +423,12 @@ export const COACH_CONFIG = {
   maxNotes: 8,
   noteMaxChars: 280,
 } as const;
+
+/** Exercise-name resolution, 13 §11; the lexicon itself is versioned data. */
+export const EXERCISE_RESOLVER_CONFIG = {
+  minScore: 0.6,
+  minLead: 0.15,
+  movementBonus: 0.2,
+  typoMinLength: 6,
+  nearestCount: 3,
+} as const;

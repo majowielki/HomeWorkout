@@ -30,7 +30,7 @@ opisany inny dowód) i commit.
 | P2 | Zapis i historia: migracja, polecenia sesji, normalizacja, archiwizacja i reset | ☑ warstwa danych 2026-10-09 (logger UI i reset na telefonie: P5/P6) | `refactor/engine-p2-storage` | P1 |
 | P3 | Kwalifikacja i progresja (pipeline reguł, pamięć szczebla, próba, budowanie do zakresu) | ☑ domena 2026-10-09 (podłączenie do planowania: P5, aktywacja: P6) | `refactor/engine-p3-progression`, `refactor/engine-p3b-rotation-volume` | P1, P2 |
 | P4 | Audyt, kompilator, zasoby, czas | ☑ domena 2026-10-09 (konsumenci aplikacji: P5/P6) | `refactor/engine-p4-compile-audit` | P1, P2 |
-| P4b | Konsultacja zmian w sesji (domena) | ☐ | | P3, P4 |
+| P4b | Konsultacja zmian w sesji (domena) | ☑ 2026-10-09 (UI, głos i AI: P5) | `refactor/engine-p4b-session-consultation` | P3, P4 |
 | P5 | Tydzień, UI, AI, transakcyjna akceptacja | ☐ | | P3, P4, P4b |
 | P6 | Aktywacja silnika bazowego | ☐ | | P0–P5 |
 | P7 | Rotacja z ciągłością (plateau, benchmark wieloletni) | ☐ | | P6 |
@@ -129,7 +129,90 @@ Dokumentacja: DOKUMENTACJA §4.14–4.15 i UWAGI §2b.
 
 Obserwacja D22 nadal czeka na benchmark P8: przy 3 seriach compound maksima pośladków i pleców (8) wyczerpują się
 w 4–5 dniu; później możliwa jest głównie praktyka/mobilność albo krótszy legalny dzień. Nie zmieniono limitów.
-Następny etap: **P4b — konsultacja zmian w sesji**, zaczynając od resolvera nazw/aliasów (P4b.1, Q-5).
+Kontynuacja: **P4b — konsultacja zmian w sesji** (stan i następny krok poniżej).
+
+## P4b — konsultacja zmian w sesji (domena odebrana, niescalona)
+
+| Zadanie | Zakres | Dowód | Status |
+|---|---|---|---|
+| P4b.1 | `catalog/resolve.ts`: resolver ID/nazw/aliasów, polskie odmiany, literówka jednego znaku w długim słowie, ambiguous/not_found z najbliższymi i wzorcem ruchu; `data/movement-terms.json` v1, katalog v6 ze 109 aliasami dla 63 ćwiczeń | T70: `resolveExerciseRef.test.ts`, `movementLexicon.test.ts`; resolver 100% statements/branches/functions/lines; wszystkie 151 nazw i 109 aliasów sprawdzone na prawdziwym katalogu; `validate:data` | ☑ |
+| P4b.2 | `assessSessionChange`: hipotetyczna rewizja pending, wspólny audyt resume, efekty dnia/tygodnia/regeneracji/nakładania/czasu/jutra, scope i deterministyczny patch | T61–T66: `assessSessionChange.test.ts` (84 testy); pełne `verify`, domena/AI 100% | ☑ |
+| P4b.3 | `rankAlternatives`: werdykt → biomechanika → preferencja; każda alternatywa oceniona, własny patch, pełna pula i filtr sprzętu | T67, T75: `rankAlternatives.test.ts` (25 testów); pełne `verify`, domena/AI 100% | ☑ |
+| P4b.4 | `applySessionChange`: ponowna ocena i zapis w transakcji, idempotencja, rewizje, ACK_REQUIRED/STALE_INPUT, dyspozycje starych recept i rezerwacja pending | T68, T69: 32 przypadki na realnym SQLite, pełne `verify` | ☑ |
+| P4b.5 | `feel` → ocenione opcje i rekomendacje; transakcyjny FeelReport, USER_REDUCED przy redukcji/łatwiejszym wariancie | T71, T72, T105; `feel.test.ts`, realny SQLite | ☑ |
+| P4b.6 | Deterministyczne polskie teksty `assessmentText` | T72: `assessmentText.test.ts` (snapshot zdania każdego z 29 kodów, scenariusze na realnym silniku); pełne `verify` | ☑ |
+
+Resolver jest czystą domeną; nie podłączono go jeszcze do UI, głosu ani AI. Rozpoznanie ćwiczenia nie zastępuje
+kwalifikacji i audytu sesji. Kierunek „zza głowy” pozostaje odrębny od „nad głowę”; pozycja/sprzęt/strona podane
+w zapytaniu nie są gubione dla uzyskania lepszego score. Puste i całkiem nieznane zapytanie nie dostaje losowych
+„najbliższych” nazw. Zmiana katalogu poza wersją obejmuje tylko aliasy; dawny golden baseline bez zmian.
+Szczegóły: DOKUMENTACJA §4.16, UWAGI §2c.
+
+**Odbiór P4b.1 2026-10-09:** pełne `npm run verify` zielone: **171 zestawów, 3677 testów, 4 snapshoty**,
+bez pominiętych. Domena i warstwy AI mają 100% statements/branches/functions/lines. Golden baseline
+dotychczasowego silnika identyczny. Znane 18 ostrzeżeń katalogu `NO_EASIER_VARIANT` bez zmian.
+
+**Odbiór P4b.2 2026-10-09:** `assessSessionChange` obsługuje dodanie ćwiczenia/serii, zamianę, redukcję i pominięcie
+pending. Jawna liczba serii pozostaje w patche; advice daje `not_recommended`, hard → brak patcha.
+Wykonane/pominięte ID i recepty pozostają w rewizji, kroki historyczne zachowują ID, rozgrzewka gumy nie jest
+powtarzana. Pominięta seria nie zużywa budżetu czasu. Prognoza jutra używa `ProjectedExposure` i faktów
+objętości/regeneracji we wspólnym `checkSelection`, bez tworzenia actual. `planWithRepair` nie jest wywoływane.
+Dowody i kontrakt: DOKUMENTACJA §4.17, UWAGI §2d.
+
+Pełne `npm run verify`: **172 zestawy, 3761 testów, 4 snapshoty**, domena/AI 100%, golden baseline identyczny.
+Znane 18 ostrzeżeń `NO_EASIER_VARIANT` bez zmian. Integracja z DB/runnerem/UI/AI, ranking, `feel` i teksty PL
+pozostają w kolejnych zadaniach; ocena nie zapisuje niczego.
+
+**Odbiór P4b.3 2026-10-09:** publiczne `assessSessionChange` dołącza maksymalnie trzy alternatywy,
+ocenione tą samą funkcją bez rekurencji. Hard fail usuwa kandydata, advice zachowuje własny patch;
+preferencje rozstrzygają po werdykcie i biomechanice, `avoid` nie wyklucza. Ranking łączy graf, zamienniki,
+rodzeństwo slotu i opcjonalne rodziny analityczne. Nierozpoznane ćwiczenie korzysta z mięśni podpowiedzi
+słownika; bez podpowiedzi albo przy niejednoznaczności nie podaje przypadkowych opcji. Każda pozycja
+zachowuje jawny zamiar i pełną ocenę do karty/ponownego audytu. Szczegóły: DOKUMENTACJA §4.18, UWAGI §2e.
+
+Pełne `npm run verify`: **173 zestawy, 3786 testów, 4 snapshoty**, domena/AI 100%, golden baseline bez zmian.
+25 nowych testów sprawdza kolejność i permutacje, preferencje, hard/advice, graf/rodziny, filtry, własne
+recepty/patche i nienaruszalność wykonanych serii. Znane 18 ostrzeżeń katalogu bez zmian.
+Ocena całej puli poprzedza wybór trzech wyników; pomiar p95 na telefonie pozostaje do odbioru integracji.
+
+**Odbiór P4b.4 2026-10-09:** wejście aplikacyjne Promise i jedna transakcja od świeżego odczytu po ledger.
+Powtórka nie zapisuje drugi raz; stare rewizje i inny patch są odrzucane, advice wymaga wszystkich ACK,
+hard nigdy nie jest override. Zapis obejmuje rewizję `user_change`, kanał, overrides, aktualny plan,
+dyspozycje usuniętych pending ID, outcomes i liczniki. Każdy błąd zapisu cofa wszystkie te elementy.
+Historia zachowuje recepty starych serii i kontekst `USER_REDUCED`; skrócenie nie tworzy pozornej kompletnej
+ekspozycji. Pending aktualnego planu rezerwuje objętość dla następnej oceny. UI/runner/AI pozostają P5.
+Szczegóły: DOKUMENTACJA §4.19, UWAGI §2f.
+
+Pełne `npm run verify`: **173 zestawy, 3819 testów, 4 snapshoty**, domena/AI 100%, baseline bez zmian.
+32 nowe przypadki SQLite obejmują T68/T69, kanały, re-assessment faktów, alternatywy, historię i rollback
+czterech tabel. Znane 18 ostrzeżeń katalogu bez zmian.
+
+**Odbiór P4b.5 2026-10-09:** `feel` jest oceną obserwacji z `patch: null`. Każda opcja ma własną
+ocenę, zamiar i patch do osobnej akceptacji. `too_hard` poleca lżejszy opór przy ≥2 pozostałych seriach,
+przy braku lżejszego szczebla — dostępny łatwiejszy wariant, a dalej −1 serię (lub skip, gdy redukcja
+narusza wykonaną stronę). `too_easy` poleca +1 serię tylko przy `ok`, inaczej sygnał dla następnej recepty.
+Dodane serie pozostają supplemental; redukcja i łatwiejszy wariant zachowują `USER_REDUCED`.
+`reportSessionFeel` zapisuje raport i zwraca ocenę ze świeżej historii w jednej transakcji; nie zmienia
+planu. Raport podnosi history/session revision; retry, stale, kanały, ACK opcji i rollback są sprawdzone
+na realnym SQLite. Szczegóły: DOKUMENTACJA §4.20, UWAGI §2g. UI/runner/AI pozostają P5.
+
+Pełne `npm run verify`: **174 zestawy, 3855 testów, 4 snapshoty**, domena/AI 100%, baseline bez zmian.
+21 testów `feel.test.ts` i 15 nowych przypadków SQLite obejmuje T71/T72/T105, kanały, ukończone
+i częściowe ekspozycje, strony, flagę progresji, redukcję/wariant, aktualność opcji i rollback.
+Znane 18 ostrzeżeń katalogu bez zmian.
+
+**Odbiór P4b.6 2026-10-09:** `assessmentText(assessment, {exerciseName?, maxAlternatives?}): string[]` w
+`session/assessmentText.ts`: werdykt, potem kontrole (twarde, rady, ostrzeżenia, informacje), zalecenie liczby serii,
+recepta, alternatywy; dla `feel` — przyjęty sygnał, polecana opcja, pozostałe i uwaga, że skrócenie nie jest porażką.
+Zdanie ma każdy z 29 kodów rejestru (rekord wyczerpujący — nowy kod nie skompiluje się bez tekstu). Liczby pochodzą
+wyłącznie z `checks.data` i oceny. Głos czyta dwa pierwsze zdania. Szczegóły: DOKUMENTACJA §4.21, UWAGI §2h.
+
+Przy okazji poprawiona usterka P4b.2/P4b.5: zmiana na ćwiczeniu w toku (lżejszy opór, −1 seria, +1 seria) nie jest już
+oceniana `OVERLAP_TODAY` względem własnych wykonanych serii — wcześniej polecana opcja „lżej” wychodziła jako odradzana.
+
+Pełne `npm run verify`: **175 zestawów, 3885 testów, 8 snapshotów**, domena/AI 100%, baseline bez zmian.
+
+Następny krok: **P5 — tydzień, UI, głos, AI, transakcyjna akceptacja** (plan zadań w 07).
 
 ## P5–P9
 
@@ -140,6 +223,12 @@ rozpoczęcia etapu, żeby plik pokazywał stan faktyczny, a nie przepisane plany
 
 | Data | Co | Commit |
 |---|---|---|
+| 2026-10-09 | **P4b.6 gotowe, P4b odebrane**: `assessmentText` (PL, 29 kodów + werdykty, zalecenie, recepta, alternatywy, feel); poprawka samonakładania się zmian na ćwiczeniu w toku. `verify`: 3885 testów, 175 zestawów, 100% domena/AI, baseline bez zmian. Następne: P5 | |
+| 2026-10-09 | **P4b.5 gotowe**: ocenione opcje `feel`, rekomendacje, transakcyjny FeelReport; T71/T72/T105, USER_REDUCED i supplemental, retry/stale/ACK/rollback SQLite. `verify`: 3855 testów, 174 zestawy, 100% domena/AI, baseline bez zmian. Następne: `assessmentText` | |
+| 2026-10-09 | **P4b.4 gotowe**: transakcyjne `applySessionChange`, świeży odczyt/ponowna ocena, rewizje/ACK/ledger, zachowane recepty i rezerwacja; T68/T69 + granice (32 przypadki SQLite). `verify`: 3819 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `feel` | |
+| 2026-10-09 | **P4b.3 gotowe**: ranking pełnej puli przez wspólną ocenę bez rekurencji, werdykt → biomechanika → preferencja, własne patche i filtrowanie hard-faili; T67/T75 + granice (25 testów). `verify`: 3786 testów, 173 zestawy, 100% domena/AI, baseline bez zmian. Następne: `applySessionChange` | |
+| 2026-10-09 | **P4b.2 gotowe**: ocena pięciu zmian pending, wspólny audyt resume, efekty i patche; T61–T66 + granice (84 testy). `verify`: 3761 testów, 172 zestawy, 100% domena/AI, baseline bez zmian. Następne: `rankAlternatives` | |
+| 2026-10-09 | **P4b.1 gotowe, P4b w toku**: resolver nazw/aliasów T70, wersjonowany słownik, katalog v6 (109 aliasów dla 63 ćwiczeń), walidacja spójności. `npm run verify`: 3677 testów, 171 zestawów; domena/AI 100%, golden baseline identyczny. Następne: rewizja niewykonanej części i `assessSessionChange` | `bf6af96` |
 | 2026-10-09 | **P4 domena odebrana**: dwa testy odblokowane, pełne pokrycie, ślad score, metadane planu po naprawie, poprawny kontekst deloadu w symulacji. `npm run verify`: 3641 testów, 169 zestawów; domena i AI 100%. Konsumenci aplikacji nadal P5/P6 | `77f739c`, `544d66a`, `87858ec` |
 | 2026-10-09 | **P4 w toku** (niescalone): kompilator, audyt, naprawa, `planDayV2`, blok v2, symulacja v2, sygnały v2. Domena: 1771 testów zielone; pokrycie 100% nie domknięte dla dayV2/simulateV2. Q-6/Q-7 zamknięte. P3 scalony do main | |
 | 2026-10-09 | **P3 zamknięty** (reszta: rotacja z ciągłością, deload reaktywny, dźwignia objętości i wagi mięśni). Q-6 rozstrzygnięte (wydłużenie zakresu przed dodatkową serią, zgodnie z D29), Q-7 potwierdzone. `npm run verify`: 3446 testów, pokrycie domeny 100% | |

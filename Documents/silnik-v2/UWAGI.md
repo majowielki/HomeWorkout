@@ -69,6 +69,113 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 - Obserwacja D22 pozostaje do benchmarku P8: compound 3 serie wcześniej wyczerpuje maksima tygodniowe; krótszy
   legalny dzień albo praktyka/mobilność po wyczerpaniu limitów są dopuszczalne. Nie podnoszono limitów dla testów.
 
+### 2c. P4b.1 — nazwy i aliasy (2026-10-09)
+
+- `resolveExerciseRef` przyjmuje jawny słownik jako trzeci argument, a fabryka `createExerciseResolver`
+  przygotowuje indeks do wielu zapytań. Spec. 13 §11 pokazuje dwa argumenty; dodatkowe wejście zachowuje
+  granicę czystej domeny (bez importu JSON) i pozwala odtwarzać wersję słownika.
+- Przed przybliżonym Jaccardem rozpoznawane są równoważne zbiory tokenów ze słownika. Dzięki temu odmiana
+  „wyciskania siedząco” odpowiada aliasowi „wyciskanie siedząc” mimo dłuższej oficjalnej nazwy wariantu.
+  Kierunek, pozycja, strona i sprzęt są zachowywane przy dopasowaniu; „zza głowy” nie jest synonimem „nad głowę”.
+  To doprecyzowanie T70, a nie dodanie nowego ćwiczenia ani obejście kwalifikacji.
+- Not_found zwraca do trzech kandydatów o **dodatnim** podobieństwie; dla pustego i całkiem obcego zapytania
+  lista jest pusta. Wskazówka `movement` jest jawna i może być null. Archived nie jest rozpoznawane jako active.
+- Katalog v6: 109 aliasów dla 63 ćwiczeń. Wersja podniesiona, żeby seed dostarczył pola do istniejącej bazy;
+  poza wersją zmieniono tylko aliasy. Historia nie jest resetowana. Katalog może być dalej rozszerzany o
+  sprawdzone potoczne nazwy; equivalenceGroup i secondaryWeights zachowują dotychczasowe wartości domyślne.
+
+### 2d. P4b.2 — kontrakt oceny i granice integracji (2026-10-09)
+
+- Snapshot domeny jest rozszerzeniem `DayInputV2`, a nie importem obecnego snapshotu funkcji UI (który
+  nadal czyta historię v1). Adapter bazy i podłączenie do aplikacji należą do P5.
+- Patch ma oprócz `ops` konkretny `plan` nowej rewizji. Jest wynikiem oceny do podglądu; stamp resume i pusty
+  `overrides` nie zastępują ponownego audytu/ACK w transakcji P4b.4.
+- Gdy `recommendSets` daje 0 i nie podano liczby, ocena przedstawia dawkę domyślną polityki oraz advice,
+  zamiast pustego patcha. Jawnej liczby nigdy nie przycina. Liczba obejmuje także ewentualny probe.
+- `reduce_remaining.easier` ocenia lżejszy osiągalny opór. Przejście na łatwiejszy wariant przy minimum oraz
+  `feel` są ocenianymi opcjami P4b.5; ranking wszystkich alternatyw jest P4b.3.
+- Operacje usuwające/zastępujące pending zachowują listę usuniętych ID. Polecenie P4b.4 musi zachować stare
+  rewizje/dyspozycje i zapisać redukcję (`USER_REDUCED`), żeby skrócenie nie stało się dowodem kompletnej
+  pierwotnej ekspozycji. Ocena nie zapisuje wyników ani nie oznacza jeszcze FeelReport.
+- Czas jest szacunkiem kompilatora; wykonane/przerwane kroki pomniejszają budżet, pominięte nie. Pomiar
+  p95 na telefonie pozostaje odbiorem integracji; wynik desktopowy nie zastępuje pomiaru urządzenia.
+- Jutro używa tego samego `checkSelection`, z faktami v2 i wyraźnym `ProjectedExposure`, bez tworzenia
+  pozornych actual lub wymyślania oporu v1 dla przyszłego sprzętu. Dotychczasowi konsumenci funkcji zachowują
+  swoje zachowanie (golden baseline bez zmian).
+
+### 2e. P4b.3 — ranking i pełna pula (2026-10-09)
+
+- Publiczna ocena dołącza alternatywy; podstawowa `evaluateSessionChange` jest współdzieloną oceną
+  bez rankingu. Takie rozdzielenie usuwa rekurencję i cykl importów. `maxAlternatives: 0` pozwala
+  ponownie ocenić konkretny zamiar bez przeglądania zamienników, z tym samym `assessmentId` i `patchId`.
+- Spec. 11 §4 szacuje maksymalnie 1 + 3 oceny, ale §5 wymaga werdyktu jako pierwszego klucza pełnej puli.
+  Oceniam wszystkich kandydatów przed obcięciem do trzech wyników; inaczej mogłaby wygrać odradzana opcja,
+  mimo istnienia wykonalnej poza pierwszą trójką biomechaniczną. Optymalizacja wspólnych indeksów/cache
+  i pomiar na telefonie są odbiorem integracji; nie deklaruję spełnienia p95 < 150 ms na podstawie Jesta.
+- `comparisonFamily` jest opcjonalnym polem katalogu/schematu, bez dopisywania heurystycznych rodzin
+  do obecnych danych. Brak/null nie łączy ćwiczeń. Rodzina służy odkrywaniu kandydatów, bez transferu siły.
+- Każda pozycja zawiera także jawne `change` i pełną ocenę bez dalszych alternatyw. Zachowuje żądane serie,
+  pozycję lub ID zamienianej ekspozycji; UI może pokazać kontrole i ponownie ocenić właściwy patch w P4b.4.
+- Werdykt, preferencje, deficyt, nakładanie i regeneracja liczone są po wspólnej ocenie. `avoid` nie wyklucza,
+  a hard fail zawsze usuwa kandydata. UI/AI/DB pozostają do podłączenia w następnych etapach.
+
+### 2f. P4b.4 — granica zapisu i zachowane recepty (2026-10-09)
+
+- Spec. 11 §6 pokazuje samo `patchId`. Polecenie ma także jawne `change` (z P4b.3): hash jest
+  nieodwracalny, a preview nie zapisuje rejestru propozycji. W transakcji zamiar jest ponownie oceniany,
+  a wygenerowane ID musi zgadzać się z wybranym. Nie ufamy planowi ani operacjom przesłanym przez UI/AI.
+- Kontrakt aplikacji jest asynchroniczny, sama transakcja synchroniczna jak pozostałe polecenia P2.
+  Implementacja zapisów leży w `db/repositories/sessionChanges.ts`, a publiczne wejście w wymaganym
+  `app-services/commands/applySessionChange.ts`; wspólny ledger, counters i outcomes nie są kopiowane.
+- Do ponownej oceny potrzebny jest już teraz świeży odczyt v2, dlatego P4b.4 dodaje minimalny builder
+  `sessionChangeSource.ts` czytający przez executor transakcji. Nie importuje obecnego snapshotu UI v1.
+  Pełna integracja planera/bloków, runnera i kanałów pozostaje w P5. Brak aktywnego bloku używa wyborów
+  zamrożonego planu; inwentarz hantli pozostaje konfiguracją domeny, gumy i kalibracje pochodzą z bazy.
+- Nie dodaję osobnej tabeli rezerwacji: aktualny pending plan i jego rewizja są źródłem rezerwacji
+  uwzględnianym w `remainingVolume`. Zapis podnosi history/session revision i unieważnia starsze oceny.
+- Usunięte pending ID otrzymują dyspozycję `skipped/replaced`; stare recepty pozostają w rewizjach.
+  Odczyt historii/outcomes scala je po ID, nie podaje tego złożenia runnerowi jako nowego planu.
+  Dzięki temu skrócenie nie zmniejsza po cichu expected i nie daje awansu. `USER_REDUCED` jest już
+  zachowane w kontekście normalizacji; opcje `feel` i wybór rekomendowanej opcji są nadal P4b.5.
+- Hard/niejednoznaczność po ponownej ocenie daje `CHANGE_BLOCKED`, przed porównaniem brakującego patcha.
+  Override przechowuje wyłącznie advice-faile rzeczywiście obecne w tej ocenie. Zbędny/hard ACK nie
+  daje dodatkowych uprawnień. Zmiana wykonalnego patcha lub fingerprintu daje `STALE_INPUT`.
+
+### 2g. P4b.5 — kontrakt opcji feel i zapis obserwacji (2026-10-09)
+
+- Spec. 11 §7 nie określa pól opcji na `ChangeAssessment`. Dodaję opcjonalne `feel` z `options`
+  i `recommendedOptionIds`. Każda opcja zawiera zamiar i pełną ocenę liścia (jak P4b.3), a opcja
+  „następnym razem trudniej” ma null zamiar/patch. Nie dodaje się rekurencyjnych alternatyw.
+- Przy null ekspozycji nie zgaduję bieżącego ćwiczenia: raport dotyczy sesji, opcje i rekomendacje
+  są osobne dla każdej ekspozycji pending. Każda z tych alternatyw obowiązuje na bieżącej rewizji;
+  akceptacja jednej wymaga odświeżenia pozostałych. Po wykonaniu całości zostaje flaga `too_easy`.
+- Czysta domena nie zapisuje odczucia. Nowe `reportSessionFeel` w app-services zapisuje je wraz
+  z wynikiem oceny w jednej transakcji. Oczekiwane rewizje zapobiegają ocenie zmienionej sesji;
+  wynik opcji powstaje po zapisie raportu i podniesieniu historii, więc nie jest od razu stale.
+  Osobna późniejsza akceptacja używa dotychczasowego `applySessionChange` i ACK.
+- `recordFeelV2` z P2 pozostaje dostępne jako sam zapis. Wspólny writer podnosi teraz history
+  revision (wcześniej tylko session revision), bo odczucie zmienia wejście progresji i konsultacji.
+  Nie jest wymagana migracja; istniejące `feel_reports` i ledger wystarczają.
+- Ranking opcji redukcji wariantu filtruje graf do `easier` przed truncation; preferowany twardszy
+  zamiennik nie może wyprzeć łatwiejszego. Zamiana na łatwiejszy wariant zapisuje `reducedFrom`
+  na nowej recepturze; historia oznacza USER_REDUCED także po stronie zastępującej.
+- Polski tekst opcji/kontroli: P4b.6 (§2h). UI/runner/AI nie są jeszcze podłączone (P5).
+
+### 2h. P4b.6 — teksty oceny i poprawka samonakładania (2026-10-09)
+
+- Spec. 11 §8 podaje sygnaturę `assessmentText(assessment): string[]`. Zdania zawierają nazwy ćwiczeń, których ocena
+  nie niesie (tylko id), więc dodałem opcjonalny drugi argument `{exerciseName, maxAlternatives}`; bez niego
+  pokazywane jest id. Wywołujący (UI, P5) przekazuje nazwy z katalogu.
+- Domena nie importuje `@/strings`, więc teksty i nazwy mięśni są w `session/assessmentText.ts`. P5 decyduje, czy
+  przenieść je do `pl.ts` (wtedy tekst jest wstrzykiwany); do tego czasu istnieje jeden zestaw, z testami.
+- Usterka znaleziona przy tekstach: `OVERLAP_TODAY` (advice, `samePattern`) porównywało zmianę na ćwiczeniu w toku
+  z jego własnymi wykonanymi seriami, więc `reduce_remaining`/`add_sets` były `not_recommended`, a polecana opcja
+  feel „lżejszy opór” wychodziła jako odradzana. Teraz zmiana na istniejącej ekspozycji (poza `swap_remaining`)
+  pomija własne ćwiczenie; dodanie tego samego ćwiczenia jako nowej ekspozycji nadal się nakłada. Test:
+  `assessSessionChange.test.ts` („carries on an exercise in progress”). Golden baseline bez zmian.
+- Do sprawdzenia na telefonie w P5: czy zdania czytane głosem (pierwsze dwa) są zrozumiałe; formy bezosobowe
+  („Dziś zgłoszono ból”) wybrane celowo, żeby nie zgadywać rodzaju gramatycznego.
+
 ## 3. Do sprawdzenia
 
 ### 3.1 Telefon
@@ -86,7 +193,7 @@ Każde odstępstwo: co plan mówi, co robię, dlaczego, czy wymaga zgody.
 | Q-2 ✔ 2026-10-09 (start dany) | Termin P2 (archiwizacja i reset danych treningowych na telefonie): P2 kasuje historię treningów z aplikacji po zrobieniu pliku archiwum. Plan zakłada zgodę (D21), ale uruchomienie to osobna decyzja | przed P2 |
 | Q-3 ✔ 2026-10-09 | Potwierdzone przez użytkownika; regulowane w Ustawieniach (§2: przełącznik „Uwzględniaj ograniczenia kolana” i „Ostrożny zakres powtórzeń”, pole `KneeProfile.cautiousReps`; sufit stosuje się tylko, gdy profil kolana istnieje i przełącznik nie jest wyłączony — `repCapOf(ćwiczenie, profil)`). Pierwotne pytanie: Fizjoterapeuta: sufit powtórzeń 20 dla ćwiczeń obciążających kolano (D34) i brak celu RIR 0 powyżej 15 powtórzeń — zasada ostrożności do potwierdzenia. Wartość jest w `PROGRESSION_CONFIG.repCap.kneeLoading` | przed P3 |
 | Q-4 ✔ 2026-10-09 | Zgoda użytkownika na kolejność krawędzi; krawędzie zmieniające jednostkę: patrz §2. Pierwotne pytanie: przejrzeć 36 krawędzi wariantów w `data/exercises.json` (pole `progressions`; kolejność trudności to moja ocena: np. `pelvic-curl → glute-bridge → glute-bridge-march`, `push-up → deadstop-push-up → archer-push-up`, `crunch → pilates-roll-up → teaser → v-up`). Błędna kolejność oznacza złą propozycję „trudniejszy/łatwiejszy wariant” w P3 | przed P3 |
-| Q-5 | Aliasy nazw (do rozpoznawania „wyciskanie siedząc”, „pompki”) są polem w katalogu, ale **bez danych**; wypełnię je razem z `resolveExerciseRef` w P4b, gdzie da się je sprawdzić na prawdziwych zdaniach. `equivalenceGroup` i `secondaryWeights` też puste (zachowanie domyślne: heurystyka `nearEquivalent`, waga 0,5) | P4b |
+| Q-5 ✔ 2026-10-09 (nazwy) | P4b.1: resolver T70 i 109 sprawdzonych aliasów dla 63 ćwiczeń w katalogu v6. Wszystkie oficjalne nazwy są rozpoznawane, „wyciskanie siedząc” i „pompki” działają. `equivalenceGroup` i `secondaryWeights` zachowują domyślne zachowanie (heurystyka `nearEquivalent`, waga 0,5); nie są wymagane do rozpoznawania nazw | P4b |
 | Q-6 ✔ 2026-10-09 | Rozstrzygnięte przez agenta na prośbę użytkownika („wybierz poprawnie”): zostaje wydłużenie zakresu przed dodatkową serią, bo D29 (v1.2, najnowsza decyzja, potwierdzona w E9 i 14 §3) wskazuje wydłużony zakres jako sposób oczyszczenia, a dodatkową serię tylko tam, gdzie zakres stoi na suficie. Pierwotne pytanie: P3: oś pośrednia po nieudanym szczeblu — najpierw wydłużenie zakresu o krok na ekspozycję (do góry + 5 powt. albo + 15 s), potem dodatkowa seria (UWAGI §2a). Czy tak ma być? Alternatywa ze spec. v1.1: najpierw dodatkowa seria (wtedy trzeba zmienić kryterium oczyszczenia na „kompletna `top_met` z dodatkową serią”) | przed P5 |
 | Q-7 ✔ 2026-10-09 | Użytkownik: „ok”. Pierwotne pytanie: P3: tydzień deloadu nie jest oceniany, decyzja po nim bierze ostatnią ekspozycję sprzed deloadu; kompletna ekspozycja z porzuconej sesji jest dowodem. Czy to zgodne z oczekiwaniem? | przed P5 |
 

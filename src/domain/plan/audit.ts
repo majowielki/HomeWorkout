@@ -85,6 +85,8 @@ export interface AuditContext {
   day?: AuditDay;
   /** For `resume_session`: the sets already done or skipped, which are not looked at again. */
   settled?: ReadonlySet<string>;
+  /** Resume may compile only pending steps; the time budget applies to that remaining part. */
+  remainingSec?: number;
   /** The policies the engine has, by id; the ones in `PROGRESSION_POLICIES` unless a test brings its own. */
   policies?: Readonly<Record<string, { id: string; version: string }>>;
 }
@@ -383,7 +385,9 @@ function dayFindings(
         issue(finding('AVOIDED_BY_REQUEST', 'fail', { exerciseId: e.exercise.id }), scope, drop),
       );
     }
-    if (exercise.primaryMuscles.some((m) => day.painMuscles.has(m))) {
+    if (
+      [...exercise.primaryMuscles, ...exercise.secondaryMuscles].some((m) => day.painMuscles.has(m))
+    ) {
       out.push(issue(finding('PAIN_TODAY', 'fail', { exerciseId: e.exercise.id }), scope, drop));
     }
     // Soreness keeps out everything but mobility; a muscle still recovering keeps out hard work only.
@@ -426,8 +430,9 @@ function dayFindings(
     }
   }
 
-  if (day.sessionSecMax !== null && plan.time.exerciseTotal > day.sessionSecMax) {
-    const data: CheckData = { seconds: plan.time.exerciseTotal, max: day.sessionSecMax };
+  const seconds = ctx.remainingSec ?? plan.time.exerciseTotal;
+  if (day.sessionSecMax !== null && seconds > day.sessionSecMax) {
+    const data: CheckData = { seconds, max: day.sessionSecMax };
     out.push(
       issue(finding('TIME_OVER_BUDGET', 'fail', data), { level: 'session' }, [
         'drop_filler',
@@ -452,6 +457,15 @@ function resourceFindings(plan: SessionPlanV2, ctx: AuditContext): AuditIssue[] 
   for (const step of plan.execution.steps) {
     if (step.kind === 'setup') {
       pending = new Set(step.resources.map((r) => r.resourceId));
+      out.push(
+        issue(
+          finding('RESOURCE_CONFLICT', 'warn', {
+            resources: step.resources.map((r) => r.resourceId).join(','),
+            setupSec: step.estimatedSec,
+          }),
+          { level: 'step' },
+        ),
+      );
       continue;
     }
     if (step.kind !== 'perform') continue;

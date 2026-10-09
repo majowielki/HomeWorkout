@@ -31,6 +31,18 @@ export function substituteScore(
   );
 }
 
+/** The same biomechanical score on a 0..1 scale for the session alternatives key. */
+export function biomechSimilarity(original: Exercise, candidate: Exercise): number {
+  const cfg = SUBSTITUTE_CONFIG;
+  const max =
+    cfg.sharedPrimaryWeight +
+    cfg.hingeWeight +
+    cfg.bilateralWeight +
+    cfg.closedChainWeight +
+    cfg.samePatternWeight;
+  return substituteScore(original, candidate, cfg) / max;
+}
+
 /**
  * Where replacements are looked for: the hand-picked `substituteIds` first,
  * then the other exercises of the same slot. Unknown ids, the original
