@@ -215,7 +215,7 @@ export function readSessionState(sessionId: string): SessionState | null {
 }
 
 /** Rebuilds the stored outcomes of a session from its plan and what is stored for it. */
-function refreshOutcomes(
+export function refreshOutcomes(
   tx: Tx,
   workout: WorkoutRow,
   plan: SessionPlan,

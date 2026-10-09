@@ -73,7 +73,8 @@ export function readNormalizedHistory(tx: Executor, sessions: WorkoutRow[]): Loa
       ? []
       : [{ ...row.observation, revision: row.revision, deletedAt: row.deletedAt }],
   );
-  const dispositions: SetDisposition[] = skipRows.map((d) => ({
+  const dispositions = skipRows.map((d) => ({
+    sessionId: d.workoutId,
     plannedSetId: d.plannedSetId,
     status: d.status,
     reason: d.reason as SetDisposition['reason'],

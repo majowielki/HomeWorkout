@@ -207,7 +207,8 @@ const CASES = [
         })
         .run();
       const drop = failInsert('reject_close', 'command_ledger', "WHEN NEW.kind = 'close_session'");
-      await assert.rejects(workouts.abandonStaleWorkouts(new Date(NOW.getTime() + 13 * 3600000)));
+      // A failing store does not keep the app from starting: the session stays as it was.
+      await workouts.abandonStaleWorkouts(new Date(NOW.getTime() + 13 * 3600000));
       drop();
       assert.equal((await workouts.getWorkout('s1')).status, 'in_progress');
       assert.equal(all('SELECT status FROM planned_days')[0].status, 'planned');
@@ -254,6 +255,84 @@ const CASES = [
       assert.equal(restored.status, 'abandoned');
       assert.deepEqual(restored.plan, { regions: [], title: 'Historical title' });
       assert.equal(await workouts.findInProgressWorkout(), null);
+    },
+  ],
+  [
+    'a stale session no command can close is abandoned and does not stop the start (DAT-01)',
+    async () => {
+      await seeded();
+      current.native
+        .prepare(
+          "INSERT INTO workouts (id, training_date, started_at, status, plan_schema, session_plan) VALUES ('planless', '2026-09-01', '2026-09-01T08:00:00Z', 'in_progress', 2, NULL)",
+        )
+        .run();
+      await workouts.abandonStaleWorkouts(NOW);
+      assert.equal((await workouts.getWorkout('planless')).status, 'abandoned');
+      assert.equal(await workouts.findInProgressWorkout(), null);
+    },
+  ],
+  [
+    'a restored history raises every revision and gets its outcomes built again (DAT-04)',
+    async () => {
+      await seeded();
+      sessions.startSession(
+        { commandId: 'start', plan: legalPlan(), timeZone: 'Europe/Warsaw' },
+        NOW,
+      );
+      const revisions = () =>
+        Object.fromEntries(
+          all('SELECT domain, revision FROM planning_revisions').map((r) => [r.domain, r.revision]),
+        );
+      const outcomes = all('SELECT * FROM exposure_outcomes').length;
+      assert.ok(outcomes > 0, 'the running session has outcomes');
+      const saved = await backup.dumpAll(NOW);
+      const before = revisions();
+      await backup.restoreAll(saved);
+      const after = revisions();
+      for (const domain of [
+        'history',
+        'profile',
+        'catalog',
+        'inventory',
+        'requests',
+        'block',
+        'preferences',
+      ]) {
+        assert.ok(
+          (after[domain] ?? 0) > (before[domain] ?? 0),
+          domain + ' ' + JSON.stringify([before, after]),
+        );
+      }
+      assert.equal(all('SELECT * FROM exposure_outcomes').length, outcomes);
+    },
+  ],
+  [
+    'a flaw in an older session does not shut off the changes of the running one (DAT-02)',
+    async () => {
+      await seeded();
+      const { loadSessionChangeSource } = require('../repositories/sessionChangeSource.ts');
+      sessions.startSession(
+        { commandId: 'start', plan: legalPlan(), timeZone: 'Europe/Warsaw' },
+        NOW,
+      );
+      const exercise = all('SELECT id FROM exercises LIMIT 1')[0].id;
+      current.native
+        .prepare(
+          "INSERT INTO workouts (id, training_date, started_at, status, plan_schema, session_plan) VALUES ('older', '2026-09-01', '2026-09-01T08:00:00Z', 'completed', 2, ?)",
+        )
+        .run(JSON.stringify(legalPlan({ sessionId: 'older' })));
+      current.native
+        .prepare(
+          "INSERT INTO set_logs (id, workout_id, exercise_id, exercise_order, set_index, reps, logged_at, planned_set_id, revision, observation) VALUES ('bad', 'older', ?, 0, 1, 8, 'now', 'nowhere', 1, ?)",
+        )
+        .run(
+          exercise,
+          JSON.stringify(
+            legalObservation({ id: 'bad', sessionId: 'older', plannedSetId: 'nowhere' }),
+          ),
+        );
+      const source = loadSessionChangeSource('s1');
+      assert.deepEqual(source.problems, []);
     },
   ],
 ];

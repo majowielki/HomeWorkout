@@ -48,13 +48,15 @@ export interface NormalizationProblem {
   /** The id of the observation or disposition it is about. */
   recordId: string;
   detail: string;
+  /** The session the record belongs to; null when that cannot be told. */
+  sessionId: string | null;
 }
 
 export interface NormalizationInput {
   sessions: readonly SessionMeta[];
   plans: readonly SessionPlan[];
   observations: readonly ObservationRow[];
-  dispositions: readonly SetDisposition[];
+  dispositions: readonly (SetDisposition & { sessionId?: string })[];
   feel: readonly FeelReport[];
 }
 
@@ -95,7 +97,12 @@ export function normalizeObservations(input: NormalizationInput): {
   }
   for (const o of [...latest.values()].filter((r) => r.deletedAt === null).sort(newer)) {
     if (!meta.has(o.sessionId)) {
-      problems.push({ code: 'UNKNOWN_SESSION', recordId: o.id, detail: o.sessionId });
+      problems.push({
+        code: 'UNKNOWN_SESSION',
+        recordId: o.id,
+        detail: o.sessionId,
+        sessionId: o.sessionId,
+      });
       continue;
     }
     if (o.plannedSetId === null) {
@@ -104,7 +111,12 @@ export function normalizeObservations(input: NormalizationInput): {
     }
     const home = planned.get(o.plannedSetId);
     if (home === undefined || home.plan.sessionId !== o.sessionId) {
-      problems.push({ code: 'UNKNOWN_PLANNED_SET', recordId: o.id, detail: o.plannedSetId });
+      problems.push({
+        code: 'UNKNOWN_PLANNED_SET',
+        recordId: o.id,
+        detail: o.plannedSetId,
+        sessionId: o.sessionId,
+      });
       addExtra(o);
       continue;
     }
@@ -115,6 +127,7 @@ export function normalizeObservations(input: NormalizationInput): {
         code: 'UNIT_MISMATCH',
         recordId: o.id,
         detail: `${quantity.kind} recorded for a ${set.target.kind} target`,
+        sessionId: o.sessionId,
       });
       addExtra(o);
       continue;
@@ -125,6 +138,7 @@ export function normalizeObservations(input: NormalizationInput): {
         code: 'DUPLICATE_OBSERVATION',
         recordId: earlier.id,
         detail: `${o.plannedSetId} also has ${o.id}`,
+        sessionId: o.sessionId,
       });
       addExtra(earlier);
     }
@@ -135,7 +149,12 @@ export function normalizeObservations(input: NormalizationInput): {
   const skips = new Map<string, SetDisposition>();
   for (const d of [...input.dispositions].sort((a, b) => compareCodePoints(a.at, b.at))) {
     if (!planned.has(d.plannedSetId)) {
-      problems.push({ code: 'UNKNOWN_PLANNED_SET', recordId: d.plannedSetId, detail: d.commandId });
+      problems.push({
+        code: 'UNKNOWN_PLANNED_SET',
+        recordId: d.plannedSetId,
+        detail: d.commandId,
+        sessionId: d.sessionId ?? null,
+      });
       continue;
     }
     skips.set(d.plannedSetId, d);
@@ -161,6 +180,7 @@ export function normalizeObservations(input: NormalizationInput): {
         code: 'UNKNOWN_SESSION',
         recordId: plan.sessionId,
         detail: 'plan without a session',
+        sessionId: plan.sessionId,
       });
       continue;
     }

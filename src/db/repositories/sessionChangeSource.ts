@@ -74,7 +74,10 @@ export function readSessionChangeSource(tx: Executor, plan: SessionPlan) {
   return {
     snap,
     session: { plan, records: history.records.filter((r) => r.sessionId === plan.sessionId) },
-    problems: history.problems,
+    // A flaw in an older session, say from an edited backup, must not shut off the running one.
+    problems: history.problems.filter(
+      (p) => p.sessionId === null || p.sessionId === plan.sessionId,
+    ),
   };
 }
 

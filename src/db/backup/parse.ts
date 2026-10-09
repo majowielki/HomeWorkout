@@ -180,7 +180,39 @@ export function danglingReferences(data: BackupFile): string[] {
   const { tables } = data;
   const workoutIds = new Set(tables.workouts.map((w) => w.id));
   const bandIds = new Set(tables.bands.map((b) => b.id));
+  const setLogIds = new Set(tables.set_logs.map((s) => s.id));
   const problems: string[] = [];
+
+  // A session of engine is its plan: without one nothing can be read, started or closed.
+  for (const w of tables.workouts) {
+    if (w.planSchema === 2 && w.sessionPlan === null) {
+      problems.push(`workouts.${w.id}.sessionPlan -> missing for plan schema 2`);
+    }
+    if (w.sessionPlan !== null && w.sessionPlan.sessionId !== w.id) {
+      problems.push(`workouts.${w.id}.sessionPlan.sessionId -> ${w.sessionPlan.sessionId}`);
+    }
+  }
+  for (const r of tables.set_log_revisions) {
+    if (!setLogIds.has(r.setLogId)) {
+      problems.push(`set_log_revisions.${r.setLogId}#${r.revision}.setLogId -> ${r.setLogId}`);
+    }
+  }
+  for (const d of tables.set_dispositions) {
+    if (!workoutIds.has(d.workoutId)) {
+      problems.push(`set_dispositions.${d.commandId}.workoutId -> ${d.workoutId}`);
+    }
+  }
+  for (const r of tables.session_plan_revisions) {
+    if (!workoutIds.has(r.workoutId)) {
+      problems.push(
+        `session_plan_revisions.${r.workoutId}#${r.planRevision}.workoutId -> ${r.workoutId}`,
+      );
+    }
+  }
+  for (const f of tables.feel_reports) {
+    if (!workoutIds.has(f.workoutId))
+      problems.push(`feel_reports.${f.id}.workoutId -> ${f.workoutId}`);
+  }
 
   for (const s of tables.set_logs) {
     if (!workoutIds.has(s.workoutId)) problems.push(`set_logs.${s.id}.workoutId -> ${s.workoutId}`);

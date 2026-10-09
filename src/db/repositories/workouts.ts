@@ -1,5 +1,6 @@
 import { and, count, desc, eq, isNull, lt } from 'drizzle-orm';
 
+import { isDone } from '@/domain/commands/result';
 import { SESSION_CONFIG } from '@/domain/config/training';
 import { MS_PER_HOUR } from '@/domain/time/trainingDate';
 
@@ -39,19 +40,30 @@ export async function abandonStaleWorkouts(now: Date = new Date()): Promise<void
       .where(and(eq(workouts.status, 'in_progress'), lt(workouts.startedAt, cutoff)))
       .all();
     for (const row of rows) {
+      // The sweep never keeps the app from starting. A storage failure leaves the session as it was
+      // (the next start tries again); a row no command can close (an imported file with a plan that
+      // is not there) is marked abandoned directly and stays in the history.
       if (row.planSchema === 2) {
-        const result = closeSession(
-          { commandId: 'stale/' + row.id, sessionId: row.id, how: 'abandoned' },
-          now,
-        );
-        if (result.kind !== 'committed')
-          throw new Error('Could not close stale session: ' + row.id);
-      } else {
-        db.update(workouts)
-          .set({ status: 'abandoned', finishedAt: now.toISOString() })
-          .where(eq(workouts.id, row.id))
-          .run();
+        try {
+          const result = closeSession(
+            { commandId: 'stale/' + row.id, sessionId: row.id, how: 'abandoned' },
+            now,
+          );
+          if (isDone(result)) continue;
+          if (result.kind === 'storage_error') {
+            console.warn('could not close the stale session', row.id, result.detail);
+            continue;
+          }
+          console.warn('marking the stale session abandoned', row.id, result);
+        } catch (error) {
+          console.warn('could not close the stale session', row.id, error);
+          continue;
+        }
       }
+      db.update(workouts)
+        .set({ status: 'abandoned', finishedAt: now.toISOString() })
+        .where(and(eq(workouts.id, row.id), eq(workouts.status, 'in_progress')))
+        .run();
     }
   }
 }

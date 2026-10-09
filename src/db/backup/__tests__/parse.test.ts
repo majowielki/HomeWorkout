@@ -284,6 +284,72 @@ describe('parseBackup', () => {
     expect(result.detail).toContain('cardio_logs.c1.workoutId -> w-missing');
   });
 
+  it('names a session of engine without its plan, and one whose plan is another session’s (DAT-01)', () => {
+    const planless = validBackup();
+    Object.assign(planless.tables.workouts[0]!, { planSchema: 2, sessionPlan: null });
+    const a = parseBackup(JSON.stringify(planless));
+    expect(a.ok).toBe(false);
+    if (a.ok) return;
+    expect(a.detail).toContain('workouts.w1.sessionPlan -> missing for plan schema 2');
+
+    const other = validBackup();
+    Object.assign(other.tables.workouts[0]!, {
+      planSchema: 2,
+      sessionPlan: legalPlan(),
+    });
+    const b = parseBackup(JSON.stringify(other));
+    expect(b.ok).toBe(false);
+    if (b.ok) return;
+    expect(b.detail).toContain('workouts.w1.sessionPlan.sessionId -> s1');
+  });
+
+  it('names every relation inside the file that points nowhere (DAT-02)', () => {
+    const doc = validBackup();
+    doc.tables.set_log_revisions.push({
+      setLogId: 'gone',
+      revision: 1,
+      payload: null,
+      replacedAt: '2026-09-14T17:06:00.000Z',
+    });
+    doc.tables.set_dispositions.push({
+      workoutId: 'w-gone',
+      plannedSetId: 'p',
+      status: 'skipped',
+      reason: null,
+      commandId: 'skip-9',
+      at: '2026-09-14T17:10:00.000Z',
+    });
+    doc.tables.session_plan_revisions.push({
+      workoutId: 'w-gone',
+      planRevision: 1,
+      plan: legalPlan(),
+      reason: 'start',
+      channel: 'engine',
+      overrides: [],
+      createdAt: '2026-09-14T17:00:00.000Z',
+    });
+    doc.tables.feel_reports.push({
+      id: 'f9',
+      workoutId: 'w-gone',
+      exposureId: null,
+      feel: 'too_easy',
+      channel: 'touch',
+      commandId: 'feel-9',
+      at: '2026-09-14T17:20:00.000Z',
+    });
+    const result = parseBackup(JSON.stringify(doc));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    for (const part of [
+      'set_log_revisions.gone#1.setLogId -> gone',
+      'set_dispositions.skip-9.workoutId -> w-gone',
+      'session_plan_revisions.w-gone#1.workoutId -> w-gone',
+      'feel_reports.f9.workoutId -> w-gone',
+    ]) {
+      expect(result.detail).toContain(part);
+    }
+  });
+
   it('lifts a version 1 file: no exclusions, no plans, no blocks', () => {
     const v2 = withoutPlanning(validBackup());
     const v1 = {
@@ -419,7 +485,8 @@ describe('parseBackup', () => {
   });
 
   it('T53 keeps a session of engine whole: its plan, its results with their provenance, skips, revisions', () => {
-    const doc = validBackup();
+    // The workout is the session of its plan: they share an id.
+    const doc = JSON.parse(JSON.stringify(validBackup()).replaceAll('"w1"', '"s1"')) as BackupFile;
     const plan = legalPlan();
     doc.tables.workouts[0] = {
       ...doc.tables.workouts[0]!,
@@ -451,7 +518,7 @@ describe('parseBackup', () => {
       replacedAt: '2026-09-14T17:06:00.000Z',
     });
     doc.tables.set_dispositions.push({
-      workoutId: 'w1',
+      workoutId: 's1',
       plannedSetId: 's1/r1/e1/2R',
       status: 'skipped',
       reason: 'user_skipped',
@@ -459,7 +526,7 @@ describe('parseBackup', () => {
       at: '2026-09-14T17:10:00.000Z',
     });
     doc.tables.session_plan_revisions.push({
-      workoutId: 'w1',
+      workoutId: 's1',
       planRevision: 1,
       plan,
       reason: 'start',
@@ -469,7 +536,7 @@ describe('parseBackup', () => {
     });
     doc.tables.feel_reports.push({
       id: 'f1',
-      workoutId: 'w1',
+      workoutId: 's1',
       exposureId: null,
       feel: 'too_hard',
       channel: 'voice',

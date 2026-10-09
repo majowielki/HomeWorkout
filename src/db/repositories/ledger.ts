@@ -42,6 +42,16 @@ export async function pruneLedger(now: Date, days = 90): Promise<void> {
 export type RevisionDomain =
   'history' | 'profile' | 'catalog' | 'inventory' | 'requests' | 'block' | 'preferences';
 
+export const REVISION_DOMAINS = [
+  'history',
+  'profile',
+  'catalog',
+  'inventory',
+  'requests',
+  'block',
+  'preferences',
+] as const satisfies readonly RevisionDomain[];
+
 /** Raises the counter of a domain and returns the new value. Called in the transaction of the write. */
 export function bumpRevision(tx: Executor, domain: RevisionDomain): number {
   tx.insert(planningRevisions)

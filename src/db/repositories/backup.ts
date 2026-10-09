@@ -27,7 +27,9 @@ import {
   userProfile,
   workouts,
 } from '../schema';
+import { bumpRevision, readRevision, REVISION_DOMAINS } from './ledger';
 import { ensureProfile } from './profile';
+import { refreshOutcomes } from './sessions';
 
 /**
  * Keeps each INSERT under SQLite's bound-parameter ceiling: set_logs has
@@ -193,6 +195,16 @@ export async function restoreAll(data: BackupFile): Promise<void> {
     insertChunked(tx, dailyLogs, data.tables.daily_logs);
     insertChunked(tx, trainingBlocks, data.tables.training_blocks);
     insertChunked(tx, planConstraints, data.tables.plan_constraints);
+
+    // The history is another one now: every plan, preview and card made on the old one is stale,
+    // and the stored outcomes of the sessions are built again from what the file brought.
+    for (const domain of REVISION_DOMAINS) bumpRevision(tx, domain);
+    const history = readRevision(tx, 'history');
+    for (const workout of tx.select().from(workouts).all()) {
+      if (workout.planSchema === 2 && workout.sessionPlan !== null) {
+        refreshOutcomes(tx, workout, workout.sessionPlan, history);
+      }
+    }
 
     // A file with an empty profile table would otherwise leave the app
     // without its one row; the seed would fix it on next start, but the

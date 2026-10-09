@@ -47,7 +47,7 @@ describe('alternatives', () => {
     expect(loadAlternatives('s1', exposure)).toBeNull();
     jest.mocked(loadSessionChangeSource).mockReturnValue({
       ...source,
-      problems: [{ code: 'UNKNOWN_SESSION', recordId: 'bad', detail: 'bad' }],
+      problems: [{ code: 'UNKNOWN_SESSION', recordId: 'bad', detail: 'bad', sessionId: 's1' }],
     });
     expect(loadAlternatives('s1', exposure)).toBeNull();
   });
