@@ -18,6 +18,7 @@ import {
 } from '@/db/repositories/sessions';
 import { type CommandResult, isDone } from '@/domain/commands/result';
 import type { SetObservation } from '@/domain/observations/types';
+import type { PlannedSet } from '@/domain/plan/plan';
 import { buildObservation, type EntryContext, type SetEntry } from '@/domain/observations/entry';
 import {
   buildSessionSteps,
@@ -255,7 +256,7 @@ export function useActiveSession(
   const unfinishedCount = steps.filter((s) => s.state === 'pending').length;
 
   /** The result of the set before this one in the same exercise: what the next set starts from. */
-  function previousResultInExposure(): SetObservation | null {
+  function previousInExposure(): { observation: SetObservation; planned: PlannedSet } | null {
     if (!currentStep || !session) return null;
     for (let i = currentIndex - 1; i >= 0; i -= 1) {
       const step = steps[i]!;
@@ -263,10 +264,11 @@ export function useActiveSession(
         step.exposureIndex === currentStep.exposureIndex
           ? session.results.get(step.set.id)
           : undefined;
-      if (result) return result.observation;
+      if (result) return { observation: result.observation, planned: step.set };
     }
     return null;
   }
+  const previous = previousInExposure();
 
   /**
    * Sends a command made from the revision the session had when it was read. When the session moved on
@@ -560,7 +562,9 @@ export function useActiveSession(
     groupDone: doneInGroup(),
     upcoming,
     exercise,
-    previousResult: previousResultInExposure(),
+    previousResult: previous?.observation ?? null,
+    /** What the plan asked of that set: the logger keeps its load only for a set that asks the same. */
+    previousPlanned: previous?.planned ?? null,
     supersetWith,
     unfinishedCount,
     /** A set taken back, until it is saved again. */

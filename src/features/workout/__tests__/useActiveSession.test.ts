@@ -204,6 +204,7 @@ it('rests between sets, shows the done card after a superset and finishes after 
   await act(async () => result.current.saveSet(logged));
   await act(async () => result.current.restDone());
   expect(result.current.previousResult?.plannedSetId).toBe(result.current.steps[0]!.set.id);
+  expect(result.current.previousPlanned?.id).toBe(result.current.steps[0]!.set.id);
   await act(async () => result.current.saveSet(logged));
   // The superset is done: the card replaces the countdown.
   expect(result.current.phase).toBe('groupDone');
@@ -223,6 +224,7 @@ it('starts the next set from the result of the one before it in the same exercis
   const { result } = await open(deps);
   expect(result.current.currentStep?.label).toBe('A1');
   expect(result.current.previousResult?.plannedSetId).toBe(result.current.steps[0]!.set.id);
+  expect(result.current.previousPlanned?.id).toBe(result.current.steps[0]!.set.id);
 });
 
 it('goes straight to the next set when the plan asks for no rest', async () => {

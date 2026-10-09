@@ -154,6 +154,7 @@ export default function ActiveSessionScreen() {
           exercise={exercise}
           step={currentStep}
           previous={session.previousResult}
+          previousPlanned={session.previousPlanned}
           supersetWith={session.supersetWith || undefined}
           restore={
             restored?.plannedSetId === currentStep.set.id

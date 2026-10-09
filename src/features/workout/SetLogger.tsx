@@ -9,6 +9,7 @@ import { Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
 import { BANDS } from '@/domain/inventory';
 import { readBackText } from '@/domain/observations/entry';
+import type { PlannedSet } from '@/domain/plan/plan';
 import type { SetObservation } from '@/domain/observations/types';
 import type { SessionStep } from '@/domain/session/progress';
 import {
@@ -56,6 +57,8 @@ type Props = {
   step: SessionStep;
   /** The result of the set before this one in the exercise, which the suggestion follows. */
   previous?: SetObservation | null;
+  /** The plan's own set behind `previous`, to tell a probe from the work sets after it. */
+  previousPlanned?: PlannedSet | null;
   /** The numbers of a set just taken back ("Cofnij serię"): shown again for a correction. */
   restore?: SetFieldValues;
   onSave: (logged: LoggedEntry) => void;
@@ -79,6 +82,7 @@ export function SetLogger({
   exercise,
   step,
   previous = null,
+  previousPlanned = null,
   restore,
   onSave,
   saving,
@@ -90,7 +94,7 @@ export function SetLogger({
 }: Props) {
   const { set } = step;
   const stopwatch = useRef<StopwatchHandle>(null);
-  const [suggested] = useState(() => suggestedValues(exercise, set, previous));
+  const [suggested] = useState(() => suggestedValues(exercise, set, previous, previousPlanned));
   const [values, setValues] = useState<SetFieldValues>(() => restore ?? suggested);
   const below = isBelowTarget(exercise, values, set.target);
   // A band is stiffer for its first few stretches (Mullins effect, SPEC
@@ -189,6 +193,18 @@ export function SetLogger({
       <Text variant="eyebrow" className="text-highlight">
         {step.label} · {pl.workout.session.setOf(step.round, step.rounds)}
       </Text>
+      {set.role === 'probe' ? (
+        <View className="self-start rounded-full bg-highlight px-3 py-1">
+          <Text className="font-display-semibold text-sm uppercase tracking-wider text-background">
+            {pl.workout.session.probe}
+          </Text>
+        </View>
+      ) : null}
+      {set.role === 'probe' ? (
+        <Text variant="muted" className="text-sm leading-5">
+          {pl.workout.session.probeHint}
+        </Text>
+      ) : null}
       {step.side ? (
         <View className="self-start rounded-full bg-foreground px-3 py-1">
           <Text className="font-display-semibold text-sm uppercase tracking-wider text-background">

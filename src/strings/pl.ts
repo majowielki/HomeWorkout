@@ -242,6 +242,9 @@ export const pl = {
       miniBandNote:
         'Mini band: używaj tego samego lekkiego oporu w kolejnych seriach. Zapisujemy powtórzenia lub czas, bez przeliczania oporu na kilogramy.',
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
+      /** The label of a probe set: one try at a new step; the sets after it stay at the known one. */
+      probe: 'Seria próbna',
+      probeHint: 'Jedna próba nowego ciężaru. Kolejne serie wracają do znanego.',
       targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
       targetTime: (sec: number) => `cel: ${sec} s`,
       targetDistance: (meters: number) => `cel: ${meters} m`,

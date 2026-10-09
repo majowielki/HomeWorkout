@@ -62,6 +62,31 @@ describe('SetLogger', () => {
       rir: { value: 1 },
     });
   });
+  it('labels a probe set and starts the set after it from the plan, not from the probe load', async () => {
+    const probeStep = loggerStep({}, { role: 'probe', required: false, resistance: kg(6) });
+    expect(probeStep.set.role).toBe('probe');
+    const { unmount } = await render(
+      <SetLogger exercise={dumbbell} step={probeStep} onSave={jest.fn()} />,
+    );
+    expect(screen.getByText(pl.workout.session.probe)).toBeTruthy();
+    await unmount();
+    const workStep = loggerStep({}, { resistance: kg(4) });
+    const previous = {
+      ...legalObservation(),
+      resistance: { ...legalObservation().resistance, value: kg(6) },
+    };
+    await render(
+      <SetLogger
+        exercise={dumbbell}
+        step={workStep}
+        previous={previous}
+        previousPlanned={probeStep.set}
+        onSave={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('4 kg')).toBeTruthy();
+    expect(screen.queryByText(pl.workout.session.probe)).toBeNull();
+  });
   it('restores a taken-back set instead of the suggestion', async () => {
     const step = loggerStep();
     const restore = {

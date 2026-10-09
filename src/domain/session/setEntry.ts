@@ -58,22 +58,39 @@ function loadValues(
   };
 }
 
+/** Whether the plan asked the same resistance of two sets (a probe asks another one than the work sets). */
+function samePlannedResistance(a: ResistanceSpec, b: ResistanceSpec): boolean {
+  return (
+    a.modelId === b.modelId &&
+    a.configurationKey === b.configurationKey &&
+    JSON.stringify(a.value) === JSON.stringify(b.value)
+  );
+}
+
 /**
  * What the logger suggests for a planned set: the plan's target and load, except
  * that after a result in the same exposure the load the person used stays — a
  * heavier pair of dumbbells grabbed for the first set is not swapped back — and
- * the effort starts from the last one given.
+ * the effort starts from the last one given. The load stays only when the plan
+ * asked the same of the set before: a probe set at a new step carries nothing
+ * over to the work sets that stay at the step the person knows.
  */
 export function suggestedValues(
   exercise: Exercise,
   set: Pick<PlannedSet, 'target' | 'targetRir' | 'resistance'>,
   previous: SetObservation | null,
+  previousPlanned: Pick<PlannedSet, 'resistance'> | null = null,
 ): SetFieldValues {
+  const carried =
+    previous !== null &&
+    (previousPlanned === null || samePlannedResistance(previousPlanned.resistance, set.resistance))
+      ? previous.resistance.value
+      : null;
   return {
     reps: set.target.kind === 'reps' ? set.target.target : DEFAULT_REPS,
     timeSec: set.target.kind === 'duration' ? set.target.targetSec : DEFAULT_SECONDS,
     rir: defaultEffort(previous, set.targetRir),
-    ...loadValues(exercise, previous?.resistance.value ?? set.resistance),
+    ...loadValues(exercise, carried ?? set.resistance),
     shortfall: null,
   };
 }

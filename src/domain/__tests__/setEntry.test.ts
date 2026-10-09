@@ -80,6 +80,22 @@ describe('what the logger starts from, and what it makes of the form', () => {
     });
   });
 
+  it('does not carry the load of a probe set to the work sets that ask for another one', () => {
+    const probe = legalObservation({
+      resistance: { ...legalObservation().resistance, value: kg(6) },
+      rir: { ...legalObservation().rir, value: 1 },
+    });
+    // The probe asked 6 kg; the work set after it asks 4 kg: the plan stands, the effort carries.
+    expect(suggestedValues(dumbbells, repsSet(kg(4)), probe, { resistance: kg(6) })).toMatchObject({
+      weightKg: 4,
+      rir: 1,
+    });
+    // A set that asked the same as the one before keeps what the person grabbed.
+    expect(suggestedValues(dumbbells, repsSet(kg(4)), probe, { resistance: kg(4) })).toMatchObject({
+      weightKg: 6,
+    });
+  });
+
   it('starts from the first rung when the planned resistance is not one the form can show', () => {
     const stack = {
       ...kg(6),
