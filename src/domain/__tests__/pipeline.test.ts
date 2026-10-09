@@ -244,6 +244,23 @@ describe('T89, T90 what the probe showed', () => {
     expect(draft.resistance).toEqual(kg(4));
   });
 
+  it('passed, and the person took the work sets at the step of the probe too: their own step up', () => {
+    const { draft } = plan(H(...TOP4, [4, 4, [probe(10), { amount: 7, spec: kg(6) }]]));
+    expect(draft).toMatchObject({
+      resistance: kg(6),
+      targets: [8, 8],
+      codes: ['PROBE_PASSED'],
+      decision: 'advance',
+    });
+  });
+
+  it('passed, work sets at the step of the probe, but only some of them: judged as they are', () => {
+    const { draft } = plan(
+      H(...TOP4, [4, 4, [probe(10), { amount: 7, spec: kg(6) }, { amount: 6, spec: kg(4) }]]),
+    );
+    expect(draft.codes).not.toContain('PROBE_PASSED');
+  });
+
   it('passed, but the person was confounded: held', () => {
     const { draft } = plan(
       H(...TOP4, [4, 4, [probe(10), { amount: 12, shortfall: 'short_rest' }]]),

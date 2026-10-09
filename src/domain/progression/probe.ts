@@ -58,6 +58,24 @@ export function probeVerdict(a: Assessed, model: ResistanceModel): ProbeVerdict 
 }
 
 /**
+ * The person chose the step of a passed probe for the work sets as well: every work set that was done
+ * was done at the resistance of the probe. That is the step taken by the person, not a deviation, and
+ * falling short of the range on the first exposure at a heavier step says nothing against it.
+ */
+export function workedAtProbeStep(a: Assessed, model: ResistanceModel): boolean {
+  const probe = a.rec.sets.find(isProbe);
+  if (probe === undefined) return false;
+  const work = a.rec.sets.filter((s) => s.planned.role === 'work').filter(isPerformed);
+  return (
+    work.length > 0 &&
+    work.every((s) => {
+      const seen = s.observation.resistance.value;
+      return seen !== null && compareSpecs(seen, probe.planned.resistance, model) === 'equal';
+    })
+  );
+}
+
+/**
  * Exposures at the top of the range still needed before the next probe: a probe that failed is not
  * tried again at once (D28). Worked out from the history, so there is nothing to store.
  */
