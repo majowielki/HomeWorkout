@@ -6,9 +6,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-nat
 
 import { List } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import { stepKey } from '@/domain/session/steps';
+import { resultValues } from '@/domain/session/setEntry';
 import { warmupMoves } from '@/domain/session/warmup';
-import type { PlannedExercise } from '@/domain/plan/types';
 import { useBandCalibrations } from '@/features/bands/useBandCalibrations';
 import { GroupDoneCard } from '@/features/workout/GroupDoneCard';
 import { RestTimer } from '@/features/workout/RestTimer';
@@ -45,25 +44,15 @@ export default function ActiveSessionScreen() {
   // Read once per session: the AI switch lives in Settings, not on this screen.
   const [voiceFallback] = useState(createAppVoiceFallback);
   const session = useActiveSession(id, exerciseMap);
-  const {
-    phase,
-    loaded,
-    steps,
-    currentIndex,
-    currentStep,
-    templateExercise,
-    effectiveExercise,
-    upcoming,
-    restored,
-  } = session;
+  const { phase, steps, currentIndex, currentStep, exercise, upcoming, restored } = session;
 
   function confirmFinish() {
-    if (session.unloggedCount === 0) {
+    if (session.unfinishedCount === 0) {
       session.finish();
       return;
     }
     const t = pl.workout.session;
-    Alert.alert(t.finishConfirmTitle, t.finishConfirmBody(session.unloggedCount), [
+    Alert.alert(t.finishConfirmTitle, t.finishConfirmBody(session.unfinishedCount), [
       { text: pl.common.cancel, style: 'cancel' },
       { text: t.finishConfirm, style: 'destructive', onPress: () => session.finish('resume') },
     ]);
@@ -73,7 +62,7 @@ export default function ActiveSessionScreen() {
     session,
     logger: loggerRef,
     warmup: warmupRef,
-    exercise: effectiveExercise,
+    exercise,
     stopwatchRunning,
     confirmFinish,
   });
@@ -81,7 +70,7 @@ export default function ActiveSessionScreen() {
   /** The button asks first; by voice the bar offers "Cofnij" instead. */
   function confirmSkip() {
     const t = pl.workout.session;
-    Alert.alert(t.skipConfirmTitle(effectiveExercise?.name ?? ''), t.skipConfirmBody, [
+    Alert.alert(t.skipConfirmTitle(exercise?.name ?? ''), t.skipConfirmBody, [
       { text: pl.common.cancel, style: 'cancel' },
       {
         text: t.skipExercise,
@@ -93,7 +82,7 @@ export default function ActiveSessionScreen() {
     ]);
   }
 
-  if (phase === 'loading' || (phase !== 'notFound' && !loaded)) {
+  if (phase === 'loading' || (phase !== 'notFound' && !session.session)) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator />
@@ -101,7 +90,7 @@ export default function ActiveSessionScreen() {
     );
   }
 
-  if (phase === 'notFound' || !loaded) {
+  if (phase === 'notFound' || !session.session) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <Stack.Screen options={{ title: '' }} />
@@ -114,7 +103,7 @@ export default function ActiveSessionScreen() {
     <View className="flex-1 bg-background">
       <Stack.Screen
         options={{
-          title: loaded.title,
+          title: session.title,
           headerRight: () => (
             <Pressable onPress={confirmFinish} hitSlop={8}>
               <Text className="font-display-semibold text-highlight">
@@ -141,7 +130,7 @@ export default function ActiveSessionScreen() {
             nextExercise={upcoming?.exercise}
             nextNote={upcoming?.note}
             onDone={session.restDone}
-            onUndo={() => void session.undo()}
+            onUndo={session.undo}
           />
         </ScrollView>
       ) : null}
@@ -152,41 +141,35 @@ export default function ActiveSessionScreen() {
             exercises={session.groupDone}
             nextLabel={upcoming.label}
             onNext={session.restDone}
-            onUndo={() => void session.undo()}
+            onUndo={session.undo}
           />
         </ScrollView>
       ) : null}
 
-      {phase === 'logging' && currentStep && effectiveExercise ? (
+      {phase === 'logging' && currentStep && exercise ? (
         <SetLogger
           ref={loggerRef}
           onStopwatchChange={setStopwatchRunning}
-          key={`${currentIndex}-${effectiveExercise.id}`}
-          exercise={effectiveExercise}
-          block={currentStep.block}
-          planned={loaded.plan ? (currentStep.block as PlannedExercise) : undefined}
-          setNumber={currentStep.setNumber}
-          round={currentStep.round}
-          side={currentStep.side}
-          stepOfBlock={currentStep.stepOfBlock}
-          stepsInBlock={currentStep.stepsInBlock}
+          key={currentStep.set.id}
+          exercise={exercise}
+          step={currentStep}
+          previous={session.previousResult}
           supersetWith={session.supersetWith || undefined}
           restore={
-            restored?.key === stepKey(currentStep.blockIndex, currentStep.setNumber)
-              ? restored.prefill
+            restored?.plannedSetId === currentStep.set.id
+              ? resultValues(exercise, restored.result)
               : undefined
           }
-          totalSets={currentStep.block.sets}
-          onSave={(data) => void session.saveSet(data)}
+          onSave={(logged) => void session.saveSet(logged)}
           saving={session.saving}
           calibrations={calibrations}
           onShowDetails={() =>
-            router.push({ pathname: '/exercises/[id]', params: { id: effectiveExercise.id } })
+            router.push({ pathname: '/exercises/[id]', params: { id: exercise.id } })
           }
         />
       ) : null}
 
-      {phase === 'logging' && templateExercise ? (
+      {phase === 'logging' && exercise ? (
         <View className="flex-row justify-center gap-5 border-t border-border py-3">
           <Pressable
             className="flex-row items-center gap-1.5"
@@ -195,11 +178,9 @@ export default function ActiveSessionScreen() {
             <List size={16} className="text-muted-foreground" />
             <Text variant="muted">{pl.workout.session.progressTitle}</Text>
           </Pressable>
-          {templateExercise.substituteIds.length > 0 || loaded.plan ? (
-            <Pressable onPress={() => setSubstituteModalOpen(true)}>
-              <Text variant="muted">{pl.workout.session.substituteTitle}</Text>
-            </Pressable>
-          ) : null}
+          <Pressable onPress={() => setSubstituteModalOpen(true)}>
+            <Text variant="muted">{pl.workout.session.substituteTitle}</Text>
+          </Pressable>
           <Pressable onPress={confirmSkip} accessibilityLabel={pl.workout.session.skipExercise}>
             <Text variant="muted">{pl.workout.session.skipShort}</Text>
           </Pressable>
@@ -219,7 +200,6 @@ export default function ActiveSessionScreen() {
         ref={sheetRef}
         steps={steps}
         currentIndex={currentIndex}
-        loggedKeys={session.loggedKeys}
         exerciseMap={exerciseMap}
         onJump={(index) => {
           session.jump(index);
@@ -227,22 +207,17 @@ export default function ActiveSessionScreen() {
         }}
       />
 
-      {templateExercise ? (
+      {currentStep && exercise ? (
         <SubstituteModal
           visible={substituteModalOpen}
-          current={templateExercise}
-          swappedTo={effectiveExercise?.id !== templateExercise.id ? effectiveExercise : null}
+          sessionId={id}
+          exposure={currentStep.exposure}
+          current={exercise}
           exerciseMap={exerciseMap}
-          profile={session.profile}
           excludedIds={session.excludedIds}
-          planned={loaded.plan !== null}
-          onSelect={(choice) => {
-            session.substitute(choice);
+          onSwapped={() => {
             setSubstituteModalOpen(false);
-          }}
-          onRestore={() => {
-            session.restoreSubstitute();
-            setSubstituteModalOpen(false);
+            session.planChanged();
           }}
           onExclude={session.exclude}
           onClose={() => setSubstituteModalOpen(false)}

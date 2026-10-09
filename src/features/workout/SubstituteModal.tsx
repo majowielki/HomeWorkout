@@ -4,68 +4,61 @@ import BottomSheet, {
   BottomSheetScrollView,
 } from '@gorhom/bottom-sheet';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Pressable, useWindowDimensions, View } from 'react-native';
+import { Alert, BackHandler, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { ChevronRight, Info } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import { rankSubstitutes, substituteCandidates } from '@/domain/exercises/substitute';
-import { isEligible, slotByExercise } from '@/domain/plan/eligibility';
-import type { Exercise, MedicalProfile } from '@/domain/types';
+import type { EquipmentFamily } from '@/domain/catalog/attributes';
+import type { PlannedExposure } from '@/domain/plan/planV2';
+import { assessmentText } from '@/domain/session/assessmentText';
+import type { RankedAlternative } from '@/domain/session/types';
+import type { Exercise } from '@/domain/types';
 import { ExerciseVideo } from '@/features/exercises/ExerciseVideo';
-import { SLOTS } from '@/features/plan/slots';
 import { useThemeColors } from '@/lib/theme';
 import { pl } from '@/strings/pl';
 
-const SLOT_OF = slotByExercise(SLOTS);
-
-export interface SubstituteChoice {
-  exercise: Exercise;
-  /** Use it for the rest of the block, not only today (planned sessions). */
-  forBlock: boolean;
-  slotId: string | null;
-}
+import { adviceOf, type Alternatives, loadAlternatives, swapExercise } from './alternatives';
 
 type Props = {
   visible: boolean;
-  /** The exercise the plan (or template) put in this step. */
+  sessionId: string;
+  /** The exercise of the plan that is to be replaced for the rest of the session. */
+  exposure: PlannedExposure;
   current: Exercise;
-  /** What the step was swapped to this session, if anything; offers the way back. */
-  swappedTo?: Exercise | null;
   exerciseMap: Record<string, Exercise>;
-  profile: MedicalProfile;
   excludedIds: ReadonlySet<string>;
-  /** The session runs the engine's plan: offer "rest of the block" and "never again". */
-  planned: boolean;
-  onSelect: (choice: SubstituteChoice) => void;
-  /** Back to `current`, undoing the swap. */
-  onRestore?: () => void;
+  /** Only the alternatives that use this kind of equipment ("zamień na coś z gumą"). */
+  family?: EquipmentFamily;
+  /** The plan now has the other exercise. */
+  onSwapped: () => void;
   onExclude: (exercise: Exercise) => void;
   onClose: () => void;
 };
 
+type Loaded = { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; data: Alternatives };
+
 const muscles = (e: Exercise) => e.primaryMuscles.map((m) => pl.labels.muscle[m]).join(', ');
 
 /**
- * Swaps the current step for a replacement: the hand-picked substitutes
- * and the other exercises of the same movement slot, ranked by SPEC §3.4
- * (shared primary muscles first) and filtered by the knee and the person's
- * own list. Nothing below the threshold is offered — a bad substitute is
- * worse than none. A tap opens a preview; only its button swaps.
+ * Replaces the exercise on screen for the rest of the session with one the
+ * engine ranks: it assesses each candidate against the knee, the week, the
+ * time and the person's own list, and prescribes it. Nothing it blocks is
+ * offered. A tap opens a preview with what the engine says about it; only the
+ * preview's button swaps, and advice against the swap is shown there first.
  *
  * A bottom sheet like "Postęp sesji", so a swipe down closes it too.
  */
 export function SubstituteModal({
   visible,
+  sessionId,
+  exposure,
   current,
-  swappedTo = null,
   exerciseMap,
-  profile,
   excludedIds,
-  planned,
-  onSelect,
-  onRestore,
+  family,
+  onSwapped,
   onExclude,
   onClose,
 }: Props) {
@@ -73,25 +66,68 @@ export function SubstituteModal({
   const colors = useThemeColors();
   const sheetRef = useRef<BottomSheet>(null);
   const [forBlock, setForBlock] = useState(true);
-  const [preview, setPreview] = useState<Exercise | null>(null);
-  const slot = SLOT_OF.get(current.id) ?? null;
-  const options = rankSubstitutes(
-    current,
-    substituteCandidates(current, exerciseMap, slot?.exerciseIds),
-    (e) => isEligible(e, { profile, excludedIds }),
-  ).filter(({ exercise }) => exercise.id !== swappedTo?.id);
+  const [preview, setPreview] = useState<RankedAlternative | null>(null);
+  const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
+  const [busy, setBusy] = useState(false);
   const excluded = excludedIds.has(current.id);
   const t = pl.workout.session;
 
   const close = () => {
     setPreview(null);
+    setLoaded({ kind: 'loading' });
     onClose();
   };
+
+  // The ranking runs the engine for each candidate: after the sheet has opened, not while it does.
+  const reload = useCallback(() => {
+    const timer = setTimeout(() => {
+      try {
+        const data = loadAlternatives(sessionId, exposure, family);
+        setLoaded(data === null ? { kind: 'failed' } : { kind: 'ready', data });
+      } catch (error) {
+        console.warn('could not rank the alternatives', error);
+        setLoaded({ kind: 'failed' });
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [sessionId, exposure, family]);
 
   useEffect(() => {
     if (visible) sheetRef.current?.expand();
     else sheetRef.current?.close();
   }, [visible]);
+
+  useEffect(() => (visible ? reload() : undefined), [visible, reload]);
+
+  async function pick(alternative: RankedAlternative, expected: Alternatives['expected']) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { result, blockSaved } = await swapExercise(
+        sessionId,
+        exposure,
+        alternative,
+        expected,
+        {
+          forBlock: forBlock && exposure.slotId !== null,
+          channel: 'touch',
+        },
+      );
+      if (result.kind === 'committed') {
+        if (!blockSaved) Alert.alert(t.blockSwapError);
+        close();
+        onSwapped();
+        return;
+      }
+      console.warn('could not swap the exercise', result);
+      Alert.alert(pl.common.error);
+      setPreview(null);
+      setLoaded({ kind: 'loading' });
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // Android's back button closes the sheet before it leaves the workout.
   useEffect(() => {
@@ -125,18 +161,14 @@ export function SubstituteModal({
       backgroundStyle={{ backgroundColor: colors.background }}
       handleIndicatorStyle={{ backgroundColor: colors.mutedForeground }}
     >
-      {preview ? (
+      {preview && loaded.kind === 'ready' ? (
         <Preview
-          exercise={preview}
+          alternative={preview}
+          exercise={exerciseMap[preview.exerciseId]}
+          name={(id) => exerciseMap[id]?.name}
+          busy={busy}
           onBack={() => setPreview(null)}
-          onPick={() => {
-            setPreview(null);
-            onSelect({
-              exercise: preview,
-              forBlock: planned && forBlock,
-              slotId: slot?.id ?? null,
-            });
-          }}
+          onPick={() => void pick(preview, loaded.data.expected)}
         />
       ) : (
         // gorhom's scroll view takes style objects, not classes.
@@ -148,23 +180,7 @@ export function SubstituteModal({
             {t.substituteHow}
           </Text>
 
-          {swappedTo && onRestore ? (
-            <Pressable
-              onPress={() => {
-                setPreview(null);
-                onRestore();
-              }}
-              className="mb-2 rounded-2xl border border-border p-4 active:opacity-60"
-            >
-              <Text variant="eyebrow">{t.restorePlanned}</Text>
-              <Text className="mt-1 font-display-semibold text-base">{current.name}</Text>
-              <Text variant="muted" className="text-xs">
-                {muscles(current)}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {planned && slot ? (
+          {exposure.slotId !== null ? (
             <View className="mb-2 items-start gap-1">
               <Chip
                 label={t.substituteForBlock}
@@ -177,40 +193,56 @@ export function SubstituteModal({
             </View>
           ) : null}
 
-          {options.length === 0 ? (
+          {loaded.kind === 'loading' ? (
+            <Text variant="muted" className="py-4">
+              {t.substituteLoading}
+            </Text>
+          ) : loaded.kind === 'failed' ? (
+            <Text variant="muted" className="py-4">
+              {t.substituteFailed}
+            </Text>
+          ) : loaded.data.alternatives.length === 0 ? (
             <Text variant="muted" className="py-4">
               {t.noSubstitutes}
             </Text>
           ) : (
-            options.map(({ exercise }) => (
-              <Pressable
-                key={exercise.id}
-                onPress={() => setPreview(exercise)}
-                accessibilityHint={t.substitutePreviewHint}
-                className="flex-row items-center gap-3 border-b border-border py-3 active:opacity-60"
-              >
-                <View className="flex-1">
-                  <Text className="text-base">{exercise.name}</Text>
-                  <Text variant="muted" className="text-xs">
-                    {muscles(exercise)}
-                  </Text>
-                </View>
-                <ChevronRight size={18} className="text-muted-foreground" />
-              </Pressable>
-            ))
+            loaded.data.alternatives.map((alternative) => {
+              const exercise = exerciseMap[alternative.exerciseId];
+              return (
+                <Pressable
+                  key={alternative.exerciseId}
+                  onPress={() => setPreview(alternative)}
+                  accessibilityHint={t.substitutePreviewHint}
+                  className="flex-row items-center gap-3 border-b border-border py-3 active:opacity-60"
+                >
+                  <View className="flex-1">
+                    <Text className="text-base">{exercise?.name ?? alternative.exerciseId}</Text>
+                    <Text variant="muted" className="text-xs">
+                      {[
+                        exercise ? muscles(exercise) : null,
+                        alternative.verdict === 'not_recommended'
+                          ? t.substituteAdvisedAgainst
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} className="text-muted-foreground" />
+                </Pressable>
+              );
+            })
           )}
 
-          {planned ? (
-            excluded ? (
-              <Text variant="muted" className="py-3 text-sm">
-                {t.excludedDone}
-              </Text>
-            ) : (
-              <Pressable onPress={() => onExclude(current)} className="py-3.5 active:opacity-60">
-                <Text className="text-destructive">{t.excludeCurrent(current.name)}</Text>
-              </Pressable>
-            )
-          ) : null}
+          {excluded ? (
+            <Text variant="muted" className="py-3 text-sm">
+              {t.excludedDone}
+            </Text>
+          ) : (
+            <Pressable onPress={() => onExclude(current)} className="py-3.5 active:opacity-60">
+              <Text className="text-destructive">{t.excludeCurrent(current.name)}</Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => sheetRef.current?.close()} className="items-center py-3.5">
             <Text className="font-display-semibold text-highlight">{pl.common.cancel}</Text>
           </Pressable>
@@ -220,17 +252,28 @@ export function SubstituteModal({
   );
 }
 
-/** One candidate up close: the clip, the muscles and how to do it, before committing. */
+/** One candidate up close: the clip, the muscles, what the engine says and prescribes, before committing. */
 function Preview({
+  alternative,
   exercise,
+  name,
+  busy,
   onBack,
   onPick,
 }: {
-  exercise: Exercise;
+  alternative: RankedAlternative;
+  exercise: Exercise | undefined;
+  name: (exerciseId: string) => string | undefined;
+  busy: boolean;
   onBack: () => void;
   onPick: () => void;
 }) {
   const t = pl.workout.session;
+  const sentences = assessmentText(
+    { ...alternative.assessment, alternatives: [] },
+    { exerciseName: name },
+  );
+  const advised = adviceOf(alternative).length > 0;
   return (
     <BottomSheetScrollView
       contentContainerStyle={{ gap: 16, paddingHorizontal: 20, paddingBottom: 16 }}
@@ -239,22 +282,33 @@ function Preview({
         <Text className="font-display-semibold text-highlight">{t.substituteBack}</Text>
       </Pressable>
       <View className="flex-row items-start gap-4">
-        <ExerciseVideo
-          exerciseId={exercise.id}
-          mediaKey={exercise.media}
-          name={exercise.name}
-          className="aspect-[9/16] w-28"
-        />
+        {exercise ? (
+          <ExerciseVideo
+            exerciseId={exercise.id}
+            mediaKey={exercise.media}
+            name={exercise.name}
+            className="aspect-[9/16] w-28"
+          />
+        ) : null}
         <View className="flex-1 gap-2">
           <Text variant="title" className="leading-8">
-            {exercise.name}
+            {exercise?.name ?? alternative.exerciseId}
           </Text>
-          <Text variant="muted" className="text-sm">
-            {t.substituteMuscles(muscles(exercise))}
-          </Text>
+          {exercise ? (
+            <Text variant="muted" className="text-sm">
+              {t.substituteMuscles(muscles(exercise))}
+            </Text>
+          ) : null}
         </View>
       </View>
-      {exercise.cues.length > 0 ? (
+      <View className="gap-1.5">
+        {sentences.map((line) => (
+          <Text key={line} className="text-sm leading-5">
+            {line}
+          </Text>
+        ))}
+      </View>
+      {exercise && exercise.cues.length > 0 ? (
         <View className="gap-1.5">
           {exercise.cues.slice(0, 3).map((cue) => (
             <Text key={cue} className="text-sm leading-5">
@@ -263,7 +317,7 @@ function Preview({
           ))}
         </View>
       ) : null}
-      {exercise.kneeCue ? (
+      {exercise?.kneeCue ? (
         <View className="flex-row gap-3 rounded-2xl bg-secondary p-4">
           <Info size={18} className="mt-0.5 text-highlight" />
           <Text className="flex-1 text-sm leading-5 text-secondary-foreground">
@@ -271,7 +325,12 @@ function Preview({
           </Text>
         </View>
       ) : null}
-      <Button size="lg" label={t.substitutePick} onPress={onPick} />
+      <Button
+        size="lg"
+        label={advised ? t.substituteAnyway : t.substitutePick}
+        onPress={onPick}
+        disabled={busy}
+      />
     </BottomSheetScrollView>
   );
 }

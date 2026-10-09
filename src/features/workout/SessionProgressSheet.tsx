@@ -8,8 +8,7 @@ import { Pressable, View } from 'react-native';
 
 import { Check } from '@/components/ui/icons';
 import { Text } from '@/components/ui/text';
-import type { SessionStep } from '@/domain/session/steps';
-import { stepKey } from '@/domain/session/steps';
+import type { SessionStep } from '@/domain/session/progress';
 import type { Exercise } from '@/domain/types';
 import { cn } from '@/lib/cn';
 import { useThemeColors } from '@/lib/theme';
@@ -18,20 +17,17 @@ import { pl } from '@/strings/pl';
 type Props = {
   steps: SessionStep[];
   currentIndex: number;
-  loggedKeys: Set<string>;
   exerciseMap: Record<string, Exercise>;
   onJump: (index: number) => void;
 };
 
 /**
- * Full-session overview. Jumping only works onto not-yet-logged steps —
- * this is a deliberate M3 scope cut: jump/skip live only in memory, so an
- * app restart falls back to the first unlogged step (see SPEC §7.1). That
- * makes re-visiting an already-logged step here a dead end by design
- * rather than an editable one.
+ * Full-session overview. Jumping works onto the sets still to do and onto
+ * skipped ones (going back to an exercise passed over); a set that has a
+ * result is a dead end here — correcting it is "Cofnij serię".
  */
 export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function SessionProgressSheet(
-  { steps, currentIndex, loggedKeys, exerciseMap, onJump },
+  { steps, currentIndex, exerciseMap, onJump },
   ref,
 ) {
   const colors = useThemeColors();
@@ -61,14 +57,14 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
           {pl.workout.session.progressTitle}
         </Text>
         {steps.map((step, index) => {
-          const key = stepKey(step.blockIndex, step.setNumber);
-          const done = loggedKeys.has(key);
+          const done = step.state === 'performed' || step.state === 'interrupted';
+          const skipped = step.state === 'skipped';
           const isCurrent = index === currentIndex;
-          const exercise = exerciseMap[step.block.exerciseId];
+          const exercise = exerciseMap[step.exposure.exercise.id];
 
           return (
             <Pressable
-              key={key}
+              key={step.set.id}
               disabled={done}
               onPress={() => onJump(index)}
               className={cn(
@@ -84,8 +80,15 @@ export const SessionProgressSheet = forwardRef<BottomSheet, Props>(function Sess
               >
                 {done ? <Check size={14} className="text-primary-foreground" /> : null}
               </View>
-              <Text className={cn('flex-1', done && 'text-muted-foreground line-through')}>
-                {step.block.label} · {exercise?.name ?? step.block.exerciseId} · #{step.round}
+              <Text
+                className={cn(
+                  'flex-1',
+                  done && 'text-muted-foreground line-through',
+                  skipped && 'text-muted-foreground',
+                )}
+              >
+                {step.label} · {exercise?.name ?? step.exposure.exercise.displayName} · #
+                {step.round}
                 {step.side ? ` · ${pl.workout.session.side[step.side]}` : ''}
               </Text>
             </Pressable>

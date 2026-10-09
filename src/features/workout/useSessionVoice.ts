@@ -1,11 +1,11 @@
 import { type RefObject, useEffect, useRef } from 'react';
 
-import type { VoiceActionId, VoiceCommand } from '@/domain/voice/commands';
+import { isTimed, usesBand, usesDumbbell } from '@/domain/session/setEntry';
 import type { Exercise } from '@/domain/types';
+import type { VoiceActionId, VoiceCommand } from '@/domain/voice/commands';
 import type { VoiceFeedback } from '@/features/voice/VoiceBar';
 import { pl } from '@/strings/pl';
 
-import { isTimed, usesBand, usesDumbbell } from './SetFields';
 import type { SetLoggerHandle } from './SetLogger';
 import type { WarmupHandle } from './WarmupChecklist';
 import type { useActiveSession } from './useActiveSession';
@@ -57,7 +57,7 @@ export function availableActions(
 /**
  * Voice commands on the session screen. Every command does what its button
  * does, and comes back with a line saying so and a way to take it back:
- * a logged set is taken back like "Cofnij serię", a rest cut short comes
+ * a saved set is taken back like "Cofnij serię", a rest cut short comes
  * back with the time it had, a skip reopens the exercise.
  */
 export function useSessionVoice({
@@ -101,9 +101,11 @@ export function useSessionVoice({
         if (seconds === null) return null;
         return { text: t.stopwatchStop(seconds), undo: () => logger.current?.revertStopwatch() };
       }
-      case 'set_done':
-        if (!logger.current?.save()) return null;
-        return { text: t.setDone, undo: () => void latest.current.undo() };
+      case 'set_done': {
+        const text = logger.current?.save() ?? null;
+        if (text === null) return null;
+        return { text, undo: () => latest.current.undo() };
+      }
       case 'rest_end': {
         const ended = session.endRest();
         if (!ended) return null;
@@ -138,7 +140,7 @@ export function useSessionVoice({
         if (outcome.kind === 'none') return null;
         return {
           text: t.skipped(outcome.name),
-          undo: () => latest.current.unskip(outcome.blockIndex),
+          undo: () => latest.current.unskip(outcome),
         };
       }
     }

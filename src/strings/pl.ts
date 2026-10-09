@@ -246,6 +246,7 @@ export const pl = {
       setOf: (n: number, total: number) => `seria ${n} / ${total}`,
       targetReps: (min: number, max: number) => `cel: ${min}–${max}`,
       targetTime: (sec: number) => `cel: ${sec} s`,
+      targetDistance: (meters: number) => `cel: ${meters} m`,
       /** The target effort as felt words, e.g. "odczucie: ciężko–spokojnie". */
       targetEffort: (from: string, to: string) =>
         from === to
@@ -292,12 +293,15 @@ export const pl = {
         `Siodełko: ${String(cm).replace('.', ',')} cm — sprawdź przed jazdą.`,
       substituteTitle: 'Zamień ćwiczenie',
       substituteHow:
-        'Propozycje z tego samego ruchu, ułożone od tych, które najbardziej pokrywają się z głównymi mięśniami ćwiczenia z planu. Tylko bezpieczne dla Twojego kolana. Dotknij, żeby zobaczyć.',
+        'Propozycje silnika: każda sprawdzona pod kątem kolana, tygodnia i czasu, z gotową receptą. Dotknij, żeby zobaczyć.',
       substitutePreviewHint: 'Pokazuje podgląd ćwiczenia',
       substituteBack: '‹ Wróć do listy',
       substituteMuscles: (list: string) => `Główne mięśnie: ${list}`,
       substitutePick: 'Zamień na to ćwiczenie',
-      restorePlanned: 'Wróć do ćwiczenia z planu',
+      substituteLoading: 'Sprawdzam zamienniki…',
+      substituteFailed: 'Nie udało się sprawdzić zamienników. Spróbuj ponownie.',
+      substituteAdvisedAgainst: 'odradzane',
+      substituteAnyway: 'Zamień mimo to',
       noSubstitutes: 'Brak dostępnych zamienników dla Twojego profilu.',
       substituteForBlock: 'Na resztę bloku',
       substituteForBlockHint: 'Zamiennik zostaje w planie do końca bloku.',
@@ -378,9 +382,6 @@ export const pl = {
       title: 'Podsumowanie',
       setsLogged: (n: number) =>
         `${n} ${n === 1 ? 'seria zalogowana' : n >= 2 && n <= 4 ? 'serie zalogowane' : 'serii zalogowanych'}`,
-      previousComparison: (daysAgo: number, previousSets: number, currentSets: number) =>
-        `Poprzednia sesja tego szablonu: ${daysAgo} ${daysAgo === 1 ? 'dzień' : 'dni'} temu, ${previousSets} serii (dziś: ${currentSets}).`,
-      noPrevious: 'To pierwsza sesja tego szablonu w historii.',
       plannedNext: 'Jutrzejszy plan uwzględni to, co dziś zapisane.',
       sessionRpe: 'Jak ciężko było całościowo? (RPE)',
       notes: 'Notatka (opcjonalnie)',

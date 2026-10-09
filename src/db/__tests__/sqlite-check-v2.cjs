@@ -271,6 +271,55 @@ const CASES = [
     },
   ],
   [
+    'a skip can be taken back, and the sets are pending again; a result is never touched by it',
+    async () => {
+      await started();
+      const skipped = sessions.skipSetsV2(
+        {
+          commandId: 'skip-1',
+          sessionId: 's1',
+          plannedSetIds: [SETS[0], SETS[1]],
+          reason: 'user_skipped',
+          expectedSessionRevision: 1,
+        },
+        at(1),
+      );
+      assert.equal(skipped.kind, 'committed');
+      const logged = sessions.logSetV2(
+        logCommand('log-1', SETS[2], skipped.sessionRevision),
+        at(2),
+      );
+      assert.equal(logged.kind, 'committed');
+      const reopened = sessions.reopenSets(
+        { commandId: 'reopen-1', sessionId: 's1', plannedSetIds: [SETS[0], SETS[1], SETS[2]] },
+        at(3),
+      );
+      assert.equal(reopened.kind, 'committed');
+      assert.deepEqual(reopened.result, { reopened: [SETS[0], SETS[1], SETS[2]] });
+      const state = sessions.readSessionState('s1');
+      assert.equal(state.states.has(SETS[0]), false);
+      assert.equal(state.states.has(SETS[1]), false);
+      assert.equal(state.states.get(SETS[2]), 'performed');
+      assert.equal(state.workout.revision, reopened.sessionRevision);
+      // The same command twice reopens once; a finished session cannot be reopened.
+      assert.equal(
+        sessions.reopenSets(
+          { commandId: 'reopen-1', sessionId: 's1', plannedSetIds: [SETS[0]] },
+          at(4),
+        ).kind,
+        'already_committed',
+      );
+      sessions.closeSessionV2({ commandId: 'close-1', sessionId: 's1', how: 'completed' }, at(5));
+      assert.equal(
+        sessions.reopenSets(
+          { commandId: 'reopen-2', sessionId: 's1', plannedSetIds: [SETS[0]] },
+          at(6),
+        ).code,
+        'SESSION_NOT_ACTIVE',
+      );
+    },
+  ],
+  [
     'T17 a second start while one session runs is a conflict, and the same start twice is one session',
     async () => {
       await started();

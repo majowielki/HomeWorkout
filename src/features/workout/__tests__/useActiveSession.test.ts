@@ -1,86 +1,150 @@
 import { act, renderHook } from '@testing-library/react-native';
 
+import type { SessionState } from '@/db/repositories/sessionsV2';
+import { compileInput, exposure, set } from '@/domain/__tests__/compileFixtures';
 import { exercise } from '@/domain/__tests__/fixtures';
-import { stepKey } from '@/domain/session/steps';
-import type { TemplateBlock } from '@/domain/types';
+import { legalObservation } from '@/domain/__tests__/planV2Fixtures';
+import { kg } from '@/domain/__tests__/progressionFixtures';
+import type { CommandResult } from '@/domain/commands/result';
+import type { SetEntry } from '@/domain/observations/entry';
+import type { SetDispositionStatus } from '@/domain/observations/types';
+import { compileSession } from '@/domain/plan/compile';
+import type { StoredResult } from '@/domain/session/progress';
 import { pl } from '@/strings/pl';
-import { type ActiveSessionDeps, useActiveSession } from '../useActiveSession';
-import type { SavedSetData } from '../SetLogger';
+
+import { rememberUndone } from '../undoneSet';
+import { type ActiveSessionDeps, type LoggedEntry, useActiveSession } from '../useActiveSession';
 
 const mockReplace = jest.fn();
 // Stable, like expo-router's own: the session reloads when the router changes.
 const mockRouter = { replace: mockReplace, push: jest.fn() };
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
+jest.mock('expo-crypto', () => ({ randomUUID: () => 'uuid' }));
 jest.mock('@/stores/restTimerStore', () => ({ useRestTimerStore: { getState: jest.fn() } }));
 jest.mock('@/db/repositories/profile', () => ({}));
-jest.mock('@/db/repositories/setLogs', () => ({}));
-jest.mock('@/db/repositories/templates', () => ({}));
-jest.mock('@/db/repositories/trainingBlocks', () => ({}));
-jest.mock('@/db/repositories/workouts', () => ({}));
+jest.mock('@/db/repositories/sessionsV2', () => ({}));
 
-const block = (label: string, exerciseId: string, sets: number): TemplateBlock => ({
-  label,
-  exerciseId,
-  sets,
-  repMin: 8,
-  repMax: 12,
-  targetRirMin: 1,
-  targetRirMax: 3,
-  restSec: 90,
-});
 const exerciseMap = {
-  squat: exercise({ id: 'squat', name: 'Przysiad' }),
-  row: exercise({ id: 'row', name: 'Wiosłowanie' }),
-  press: exercise({ id: 'press', name: 'Wyciskanie' }),
+  'ex-a': exercise({ id: 'ex-a', name: 'Przysiad' }),
+  'ex-b': exercise({ id: 'ex-b', name: 'Wiosłowanie' }),
+  'ex-c': exercise({ id: 'ex-c', name: 'Wyciskanie' }),
 };
-const data: SavedSetData = {
-  reps: 10,
-  timeSec: null,
-  rir: 2,
-  weightKg: 8,
-  dumbbellMode: 'paired',
-  bandId: null,
-  anchorPosition: null,
-  estimatedLoadKg: null,
-} as SavedSetData;
 
-/** A template session A1 (2 sets), B1 (1 set), and a database that remembers what was logged. */
-function setup(logged: string[] = []) {
-  const keys = new Set(logged);
-  const rows: { exerciseOrder: number; setIndex: number; exerciseId: string }[] = [];
+/** A superset of a (2 sets) and b (1 set), then a lone c (1 set): steps a1 b1 a2 c1. */
+const plan = () =>
+  compileSession(
+    compileInput([
+      exposure('a', { group: 'A', sets: [set({ restAfterSec: 90 }), set({ restAfterSec: 90 })] }),
+      exposure('b', { group: 'A', sets: [set({ restAfterSec: 90 })] }),
+      exposure('c', { sets: [set({ restAfterSec: 60 })] }),
+    ]),
+  );
+
+const entry: SetEntry = {
+  status: 'performed',
+  amount: { value: { kind: 'reps', reps: 10 }, edited: false },
+  resistance: { value: kg(4), edited: false },
+  rir: { value: 2, edited: false },
+};
+const logged: LoggedEntry = {
+  entry,
+  channel: 'touch',
+  shown: { amount: 'visible', resistance: 'visible', rir: 'visible' },
+};
+
+/** The database of one session: what the commands change and `readSession` reads back. */
+function setup(
+  options: { done?: number[]; skipped?: number[]; status?: 'in_progress' | 'completed' } = {},
+) {
+  const sessionPlan = plan();
+  const setIds = sessionPlan.execution.steps.flatMap((s) =>
+    s.kind === 'perform' ? [s.plannedSetId] : [],
+  );
+  let revision = 1;
+  let clock = 0;
+  const results = new Map<string, StoredResult>();
+  const skipped = new Set<string>();
+  const store = {
+    plan: sessionPlan,
+    setIds,
+    results,
+    skipped,
+    state: null as SessionState | null,
+  };
+  const write = (plannedSetId: string, id: string) => {
+    clock += 1;
+    results.set(plannedSetId, {
+      id,
+      revision: 1,
+      observation: legalObservation({
+        id,
+        plannedSetId,
+        recordedAt: `2026-10-09T08:00:${String(clock).padStart(2, '0')}.000Z`,
+      }),
+    });
+  };
+  (options.done ?? []).forEach((i) => write(setIds[i]!, `obs-${i}`));
+  (options.skipped ?? []).forEach((i) => skipped.add(setIds[i]!));
+
+  const read = (): SessionState => {
+    const states = new Map<string, SetDispositionStatus>();
+    skipped.forEach((id) => states.set(id, 'skipped'));
+    results.forEach((r, id) => states.set(id, r.observation.status));
+    return {
+      workout: {
+        id: 'w',
+        trainingDate: '2026-10-09',
+        status: options.status ?? 'in_progress',
+        startedAt: '2026-10-09T08:00:00.000Z',
+        finishedAt: null,
+        sessionRpe: null,
+        notes: null,
+        revision,
+      },
+      plan: sessionPlan,
+      states,
+      results: new Map(results),
+    };
+  };
+  const committed = <T>(result: T): CommandResult<T> => ({
+    kind: 'committed',
+    result,
+    sessionRevision: (revision += 1),
+  });
   const deps: ActiveSessionDeps = {
-    getWorkout: jest.fn().mockResolvedValue({
-      id: 'w',
-      trainingDate: '2026-10-08',
-      templateId: 'fbw-a',
-      plan: null,
-    } as never),
-    getTemplate: jest.fn().mockResolvedValue({
-      id: 'fbw-a',
-      name: 'FBW A',
-      blocks: [block('A1', 'squat', 2), block('B1', 'row', 1)],
-    } as never),
-    getProfile: jest.fn().mockResolvedValue(null),
+    readSession: jest.fn(() => read()),
+    getProfile: jest.fn().mockResolvedValue({ knee: null }),
     getExcludedExerciseIds: jest.fn().mockResolvedValue([]),
     setExerciseExcluded: jest.fn().mockResolvedValue(undefined),
-    getLoggedStepKeys: jest.fn(async () => new Set(keys)),
-    getSetsForWorkout: jest.fn(async () => rows as never),
-    logSet: jest.fn(async (input) => {
-      keys.add(stepKey(input.exerciseOrder, input.setIndex));
-      rows.push(input);
-      return 'set';
+    logSet: jest.fn((cmd) => {
+      write(cmd.plannedSetId!, `obs-${cmd.commandId}`);
+      return committed({ observationId: `obs-${cmd.commandId}` });
     }),
-    takeBackLastSet: jest.fn(),
-    getCurrentBlock: jest.fn().mockResolvedValue({ id: 'block', state: {} as never }),
-    setBlockSelection: jest.fn().mockResolvedValue(undefined),
+    skipSets: jest.fn((cmd) => {
+      cmd.plannedSetIds.forEach((id) => skipped.add(id));
+      return committed({ skipped: [...cmd.plannedSetIds] });
+    }),
+    reopenSets: jest.fn((cmd) => {
+      cmd.plannedSetIds.forEach((id) => skipped.delete(id));
+      return committed({ reopened: [...cmd.plannedSetIds] });
+    }),
+    undoSet: jest.fn((cmd) => {
+      const [plannedSetId] = [...results].find(([, r]) => r.id === cmd.observationId)!;
+      results.delete(plannedSetId);
+      return committed({ observationId: cmd.observationId, plannedSetId });
+    }),
     startRest: jest.fn().mockResolvedValue(undefined),
     extendRest: jest.fn().mockResolvedValue(undefined),
     stopRest: jest.fn().mockResolvedValue(undefined),
     restEndsAt: jest.fn(() => null),
     now: () => 1_000_000,
+    newId: (() => {
+      let n = 0;
+      return () => `cmd-${(n += 1)}`;
+    })(),
     alert: jest.fn(),
   };
-  return { deps, keys };
+  return { deps, store, bump: () => (revision += 1) };
 }
 
 async function open(deps: ActiveSessionDeps) {
@@ -89,149 +153,215 @@ async function open(deps: ActiveSessionDeps) {
   return view;
 }
 
-beforeEach(() => mockReplace.mockClear());
+const SUMMARY = { pathname: '/workout/summary/[id]', params: { id: 'w', back: 'undo' } };
+
+beforeEach(() => {
+  mockReplace.mockClear();
+  jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+});
+afterEach(() => jest.restoreAllMocks());
 
 it('opens a fresh session on the warm-up, then the first set', async () => {
   const { deps } = setup();
   const { result } = await open(deps);
   expect(result.current.phase).toBe('warmup');
-  expect(result.current.loaded?.title).toBe('FBW A');
-  expect(result.current.steps).toHaveLength(3);
+  expect(result.current.title).toBe('Lekki dzień');
+  expect(result.current.steps).toHaveLength(4);
   await act(async () => result.current.warmupDone());
   expect(result.current.phase).toBe('logging');
-  expect(result.current.effectiveExercise?.id).toBe('squat');
+  expect(result.current.exercise?.id).toBe('ex-a');
+  expect(result.current.supersetWith).toBe('Wiosłowanie');
 });
 
-it('rests between sets, shows the done card after an exercise and finishes after the last', async () => {
+it('rests between sets, shows the done card after a superset and finishes after the last', async () => {
   const { deps } = setup();
   const { result } = await open(deps);
   await act(async () => result.current.warmupDone());
 
-  // The steps interleave the exercises (never one twice in a row): A1, B1, A1.
-  const order = result.current.steps.map((s) => [s.block.label, s.setNumber]);
-  expect(order).toEqual([
+  // The rounds of a superset interleave: a1, b1, a2, then the lone exercise.
+  expect(result.current.steps.map((s) => [s.label, s.round])).toEqual([
     ['A1', 1],
-    ['B1', 1],
+    ['A2', 1],
     ['A1', 2],
+    ['B1', 1],
   ]);
 
-  await act(async () => result.current.saveSet(data));
+  await act(async () => result.current.saveSet(logged));
   expect(deps.logSet).toHaveBeenCalledWith(
-    expect.objectContaining({ exerciseId: 'squat', exerciseOrder: 0, setIndex: 1, reps: 10 }),
+    expect.objectContaining({ plannedSetId: expect.stringContaining('1'), sessionId: 'w' }),
   );
   expect(deps.startRest).toHaveBeenCalledWith(90, pl.workout.session.restNotificationBody);
   expect(result.current.phase).toBe('resting');
-  expect(result.current.upcoming?.label).toBe('B1 · Wiosłowanie');
-
-  await act(async () => result.current.restDone());
-  expect(result.current.currentStep?.block.label).toBe('B1');
-  await act(async () => result.current.saveSet(data));
-  // B1 has one set: the exercise is done, so the done card replaces the countdown.
-  expect(result.current.phase).toBe('groupDone');
-  expect(result.current.groupDone).toEqual([
-    expect.objectContaining({ name: 'Wiosłowanie', sets: expect.any(Array) }),
-  ]);
-  expect(result.current.upcoming?.label).toBe('A1 · Przysiad');
-
-  await act(async () => result.current.restDone());
-  await act(async () => result.current.saveSet(data));
-  expect(mockReplace).toHaveBeenCalledWith({
-    pathname: '/workout/summary/[id]',
-    params: { id: 'w', back: 'undo' },
+  expect(result.current.upcoming).toMatchObject({
+    label: 'A2 · Wiosłowanie',
+    note: pl.workout.session.supersetNext,
   });
+
+  await act(async () => result.current.restDone());
+  expect(result.current.currentStep?.label).toBe('A2');
+  await act(async () => result.current.saveSet(logged));
+  await act(async () => result.current.restDone());
+  expect(result.current.previousResult?.plannedSetId).toBe(result.current.steps[0]!.set.id);
+  await act(async () => result.current.saveSet(logged));
+  // The superset is done: the card replaces the countdown.
+  expect(result.current.phase).toBe('groupDone');
+  expect(result.current.groupDone.map((g) => [g.name, g.sets.length])).toEqual([
+    ['Przysiad', 2],
+    ['Wiosłowanie', 1],
+  ]);
+  expect(result.current.upcoming?.label).toBe('B1 · Wyciskanie');
+
+  await act(async () => result.current.restDone());
+  await act(async () => result.current.saveSet(logged));
+  expect(mockReplace).toHaveBeenCalledWith(SUMMARY);
+});
+
+it('starts the next set from the result of the one before it in the same exercise', async () => {
+  const { deps } = setup({ done: [0, 1] });
+  const { result } = await open(deps);
+  expect(result.current.currentStep?.label).toBe('A1');
+  expect(result.current.previousResult?.plannedSetId).toBe(result.current.steps[0]!.set.id);
+});
+
+it('goes straight to the next set when the plan asks for no rest', async () => {
+  const { deps, store } = setup({ done: [] });
+  store.plan.exposures[0]!.sets[0]!.restAfterSec = 0;
+  const { result } = await open(deps);
+  await act(async () => result.current.warmupDone());
+  await act(async () => result.current.saveSet(logged));
+  expect(deps.startRest).not.toHaveBeenCalled();
+  expect(result.current).toMatchObject({ phase: 'logging', currentIndex: 1 });
 });
 
 it('keeps the step and says so when a set cannot be saved', async () => {
   const { deps } = setup();
-  jest.mocked(deps.logSet).mockRejectedValueOnce(new Error('disk full'));
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  jest.mocked(deps.logSet).mockReturnValueOnce({
+    kind: 'storage_error',
+    retryable: true,
+    commandId: 'cmd',
+    detail: 'disk full',
+  });
   const { result } = await open(deps);
   await act(async () => result.current.warmupDone());
-  await act(async () => result.current.saveSet(data));
+  await act(async () => result.current.saveSet(logged));
   expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.saveSetError);
   expect(result.current).toMatchObject({ phase: 'logging', currentIndex: 0, saving: false });
   expect(deps.startRest).not.toHaveBeenCalled();
-  warn.mockRestore();
 });
 
-it('never logs the same step twice', async () => {
-  const { deps } = setup();
+it('reads the session again and sends a command once more when the session moved on under it', async () => {
+  const { deps, bump } = setup();
+  jest.mocked(deps.logSet).mockImplementationOnce(() => {
+    bump();
+    return { kind: 'conflict', code: 'SESSION_CHANGED', actualRevision: 2 };
+  });
   const { result } = await open(deps);
   await act(async () => result.current.warmupDone());
-  await act(async () => result.current.saveSet(data));
-  await act(async () => result.current.jump(0));
-  await act(async () => result.current.saveSet(data));
-  expect(deps.logSet).toHaveBeenCalledTimes(1);
+  await act(async () => result.current.saveSet(logged));
+  expect(deps.logSet).toHaveBeenCalledTimes(2);
+  expect(jest.mocked(deps.logSet).mock.calls[1]![0].expectedSessionRevision).toBe(2);
+  expect(result.current.phase).toBe('resting');
 });
 
-it('resumes where the log ends, and goes to the summary when everything is logged', async () => {
-  const resumed = await open(setup([stepKey(0, 1)]).deps);
+it('never saves a set that already has a result', async () => {
+  const { deps } = setup({ done: [0] });
+  const { result } = await open(deps);
+  await act(async () => result.current.warmupDone());
+  await act(async () => result.current.jump(0));
+  await act(async () => result.current.saveSet(logged));
+  expect(deps.logSet).not.toHaveBeenCalled();
+});
+
+it('resumes where the work ends, and goes to the summary when everything is done', async () => {
+  const resumed = await open(setup({ done: [0] }).deps);
   expect(resumed.result.current).toMatchObject({ phase: 'logging', currentIndex: 1 });
 
-  await open(setup([stepKey(0, 1), stepKey(0, 2), stepKey(1, 1)]).deps);
-  expect(mockReplace).toHaveBeenCalledWith({
-    pathname: '/workout/summary/[id]',
-    params: { id: 'w', back: 'undo' },
-  });
+  await open(setup({ done: [0, 1, 2, 3] }).deps);
+  expect(mockReplace).toHaveBeenCalledWith(SUMMARY);
 });
 
-it('reports a missing session', async () => {
+it('reports a session that is missing or already finished', async () => {
   const { deps } = setup();
-  jest.mocked(deps.getWorkout).mockResolvedValue(null);
-  const { result } = await open(deps);
-  expect(result.current.phase).toBe('notFound');
+  jest.mocked(deps.readSession).mockReturnValue(null);
+  expect((await open(deps)).result.current.phase).toBe('notFound');
+  expect((await open(setup({ status: 'completed' }).deps)).result.current.phase).toBe('notFound');
 });
 
-it('takes the last set back and opens its step with the logged numbers', async () => {
-  const { deps, keys } = setup([stepKey(0, 1)]);
-  jest.mocked(deps.takeBackLastSet).mockImplementation(async () => {
-    keys.delete(stepKey(0, 1));
-    return { exerciseOrder: 0, setIndex: 1, reps: 11, timeSec: null, rir: 1 } as never;
+it('takes the last set back and opens its step with the recorded numbers', async () => {
+  const { deps } = setup({ done: [0] });
+  const { result } = await open(deps);
+  await act(async () => result.current.undo());
+  expect(deps.undoSet).toHaveBeenCalledWith(
+    expect.objectContaining({ sessionId: 'w', observationId: 'obs-0' }),
+  );
+  expect(result.current).toMatchObject({ phase: 'logging', currentIndex: 0 });
+  expect(result.current.restored?.plannedSetId).toBe(result.current.steps[0]!.set.id);
+  expect(result.current.unfinishedCount).toBe(4);
+  expect(deps.stopRest).toHaveBeenCalled();
+});
+
+it('says so when a set cannot be taken back, and does nothing when there is none', async () => {
+  const { deps } = setup({ done: [0] });
+  jest.mocked(deps.undoSet).mockReturnValueOnce({
+    kind: 'rejected',
+    code: 'UNKNOWN_OBSERVATION',
+    detail: 'gone',
   });
   const { result } = await open(deps);
   await act(async () => result.current.undo());
-  expect(result.current).toMatchObject({ phase: 'logging', currentIndex: 0 });
-  expect(result.current.restored?.prefill).toMatchObject({ reps: 11, rir: 1 });
-  expect(result.current.unloggedCount).toBe(3);
+  expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.undoError);
+
+  const fresh = await open(setup().deps);
+  await act(async () => fresh.result.current.undo());
+  expect(fresh.result.current.phase).toBe('warmup');
 });
 
-it('swaps for the block and says so when that cannot be saved; restoring undoes it', async () => {
-  const { deps } = setup();
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+it('opens on the set that was taken back on the summary screen', async () => {
+  const { deps, store } = setup({ done: [0, 1, 2] });
+  const stored = store.results.get(store.setIds[2]!)!;
+  store.results.delete(store.setIds[2]!);
+  rememberUndone('w', { plannedSetId: store.setIds[2]!, result: stored.observation });
   const { result } = await open(deps);
-  await act(async () => result.current.warmupDone());
-  await act(async () =>
-    result.current.substitute({
-      exercise: exerciseMap.press,
-      forBlock: true,
-      slotId: 'squat-slot',
-    }),
-  );
-  expect(result.current.effectiveExercise?.id).toBe('press');
-  expect(deps.setBlockSelection).toHaveBeenCalledWith('block', 'squat-slot', 'press');
-
-  jest.mocked(deps.setBlockSelection).mockRejectedValueOnce(new Error('locked'));
-  await act(async () => result.current.restoreSubstitute());
-  expect(result.current.effectiveExercise?.id).toBe('squat');
-  expect(deps.setBlockSelection).toHaveBeenLastCalledWith('block', 'squat-slot', 'squat');
-  expect(deps.alert).toHaveBeenCalledWith(pl.workout.session.blockSwapError);
-  warn.mockRestore();
+  expect(result.current).toMatchObject({ phase: 'logging', currentIndex: 2 });
+  expect(result.current.restored?.plannedSetId).toBe(store.setIds[2]);
 });
 
 it('excludes an exercise at once and reports a failed save', async () => {
   const { deps } = setup();
   jest.mocked(deps.setExerciseExcluded).mockRejectedValueOnce(new Error('locked'));
-  const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
   const { result } = await open(deps);
-  await act(async () => result.current.exclude(exerciseMap.row));
-  expect(result.current.excludedIds.has('row')).toBe(true);
+  await act(async () => result.current.exclude(exerciseMap['ex-b']));
+  expect(result.current.excludedIds.has('ex-b')).toBe(true);
   expect(deps.alert).toHaveBeenCalledWith(pl.common.error);
-  warn.mockRestore();
+});
+
+it('reads the plan again after a change and opens on what is next', async () => {
+  const { deps } = setup({ done: [0] });
+  const { result } = await open(deps);
+  await act(async () => result.current.jump(3));
+  await act(async () => result.current.planChanged());
+  expect(deps.stopRest).toHaveBeenCalled();
+  expect(result.current).toMatchObject({ phase: 'logging', currentIndex: 1 });
+
+  jest.mocked(deps.readSession).mockReturnValue(null);
+  await act(async () => result.current.planChanged());
+  expect(result.current.phase).toBe('notFound');
+});
+
+it('finishes early, back to the summary that returns to the session', async () => {
+  const { deps } = setup();
+  const { result } = await open(deps);
+  await act(async () => result.current.finish('resume'));
+  expect(deps.stopRest).toHaveBeenCalled();
+  expect(mockReplace).toHaveBeenCalledWith({
+    pathname: '/workout/summary/[id]',
+    params: { id: 'w', back: 'resume' },
+  });
 });
 
 describe('voice actions', () => {
-  it('skips the exercise on screen and finishes when only skipped sets are left', async () => {
-    const { deps } = setup();
+  it('skips the exercise on screen for good, and finishes when only skipped sets are left', async () => {
+    const { deps, store } = setup();
     const { result } = await open(deps);
     await act(async () => result.current.warmupDone());
 
@@ -239,69 +369,110 @@ describe('voice actions', () => {
     await act(async () => {
       outcome = result.current.skipExercise();
     });
-    expect(outcome).toEqual({ kind: 'skipped', blockIndex: 0, name: 'Przysiad' });
-    expect(result.current.phase).toBe('logging');
-    expect(result.current.currentStep?.block.label).toBe('B1');
-
-    // B1 was the only thing left: logging it ends the workout.
-    await act(async () => result.current.saveSet(data));
-    expect(mockReplace).toHaveBeenCalledWith({
-      pathname: '/workout/summary/[id]',
-      params: { id: 'w', back: 'undo' },
+    expect(outcome).toEqual({
+      kind: 'skipped',
+      exposureIndex: 0,
+      name: 'Przysiad',
+      plannedSetIds: [store.setIds[0], store.setIds[2]],
     });
+    expect(deps.skipSets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'user_skipped',
+        plannedSetIds: outcome && 'plannedSetIds' in outcome ? outcome.plannedSetIds : [],
+      }),
+    );
+    expect(result.current.phase).toBe('logging');
+    expect(result.current.currentStep?.label).toBe('A2');
+
+    await act(async () => result.current.saveSet(logged));
+    await act(async () => result.current.restDone());
+    await act(async () => result.current.saveSet(logged));
+    expect(mockReplace).toHaveBeenCalledWith(SUMMARY);
   });
 
   it('during a rest skips the exercise coming up', async () => {
     const { deps } = setup();
     const { result } = await open(deps);
     await act(async () => result.current.warmupDone());
-    await act(async () => result.current.saveSet(data));
-    expect(result.current.upcoming?.label).toBe('B1 · Wiosłowanie');
+    await act(async () => result.current.saveSet(logged));
+    expect(result.current.upcoming?.label).toBe('A2 · Wiosłowanie');
 
     await act(async () => {
       result.current.skipExercise();
     });
     expect(deps.stopRest).toHaveBeenCalled();
     expect(result.current.phase).toBe('logging');
-    expect(result.current.currentStep?.block.label).toBe('A1');
-    expect(result.current.currentStep?.setNumber).toBe(2);
+    expect(result.current.currentStep?.label).toBe('A1');
+    expect(result.current.currentStep?.round).toBe(2);
   });
 
   it('does not skip the last thing left, and does nothing outside a set or rest', async () => {
-    const { deps } = setup(['0:1', '0:2']);
+    const { deps } = setup({ done: [0, 1, 2] });
     const { result } = await open(deps);
-    expect(result.current.currentStep?.block.label).toBe('B1');
+    expect(result.current.currentStep?.label).toBe('B1');
     let outcome: ReturnType<typeof result.current.skipExercise> | undefined;
     await act(async () => {
       outcome = result.current.skipExercise();
     });
     expect(outcome).toEqual({ kind: 'last' });
-    expect(result.current.skipped.size).toBe(0);
+    expect(deps.skipSets).not.toHaveBeenCalled();
 
     const fresh = await open(setup().deps);
     expect(fresh.result.current.phase).toBe('warmup');
     expect(fresh.result.current.skipExercise()).toEqual({ kind: 'none' });
   });
 
-  it('takes a skip back, and a jump onto a skipped exercise takes it back too', async () => {
+  it('says so when the skip cannot be saved', async () => {
     const { deps } = setup();
+    jest.mocked(deps.skipSets).mockReturnValueOnce({
+      kind: 'rejected',
+      code: 'SESSION_NOT_ACTIVE',
+      detail: 'closed',
+    });
     const { result } = await open(deps);
     await act(async () => result.current.warmupDone());
+    expect(result.current.skipExercise()).toEqual({ kind: 'none' });
+    expect(deps.alert).toHaveBeenCalledWith(pl.common.error);
+    expect(result.current.currentIndex).toBe(0);
+  });
+
+  it('takes a skip back, and a jump onto a skipped exercise takes it back too', async () => {
+    const { deps, store } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    let outcome: ReturnType<typeof result.current.skipExercise> = { kind: 'none' };
     await act(async () => {
-      result.current.skipExercise();
+      outcome = result.current.skipExercise();
     });
-    await act(async () => result.current.unskip(0));
-    expect(result.current.skipped.size).toBe(0);
-    expect(result.current.currentStep?.block.label).toBe('A1');
+    expect(store.skipped.size).toBe(2);
+    await act(async () => {
+      if (outcome.kind === 'skipped') result.current.unskip(outcome);
+    });
+    expect(store.skipped.size).toBe(0);
+    expect(result.current.currentStep?.label).toBe('A1');
     expect(result.current.phase).toBe('logging');
 
     await act(async () => {
       result.current.skipExercise();
     });
-    expect(result.current.skipped.has(0)).toBe(true);
+    expect(store.skipped.size).toBe(2);
     await act(async () => result.current.jump(2));
-    expect(result.current.skipped.size).toBe(0);
-    expect(result.current.currentStep?.setNumber).toBe(2);
+    expect(store.skipped.size).toBe(0);
+    expect(result.current.currentStep?.round).toBe(2);
+  });
+
+  it('says so when a skip cannot be taken back', async () => {
+    const { deps } = setup();
+    jest.mocked(deps.reopenSets).mockReturnValueOnce({
+      kind: 'rejected',
+      code: 'SESSION_NOT_ACTIVE',
+      detail: 'closed',
+    });
+    const { result } = await open(deps);
+    await act(async () => {
+      result.current.unskip({ kind: 'skipped', exposureIndex: 0, name: 'x', plannedSetIds: ['x'] });
+    });
+    expect(deps.alert).toHaveBeenCalledWith(pl.common.error);
   });
 
   it('ends a rest early and puts it back with the time it had left', async () => {
@@ -309,7 +480,7 @@ describe('voice actions', () => {
     (deps.restEndsAt as jest.Mock).mockReturnValue(1_040_000);
     const { result } = await open(deps);
     await act(async () => result.current.warmupDone());
-    await act(async () => result.current.saveSet(data));
+    await act(async () => result.current.saveSet(logged));
 
     let ended: ReturnType<typeof result.current.endRest> = null;
     await act(async () => {
@@ -317,7 +488,7 @@ describe('voice actions', () => {
     });
     expect(ended).toEqual({ phase: 'resting', index: 0, remainingMs: 40_000 });
     expect(result.current.phase).toBe('logging');
-    expect(result.current.currentStep?.block.label).toBe('B1');
+    expect(result.current.currentStep?.label).toBe('A2');
 
     (deps.startRest as jest.Mock).mockClear();
     await act(async () => result.current.resumeRest(ended!));
@@ -352,8 +523,16 @@ describe('voice actions', () => {
     await act(async () => result.current.warmupDone());
     expect(result.current.extendRest(30)).toBe(false);
     expect(result.current.endRest()).toBeNull();
-    await act(async () => result.current.saveSet(data));
+    await act(async () => result.current.saveSet(logged));
     expect(result.current.extendRest(30)).toBe(true);
     expect(deps.extendRest).toHaveBeenCalledWith(30, pl.workout.session.restNotificationBody);
+  });
+
+  it('goes back to the warm-up that was ended', async () => {
+    const { deps } = setup();
+    const { result } = await open(deps);
+    await act(async () => result.current.warmupDone());
+    await act(async () => result.current.backToWarmup());
+    expect(result.current.phase).toBe('warmup');
   });
 });

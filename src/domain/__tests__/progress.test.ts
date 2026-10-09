@@ -7,11 +7,14 @@ import {
   isGroupComplete,
   isSettled,
   labelsOf,
+  latestResult,
   nextPendingFrom,
   nextPendingIndex,
   type SetStates,
+  type StoredResult,
 } from '../session/progress';
 import { compileInput, exposure, set } from './compileFixtures';
+import { legalObservation } from './planV2Fixtures';
 
 const plan = (...specs: Parameters<typeof compileInput>[0][number][]) =>
   compileSession(compileInput(specs));
@@ -67,6 +70,11 @@ describe('where a running session stands', () => {
     ]);
     // Superset: the rounds interleave, so the first exposure is not done three times in a row.
     expect(steps.slice(0, 4).map((s) => s.exposureIndex)).toEqual([0, 1, 0, 1]);
+  });
+
+  it('carries the cues the plan puts before a set', () => {
+    const p = plan(exposure('a', { bandWarmup: true, sets: [set(), set()] }));
+    expect(buildSessionSteps(p, new Map()).map((s) => s.cues)).toEqual([['BAND_WARMUP'], []]);
   });
 
   it('knows what became of each set, and resumes at the first one still to do', () => {
@@ -129,5 +137,18 @@ describe('where a running session stands', () => {
       ...Array.from({ length: 28 }, (_, i) => exposure(`e${i}`, { sets: [set()] })),
     );
     expect(labelsOf(many)[26]).toBe('A1');
+  });
+
+  it('the set taken back is the one written last', () => {
+    const stored = (id: string, recordedAt: string): StoredResult => ({
+      id,
+      revision: 1,
+      observation: legalObservation({ id, recordedAt }),
+    });
+    const first = stored('a', '2026-10-09T08:00:00.000Z');
+    const second = stored('b', '2026-10-09T08:02:00.000Z');
+    expect(latestResult([])).toBeNull();
+    expect(latestResult([first, second])).toBe(second);
+    expect(latestResult([second, first])).toBe(second);
   });
 });

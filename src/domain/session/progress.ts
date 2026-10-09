@@ -7,7 +7,7 @@
  * once it has a result or was skipped; what is left is `pending`. The screen walks the pending
  * ones; nothing here is stored.
  */
-import type { SetDispositionStatus } from '../observations/types';
+import type { SetDispositionStatus, SetObservation } from '../observations/types';
 import type { PlannedExposure, PlannedSet, SessionPlanV2 } from '../plan/planV2';
 
 /** What is known of each planned set: its result, its interruption or its skip. A set left out is pending. */
@@ -28,6 +28,8 @@ export interface SessionStep {
   /** The step's position among its exposure's steps (0-based), and how many there are. */
   stepOfExposure: number;
   stepsInExposure: number;
+  /** What the plan asks to be done before this set, e.g. a few stretches of the band first. */
+  cues: readonly string[];
   state: SetDispositionStatus;
 }
 
@@ -79,13 +81,19 @@ export function buildSessionSteps(
     ),
   );
   const labels = labelsOf(plan);
-  const performed = plan.execution.steps.flatMap((step) =>
-    step.kind === 'perform' ? [home.get(step.plannedSetId)!] : [],
-  );
+  const performed: Pick<SessionStep, 'set' | 'exposure' | 'exposureIndex' | 'cues'>[] = [];
+  let cues: string[] = [];
+  for (const step of plan.execution.steps) {
+    if (step.kind === 'cue') cues.push(step.cueCode);
+    if (step.kind === 'perform') {
+      performed.push({ ...home.get(step.plannedSetId)!, cues });
+      cues = [];
+    }
+  }
   const stepsOf = new Map<number, number>();
   for (const p of performed) stepsOf.set(p.exposureIndex, (stepsOf.get(p.exposureIndex) ?? 0) + 1);
   const seen = new Map<number, number>();
-  return performed.map(({ exposure, exposureIndex, set }) => {
+  return performed.map(({ exposure, exposureIndex, set, cues }) => {
     const stepOfExposure = seen.get(exposureIndex) ?? 0;
     seen.set(exposureIndex, stepOfExposure + 1);
     return {
@@ -98,6 +106,7 @@ export function buildSessionSteps(
       side: set.side === 'left' || set.side === 'right' ? set.side : null,
       stepOfExposure,
       stepsInExposure: stepsOf.get(exposureIndex)!,
+      cues,
       state: states.get(set.id) ?? 'pending',
     };
   });
@@ -134,4 +143,22 @@ export function groupExposureIndices(
 /** True when every set of every exercise of the superset has a result or a skip. */
 export function isGroupComplete(steps: readonly SessionStep[], group: readonly number[]): boolean {
   return steps.filter((s) => group.includes(s.exposureIndex)).every(isSettled);
+}
+
+/** A current result with the row it is stored in, which is what a correction names. */
+export interface StoredResult {
+  id: string;
+  revision: number;
+  observation: SetObservation;
+}
+
+/** The result written last: the one a "take the set back" means. */
+export function latestResult(results: Iterable<StoredResult>): StoredResult | null {
+  let latest: StoredResult | null = null;
+  for (const result of results) {
+    if (latest === null || result.observation.recordedAt >= latest.observation.recordedAt) {
+      latest = result;
+    }
+  }
+  return latest;
 }

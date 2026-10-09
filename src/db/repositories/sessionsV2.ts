@@ -11,6 +11,7 @@ import {
   setObservationSchema,
 } from '@/domain/observations/types';
 import { type SessionPlanV2, sessionPlanV2Schema } from '@/domain/plan/planV2';
+import type { StoredResult } from '@/domain/session/progress';
 
 import { db, type Tx } from '../client';
 import {
@@ -171,7 +172,7 @@ export interface SessionState {
   plan: SessionPlanV2;
   states: Map<string, SetDispositionStatus>;
   /** The current result of each planned set that has one, with the row it is stored in. */
-  results: Map<string, { id: string; revision: number; observation: SetObservation }>;
+  results: Map<string, StoredResult>;
 }
 
 /** The session with that id, if it is a session of the second engine. One consistent read. */
@@ -179,10 +180,7 @@ export function readSessionState(sessionId: string): SessionState | null {
   return db.transaction((tx) => {
     const workout = workoutOf(tx, sessionId);
     if (workout === undefined || workout.planSchema !== 2 || workout.planV2 === null) return null;
-    const results = new Map<
-      string,
-      SessionState['results'] extends Map<string, infer R> ? R : never
-    >();
+    const results: SessionState['results'] = new Map();
     const rows = tx
       .select()
       .from(setLogs)
@@ -606,6 +604,44 @@ export function skipSetsV2(
       tx,
       { commandId: cmd.commandId, kind: 'skip_sets', workoutId: cmd.sessionId },
       { skipped: [...new Set(cmd.plannedSetIds)] },
+      now,
+    );
+  });
+}
+
+export interface ReopenSetsCommand {
+  commandId: string;
+  sessionId: string;
+  plannedSetIds: readonly string[];
+}
+
+/** Takes a skip back: the sets are to be done again, as if they had never been passed over. */
+export function reopenSets(
+  cmd: ReopenSetsCommand,
+  now: Date = new Date(),
+): CommandResult<{ reopened: string[] }> {
+  return transact(cmd.commandId, (tx) => {
+    const again = replay<{ reopened: string[] }>(tx, cmd.commandId);
+    if (again) return again;
+    const found = sessionFor(tx, cmd.sessionId, true);
+    if (!found.ok) return found.result;
+    const ids = [...new Set(cmd.plannedSetIds)];
+    for (const plannedSetId of ids) {
+      tx.delete(setDispositions)
+        .where(
+          and(
+            eq(setDispositions.workoutId, cmd.sessionId),
+            eq(setDispositions.plannedSetId, plannedSetId),
+            eq(setDispositions.status, 'skipped'),
+          ),
+        )
+        .run();
+    }
+    touch(tx, cmd.sessionId);
+    return commit(
+      tx,
+      { commandId: cmd.commandId, kind: 'reopen_sets', workoutId: cmd.sessionId },
+      { reopened: ids },
       now,
     );
   });
