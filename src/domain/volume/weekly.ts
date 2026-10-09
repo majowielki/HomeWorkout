@@ -84,10 +84,7 @@ export function weeklyVolume(
 /** The weekly maximum of direct sets for one muscle (SPEC §4.1, with the overrides). */
 export function maxDirectSets(
   muscle: MuscleGroup,
-  cfg: Pick<
-    typeof TRAINING_CONFIG,
-    'weeklyWorkingSetsPerMuscle' | 'maxDirectSetsOverride'
-  > = TRAINING_CONFIG,
+  cfg: Pick<typeof TRAINING_CONFIG, 'weeklyWorkingSetsPerMuscle' | 'maxDirectSetsOverride'>,
 ): number {
   return cfg.maxDirectSetsOverride[muscle] ?? cfg.weeklyWorkingSetsPerMuscle.max;
 }

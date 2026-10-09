@@ -27,6 +27,16 @@ const DATA: Partial<Record<(typeof RULE_CODES)[number], CheckData>> = {
   RESISTANCE_UNREACHABLE: { reason: 'no easier resistance' },
 };
 
+describe('P4b.6: the reasons a resistance cannot be reached', () => {
+  it('says there is no lighter and no heavier resistance, and otherwise that it cannot be set', () => {
+    const text = (reason: string) =>
+      checkText(finding('RESISTANCE_UNREACHABLE', 'fail', { reason }), (id) => id);
+    expect(text('no easier resistance')).toContain('lżejszego');
+    expect(text('no harder resistance')).toContain('cięższego');
+    expect(text('something else')).toContain('nie da się ustawić');
+  });
+});
+
 describe('P4b.6: every rule of the registry has a Polish sentence', () => {
   it('covers the whole registry, for each status, with and without data', () => {
     for (const code of RULE_CODES) {
