@@ -68,6 +68,8 @@ export interface ExposureSpec {
   sets: readonly SetSpec[];
   /** Exposures with the same group are a superset and are done round by round. */
   group: string | null;
+  /** Light work that only fills a short day: the first thing to go when the time is over. */
+  filler?: boolean;
   /** The band is stretched a few times first (a cue, not a set). */
   bandWarmup: boolean;
   trace: DecisionTrace;

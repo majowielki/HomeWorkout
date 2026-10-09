@@ -276,7 +276,7 @@ function setFindings(
     } else if (amount < planner[0] || top > planner[1]) {
       out.push(
         issue(finding('PLANNER_LIMIT', 'fail', { what: set.target.kind, top }), scope, [
-          'reduce_sets',
+          'drop_exposure',
         ]),
       );
     }
