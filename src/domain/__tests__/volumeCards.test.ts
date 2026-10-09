@@ -13,7 +13,7 @@ const compounds = SLOTS.filter((slot) => slot.kind === 'compound').map((slot) =>
   const exercise = CATALOG[SELECTIONS[slot.id]!]!;
   return { slot, exercise, res: resistanceOf(exercise, slot)! };
 });
-const { slot: compound, exercise } = compounds[0]!;
+const { exercise } = compounds[0]!;
 
 /** Every compound lift every third day, always the same result: they stand still. */
 const stuck = compounds.flatMap(({ slot, exercise, res }) =>

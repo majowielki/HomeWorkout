@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -28,18 +28,18 @@ export function VolumeCards({
   read = readVolumeCards,
   accept = acceptVolumeCard,
 }: Props) {
-  const [cards, setCards] = useState<VolumeCard[]>([]);
-  const [error, setError] = useState(false);
-  const load = useCallback(() => {
+  const readCards = useCallback((): VolumeCard[] => {
     try {
-      setCards(read().filter((c) => !notNow.has(keyOf(c))));
+      return read().filter((c) => !notNow.has(keyOf(c)));
     } catch (e) {
       // A suggestion is a convenience: failing to work it out hides it and nothing else.
       console.warn('could not read the volume lever', e);
-      setCards([]);
+      return [];
     }
   }, [read]);
-  useEffect(load, [load]);
+  const [cards, setCards] = useState<VolumeCard[]>(readCards);
+  const [error, setError] = useState(false);
+  const load = () => setCards(readCards());
 
   if (cards.length === 0 && !error) return null;
   const t = pl.plan.volumeLever;
