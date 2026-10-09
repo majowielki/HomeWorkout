@@ -1377,7 +1377,7 @@ export const pl = {
       {
         term: 'Blok i deload',
         definition:
-          'Blok to 4 tygodnie z tymi samymi ćwiczeniami — żeby było widać postęp — i tydzień deloadu: ten sam ciężar, mniej serii, daleko od odmowy. Potem nowy blok i nowe warianty ćwiczeń.',
+          'Blok to około 5 tygodni z tymi samymi wariantami ćwiczeń — żeby było widać postęp. Deload nie jest w kalendarzu: włącza się, gdy wyniki lub samopoczucie na to wskazują, i trwa tydzień — ten sam ciężar, połowa serii, daleko od odmowy. Potem nowy blok i nowe warianty ćwiczeń.',
       },
       {
         term: 'RIR',

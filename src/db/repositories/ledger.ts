@@ -73,18 +73,3 @@ export function readRevision(tx: Executor, domain: RevisionDomain): number {
       .get()?.revision ?? 0
   );
 }
-
-export async function readRevisions(): Promise<Record<RevisionDomain, number>> {
-  const rows = await db.select().from(planningRevisions);
-  const out: Record<RevisionDomain, number> = {
-    history: 0,
-    profile: 0,
-    catalog: 0,
-    inventory: 0,
-    requests: 0,
-    block: 0,
-    preferences: 0,
-  };
-  for (const row of rows) out[row.domain as RevisionDomain] = row.revision;
-  return out;
-}

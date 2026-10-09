@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import type { BandCalibration } from '@/domain/types';
 
@@ -28,15 +28,6 @@ export async function saveCalibration(
   await db
     .update(bands)
     .set({ calibration, calibratedAt: now.toISOString(), cycleCount: 0 })
-    .where(eq(bands.id, id));
-}
-
-/** Adds one set's reps to the band's wear counter (SPEC §5.6). */
-export async function addBandCycles(id: string, reps: number): Promise<void> {
-  if (reps <= 0) return;
-  await db
-    .update(bands)
-    .set({ cycleCount: sql`${bands.cycleCount} + ${reps}` })
     .where(eq(bands.id, id));
 }
 

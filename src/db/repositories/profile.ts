@@ -1,7 +1,6 @@
 import { eq } from 'drizzle-orm';
 
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from '@/domain/reminders/schedule';
-import type { TrainingWeek } from '@/domain/plan/constraints';
 import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
 import type { KneeProfile, MedicalProfile } from '@/domain/types';
 
@@ -52,16 +51,6 @@ export async function getMedicalProfile(): Promise<MedicalProfile> {
     .where(eq(userProfile.id, PROFILE_ID))
     .limit(1);
   return { knee: row?.kneeProfile ?? null };
-}
-
-/** The weekly pattern of rest days (SPEC §11.2); every day trains when none is set. */
-export async function getTrainingWeek(): Promise<TrainingWeek> {
-  const [row] = await db
-    .select({ restWeekdays: userProfile.restWeekdays })
-    .from(userProfile)
-    .where(eq(userProfile.id, PROFILE_ID))
-    .limit(1);
-  return { restWeekdays: row?.restWeekdays ?? [] };
 }
 
 export async function getDayBoundaryHour(): Promise<number> {
