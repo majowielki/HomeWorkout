@@ -18,7 +18,7 @@ import { TRAINING_CONFIG } from '../config/training';
 import { compareCodePoints } from '../fingerprint';
 import type { ExposureRecord } from '../observations/exposure';
 import type { IsoDate } from '../observations/date';
-import type { SetObservation } from '../observations/types';
+import { effortOf } from '../observations/effort';
 import type { Exercise, MuscleGroup } from '../types';
 import { countsAsVolume } from '../volume/weekly';
 
@@ -57,11 +57,6 @@ const emptyDay = (): Record<MuscleGroup, MuscleWork> =>
   Object.fromEntries(
     MUSCLE_GROUPS.map((m) => [m, { certain: 0, uncertain: 0, secondary: 0 }]),
   ) as Record<MuscleGroup, MuscleWork>;
-
-/** The effort of a result for the volume: unknown when nobody was told it, or it was saved without being shown. */
-function effortOf(o: SetObservation): number | null {
-  return o.rir.confirmation === 'none' && o.rir.presentedDefault ? null : o.rir.value;
-}
 
 export function buildHistoryIndex(
   records: readonly ExposureRecord[],
