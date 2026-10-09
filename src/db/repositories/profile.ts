@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from '@/domain/reminders/schedule';
 import type { TrainingWeek } from '@/domain/plan/constraints';
 import { DEFAULT_DAY_BOUNDARY_HOUR } from '@/domain/time/trainingDate';
-import type { MedicalProfile } from '@/domain/types';
+import type { KneeProfile, MedicalProfile } from '@/domain/types';
 
 import { db, type Executor } from '../client';
 import { userProfile } from '../schema';
@@ -17,6 +17,15 @@ export const PROFILE_ID = 1;
  * conservative (bilateral-only) mode until a physiotherapist has reviewed
  * the exercise list. See Documents/PLAN.md §1.4.
  */
+/** The documented condition the app was made for; also what switching the knee profile on again starts from. */
+export const DOCUMENTED_KNEE_PROFILE: KneeProfile = {
+  side: 'right',
+  missingCollaterals: true,
+  aclReconstructed: true,
+  varusThrust: true,
+  physioApproved: false,
+};
+
 export function ensureProfile(now: string, executor: Executor = db): void {
   const existing = executor
     .select({ id: userProfile.id })
@@ -30,13 +39,7 @@ export function ensureProfile(now: string, executor: Executor = db): void {
     .values({
       id: PROFILE_ID,
       dayBoundaryHour: DEFAULT_DAY_BOUNDARY_HOUR,
-      kneeProfile: {
-        side: 'right',
-        missingCollaterals: true,
-        aclReconstructed: true,
-        varusThrust: true,
-        physioApproved: false,
-      },
+      kneeProfile: DOCUMENTED_KNEE_PROFILE,
       updatedAt: now,
     })
     .run();

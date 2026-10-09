@@ -48,6 +48,7 @@ const kneeProfileSchema = z.object({
   aclReconstructed: z.boolean(),
   varusThrust: z.boolean(),
   physioApproved: z.boolean(),
+  cautiousReps: z.boolean().optional(),
 });
 
 const reminderSettingsSchema = z.object({

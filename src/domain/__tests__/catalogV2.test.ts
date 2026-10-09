@@ -45,11 +45,20 @@ describe('what an exercise says about itself', () => {
   });
 
   it('T98 caps the repetitions at 25, and at 20 where the knee is loaded', () => {
-    expect(repCapOf({ loadsKnee: false })).toBe(25);
-    expect(repCapOf({ loadsKnee: true })).toBe(20);
-    expect(repCapOf({ loadsKnee: true }, { default: 30, kneeLoading: 15 })).toBe(15);
-    expect(repCapOf(byId['goblet-squat']!)).toBe(20);
-    expect(repCapOf(byId['push-up']!)).toBe(25);
+    expect(repCapOf({ loadsKnee: false }, HARD_ONLY)).toBe(25);
+    expect(repCapOf({ loadsKnee: true }, HARD_ONLY)).toBe(20);
+    expect(repCapOf({ loadsKnee: true }, HARD_ONLY, { default: 30, kneeLoading: 15 })).toBe(15);
+    expect(repCapOf(byId['goblet-squat']!, CONSERVATIVE)).toBe(20);
+    expect(repCapOf(byId['push-up']!, CONSERVATIVE)).toBe(25);
+  });
+
+  it('applies the knee ceiling only to a person with a knee profile who has not switched it off', () => {
+    const squat = { loadsKnee: true };
+    expect(repCapOf(squat, { knee: null })).toBe(25);
+    const knee = HARD_ONLY.knee!;
+    expect(repCapOf(squat, { knee: { ...knee, cautiousReps: false } })).toBe(25);
+    expect(repCapOf(squat, { knee: { ...knee, cautiousReps: true } })).toBe(20);
+    expect(repCapOf(squat, { knee })).toBe(20);
   });
 
   it('T95 weighs a secondary muscle: the person, then the catalogue, then the policy', () => {
