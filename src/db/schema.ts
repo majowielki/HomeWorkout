@@ -10,7 +10,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 
 import { type ComposedItem, CONSTRAINT_KINDS, CONSTRAINT_REASONS } from '@/domain/plan/constraints';
-import type { SetDisposition, SetObservation } from '@/domain/observations/types';
+import type { SetObservation } from '@/domain/observations/types';
 import type { SessionPlanV2 } from '@/domain/plan/planV2';
 import type { DaySelection, SessionPlan } from '@/domain/plan/types';
 import type { StoredDayChange } from '@/domain/plan/weekSync';

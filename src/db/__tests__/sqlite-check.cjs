@@ -1,4 +1,3 @@
-/* global __dirname */
 /* Real SQLite plus the production Expo Drizzle driver. Only the native
  * boundary is adapted; query execution and transaction behaviour are real.
  * Run in a Node child because Jest's RN environment has no native SQLite.

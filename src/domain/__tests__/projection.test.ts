@@ -4,8 +4,7 @@
  */
 import { isDone } from '../commands/result';
 import { legacyColumns } from '../observations/project';
-import { bandValue } from '../resistance/legacy';
-import { specFromLoad } from '../resistance/legacy';
+import { bandValue, specFromLoad } from '../resistance/legacy';
 import { legalObservation } from './planV2Fixtures';
 
 const withResistance = (spec: ReturnType<typeof specFromLoad> | null, patch = {}) => {
