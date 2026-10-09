@@ -60,6 +60,8 @@ export const DECISION_CODES = [
   // Which variant a slot keeps for the next block (03 §9).
   'ROTATION_CONTINUITY',
   'INSUFFICIENT_ROTATION_EVIDENCE',
+  // Work that only fills the day and is never judged by the progression.
+  'FILLER',
   // Nothing can be prescribed.
   'NOT_PRESCRIBED',
   'MODEL_NOT_APPLICABLE',

@@ -234,6 +234,8 @@ export const DELOAD_V2_CONFIG = {
  * the policy version; these are placeholders, not research results.
  */
 export const ROTATION_CONFIG = {
+  /** A block lasts this many days (D31): the unit of rotation, with or without a deload inside it. */
+  blockDays: 35,
   /** Fewer qualified exposures in the block than this say nothing about whether the variant works. */
   minQualifiedExposures: 3,
   /** Progress is looked for among this many of the latest qualified exposures of the block. */
@@ -337,6 +339,25 @@ export const PLANNER_CONFIG = {
 } as const;
 
 export type PlannerConfig = Tunable<typeof PLANNER_CONFIG>;
+
+/**
+ * What the data can hold (12 §2): hard limits that are about how a plan is represented, not about
+ * training. The limits the planner keeps to itself are `PLANNER_CONFIG.limits`.
+ */
+export const TECHNICAL_LIMITS = {
+  sets: [1, 10],
+  reps: [1, 100],
+  timeSec: [1, 3600],
+} as const;
+
+/**
+ * Executing a plan (engine v2, 04 §6-§7): what a change of set-up costs. The time of a set and of a
+ * changeover between exercises stay in `PLANNER_CONFIG`, so the two engines count them alike.
+ */
+export const EXECUTION_CONFIG = {
+  /** Seconds to change a piece of equipment from one set-up to another between two sets (plates, a band's anchor). */
+  setupSec: 30,
+} as const;
 
 /**
  * The rolling week (SPEC §11) and the requests it takes (PLAN-TYGODNIA §3.6,

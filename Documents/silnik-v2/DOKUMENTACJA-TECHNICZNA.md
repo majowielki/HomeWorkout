@@ -274,6 +274,66 @@ Czysta domena, bez bazy i bez zegara. **Żadna ścieżka aplikacji jeszcze tego 
 
 **Dźwignia objętości** (`volume/lever.ts`): `volumeRecommendation` zwraca karty: +20% (w górę, do 10), gdy mięsień jest trenowany co najmniej 28 dni bez przerwy ≥ 8 dni, wszystkie jego ćwiczenia kluczowe stoją od 2 ekspozycji, nie ma `RECOVERY_LOW` i DOMS ≥ 4 w 14 dniach; −20% (nie poniżej 3), gdy jest `RECOVERY_LOW` albo DOMS ≥ 4 w ≥ 3 z ostatnich 7 dni. Nic nie zmienia się bez akceptacji. **Wagi mięśni pomocniczych**: `weeklyVolume` czyta wagę osoby → katalogu → 0,5 (`secondaryWeightOf`); planowanie bezpośrednie jak dotąd liczy tylko mięśnie główne.
 
+### 4.14 Kompilator, audyt i naprawa (P4)
+
+To warstwa domeny v2; aplikacja nadal używa dotychczasowych ścieżek (§2.1). Przeniesienie konsumentów i runnera jest
+P5/P6. Nowy plan nie korzysta z `validatePlan` pierwszego silnika.
+
+**Kompilator** (`plan/compile.ts`): `compileSession({exposures, sessionId, planRevision, versions, modelOf, bikeSec, …})`
+zamienia `ExposureSpec[]` na `SessionPlanV2` bez stempla. Każda seria ma stabilne ID w przestrzeni sesji/rewizji/ekspozycji;
+`per_set` rozwija serię logiczną na lewą i prawą stronę, `alternating` oraz `both` pozostają jednym wykonaniem. Próba
+szczebla poprzedza work, ma własny opór i czas. Superserie wykonują się rundami; nierówne liczby serii nie są wyrównywane
+nowymi seriami. Kompilator generuje perform/rest/setup/transition/cue i dzieli czas na hardWork, practice, mobility,
+warmup, rest, setup i transition. `exerciseTotal` to suma, `overall = exerciseTotal + bike`. Po ostatniej serii nie ma
+odpoczynku. `resourceDemand` modelu określa konfiguracje; zmiana współdzielonej pary hantli kosztuje setup przy każdym
+powrocie do innej nastawy. `stampPlan` wiąże hash recepty/kroków z fingerprintem wejścia, trybem audytu i overrides.
+
+**Audyt** (`plan/audit.ts`): `auditPlan(plan, context, acknowledged)` jest czysty. Najpierw sprawdza schemat i hash,
+potem kwalifikację, politykę i kody śladu, legalność i osiągalność oporu, skoki, zakresy, serie oraz reguły dnia.
+Objętość liczy logiczne work/probe/backoff z planowanym RIR ≤ 4 lub nieznanym. Zapisana niepewna praca jest wliczana
+do maksimum. Ból i avoid, DOMS/regeneracja, czas oraz zasoby korzystają z jednego rejestru hard/advice. Wynik zawiera
+referencje do ekspozycji/serii i dozwolone rodzaje napraw. Potwierdzenie nie przepuszcza hard. Tryby new_plan/start_session
+oceniają bieżący plan; resume_session pomija settled przy sprawdzaniu przyszłego wykonania i objętości;
+history_import/historical_display sprawdzają integralność formatu bez nakładania dzisiejszych limitów na dawne actual.
+
+**Naprawa** (`plan/repair.ts`): `planWithRepair(specs, compileInput, auditContext, options)` kompiluje i audytuje po
+każdej transformacji. Kolejność wynika z findingów: drop_filler, split_superset, reduce_sets, drop_exposure. Budżet
+to 12 kroków (`DEFAULT_REPAIR_BUDGET`), nie czas ścienny. Serie zmniejsza od końca, próba zostaje pierwsza.
+Wynik to ready/adjusted z planem i listą zmian albo no_feasible_plan/unsupported_input z powodami. Minimum czasu
+nie wymusza luzowania reguł; krótki legalny dzień jest poprawnym wynikiem.
+
+### 4.15 Dzień, blok i symulacja v2 (P4)
+
+**Dzień** (`plan/dayV2.ts`): `planDayV2(DayInputV2)` buduje indeks actual, politykę dnia, sygnały i recepty z
+`prescribeNext` oraz `recommendSets`. Greedy przelicza marginalny deficyt, staleness, bonus compound i preferencję po
+każdym wyborze. Dostawców mięśnia liczy z kandydatów kwalifikowanych w tym wejściu. Remis rozstrzyga kolejność slotów.
+`trace.evidence.selection` zapisuje ważone składowe, sumę i `addedSec`; wagi pozostają bazowe (D25).
+Budżet czasu oszacowania i recepty liczy ten sam kompilator; wydłużona recepta jest ponownie sprawdzana przed wyborem.
+`only` wskazuje sloty i górną liczbę serii, bez wypełniaczy; druga ekspozycja tego samego klucza w dniu jest supplemental
+i czyta historię sprzed tego dnia. Praktyka z RIR 5, potem mobilność, uzupełniają krótki dzień. Po grupowaniu plan
+przechodzi `planWithRepair`. Regiony liczą tylko serie logiczne ciężkiej pracy z planu końcowego; propozycje usuniętych
+ekspozycji nie są zwracane. Przy braku planu obie listy są puste.
+
+**Adapter** (`plan/resistanceOf.ts`) wiąże obecny katalog i start slotu z modelem hantli/gumy/masy ciała oraz kluczem
+porównywalności. Nieznana konfiguracja modelu daje null. Rozszerzanie inwentarza produkcyjnego wymaga kontraktów P9;
+kompilator i audyt już otrzymują model przez jawne `modelOf`.
+
+**Blok** (`plan/blockV2.ts`) wywołuje `chooseBlockSelections` i `reactiveDeloadTrigger`: 35 dni, bez planowego deloadu,
+deload trwa 7 dni i nie kończy bloku. Przerwa resetuje zegar; wykluczony wariant jest naprawiany. Sygnały z ekspozycji
+(`autoregulation/signalsV2.ts`) odpowiadają przeciążeniu, regresowi kolana i niskiemu recovery. Przy FATIGUE_HIGH dzień
+szuka kwalifikowanego dwunożnego zamiennika w tym samym slocie; bez niego pomija slot.
+
+**Symulator** (`plan/simulateV2.ts`): `simulateV2` prowadzi blok dzień po dniu, jawnie uwzględnia restDays, readiness,
+prośby deloadu, preferencje i model syntetycznej osoby. `recordsOf` tworzy actual wyłącznie z końcowego planu, z ilością
+i RIR podanymi przez athlete, potwierdzonym oporem oraz fazą deloadu w kontekście. Nie ma planu → nie ma actual/ride;
+dzień odpoczynku nadal przesuwa blok. Cele dystansowe są poza zakresem symulatora i powodują jawną odmowę.
+Testy na prawdziwym katalogu obejmują 6 tygodni deterministycznej osoby i 8 tygodni osoby okresowo niedobijającej celu,
+kontrolują dzienne/tygodniowe maksima, czas, rotację, deload, unikalność ID i prawdziwość kodów progresji.
+
+**Dowody P4:** `compile.test.ts`, `audit.test.ts`, `repair.test.ts`, `dayV2.test.ts`, `dayV2Worlds.test.ts`,
+`dayV2Edges.test.ts`, `blockV2.test.ts`, `signalsV2.test.ts`, `resistanceOf.test.ts`, `simulateV2.test.ts`,
+`simulateV2Edges.test.ts`. Scenariusze dawniej wyłączone są aktywne. Znane ograniczenia i różnice: UWAGI §2b.
+
 ## 5. Konwencje testów
 
 - Jest (`jest-expo`), pliki `src/**/__tests__/*.test.ts`. Pokrycie `src/domain/**` i `src/ai/**` = 100% (próg w `jest.config.js`).

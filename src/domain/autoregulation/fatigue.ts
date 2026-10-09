@@ -80,7 +80,7 @@ function performanceDrop(sessions: readonly HistorySession[], input: FatigueInpu
   return false;
 }
 
-function recoveryLow(
+export function recoveryLow(
   daily: readonly DailyReadiness[],
   asOf: string,
   cfg: typeof AUTOREGULATION_CONFIG,
